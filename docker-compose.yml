@@ -1,0 +1,43 @@
+services:
+  postgres-main:
+    image: postgres:16
+    container_name: sql-tutor-pg-main
+    environment:
+      POSTGRES_USER: tutor
+      POSTGRES_PASSWORD: tutor_dev_password
+      POSTGRES_DB: tutor_main
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_main_data:/var/lib/postgresql/data
+      - ./docker/postgres-main/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  postgres-sandbox:
+    image: postgres:16
+    container_name: sql-tutor-pg-sandbox
+    environment:
+      POSTGRES_USER: sandbox_admin
+      POSTGRES_PASSWORD: sandbox_dev_password
+      POSTGRES_DB: sandbox
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_sandbox_data:/var/lib/postgresql/data
+      - ./docker/postgres-sandbox/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command: postgres -c statement_timeout=5000 -c idle_in_transaction_session_timeout=10000
+
+  prosody:
+    image: prosody/prosody:latest
+    container_name: sql-tutor-prosody
+    ports:
+      - "5222:5222"   # XMPP client
+      - "5269:5269"   # XMPP server-to-server
+      - "5280:5280"   # HTTP
+    volumes:
+      - ./docker/prosody/prosody.cfg.lua:/etc/prosody/prosody.cfg.lua:ro
+      - prosody_data:/var/lib/prosody
+
+volumes:
+  pg_main_data:
+  pg_sandbox_data:
+  prosody_data:

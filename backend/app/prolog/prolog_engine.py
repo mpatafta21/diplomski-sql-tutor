@@ -1,0 +1,138 @@
+"""pyswip wrapper — apstrakcija Prolog upita za SPADE agente i testove.
+
+Ovaj modul je jedini mjesto u backend-u koji direktno poziva pyswip.
+Ostatak koda (agenti, API) koristi `PrologEngine` API.
+
+Napomene o pyswip 0.3.x:
+- `Prolog` klasa je singleton (class-level stanje). Višestruke instance
+  dijele istu Prolog VM. Cleanup `mastery/3` fakata u `__exit__` je
+  nužan da testovi ne cure stanje među sobom.
+- `consult()` koristi relativne putanje — zato `__init__` chdir-a u
+  direktorij `backend/prolog/` prije konsultacije, pa restore-a cwd u
+  `__exit__`.
+- NE koristi async — pyswip je synchronous. Integracija sa SPADE-om
+  (koji je async) doći će u Fazi 3 kroz thread-pool adapter.
+
+Ugovor `inject_mastery`: pozivatelj je odgovoran ubaciti `mastery/3`
+fakte za sve koncepte koje želi da `can_unlock/2` i `recommend_next/2`
+razmatraju. Ako koncept nema injectan mastery fakt, `can_unlock` taj
+koncept ne smatra kandidatom (pogledaj §4.4 rules.pl). Za puno
+pokrivanje preporuča se injectati svih 30 koncepata.
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from types import TracebackType
+
+from pyswip import Prolog
+
+# Apsolutna putanja do direktorija s Prolog fajlovima (backend/prolog/).
+# __file__ = backend/app/prolog/prolog_engine.py → parents[2]/prolog
+_PROLOG_DIR: Path = Path(__file__).resolve().parents[2] / "prolog"
+_RULES_FILE: str = "rules.pl"
+
+
+class PrologEngine:
+    """Wrapper oko pyswip koji expose-a tipizirano API za preporuke.
+
+    Koristi kao context manager:
+
+        with PrologEngine() as engine:
+            engine.inject_mastery("user_1", {"select_basic": 0.1, ...})
+            result = engine.recommend_next("user_1")
+
+    Nakon izlaska iz `with` bloka, svi `mastery/3` fakti se brišu.
+    """
+
+    def __init__(self) -> None:
+        """Inicijalizira pyswip Prolog instance i consult-a rules.pl.
+
+        Koristi apsolutnu putanju za consult kako bi Prolog mogao pronaći
+        rules.pl bez obzira na cwd procesa. Relativni `:- consult('ontology.pl')`
+        unutar rules.pl radi jer SWI-Prolog resolva relativne putanje od
+        direktorija u kojem se nalazi fajl koji se consult-a.
+        """
+        self._prev_cwd: str = os.getcwd()
+        self._prolog = Prolog()
+        self._prolog.consult(str(_PROLOG_DIR / _RULES_FILE))
+        self._injected_users: set[str] = set()
+
+    def __enter__(self) -> "PrologEngine":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Čisti sve ubačene mastery fakte."""
+        for user_id in list(self._injected_users):
+            self.clear_mastery(user_id)
+
+    # --- Injekcija BKT snapshot-a ---------------------------------------
+
+    def inject_mastery(
+        self, user_id: str, mastery_snapshot: dict[str, float]
+    ) -> None:
+        """Ubacuje dinamičke `mastery(user_id, concept, p_l)` činjenice.
+
+        Briše eventualne postojeće fakte za tog korisnika prije inserta
+        (idempotentno). Vrijednosti se formatiraju kao Python floatovi
+        (npr. `0.1`) — NE prosljeđuje se Python dict direktno.
+        """
+        self.clear_mastery(user_id)
+        for concept, p_l in mastery_snapshot.items():
+            # assertz vraća None u pyswip 0.3.x — ne wrappamo u list()
+            self._prolog.assertz(f"mastery({user_id}, {concept}, {float(p_l)})")
+        self._injected_users.add(user_id)
+
+    def clear_mastery(self, user_id: str) -> None:
+        """Retractall za sve `mastery/3` fakte danog user_id-a."""
+        list(self._prolog.query(f"retractall(mastery({user_id}, _, _))"))
+        self._injected_users.discard(user_id)
+
+    # --- Preporuke ------------------------------------------------------
+
+    def recommend_next(self, user_id: str) -> tuple[str, str] | None:
+        """Vraća (concept_code, reason) ili None ako preporuka ne postoji.
+
+        Koristi `recommend_next/2` + `explain_recommendation/3` iz rules.pl.
+        """
+        rec_query = f"recommend_next({user_id}, Concept)"
+        rec_solutions = list(self._prolog.query(rec_query, maxresult=1))
+        if not rec_solutions:
+            return None
+
+        concept = str(rec_solutions[0]["Concept"])
+
+        reason_query = f"explain_recommendation({user_id}, {concept}, Reason)"
+        reason_solutions = list(self._prolog.query(reason_query, maxresult=1))
+        reason = (
+            str(reason_solutions[0]["Reason"]) if reason_solutions else "fallback"
+        )
+
+        return (concept, reason)
+
+    # --- Graf upiti -----------------------------------------------------
+
+    def all_prereqs(self, concept: str) -> list[str]:
+        """Tranzitivni zatvarač prerequisite-a za dani koncept.
+
+        Vraća sortirana lista (kao što `all_prereqs/2` u Prologu radi).
+        """
+        query = f"all_prereqs({concept}, Prereqs)"
+        solutions = list(self._prolog.query(query, maxresult=1))
+        if not solutions:
+            return []
+        prereqs = solutions[0]["Prereqs"]
+        # pyswip vraća listu atoma kao Python list; svaki atom je str ili Atom
+        return [str(p) for p in prereqs]
+
+    def is_ready_for(self, user_id: str, concept: str) -> bool:
+        """True ako su svi prereqs koncepta mastered za user_id."""
+        query = f"ready_for({user_id}, {concept})"
+        solutions = list(self._prolog.query(query, maxresult=1))
+        return bool(solutions)

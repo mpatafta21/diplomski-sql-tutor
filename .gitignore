@@ -47,3 +47,9 @@ logs/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Superpowers planovi (lokalne, nisu dio repo-a)
+docs/superpowers/
+
+# Windows NTFS Alternate Data Streams (download/untrusted zone marker)
+*:Zone.Identifier

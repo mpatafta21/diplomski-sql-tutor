@@ -7,9 +7,10 @@ Napomene o pyswip 0.3.x:
 - `Prolog` klasa je singleton (class-level stanje). Višestruke instance
   dijele istu Prolog VM. Cleanup `mastery/3` fakata u `__exit__` je
   nužan da testovi ne cure stanje među sobom.
-- `consult()` koristi relativne putanje — zato `__init__` chdir-a u
-  direktorij `backend/prolog/` prije konsultacije, pa restore-a cwd u
-  `__exit__`.
+- `consult()` prima apsolutnu putanju do `rules.pl`. Relativni
+  `:- consult('ontology.pl')` unutar rules.pl radi ispravno jer
+  SWI-Prolog resolva relativne putanje od direktorija u kojemu se
+  nalazi fajl koji se consult-a — nije potreban chdir.
 - NE koristi async — pyswip je synchronous. Integracija sa SPADE-om
   (koji je async) doći će u Fazi 3 kroz thread-pool adapter.
 
@@ -22,7 +23,6 @@ pokrivanje preporuča se injectati svih 30 koncepata.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from types import TracebackType
 
@@ -54,10 +54,9 @@ class PrologEngine:
         unutar rules.pl radi jer SWI-Prolog resolva relativne putanje od
         direktorija u kojem se nalazi fajl koji se consult-a.
         """
-        self._prev_cwd: str = os.getcwd()
+        self._injected_users: set[str] = set()
         self._prolog = Prolog()
         self._prolog.consult(str(_PROLOG_DIR / _RULES_FILE))
-        self._injected_users: set[str] = set()
 
     def __enter__(self) -> "PrologEngine":
         return self

@@ -62,3 +62,37 @@ Sljedeće: Faza 1 — Prolog ontologija + shema baze.
 - Promjene u shemi baze (utječu na migracije)
 - Promjene u FIPA protokolima između agenata
 - Dodavanje novih dependencies u pyproject.toml ili package.json
+
+## Kako raditi sa mnom
+
+Alati i skillovi koje koristim u ovom projektu:
+- `superpowers:writing-plans` — koristim za sve nove faze **prije** implementacije (brainstorming → plan → odobrenje)
+- `superpowers:test-driven-development` — koristim za sav Python i TypeScript kod (piši testove prvi)
+- `frontend-design` plugin — koristim kad radim React/UI komponente
+- `code-review` plugin — koristim **uvijek** prije commita većih promjena
+
+## Workflow za dodavanje novog SPADE agenta
+
+Checklist pri kreiranju novog agenta:
+
+- [ ] Registrirati JID u Prosody XMPP serveru (u `docker/prosody/` konfiguraciji)
+- [ ] Dodati password u `.env` (format: `AGENT_<IME>_PASSWORD=...`)
+- [ ] Kreirati klasu agenta u `backend/agents/<ime>_agent.py`
+- [ ] Implementirati FIPA-ACL behaviours (`OneShotBehaviour` ili `CyclicBehaviour`)
+- [ ] Napisati unit testove u `backend/tests/agents/test_<ime>_agent.py`
+- [ ] Registrirati agenta u `CoordinatorAgent` (ako je potrebna koordinacija)
+- [ ] Ažurirati sekciju "Agenti i njihove uloge" u ovom CLAUDE.md
+
+## Workflow za novu fazu projekta
+
+1. **Brainstorming** — koristiti `superpowers:brainstorming` skill za ideje i pristupe
+2. **Plan** — koristiti `superpowers:writing-plans` skill za strukturirani plan s checklistom
+3. **Odobrenje** — prezentirati plan mentoru/korisniku, dobiti zeleno svjetlo
+4. **Implementacija** — koristiti `superpowers:executing-plans` skill za praćenje napretka
+5. **Review** — koristiti `code-review` plugin prije finalnog commita faze
+
+## Known pitfalls
+
+Stvari koje su nas zeznule (bilježiti ovdje da ne ponovimo istu grešku):
+
+- **pyswip + Ubuntu**: zahtijeva `libswipl-dev` paket instaliran na sustavu (`apt install libswipl-dev`), inače `import pyswip` baca `OSError: libswipl.so not found`

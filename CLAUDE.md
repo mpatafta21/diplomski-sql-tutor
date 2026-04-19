@@ -42,8 +42,8 @@ diplomski-sql-tutor/
 └── docs/            # Dokumentacija, dijagrami
 
 ## Trenutna faza
-Faza 0 — priprema (environment setup završen, SPADE + pyswip testovi prolaze).
-Sljedeće: Faza 1 — Prolog ontologija + shema baze.
+Faza 1 — Sub-faza 1A završena (baza, migracije, seed koncepata i bedževa).
+Sljedeće: Sub-faza 1B — Prolog ontologija.
 
 ## Stil koda
 - Python: Black + Ruff, type hints obavezni, docstrings za javne funkcije

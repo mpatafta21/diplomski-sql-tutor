@@ -11,7 +11,11 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import DATABASE_URL
 
-engine = create_engine(DATABASE_URL, future=True, echo=False)
+engine = create_engine(DATABASE_URL, future=True, echo=False, pool_pre_ping=True)
 SessionLocal: sessionmaker[Session] = sessionmaker(
-    bind=engine, autoflush=False, autocommit=False, future=True
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+    expire_on_commit=False,
+    future=True,
 )

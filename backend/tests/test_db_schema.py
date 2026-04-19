@@ -4,7 +4,7 @@ primijenila svih 16 tablica prema §6.2 DDL iz faza-1-domenski-model.md.
 
 from __future__ import annotations
 
-from sqlalchemy import Inspector
+from sqlalchemy import BigInteger, Inspector
 
 EXPECTED_TABLES = {
     "users",
@@ -96,5 +96,5 @@ def test_users_xp_leaderboard_index(db_inspector: Inspector) -> None:
 
 def test_agent_messages_log_bigint_pk(db_inspector: Inspector) -> None:
     cols = {c["name"]: c for c in db_inspector.get_columns("agent_messages_log")}
-    # BigSerial u PG mapira se u BIGINT
-    assert "BIGINT" in str(cols["id"]["type"]).upper()
+    # BigSerial u PG — reflektirani tip je instanca BigInteger bez obzira na repr
+    assert isinstance(cols["id"]["type"], BigInteger)

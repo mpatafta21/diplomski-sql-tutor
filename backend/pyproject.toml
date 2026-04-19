@@ -1,11 +1,25 @@
 [project]
 name = "sql-tutor-backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "Backend za diplomski SQL tutor"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "pyswip>=0.3.3",
     "python-dotenv>=1.2.2",
     "spade>=4.1.2",
+    "sqlalchemy>=2.0.30",
+    "psycopg[binary]>=3.2.0",
+    "alembic>=1.13.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-env>=1.1.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v"

@@ -1,3 +1,8 @@
+---
+name: sql-task-validator
+description: Validira AI-generirane SQL zadatke — provjera sintakse, konzistentnosti s Prolog ontologijom i točnosti expected_output-a na sandbox bazi.
+---
+
 # Skill: sql-task-validator
 
 **Status: TODO — implementirati u Fazi 2**

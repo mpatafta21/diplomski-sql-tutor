@@ -1,3 +1,8 @@
+---
+name: bkt-math-check
+description: Verificira ispravnost BKT implementacije — provjera parametara, posterior update formule i rubnih slučajeva prema Corbett & Anderson 1994.
+---
+
 # Skill: bkt-math-check
 
 **Status: TODO — implementirati u Fazi 3**

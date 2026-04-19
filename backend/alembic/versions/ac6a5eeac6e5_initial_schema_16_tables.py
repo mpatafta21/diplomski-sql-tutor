@@ -27,7 +27,7 @@ def upgrade() -> None:
     sa.Column('receiver', sa.String(length=50), nullable=False),
     sa.Column('performative', sa.String(length=30), nullable=False),
     sa.Column('content', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-    sa.Column('correlation_id', sa.UUID(), nullable=True),
+    sa.Column('correlation_id', postgresql.UUID(as_uuid=True), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )

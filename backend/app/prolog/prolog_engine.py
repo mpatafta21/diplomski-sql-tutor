@@ -130,6 +130,14 @@ class PrologEngine:
         # pyswip vraća listu atoma kao Python list; svaki atom je str ili Atom
         return [str(p) for p in prereqs]
 
+    def get_tier(self, concept: str) -> str:
+        """Vraća tier ('easy'|'medium'|'hard') za dani koncept iz ontology.pl."""
+        query = f"tier({concept}, Tier)"
+        solutions = list(self._prolog.query(query, maxresult=1))
+        if not solutions:
+            raise ValueError(f"Koncept {concept!r} nema tier u ontologiji")
+        return str(solutions[0]["Tier"])
+
     def is_ready_for(self, user_id: str, concept: str) -> bool:
         """True ako su svi prereqs koncepta mastered za user_id."""
         query = f"ready_for({user_id}, {concept})"

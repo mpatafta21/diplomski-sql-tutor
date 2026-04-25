@@ -42,8 +42,8 @@ diplomski-sql-tutor/
 └── docs/            # Dokumentacija, dijagrami
 
 ## Trenutna faza
-Faza 1 — Sub-faza 1B završena (Prolog ontologija: 30 koncepata, 38 prereqs, recommend_next + PrologEngine).
-Sljedeće: Sub-faza 1C — BKT model + sandbox baza.
+Faza 1 — KOMPLETNA. Sub-faza 1C završena (sandbox baza ecommerce_v1, reproducibilan Faker seed, BKT model + tier defaults).
+Sljedeće: Faza 2 — generator SQL zadataka.
 
 ## Stil koda
 - Python: Black + Ruff, type hints obavezni, docstrings za javne funkcije

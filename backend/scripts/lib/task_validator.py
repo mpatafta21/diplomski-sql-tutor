@@ -28,9 +28,13 @@ class ValidationResult:
     warnings: list[str] = field(default_factory=list)
 
 
+# Belt-and-suspenders blacklist. SandboxRunner already runs queries kao
+# sandbox_readonly role pa write-ovi puknu na razini Postgres-a. Ovi pattern-i
+# fail-aju brže s jasnijim error code-om za debug. Module 4 (insert/update/delete)
+# zadatci su legitimni — NE blanket-blockaj DML, samo destructive DDL.
 _DANGEROUS_PATTERNS = [
     r"\bDROP\s+(TABLE|DATABASE|SCHEMA)\b",
-    r"\bTRUNCATE\b(?!.*\bWHERE\b)",
+    r"\bTRUNCATE\b",
 ]
 
 
@@ -101,32 +105,65 @@ class TaskValidator:
                 code="detector_not_implemented",
                 message=str(e),
             )
+        except Exception as e:
+            # Bilo koja crash u AstAnalyzer-u (malformed SQL, sqlparse bug)
+            # pretvori u ValidationFailure umjesto da propagira u CLI.
+            return ValidationFailure(
+                level="concept_coverage",
+                code="detector_crashed",
+                message=f"AstAnalyzer raised {type(e).__name__}: {e}",
+                details={"exception_type": type(e).__name__},
+            )
         if not r.detected:
             return ValidationFailure(
                 level="concept_coverage",
                 code="primary_concept_not_detected",
                 message=(
                     f"Primarni koncept '{task.primary_concept}' nije pronađen u "
-                    f"expected_query (in_comment={r.is_in_comment}, "
-                    f"in_string={r.is_in_string})"
+                    f"expected_query"
                 ),
-                details=r.extra_info,
+                details={
+                    "is_in_comment": r.is_in_comment,
+                    "is_in_string": r.is_in_string,
+                    **r.extra_info,
+                },
             )
         return None
 
     def _check_result_match(
         self, task: GeneratedTask
     ) -> ValidationFailure | None:
-        actual = self.runner.execute(task.expected_query)
+        try:
+            actual = self.runner.execute(task.expected_query)
+        except Exception as e:
+            # Defense — runner trebao bi vratiti ExecutionResult(success=False)
+            # ali ako baci, ne ruši cijeli batch.
+            return ValidationFailure(
+                level="result_match",
+                code="runner_crashed",
+                message=f"SandboxRunner raised {type(e).__name__}: {e}",
+                details={"exception_type": type(e).__name__},
+            )
+
         if not actual.success:
             return ValidationFailure(
                 level="result_match",
                 code="execution_failed",
                 message=f"Sandbox execution fail: {actual.error}",
             )
-        cmp = self.runner.compare(
-            actual, task.expected_result, query=task.expected_query
-        )
+
+        try:
+            cmp = self.runner.compare(
+                actual, task.expected_result, query=task.expected_query
+            )
+        except Exception as e:
+            return ValidationFailure(
+                level="result_match",
+                code="comparison_crashed",
+                message=f"compare() raised {type(e).__name__}: {e}",
+                details={"exception_type": type(e).__name__},
+            )
+
         if not cmp.matches:
             return ValidationFailure(
                 level="result_match",

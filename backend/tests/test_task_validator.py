@@ -119,3 +119,67 @@ def test_detector_not_implemented_returns_failure(validator, mock_analyzer):
     result = validator.validate(task)
     assert not result.passed
     assert result.failures[0].code == "detector_not_implemented"
+
+
+# ============================================================================
+# REGRESSION TESTS — code review #2 fixes
+# ============================================================================
+
+def test_analyzer_attribute_error_returns_detector_crashed(
+    validator, mock_analyzer
+):
+    """Bilo koja crash u AstAnalyzer-u (osim NotImplementedError) -> failure, ne raise."""
+    mock_analyzer.detects_concept.side_effect = AttributeError(
+        "'NoneType' object has no attribute 'tokens'"
+    )
+    task = make_task()
+    result = validator.validate(task)
+    assert not result.passed
+    assert result.failures[0].level == "concept_coverage"
+    assert result.failures[0].code == "detector_crashed"
+    assert "AttributeError" in result.failures[0].message
+
+
+def test_runner_crash_returns_runner_crashed(validator, mock_runner):
+    mock_runner.execute.side_effect = ConnectionError("DB connection lost")
+    task = make_task()
+    result = validator.validate(task)
+    assert not result.passed
+    assert result.failures[0].level == "result_match"
+    assert result.failures[0].code == "runner_crashed"
+
+
+def test_truncate_blocked_by_dangerous_pattern(validator):
+    task = make_task(expected_query="TRUNCATE customers;")
+    result = validator.validate(task)
+    assert not result.passed
+    assert result.failures[0].code == "dangerous_pattern"
+
+
+def test_concept_coverage_failure_promotes_in_comment_to_details(
+    validator, mock_analyzer
+):
+    """is_in_comment / is_in_string moraju biti u details, ne samo u message."""
+    mock_analyzer.detects_concept.return_value = ConceptDetectionResult(
+        detected=False, is_in_comment=True, is_in_string=False
+    )
+    task = make_task()
+    result = validator.validate(task)
+    assert not result.passed
+    assert result.failures[0].details["is_in_comment"] is True
+    assert result.failures[0].details["is_in_string"] is False
+
+
+def test_empty_expected_result_passes_when_actual_empty(
+    validator, mock_runner
+):
+    """Task koji očekuje 0 redova prolazi ako sandbox vrati 0 redova."""
+    mock_runner.execute.return_value = ExecutionResult(
+        success=True, rows=[], column_names=["id"], execution_time_ms=5
+    )
+    mock_runner.compare.return_value = ComparisonResult(
+        matches=True, diff_summary="OK", actual_count=0, expected_count=0
+    )
+    task = make_task(expected_result=[])
+    result = validator.validate(task)
+    assert result.passed

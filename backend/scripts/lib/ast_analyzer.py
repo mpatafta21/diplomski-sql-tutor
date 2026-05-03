@@ -284,9 +284,165 @@ def _detect_multi_table_join(query: str) -> ConceptDetectionResult:
 
 
 # ============================================================================
-# === COMPLEX DETECTORS (Sub-task 5C) ========================================
+# === COMPLEX DETECTORS ======================================================
 # ============================================================================
-# placeholder — implementacija u Sub-task 5C
+
+import sqlglot
+from sqlglot import exp
+
+
+def _parse_with_sqlglot(query: str):
+    """Parse query, vrati ekspresijsko stablo ili None ako parse fail."""
+    try:
+        return sqlglot.parse_one(query, dialect="postgres")
+    except Exception:
+        return None
+
+
+def _detect_self_join(query: str) -> ConceptDetectionResult:
+    """Self-join: ista tablica spomenuta 2+ puta s različitim alias-ima."""
+    tree = _parse_with_sqlglot(query)
+    if tree is None:
+        return ConceptDetectionResult(detected=False)
+
+    by_name: dict[str, set[str | None]] = {}
+    for tbl in tree.find_all(exp.Table):
+        name = tbl.name.lower() if tbl.name else None
+        alias = (tbl.alias or "").lower() if tbl.alias else None
+        if name:
+            by_name.setdefault(name, set()).add(alias)
+
+    for name, aliases in by_name.items():
+        non_empty = {a for a in aliases if a}
+        if len(non_empty) >= 2:
+            return ConceptDetectionResult(
+                detected=True,
+                location=f"self-join on '{name}' with aliases {sorted(non_empty)}",
+                extra_info={"table": name, "aliases": sorted(non_empty)},
+            )
+    return ConceptDetectionResult(detected=False)
+
+
+def _has_subquery_in_select_or_where(tree) -> bool:
+    """Helper: ima li subquery u SELECT-u ili WHERE-u (ne FROM-u)."""
+    for sub in tree.find_all(exp.Subquery):
+        parent = sub.parent
+        # walk up — ako je u WHERE expression, return True
+        # FROM clauses host Subquery as From source — skip those
+        while parent is not None:
+            if isinstance(parent, exp.Where):
+                return True
+            if isinstance(parent, exp.From):
+                return False
+            # Subquery as a SELECT projection — column expression
+            if isinstance(parent, exp.Select) and not isinstance(
+                sub.parent, exp.From
+            ):
+                # confirm it's not the FROM source: check sub is in select expressions
+                for proj in parent.expressions:
+                    if sub is proj or proj.find(exp.Subquery) is sub:
+                        return True
+                # also check WHERE handled above
+            parent = parent.parent
+    return False
+
+
+def _detect_scalar_subquery(query: str) -> ConceptDetectionResult:
+    tree = _parse_with_sqlglot(query)
+    if tree is None:
+        return ConceptDetectionResult(detected=False)
+    detected = _has_subquery_in_select_or_where(tree)
+    return ConceptDetectionResult(
+        detected=detected,
+        location="subquery in SELECT/WHERE" if detected else None,
+    )
+
+
+def _detect_in_subquery(query: str) -> ConceptDetectionResult:
+    tree = _parse_with_sqlglot(query)
+    if tree is None:
+        stripped = _strip_comments_and_strings(query)
+        detected = bool(
+            re.search(r"\b(NOT\s+)?IN\s*\(\s*SELECT\b", stripped, re.IGNORECASE)
+        )
+        return ConceptDetectionResult(
+            detected=detected, location="IN (SELECT ...)" if detected else None
+        )
+
+    for in_expr in tree.find_all(exp.In):
+        if in_expr.find(exp.Subquery) is not None:
+            return ConceptDetectionResult(detected=True, location="IN (SELECT ...)")
+    return ConceptDetectionResult(detected=False)
+
+
+def _detect_exists_subquery(query: str) -> ConceptDetectionResult:
+    tree = _parse_with_sqlglot(query)
+    if tree is None:
+        stripped = _strip_comments_and_strings(query)
+        detected = bool(re.search(r"\b(NOT\s+)?EXISTS\s*\(", stripped, re.IGNORECASE))
+        return ConceptDetectionResult(
+            detected=detected, location="EXISTS(...)" if detected else None
+        )
+    detected = bool(list(tree.find_all(exp.Exists)))
+    return ConceptDetectionResult(
+        detected=detected, location="EXISTS subquery" if detected else None
+    )
+
+
+def _detect_correlated_subquery(query: str) -> ConceptDetectionResult:
+    """Subquery koja referira outer-table alias.
+
+    sqlglot wraps subqueries u dva oblika:
+      - exp.Subquery (u SELECT-u, u FROM-u, IN, WHERE > expr)
+      - exp.Exists (EXISTS clause direktno sadrži Select bez Subquery wrappera)
+    Treba pregledati oba kao "inner containers".
+    """
+    tree = _parse_with_sqlglot(query)
+    if tree is None:
+        return ConceptDetectionResult(detected=False)
+
+    # Outer aliases (excluding aliases inside subqueries / EXISTS)
+    outer_aliases: set[str] = set()
+    for tbl in tree.find_all(exp.Table):
+        if tbl.find_ancestor(exp.Subquery, exp.Exists) is not None:
+            continue
+        if tbl.alias:
+            outer_aliases.add(tbl.alias.lower())
+        elif tbl.name:
+            outer_aliases.add(tbl.name.lower())
+
+    if not outer_aliases:
+        return ConceptDetectionResult(detected=False)
+
+    # Find inner query containers: Subquery and Exists
+    inner_containers = list(tree.find_all(exp.Subquery)) + list(
+        tree.find_all(exp.Exists)
+    )
+    for sub in inner_containers:
+        for col in sub.find_all(exp.Column):
+            tbl_ref = col.table.lower() if col.table else None
+            if tbl_ref and tbl_ref in outer_aliases:
+                return ConceptDetectionResult(
+                    detected=True,
+                    location="correlated subquery references outer",
+                    extra_info={"outer_references": [f"{tbl_ref}.{col.name}"]},
+                )
+    return ConceptDetectionResult(detected=False)
+
+
+def _detect_index_usage(query: str) -> ConceptDetectionResult:
+    """PLACEHOLDER — pravi index_usage check zahtijeva EXPLAIN parsing.
+
+    Vraća detected=False uvijek, s razlogom u extra_info. Implementacija ide u
+    Modul 6 / Faza 6 jer zahtijeva runtime EXPLAIN ANALYZE protiv sandbox-a.
+    """
+    return ConceptDetectionResult(
+        detected=False,
+        extra_info={
+            "placeholder": True,
+            "reason": "index_usage requires EXPLAIN parsing — deferred to Phase 6",
+        },
+    )
 
 
 # ============================================================================
@@ -320,7 +476,13 @@ _DETECTORS: dict[str, Callable[[str], ConceptDetectionResult]] = {
     "cross_join": _detect_cross_join,
     "join_condition": _detect_join_condition,
     "multi_table_join": _detect_multi_table_join,
-    # COMPLEX dodaje se u Sub-task 5C
+    # COMPLEX
+    "self_join": _detect_self_join,
+    "scalar_subquery": _detect_scalar_subquery,
+    "in_subquery": _detect_in_subquery,
+    "exists_subquery": _detect_exists_subquery,
+    "correlated_subquery": _detect_correlated_subquery,
+    "index_usage": _detect_index_usage,
 }
 
 

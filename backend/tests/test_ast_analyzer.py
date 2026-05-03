@@ -389,3 +389,172 @@ def test_multi_table_join_4_tables(analyzer):
     )
     assert r.detected
     assert r.extra_info["table_count"] == 4
+
+
+# ============================================================================
+# COMPLEX DETECTORS
+# ============================================================================
+
+def test_self_join_positive(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT e1.first_name, e2.first_name AS manager "
+        "FROM employees e1 JOIN employees e2 ON e1.manager_id = e2.id;",
+        "self_join",
+    )
+    assert r.detected
+    assert r.extra_info["table"] == "employees"
+
+
+def test_self_join_NOT_two_different_tables(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM customers c JOIN orders o ON c.id = o.customer_id;",
+        "self_join",
+    )
+    assert not r.detected
+
+
+def test_self_join_NOT_same_table_no_aliases(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM employees JOIN employees ON 1=1;", "self_join"
+    )
+    # Bez aliasa nije pravi self-join (i SQL bi pukao zbog ambiguity)
+    assert not r.detected
+
+
+def test_self_join_three_aliases(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT e1.id, e2.id, e3.id FROM employees e1 "
+        "JOIN employees e2 ON e1.manager_id = e2.id "
+        "JOIN employees e3 ON e2.manager_id = e3.id;",
+        "self_join",
+    )
+    assert r.detected
+
+
+def test_scalar_subquery_in_where(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT name FROM products WHERE price > (SELECT AVG(price) FROM products);",
+        "scalar_subquery",
+    )
+    assert r.detected
+
+
+def test_scalar_subquery_in_select(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT name, (SELECT COUNT(*) FROM orders) AS total FROM customers;",
+        "scalar_subquery",
+    )
+    assert r.detected
+
+
+def test_scalar_subquery_NOT_when_no_subquery(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT name FROM products WHERE price > 100;", "scalar_subquery"
+    )
+    assert not r.detected
+
+
+def test_scalar_subquery_NOT_when_only_in_from(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM (SELECT id FROM products) AS sub;", "scalar_subquery"
+    )
+    assert not r.detected
+
+
+def test_in_subquery_positive(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM customers WHERE id IN (SELECT customer_id FROM orders);",
+        "in_subquery",
+    )
+    assert r.detected
+
+
+def test_in_subquery_not_in(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM customers WHERE id NOT IN (SELECT customer_id FROM orders);",
+        "in_subquery",
+    )
+    assert r.detected
+
+
+def test_in_subquery_NOT_when_in_list(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM customers WHERE id IN (1, 2, 3);", "in_subquery"
+    )
+    assert not r.detected
+
+
+def test_in_subquery_NOT_when_no_in(analyzer):
+    r = analyzer.detects_concept("SELECT * FROM customers;", "in_subquery")
+    assert not r.detected
+
+
+def test_exists_subquery_positive(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM customers c WHERE EXISTS "
+        "(SELECT 1 FROM orders o WHERE o.customer_id = c.id);",
+        "exists_subquery",
+    )
+    assert r.detected
+
+
+def test_exists_subquery_not_exists(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM customers c WHERE NOT EXISTS (SELECT 1 FROM orders);",
+        "exists_subquery",
+    )
+    assert r.detected
+
+
+def test_exists_subquery_NOT_when_in(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM customers WHERE id IN (1, 2);", "exists_subquery"
+    )
+    assert not r.detected
+
+
+def test_exists_subquery_NOT_when_no_subquery(analyzer):
+    r = analyzer.detects_concept("SELECT * FROM customers;", "exists_subquery")
+    assert not r.detected
+
+
+def test_correlated_subquery_positive(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT p.name FROM products p WHERE p.price > "
+        "(SELECT AVG(p2.price) FROM products p2 WHERE p2.category_id = p.category_id);",
+        "correlated_subquery",
+    )
+    assert r.detected
+    assert any("p." in s for s in r.extra_info["outer_references"])
+
+
+def test_correlated_subquery_NOT_when_uncorrelated(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT name FROM products WHERE price > (SELECT AVG(price) FROM products);",
+        "correlated_subquery",
+    )
+    assert not r.detected
+
+
+def test_correlated_subquery_with_exists(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM customers c WHERE EXISTS "
+        "(SELECT 1 FROM orders o WHERE o.customer_id = c.id);",
+        "correlated_subquery",
+    )
+    assert r.detected
+
+
+def test_correlated_subquery_NOT_when_no_subquery(analyzer):
+    r = analyzer.detects_concept("SELECT * FROM customers;", "correlated_subquery")
+    assert not r.detected
+
+
+def test_index_usage_placeholder(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM orders WHERE customer_id = 1;", "index_usage"
+    )
+    # Placeholder uvijek vraća detected=False s razlogom
+    assert not r.detected
+    assert r.extra_info["placeholder"] is True
+    assert "EXPLAIN" in r.extra_info["reason"]

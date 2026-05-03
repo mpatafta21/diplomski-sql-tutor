@@ -1,0 +1,7 @@
+{
+  "content": "{\"title\": \"Narudžbe sa imenima kupaca\", \"description\": \"Za svaku narudžbu ispiši order_id, order_date, first_name i last_name kupca. Ograniči na 3 narudžbe sortirane po order_id.\", \"primary_concept\": \"inner_join\", \"secondary_concepts\": [\"order_by\", \"limit_offset\"], \"difficulty\": 2, \"estimated_time_sec\": 120, \"sandbox_schema\": \"ecommerce_v1\", \"expected_query\": \"SELECT o.id AS order_id, o.order_date, c.first_name, c.last_name FROM orders o INNER JOIN customers c ON o.customer_id = c.id ORDER BY o.id LIMIT 3;\", \"expected_result\": [{\"order_id\": 1, \"order_date\": \"PLACEHOLDER\", \"first_name\": \"PLACEHOLDER\", \"last_name\": \"PLACEHOLDER\"}], \"targets_misconception\": \"missing_join_condition\", \"pedagogical_notes\": \"Vježba osnovni INNER JOIN s alias-ima.\"}",
+  "input_tokens": 1850,
+  "output_tokens": 320,
+  "cached_tokens": 0,
+  "stop_reason": "end_turn"
+}

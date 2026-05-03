@@ -1,0 +1,39 @@
+concept_code: select_basic
+concept_name: "Osnovni SELECT"
+module_number: 1
+module_name: "Osnove SELECT-a"
+tier: easy
+
+target_misconceptions:
+  - code: "select_star_overuse"
+    description: "Korištenje SELECT * umjesto eksplicitnih kolona"
+    priority: critical
+  - code: "missing_from"
+    description: "Zaboravljen FROM clause"
+    priority: high
+
+domain_hints:
+  - "Osnovni SELECT iz jedne tablice (categories, suppliers)"
+  - "Eksplicitno biranje 2-3 kolona, ne SELECT *"
+  - "Bez WHERE/JOIN-a (to su kasniji koncepti)"
+
+anti_patterns:
+  - "Ne pisi SELECT * kao očekivano rješenje"
+  - "Ne dodavaj WHERE klauzu — to je where_filter koncept"
+  - "Ne dodavaj ORDER BY — to je order_by koncept"
+
+required_for_high_difficulty: []
+
+few_shot_examples:
+  - difficulty: 1
+    title: "Naziv i opis svih kategorija"
+    description: |
+      Ispiši stupce name i description iz tablice categories.
+    expected_query: |
+      SELECT name, description FROM categories;
+    expected_concepts: [select_basic, from_clause]
+    targets_misconception: "select_star_overuse"
+
+ast_validation_rules:
+  - "expected_query mora imati top-level SELECT s eksplicitnim kolonama (ne *)"
+  - "FROM klauza mora postojati"

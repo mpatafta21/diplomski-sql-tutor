@@ -1,0 +1,98 @@
+# Sandbox kontekst za prompt — schema + invariante iz Faze 1.
+# Source: docker/postgres-sandbox/init.sql + scripts/seed_sandbox.py
+
+schema_name: ecommerce_v1
+
+tables:
+  - name: categories
+    row_count: 15
+    columns:
+      - {name: id, type: SERIAL PRIMARY KEY}
+      - {name: name, type: VARCHAR(100) UNIQUE NOT NULL}
+      - {name: description, type: TEXT}
+  - name: suppliers
+    row_count: 30
+    columns:
+      - {name: id, type: SERIAL PRIMARY KEY}
+      - {name: name, type: VARCHAR(150) NOT NULL}
+      - {name: country, type: VARCHAR(50) NOT NULL}
+      - {name: contact_email, type: VARCHAR(255)}
+      - {name: rating, type: "NUMERIC(3,2) CHECK (rating BETWEEN 0 AND 5)"}
+  - name: products
+    row_count: 100
+    columns:
+      - {name: id, type: SERIAL PRIMARY KEY}
+      - {name: name, type: VARCHAR(200) NOT NULL}
+      - {name: category_id, type: INTEGER REFERENCES categories(id)}
+      - {name: supplier_id, type: INTEGER REFERENCES suppliers(id)}
+      - {name: price, type: "NUMERIC(10,2) CHECK (price >= 0)"}
+      - {name: stock, type: "INTEGER DEFAULT 0 CHECK (stock >= 0)"}
+      - {name: is_discontinued, type: "BOOLEAN DEFAULT FALSE"}
+      - {name: created_at, type: TIMESTAMPTZ DEFAULT NOW()}
+  - name: customers
+    row_count: 200
+    columns:
+      - {name: id, type: SERIAL PRIMARY KEY}
+      - {name: first_name, type: VARCHAR(100) NOT NULL}
+      - {name: last_name, type: VARCHAR(100) NOT NULL}
+      - {name: email, type: VARCHAR(255) UNIQUE NOT NULL}
+      - {name: country, type: VARCHAR(50)}
+      - {name: city, type: VARCHAR(100)}
+      - {name: registered_at, type: TIMESTAMPTZ DEFAULT NOW()}
+  - name: employees
+    row_count: 50
+    columns:
+      - {name: id, type: SERIAL PRIMARY KEY}
+      - {name: first_name, type: VARCHAR(100) NOT NULL}
+      - {name: last_name, type: VARCHAR(100) NOT NULL}
+      - {name: email, type: VARCHAR(255) UNIQUE NOT NULL}
+      - {name: manager_id, type: "INTEGER REFERENCES employees(id) (self-ref hijerarhija)"}
+      - {name: department, type: VARCHAR(50) NOT NULL}
+      - {name: salary, type: "NUMERIC(10,2) CHECK (salary >= 0)"}
+      - {name: hired_at, type: DATE NOT NULL}
+  - name: orders
+    row_count: 1000
+    columns:
+      - {name: id, type: SERIAL PRIMARY KEY}
+      - {name: customer_id, type: "INTEGER NOT NULL REFERENCES customers(id)"}
+      - {name: employee_id, type: "INTEGER REFERENCES employees(id) (NULL = self-service)"}
+      - {name: order_date, type: TIMESTAMPTZ DEFAULT NOW()}
+      - {name: status, type: "VARCHAR(20) IN (pending|processing|shipped|delivered|cancelled)"}
+      - {name: total_amount, type: "NUMERIC(10,2) >= 0"}
+  - name: order_items
+    row_count: 3000
+    columns:
+      - {name: id, type: SERIAL PRIMARY KEY}
+      - {name: order_id, type: "INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE"}
+      - {name: product_id, type: INTEGER NOT NULL REFERENCES products(id)}
+      - {name: quantity, type: "INTEGER CHECK (quantity > 0)"}
+      - {name: unit_price, type: "NUMERIC(10,2) >= 0"}
+      - {name: UNIQUE, type: "(order_id, product_id)"}
+  - name: reviews
+    row_count: 500
+    columns:
+      - {name: id, type: SERIAL PRIMARY KEY}
+      - {name: product_id, type: INTEGER NOT NULL REFERENCES products(id)}
+      - {name: customer_id, type: INTEGER NOT NULL REFERENCES customers(id)}
+      - {name: rating, type: "INTEGER CHECK (rating BETWEEN 1 AND 5)"}
+      - {name: comment, type: TEXT}
+      - {name: created_at, type: TIMESTAMPTZ DEFAULT NOW()}
+      - {name: UNIQUE, type: "(product_id, customer_id)"}
+
+key_invariants:
+  - "25 kupaca BEZ ijedne narudžbe (anti-join scenarij)"
+  - "30% orders.employee_id su NULL (self-service)"
+  - "~5 narudžbi po kupcu u prosjeku"
+  - "Hijerarhija employees: 4 razine (CEO -> VP -> Manager -> Rep) preko manager_id"
+  - "Faker seed=42 -> reproducibilno"
+  - "Total: 15 categories / 30 suppliers / 100 products / 200 customers / 50 employees / 1000 orders / 3000 order_items / 500 reviews"
+
+indexes:
+  - "idx_orders_customer ON orders(customer_id)"
+  - "idx_orders_employee ON orders(employee_id) WHERE employee_id IS NOT NULL"
+  - "idx_orders_date ON orders(order_date DESC)"
+  - "idx_order_items_order ON order_items(order_id)"
+  - "idx_order_items_product ON order_items(product_id)"
+  - "idx_products_category ON products(category_id)"
+  - "idx_products_supplier ON products(supplier_id)"
+  - "idx_reviews_product ON reviews(product_id)"

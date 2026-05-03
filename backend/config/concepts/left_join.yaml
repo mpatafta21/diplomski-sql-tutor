@@ -1,0 +1,50 @@
+concept_code: left_join
+concept_name: "LEFT OUTER JOIN"
+module_number: 3
+module_name: "JOIN-ovi"
+tier: hard
+
+target_misconceptions:
+  - code: "left_join_vs_inner_with_null"
+    description: "INNER JOIN umjesto LEFT JOIN — zadatak ne smije raditi s INNER JOIN-om"
+    priority: critical
+  - code: "filter_in_on_vs_where"
+    description: "Filter u ON klauzi vs WHERE klauzi mijenja semantiku LEFT JOIN-a"
+    priority: high
+  - code: "anti_join_pattern"
+    description: "LEFT JOIN + IS NULL za 'kupci bez narudžbi' tip zadataka"
+    priority: critical
+
+domain_hints:
+  - "Anti-join scenariji: 25 customers BEZ orders (sandbox invariant)"
+  - "Anti-join scenariji: products BEZ reviews"
+  - "LEFT JOIN s agregacijom: 'broj narudžbi po kupcu, uključujući 0'"
+
+anti_patterns:
+  - "Ne piši zadatak gdje INNER JOIN slučajno daje isti rezultat kao LEFT JOIN"
+  - "Ne koristi RIGHT JOIN umjesto LEFT JOIN bez razloga"
+  - "expected_result MORA sadržavati NULL ili 0 vrijednosti gdje to ima smisla"
+
+required_for_high_difficulty:
+  - "Filter u ON vs WHERE distinkcija (zadatak demonstrira razliku)"
+  - "LEFT JOIN s 3+ tablica (multi-table aspect)"
+  - "Ili: LEFT JOIN + agregacija + HAVING kombinacija"
+
+few_shot_examples:
+  - difficulty: 4
+    title: "Kupci bez ijedne narudžbe"
+    description: |
+      Pronađi sve kupce koji nikada nisu napravili narudžbu.
+      Ispiši id, first_name, last_name i email.
+    expected_query: |
+      SELECT c.id, c.first_name, c.last_name, c.email
+      FROM customers c
+      LEFT JOIN orders o ON c.id = o.customer_id
+      WHERE o.id IS NULL
+      ORDER BY c.id;
+    expected_concepts: [left_join, null_handling, where_filter]
+    targets_misconception: "left_join_vs_inner_with_null"
+
+ast_validation_rules:
+  - "expected_query mora sadržavati 'LEFT JOIN' ili 'LEFT OUTER JOIN' u FROM klauzi"
+  - "Za težinu ≥ 4: barem jedan od (IS NULL u WHERE, multi-table aspekt, filter u ON)"

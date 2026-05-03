@@ -1,0 +1,44 @@
+concept_code: inner_join
+concept_name: "INNER JOIN"
+module_number: 3
+module_name: "JOIN-ovi"
+tier: medium
+
+target_misconceptions:
+  - code: "missing_join_condition"
+    description: "JOIN bez ON klauze (Cartesian product)"
+    priority: critical
+  - code: "wrong_join_keys"
+    description: "ON klauza koja spaja krive kolone (npr. customer.id = order.id)"
+    priority: critical
+
+domain_hints:
+  - "Spajanje orders + customers preko customer_id"
+  - "Spajanje order_items + products preko product_id"
+  - "Spajanje products + categories preko category_id"
+
+anti_patterns:
+  - "Ne piši INNER JOIN gdje bi LEFT JOIN bio prirodniji (npr. 'svi kupci s narudžbama' isključuje 25 kupaca bez narudžbe — koristi LEFT JOIN za to)"
+  - "Ne koristi implicitan join syntax (FROM a, b WHERE a.id = b.id) — eksplicitan JOIN"
+
+required_for_high_difficulty:
+  - "INNER JOIN preko 3+ tablica"
+  - "INNER JOIN s agregacijom + GROUP BY"
+
+few_shot_examples:
+  - difficulty: 2
+    title: "Narudžbe sa imenima kupaca"
+    description: |
+      Za svaku narudžbu ispiši order_id, order_date i ime kupca (first_name, last_name).
+    expected_query: |
+      SELECT o.id AS order_id, o.order_date, c.first_name, c.last_name
+      FROM orders o
+      INNER JOIN customers c ON o.customer_id = c.id
+      ORDER BY o.id
+      LIMIT 10;
+    expected_concepts: [inner_join, from_clause, order_by, limit_offset, column_alias]
+    targets_misconception: "missing_join_condition"
+
+ast_validation_rules:
+  - "expected_query mora sadržavati 'INNER JOIN' ili 'JOIN' (bez OUTER prefiksa) u FROM klauzi"
+  - "ON klauza mora postojati"

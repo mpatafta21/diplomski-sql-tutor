@@ -14,6 +14,9 @@ import re
 from dataclasses import dataclass, field
 from typing import Callable
 
+import sqlglot
+from sqlglot import exp
+
 
 @dataclass
 class ConceptDetectionResult:
@@ -24,12 +27,45 @@ class ConceptDetectionResult:
     extra_info: dict = field(default_factory=dict)
 
 
+def _strip_block_comments(s: str) -> str:
+    """Depth-counting block comment stripper (PostgreSQL nested /* /* */ */ podržan)."""
+    out: list[str] = []
+    depth = 0
+    i = 0
+    n = len(s)
+    while i < n:
+        if i + 1 < n and s[i] == "/" and s[i + 1] == "*":
+            depth += 1
+            i += 2
+        elif i + 1 < n and s[i] == "*" and s[i + 1] == "/" and depth:
+            depth -= 1
+            i += 2
+        else:
+            if depth == 0:
+                out.append(s[i])
+            i += 1
+    return "".join(out)
+
+
 def _strip_comments_and_strings(query: str) -> str:
-    """Uklanja line comments, block comments i string literale za safe keyword search."""
-    no_line = re.sub(r"--[^\n]*", "", query)
-    no_block = re.sub(r"/\*.*?\*/", "", no_line, flags=re.DOTALL)
-    no_strings = re.sub(r"'(?:[^'\\]|\\.)*'", "''", no_block)
-    return no_strings
+    """Uklanja line/block comments, string literale i quoted identifiere.
+
+    Order:
+      1. Pre-collapse '' (escaped single quote inside string) -> placeholder
+      2. Strip line comments (-- ...)
+      3. Strip nested block comments (/* /* */ */)
+      4. Strip string literals ('...')
+      5. Strip quoted identifiers ("...")
+    """
+    # 1. Replace SQL escaped quotes '' with NUL placeholder so subsequent regex
+    #    treats them as a single string body, not as two empty strings.
+    no_doubled = query.replace("''", "\x00")
+
+    no_line = re.sub(r"--[^\n]*", "", no_doubled)
+    no_block = _strip_block_comments(no_line)
+    no_strings = re.sub(r"'[^']*'", "''", no_block)
+    no_quoted_ident = re.sub(r'"[^"]*"', '""', no_strings)
+    return no_quoted_ident
 
 
 def _has_keyword(query: str, keyword_pattern: str) -> bool:
@@ -270,11 +306,25 @@ def _detect_join_condition(query: str) -> ConceptDetectionResult:
 
 
 def _detect_multi_table_join(query: str) -> ConceptDetectionResult:
-    """Detect ≥3 tables in FROM/JOIN."""
-    stripped = _strip_comments_and_strings(query)
-    join_count = len(re.findall(r"\bJOIN\b", stripped, re.IGNORECASE))
-    has_from = bool(re.search(r"\bFROM\b", stripped, re.IGNORECASE))
-    table_count = (join_count + 1) if has_from else 0
+    """Detect ≥3 tables in FROM/JOIN — uključujući implicit comma-join.
+
+    Brojimo sve exp.Table reference u TOP-LEVEL select-u (ne unutar subqueries).
+    Time hvata i `FROM a, b, c WHERE ...` legacy syntax.
+    """
+    tree = _parse_with_sqlglot(query)
+    if tree is None:
+        # Fallback: count JOIN keywords if parse fails.
+        stripped = _strip_comments_and_strings(query)
+        join_count = len(re.findall(r"\bJOIN\b", stripped, re.IGNORECASE))
+        has_from = bool(re.search(r"\bFROM\b", stripped, re.IGNORECASE))
+        table_count = (join_count + 1) if has_from else 0
+    else:
+        # Top-level only — exclude tables inside Subquery / Exists / CTE.
+        table_count = sum(
+            1
+            for tbl in tree.find_all(exp.Table)
+            if tbl.find_ancestor(exp.Subquery, exp.Exists) is None
+        )
     detected = table_count >= 3
     return ConceptDetectionResult(
         detected=detected,
@@ -286,10 +336,6 @@ def _detect_multi_table_join(query: str) -> ConceptDetectionResult:
 # ============================================================================
 # === COMPLEX DETECTORS ======================================================
 # ============================================================================
-
-import sqlglot
-from sqlglot import exp
-
 
 def _parse_with_sqlglot(query: str):
     """Parse query, vrati ekspresijsko stablo ili None ako parse fail."""

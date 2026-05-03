@@ -550,6 +550,63 @@ def test_correlated_subquery_NOT_when_no_subquery(analyzer):
     assert not r.detected
 
 
+# ============================================================================
+# REGRESSION TESTS — code review fixes (quoted identifiers, escape leak, nested
+# block comments, comma-join multi_table)
+# ============================================================================
+
+def test_where_filter_NOT_when_quoted_identifier(analyzer):
+    """`"where"` kao quoted identifier ne smije triggerati where_filter."""
+    r = analyzer.detects_concept(
+        'SELECT "where" FROM tab;', "where_filter"
+    )
+    assert not r.detected
+
+
+def test_inner_join_NOT_when_quoted_identifier(analyzer):
+    """`"join"` kao quoted identifier ne smije triggerati inner_join."""
+    r = analyzer.detects_concept(
+        'SELECT "join" FROM tab;', "inner_join"
+    )
+    assert not r.detected
+
+
+def test_where_filter_NOT_inside_escaped_quote_string(analyzer):
+    """`'It''s WHERE'` (escaped '' unutar string-a) ne smije leakati WHERE."""
+    r = analyzer.detects_concept(
+        "SELECT 'a''b'' WHERE c''d' FROM t;", "where_filter"
+    )
+    assert not r.detected
+
+
+def test_where_filter_NOT_in_nested_block_comment(analyzer):
+    """`/* /* x */ WHERE leaks */ SELECT 1` mora biti potpuno ignored."""
+    r = analyzer.detects_concept(
+        "/* /* x */ WHERE leaks */ SELECT 1 FROM t;", "where_filter"
+    )
+    assert not r.detected
+
+
+def test_multi_table_join_implicit_comma_3_tables(analyzer):
+    """Implicit comma-join `FROM a, b, c` mora biti detected kao multi-table."""
+    r = analyzer.detects_concept(
+        "SELECT * FROM a, b, c WHERE a.id=b.a_id AND b.id=c.b_id;",
+        "multi_table_join",
+    )
+    assert r.detected
+    assert r.extra_info["table_count"] == 3
+
+
+def test_correlated_subquery_with_bare_table_names(analyzer):
+    """Outer query bez alias-a ('FROM products' bez 'p') -> bare name kao alias."""
+    r = analyzer.detects_concept(
+        "SELECT * FROM products WHERE EXISTS "
+        "(SELECT 1 FROM orders WHERE orders.customer_id = products.id);",
+        "correlated_subquery",
+    )
+    assert r.detected
+
+
 def test_index_usage_placeholder(analyzer):
     r = analyzer.detects_concept(
         "SELECT * FROM orders WHERE customer_id = 1;", "index_usage"

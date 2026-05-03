@@ -60,12 +60,28 @@ class PromptBuilder:
             f"- {x}" for x in self._sandbox_ctx["key_invariants"]
         )
         indexes_block = "\n".join(f"- {x}" for x in self._sandbox_ctx["indexes"])
+        sample_rows_block = self._format_sample_rows_block(
+            self._sandbox_ctx.get("sample_rows", {})
+        )
         return (
             self._system_template
             .replace("{{schema_block}}", schema_block)
+            .replace("{{sample_rows_block}}", sample_rows_block)
             .replace("{{invariants_block}}", invariants_block)
             .replace("{{indexes_block}}", indexes_block)
         )
+
+    @staticmethod
+    def _format_sample_rows_block(sample_rows: dict[str, list[dict]]) -> str:
+        if not sample_rows:
+            return "(no sample rows configured)"
+        out: list[str] = []
+        for tbl, rows in sample_rows.items():
+            out.append(f"### {tbl} (sample {len(rows)} rows):")
+            for r in rows:
+                kvs = ", ".join(f"{k}={v!r}" for k, v in r.items())
+                out.append(f"  - {{{kvs}}}")
+        return "\n".join(out)
 
     def _render_user(self, concept: dict, difficulty: int) -> str:
         misconceptions = "\n".join(

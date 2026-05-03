@@ -87,6 +87,42 @@ key_invariants:
   - "Faker seed=42 -> reproducibilno"
   - "Total: 15 categories / 30 suppliers / 100 products / 200 customers / 50 employees / 1000 orders / 3000 order_items / 500 reviews"
 
+sample_rows:
+  categories:
+    - {id: 1, name: "Electronics", description: "Agent every development say quality."}
+    - {id: 2, name: "Books", description: "Beautiful instead ahead despite measure ago current practice nation determine."}
+    - {id: 3, name: "Sports", description: "Everything thank serve civil institution everyone democratic shake bill here."}
+    - {id: 4, name: "Home", description: "Suggest page southern role movie win her need."}
+    - {id: 5, name: "Garden", description: "Peace technology officer relate animal direction eye bag do big everyone."}
+  suppliers:
+    - {id: 1, name: "Keller PLC", country: "Croatia", contact_email: "josephbrennan@brandt-hickman.com", rating: 4.10}
+    - {id: 2, name: "Collins, Carney and Santos", country: "Germany", contact_email: "clam@wright.com", rating: 2.56}
+    - {id: 3, name: "Chapman and Sons", country: "Italy", contact_email: "adrianzimmerman@perez.com", rating: 3.19}
+  customers:
+    - {id: 1, first_name: "Leon", last_name: "Car", email: "skodamartina@example.org", country: "Croatia", city: "Drniš"}
+    - {id: 2, first_name: "Matej", last_name: "Škara", email: "severdjurdjica@example.org", country: "Croatia", city: "Čakovec"}
+    - {id: 3, first_name: "David", last_name: "Sokić", email: "rasickristina@example.net", country: "Croatia", city: "Hvar"}
+  products:
+    - {id: 1, name: "Digitized solution-oriented solution", category_id: 13, supplier_id: 2, price: 730.35, stock: 274}
+    - {id: 2, name: "Versatile zero administration benchmark", category_id: 15, supplier_id: 13, price: 83.33, stock: 150}
+    - {id: 3, name: "Face-to-face context-sensitive website", category_id: 10, supplier_id: 29, price: 861.54, stock: 295}
+  employees:
+    - {id: 1, first_name: "Laura", last_name: "Young", manager_id: null, department: "Executive", salary: 24028.06}
+    - {id: 2, first_name: "Michael", last_name: "Armstrong", manager_id: 1, department: "Operations", salary: 11414.63}
+    - {id: 3, first_name: "Tonya", last_name: "Anderson", manager_id: 1, department: "Marketing", salary: 11287.62}
+  orders:
+    - {id: 1, customer_id: 108, employee_id: null, status: "delivered", total_amount: 3832.15}
+    - {id: 2, customer_id: 5, employee_id: 4, status: "cancelled", total_amount: 4806.92}
+    - {id: 3, customer_id: 90, employee_id: null, status: "delivered", total_amount: 3160.68}
+  order_items:
+    - {id: 1, order_id: 1, product_id: 77, quantity: 1, unit_price: 774.02}
+    - {id: 2, order_id: 2, product_id: 81, quantity: 5, unit_price: 843.08}
+    - {id: 3, order_id: 3, product_id: 39, quantity: 4, unit_price: 790.17}
+  reviews:
+    - {id: 1, product_id: 38, customer_id: 158, rating: 5, comment: "Able teach activity animal hair turn condition whether along sort research pretty different eat trouble."}
+    - {id: 2, product_id: 11, customer_id: 83, rating: 2, comment: "Number budget pull apply development middle animal husband."}
+    - {id: 3, product_id: 57, customer_id: 11, rating: 2, comment: "Similar financial beat lead hard factor six science drug happy will."}
+
 indexes:
   - "idx_orders_customer ON orders(customer_id)"
   - "idx_orders_employee ON orders(employee_id) WHERE employee_id IS NOT NULL"

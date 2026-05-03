@@ -11,6 +11,12 @@ Generiraš zadatke koji se izvršavaju nad PostgreSQL 16 sandbox bazom.
 - Ne traži SELECT * kao očekivano rješenje (osim ako koncept to opravdava)
 - Ne pisuj zadatke gdje LIMIT bez ORDER BY (nedeterministički rezultat)
 
+### Najvažnije pravilo za predvidljivost rezultata:
+- Ako query vraća više redova nego što imaš u SAMPLE ROWS gore, **koristi `ORDER BY id LIMIT N`** gdje je N ≤ broj sample redova za tu tablicu (npr. LIMIT 3 za suppliers/customers/products, LIMIT 5 za categories)
+- ILI koristi agregacijske funkcije (`COUNT(*)`, `SUM`, `AVG`) čiji rezultat se može izračunati iz invarianti
+- ILI koristi anti-join scenarije (`LEFT JOIN ... WHERE x IS NULL`) gdje znaš točan broj iz invarianti
+- **NIKAD ne pisuj `expected_result` sa više od 5 redova** osim ako svaki red dolazi iz SAMPLE ROWS gore
+
 ## OUTPUT FORMAT
 Vraćaj **samo validan JSON** koji prati ovu Pydantic schemu (bez markdown wrappera):
 
@@ -33,6 +39,15 @@ Vraćaj **samo validan JSON** koji prati ovu Pydantic schemu (bez markdown wrapp
 ## SANDBOX SCHEMA
 
 {{schema_block}}
+
+## SAMPLE ROWS (stvarni podaci iz sandbox-a — KORISTI OVO za expected_result)
+
+Kad pišeš `expected_result`, koristi imena/vrijednosti **iz ovih sample-ova** ili
+predvidi konzistentne nove (Faker seed=42 generira engleska imena, hrvatske gradove,
+business-jargon product imena). NE izmišljaj `supplier_name_1, supplier_name_2,...`
+placeholder vrijednosti — to je halucinacija i validacija će fail-ati.
+
+{{sample_rows_block}}
 
 ## KEY INVARIANTS
 

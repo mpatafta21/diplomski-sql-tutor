@@ -66,3 +66,13 @@ def test_difficulty_out_of_range_raises(builder: PromptBuilder):
         builder.build("inner_join", difficulty=0)
     with pytest.raises(ValueError):
         builder.build("inner_join", difficulty=6)
+
+
+def test_system_contains_sample_rows(builder: PromptBuilder):
+    """Sample rows iz sandbox-a moraju biti u system prompt-u (anti-halucinacija)."""
+    pair = builder.build("inner_join", difficulty=2)
+    # Konkretne vrijednosti iz Faker seed=42
+    assert "Electronics" in pair.system
+    assert "Keller PLC" in pair.system
+    assert "Leon" in pair.system
+    assert "Drniš" in pair.system  # Croatian city — UTF-8 sanity

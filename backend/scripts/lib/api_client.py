@@ -21,12 +21,22 @@ class AnthropicResponse:
     stop_reason: str
 
 
+# Sonnet 4.6 cijene (USD per 1M tokena). Korišteno za cost estimate u CLI.
+INPUT_COST_PER_MTOK = 3.0
+OUTPUT_COST_PER_MTOK = 15.0
+CACHE_READ_DISCOUNT = 0.10  # cached read = 10% input cijene
+
+
 class AnthropicClient:
+    # CLI-level retry. SDK ima eksplicitno postavljen max_retries=2 (3 ukupno),
+    # pa je layered worst case 3 SDK x 3 CLI = 9 poziva. CLI retry je primarno
+    # za schema/validation failure-e, ne za API rate-limit (to SDK pokriva).
     DEFAULT_MAX_RETRIES = 3
     BACKOFF_BASE_SECONDS = 1.0
 
     def __init__(self, api_key: str, model: str = "claude-sonnet-4-6") -> None:
-        self.client = Anthropic(api_key=api_key)
+        # Eksplicitno postavi SDK retry cap-a — default je 2, ali make-ing intent jasan.
+        self.client = Anthropic(api_key=api_key, max_retries=2)
         self.model = model
 
     def generate(

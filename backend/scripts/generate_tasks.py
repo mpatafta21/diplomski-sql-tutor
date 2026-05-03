@@ -21,6 +21,9 @@ from pydantic import ValidationError
 
 from app.schemas.generated_task import GeneratedTask, GeneratedTaskMeta
 from scripts.lib.api_client import (
+    CACHE_READ_DISCOUNT,
+    INPUT_COST_PER_MTOK,
+    OUTPUT_COST_PER_MTOK,
     AnthropicAPIError,
     AnthropicClient,
 )
@@ -142,6 +145,18 @@ def generate_one(
     return last_meta, failures
 
 
+def estimate_cost_usd(
+    input_tokens: int, output_tokens: int, cached_tokens: int
+) -> float:
+    """Procjena USD troška za jedan API call (Sonnet 4.6 cijene)."""
+    fresh_input = max(0, input_tokens - cached_tokens)
+    return (
+        fresh_input * INPUT_COST_PER_MTOK / 1e6
+        + cached_tokens * INPUT_COST_PER_MTOK * CACHE_READ_DISCOUNT / 1e6
+        + output_tokens * OUTPUT_COST_PER_MTOK / 1e6
+    )
+
+
 def save_meta(meta: GeneratedTaskMeta, output_dir: Path, status: str) -> Path:
     """Sprema meta u {output_dir}/{status}/{concept}_d{difficulty}_{uuid}.json."""
     target_dir = output_dir / status
@@ -224,15 +239,29 @@ def main(argv: list[str] | None = None) -> int:
         total_input_tokens += meta.api_input_tokens
         total_output_tokens += meta.api_output_tokens
         total_cached_tokens += meta.api_cached_tokens
+        task_cost = estimate_cost_usd(
+            meta.api_input_tokens, meta.api_output_tokens, meta.api_cached_tokens
+        )
+        log.info(
+            "Task %d cost ~$%.4f (in=%d out=%d cached=%d)",
+            i + 1,
+            task_cost,
+            meta.api_input_tokens,
+            meta.api_output_tokens,
+            meta.api_cached_tokens,
+        )
 
         if meta.validation_passed:
             path = save_meta(meta, args.output_dir, "validated")
-            log.info("✅ Saved to %s", path)
+            log.info("[OK] Saved to %s", path)
             success_count += 1
         else:
             path = save_meta(meta, args.output_dir, "failed")
-            log.warning("❌ Failed validation; saved to %s", path)
+            log.warning("[FAIL] Failed validation; saved to %s", path)
 
+    total_cost = estimate_cost_usd(
+        total_input_tokens, total_output_tokens, total_cached_tokens
+    )
     log.info("=" * 60)
     log.info("SUMMARY: %d/%d success", success_count, args.count)
     log.info(
@@ -240,6 +269,11 @@ def main(argv: list[str] | None = None) -> int:
         total_input_tokens,
         total_output_tokens,
         total_cached_tokens,
+    )
+    log.info(
+        "Estimated total cost: $%.4f (avg $%.4f/task)",
+        total_cost,
+        total_cost / max(args.count, 1),
     )
     return 0 if success_count == args.count else 1
 

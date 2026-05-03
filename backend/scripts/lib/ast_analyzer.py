@@ -199,9 +199,88 @@ def _detect_column_alias(query: str) -> ConceptDetectionResult:
 
 
 # ============================================================================
-# === JOIN DETECTORS (Sub-task 5B) ===========================================
+# === JOIN DETECTORS =========================================================
 # ============================================================================
-# placeholder — implementacija u Sub-task 5B
+
+def _join_keyword_present(query: str, prefix: str | None) -> bool:
+    """Checks for `<prefix> JOIN` (or bare INNER/JOIN if prefix=None) in stripped query."""
+    stripped = _strip_comments_and_strings(query)
+    if prefix is None:
+        # bare JOIN (INNER) — must NOT be preceded by LEFT/RIGHT/FULL/CROSS/OUTER
+        for match in re.finditer(r"\bJOIN\b", stripped, re.IGNORECASE):
+            start = max(0, match.start() - 30)
+            preceding = stripped[start:match.start()]
+            if not re.search(
+                r"\b(LEFT|RIGHT|FULL|CROSS|OUTER)\s*$",
+                preceding,
+                re.IGNORECASE,
+            ):
+                return True
+        return False
+    pat = rf"\b{prefix}\s+(OUTER\s+)?JOIN\b"
+    return bool(re.search(pat, stripped, re.IGNORECASE))
+
+
+def _detect_inner_join(query: str) -> ConceptDetectionResult:
+    detected = _join_keyword_present(query, prefix=None) or _join_keyword_present(
+        query, prefix="INNER"
+    )
+    return ConceptDetectionResult(
+        detected=detected, location="FROM clause" if detected else None
+    )
+
+
+def _detect_left_join(query: str) -> ConceptDetectionResult:
+    detected = _join_keyword_present(query, prefix="LEFT")
+    return ConceptDetectionResult(
+        detected=detected, location="FROM clause" if detected else None
+    )
+
+
+def _detect_right_join(query: str) -> ConceptDetectionResult:
+    detected = _join_keyword_present(query, prefix="RIGHT")
+    return ConceptDetectionResult(
+        detected=detected, location="FROM clause" if detected else None
+    )
+
+
+def _detect_full_outer_join(query: str) -> ConceptDetectionResult:
+    detected = _join_keyword_present(query, prefix="FULL")
+    return ConceptDetectionResult(
+        detected=detected, location="FROM clause" if detected else None
+    )
+
+
+def _detect_cross_join(query: str) -> ConceptDetectionResult:
+    stripped = _strip_comments_and_strings(query)
+    detected = bool(re.search(r"\bCROSS\s+JOIN\b", stripped, re.IGNORECASE))
+    return ConceptDetectionResult(
+        detected=detected, location="FROM clause" if detected else None
+    )
+
+
+def _detect_join_condition(query: str) -> ConceptDetectionResult:
+    stripped = _strip_comments_and_strings(query)
+    detected = bool(
+        re.search(r"\bJOIN\b.*?\bON\b", stripped, re.IGNORECASE | re.DOTALL)
+    )
+    return ConceptDetectionResult(
+        detected=detected, location="JOIN ... ON ..." if detected else None
+    )
+
+
+def _detect_multi_table_join(query: str) -> ConceptDetectionResult:
+    """Detect ≥3 tables in FROM/JOIN."""
+    stripped = _strip_comments_and_strings(query)
+    join_count = len(re.findall(r"\bJOIN\b", stripped, re.IGNORECASE))
+    has_from = bool(re.search(r"\bFROM\b", stripped, re.IGNORECASE))
+    table_count = (join_count + 1) if has_from else 0
+    detected = table_count >= 3
+    return ConceptDetectionResult(
+        detected=detected,
+        location=f"{table_count} tables in FROM/JOIN" if detected else None,
+        extra_info={"table_count": table_count},
+    )
 
 
 # ============================================================================
@@ -233,7 +312,15 @@ _DETECTORS: dict[str, Callable[[str], ConceptDetectionResult]] = {
     "explain_plan": _detect_explain_plan,
     "null_handling": _detect_null_handling,
     "column_alias": _detect_column_alias,
-    # JOIN i COMPLEX dodaju se u Sub-tasks 5B i 5C
+    # JOIN
+    "inner_join": _detect_inner_join,
+    "left_join": _detect_left_join,
+    "right_join": _detect_right_join,
+    "full_outer_join": _detect_full_outer_join,
+    "cross_join": _detect_cross_join,
+    "join_condition": _detect_join_condition,
+    "multi_table_join": _detect_multi_table_join,
+    # COMPLEX dodaje se u Sub-task 5C
 }
 
 

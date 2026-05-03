@@ -234,3 +234,158 @@ def test_column_alias_in_string(analyzer):
 def test_unknown_concept_raises_not_implemented(analyzer):
     with pytest.raises(NotImplementedError):
         analyzer.detects_concept("SELECT 1;", "totally_fake_concept_xyz")
+
+
+# ============================================================================
+# JOIN DETECTORS
+# ============================================================================
+
+def test_inner_join_explicit(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a INNER JOIN b ON a.id = b.a_id;", "inner_join"
+    )
+    assert r.detected
+
+
+def test_inner_join_bare_join(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a JOIN b ON a.id = b.a_id;", "inner_join"
+    )
+    assert r.detected
+
+
+def test_inner_join_NOT_when_left_join(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a LEFT JOIN b ON a.id = b.a_id;", "inner_join"
+    )
+    assert not r.detected
+
+
+def test_left_join_positive(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a LEFT JOIN b ON a.id = b.a_id;", "left_join"
+    )
+    assert r.detected
+
+
+def test_left_outer_join_positive(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a LEFT OUTER JOIN b ON a.id = b.a_id;", "left_join"
+    )
+    assert r.detected
+
+
+def test_left_join_in_comment_only(analyzer):
+    r = analyzer.detects_concept(
+        "-- LEFT JOIN example\nSELECT * FROM a JOIN b ON a.id = b.a_id;",
+        "left_join",
+    )
+    assert not r.detected
+
+
+def test_right_join_positive(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a RIGHT JOIN b ON a.id = b.a_id;", "right_join"
+    )
+    assert r.detected
+
+
+def test_right_join_NOT_when_left(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a LEFT JOIN b ON a.id = b.a_id;", "right_join"
+    )
+    assert not r.detected
+
+
+def test_right_outer_join_positive(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a RIGHT OUTER JOIN b ON a.id = b.a_id;", "right_join"
+    )
+    assert r.detected
+
+
+def test_full_outer_join_positive(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a FULL OUTER JOIN b ON a.id = b.a_id;", "full_outer_join"
+    )
+    assert r.detected
+
+
+def test_full_join_short_form(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a FULL JOIN b ON a.id = b.a_id;", "full_outer_join"
+    )
+    assert r.detected
+
+
+def test_full_outer_NOT_when_left(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a LEFT OUTER JOIN b ON a.id = b.a_id;", "full_outer_join"
+    )
+    assert not r.detected
+
+
+def test_cross_join_positive(analyzer):
+    r = analyzer.detects_concept("SELECT * FROM a CROSS JOIN b;", "cross_join")
+    assert r.detected
+
+
+def test_cross_join_NOT_when_inner(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a INNER JOIN b ON a.id = b.a_id;", "cross_join"
+    )
+    assert not r.detected
+
+
+def test_cross_join_only_in_comment(analyzer):
+    r = analyzer.detects_concept(
+        "-- CROSS JOIN example\nSELECT * FROM a JOIN b ON 1=1;", "cross_join"
+    )
+    assert not r.detected
+
+
+def test_join_condition_present(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a JOIN b ON a.id = b.a_id;", "join_condition"
+    )
+    assert r.detected
+
+
+def test_join_condition_missing(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a, b WHERE a.id = b.a_id;", "join_condition"
+    )
+    assert not r.detected
+
+
+def test_join_condition_only_in_comment(analyzer):
+    r = analyzer.detects_concept(
+        "-- ON a.id = b.id is the join condition\nSELECT 1 FROM x;",
+        "join_condition",
+    )
+    assert not r.detected
+
+
+def test_multi_table_join_3_tables(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a JOIN b ON a.id = b.a_id JOIN c ON b.id = c.b_id;",
+        "multi_table_join",
+    )
+    assert r.detected
+    assert r.extra_info["table_count"] == 3
+
+
+def test_multi_table_join_NOT_when_2_tables(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a JOIN b ON a.id = b.a_id;", "multi_table_join"
+    )
+    assert not r.detected
+
+
+def test_multi_table_join_4_tables(analyzer):
+    r = analyzer.detects_concept(
+        "SELECT * FROM a JOIN b ON a.id=b.a_id JOIN c ON b.id=c.b_id JOIN d ON c.id=d.c_id;",
+        "multi_table_join",
+    )
+    assert r.detected
+    assert r.extra_info["table_count"] == 4

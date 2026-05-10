@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 
 # ============================================================
@@ -23,7 +23,7 @@ class Misconception(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    code: str = Field(min_length=3, max_length=80)
+    code: str = Field(min_length=3, max_length=80, pattern=r"^[a-z][a-z0-9_]*$")
     description: str = Field(min_length=10, max_length=300)
     priority: Literal["critical", "high", "medium", "low"]
 
@@ -66,9 +66,14 @@ class ConceptConfig(BaseModel):
     @field_validator("target_misconceptions")
     @classmethod
     def _unique_misconception_codes(cls, v: list[Misconception]) -> list[Misconception]:
+        # min_length=1 je enforced na Field razini — ova provjera hvata duplikate
         codes = [m.code for m in v]
-        if len(codes) != len(set(codes)):
-            raise ValueError("target_misconceptions sadrži duplikate u 'code' polju")
+        seen: set[str] = set()
+        duplicates = sorted({c for c in codes if c in seen or seen.add(c)})  # type: ignore[func-returns-value]
+        if duplicates:
+            raise ValueError(
+                f"target_misconceptions sadrži duplikate u 'code' polju: {duplicates}"
+            )
         return v
 
 
@@ -100,7 +105,7 @@ def load_concept_config(path: Path) -> ConceptConfig:
 
     try:
         return ConceptConfig.model_validate(raw)
-    except Exception as exc:
+    except ValidationError as exc:
         raise ConceptConfigError(
             f"Validation failed for {path.name}: {exc}"
         ) from exc

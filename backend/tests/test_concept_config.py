@@ -7,6 +7,8 @@ TDD red-green-refactor po faza-2b-1a-plan.md §4.
 import pytest
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from app.schemas.concept_config import ConceptConfig, ConceptConfigError, load_concept_config
 
 
@@ -90,38 +92,38 @@ def test_left_join_yaml_loads():
 
 def test_missing_concept_code_raises(minimal_valid_config):
     del minimal_valid_config["concept_code"]
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ConceptConfig.model_validate(minimal_valid_config)
 
 
 def test_invalid_tier_raises(minimal_valid_config):
     minimal_valid_config["tier"] = "extreme"
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ConceptConfig.model_validate(minimal_valid_config)
 
 
 def test_invalid_module_number_raises(minimal_valid_config):
     minimal_valid_config["module_number"] = 7
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ConceptConfig.model_validate(minimal_valid_config)
 
 
 def test_invalid_concept_code_pattern_raises(minimal_valid_config):
     minimal_valid_config["concept_code"] = "InnerJoin"
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ConceptConfig.model_validate(minimal_valid_config)
 
 
 def test_extra_field_raises(minimal_valid_config):
     """Typo 'target_misconception' (singular) should fail with extra='forbid'."""
     minimal_valid_config["target_misconception"] = []
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ConceptConfig.model_validate(minimal_valid_config)
 
 
 def test_empty_misconceptions_raises(minimal_valid_config):
     minimal_valid_config["target_misconceptions"] = []
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ConceptConfig.model_validate(minimal_valid_config)
 
 
@@ -130,19 +132,19 @@ def test_duplicate_misconception_codes_raises(minimal_valid_config):
         {"code": "same_code", "description": "First misconception description here", "priority": "high"},
         {"code": "same_code", "description": "Second misconception description here", "priority": "low"},
     ]
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError, match="same_code"):
         ConceptConfig.model_validate(minimal_valid_config)
 
 
 def test_invalid_priority_raises(minimal_valid_config):
     minimal_valid_config["target_misconceptions"][0]["priority"] = "hi"
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ConceptConfig.model_validate(minimal_valid_config)
 
 
 def test_few_shot_difficulty_out_of_range_raises(minimal_valid_config):
     minimal_valid_config["few_shot_examples"][0]["difficulty"] = 6
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ConceptConfig.model_validate(minimal_valid_config)
 
 

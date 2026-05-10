@@ -111,6 +111,9 @@ class SandboxRunner:
                             conn.rollback()
                         except Exception:
                             pass  # connection close will rollback anyway
+                # Invariant: each execute() call opens and closes its own connection.
+                # The per-call rollback is safe only because no outer transaction exists.
+                # If a connection pool is introduced, switch to SAVEPOINT pattern.
         except psycopg.Error as e:
             return ExecutionResult(
                 success=False,

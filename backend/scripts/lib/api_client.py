@@ -130,20 +130,25 @@ class AnthropicClient:
             "input_schema": output_schema,
         }
 
-        msg = self.client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            system=[
-                {
-                    "type": "text",
-                    "text": system,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            messages=[{"role": "user", "content": user_message}],
-            tools=[tool],
-            tool_choice={"type": "tool", "name": tool_name},
-        )
+        try:
+            msg = self.client.messages.create(
+                model=self.model,
+                max_tokens=max_tokens,
+                system=[
+                    {
+                        "type": "text",
+                        "text": system,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+                messages=[{"role": "user", "content": user_message}],
+                tools=[tool],
+                tool_choice={"type": "tool", "name": tool_name},
+            )
+        except APIStatusError as e:
+            raise AnthropicAPIError(f"API error {e.status_code}: {e}") from e
+        except APIError as e:
+            raise AnthropicAPIError(f"API error: {e}") from e
 
         tool_use_block = next(
             (b for b in msg.content if b.type == "tool_use"),

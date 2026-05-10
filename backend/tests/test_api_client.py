@@ -197,3 +197,42 @@ def test_structured_output_tool_choice_forced(fake_tool_use_response):
         kwargs = MockSDK.return_value.messages.create.call_args.kwargs
         assert kwargs["tool_choice"] == {"type": "tool", "name": "my_tool"}
         assert kwargs["tools"][0]["name"] == "my_tool"
+
+
+def test_structured_output_api_error_wrapped_as_anthropic_api_error():
+    """APIStatusError iz SDK-a se wrap-a u AnthropicAPIError."""
+    from anthropic import APIStatusError
+
+    api_err = APIStatusError(
+        message="server error", response=MagicMock(status_code=500), body=None
+    )
+    with patch("scripts.lib.api_client.Anthropic") as MockSDK:
+        MockSDK.return_value.messages.create.side_effect = api_err
+        client = AnthropicClient(api_key="fake")
+        with pytest.raises(AnthropicAPIError, match="500"):
+            client.generate_structured_output(
+                system="s", user_message="u", output_schema={}
+            )
+
+
+def test_structured_output_mixed_content_extracts_tool_use():
+    """Content lista s text + tool_use blokom — tool_use se ispravno parsira."""
+    text_block = MagicMock()
+    text_block.type = "text"
+
+    tool_block = MagicMock()
+    tool_block.type = "tool_use"
+    tool_block.input = {"key": "value"}
+
+    msg = MagicMock()
+    msg.content = [text_block, tool_block]
+    msg.usage = MagicMock(input_tokens=100, output_tokens=50, cache_read_input_tokens=0)
+    msg.stop_reason = "tool_use"
+
+    with patch("scripts.lib.api_client.Anthropic") as MockSDK:
+        MockSDK.return_value.messages.create.return_value = msg
+        client = AnthropicClient(api_key="fake")
+        resp = client.generate_structured_output(
+            system="s", user_message="u", output_schema={}
+        )
+        assert resp.parsed == {"key": "value"}

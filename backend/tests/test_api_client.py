@@ -89,3 +89,111 @@ def test_system_prompt_is_cached(fake_sdk_response):
         kwargs = MockSDK.return_value.messages.create.call_args.kwargs
         sys_block = kwargs["system"][0]
         assert sys_block["cache_control"] == {"type": "ephemeral"}
+
+
+# ============================================================
+# generate_structured_output() — Korak 2 iz 2B-1B
+# ============================================================
+
+from scripts.lib.api_client import StructuredOutputResponse, StructuredOutputError
+
+
+@pytest.fixture
+def fake_tool_use_response():
+    """Mock Anthropic response s tool_use blokom."""
+    block = MagicMock()
+    block.type = "tool_use"
+    block.input = {"concept_code": "test_concept", "tier": "easy"}
+
+    msg = MagicMock()
+    msg.content = [block]
+    msg.usage = MagicMock(
+        input_tokens=200, output_tokens=100, cache_read_input_tokens=150
+    )
+    msg.stop_reason = "tool_use"
+    return msg
+
+
+@pytest.fixture
+def fake_text_only_response():
+    """Mock Anthropic response s text blokom (nema tool_use)."""
+    block = MagicMock()
+    block.type = "text"
+
+    msg = MagicMock()
+    msg.content = [block]
+    msg.usage = MagicMock(input_tokens=50, output_tokens=20, cache_read_input_tokens=0)
+    msg.stop_reason = "end_turn"
+    return msg
+
+
+def test_generate_structured_output_happy_path(fake_tool_use_response):
+    """Tool_use response → StructuredOutputResponse s parsed dict."""
+    with patch("scripts.lib.api_client.Anthropic") as MockSDK:
+        MockSDK.return_value.messages.create.return_value = fake_tool_use_response
+        client = AnthropicClient(api_key="fake")
+        resp = client.generate_structured_output(
+            system="sys",
+            user_message="generate",
+            output_schema={"type": "object"},
+        )
+        assert isinstance(resp, StructuredOutputResponse)
+        assert resp.parsed == {"concept_code": "test_concept", "tier": "easy"}
+        assert resp.input_tokens == 200
+        assert resp.output_tokens == 100
+        assert resp.cached_tokens == 150
+
+
+def test_generate_structured_output_no_tool_use_raises(fake_text_only_response):
+    """Ako model ne pozove tool, diže StructuredOutputError."""
+    with patch("scripts.lib.api_client.Anthropic") as MockSDK:
+        MockSDK.return_value.messages.create.return_value = fake_text_only_response
+        client = AnthropicClient(api_key="fake")
+        with pytest.raises(StructuredOutputError, match="did not invoke tool"):
+            client.generate_structured_output(
+                system="sys",
+                user_message="generate",
+                output_schema={"type": "object"},
+            )
+
+
+def test_structured_output_uses_cache_control(fake_tool_use_response):
+    """System prompt se šalje s cache_control ephemeral."""
+    with patch("scripts.lib.api_client.Anthropic") as MockSDK:
+        MockSDK.return_value.messages.create.return_value = fake_tool_use_response
+        client = AnthropicClient(api_key="fake")
+        client.generate_structured_output(
+            system="cached_sys", user_message="u", output_schema={}
+        )
+        kwargs = MockSDK.return_value.messages.create.call_args.kwargs
+        sys_block = kwargs["system"][0]
+        assert sys_block["cache_control"] == {"type": "ephemeral"}
+        assert sys_block["text"] == "cached_sys"
+
+
+def test_structured_output_model_agnostic(fake_tool_use_response):
+    """generate_structured_output koristi self.model (ne hardcode)."""
+    with patch("scripts.lib.api_client.Anthropic") as MockSDK:
+        MockSDK.return_value.messages.create.return_value = fake_tool_use_response
+        client = AnthropicClient(api_key="fake", model="claude-opus-4-7")
+        client.generate_structured_output(
+            system="s", user_message="u", output_schema={}
+        )
+        kwargs = MockSDK.return_value.messages.create.call_args.kwargs
+        assert kwargs["model"] == "claude-opus-4-7"
+
+
+def test_structured_output_tool_choice_forced(fake_tool_use_response):
+    """tool_choice je forced na konkretni tool_name — garantira structured output."""
+    with patch("scripts.lib.api_client.Anthropic") as MockSDK:
+        MockSDK.return_value.messages.create.return_value = fake_tool_use_response
+        client = AnthropicClient(api_key="fake")
+        client.generate_structured_output(
+            system="s",
+            user_message="u",
+            output_schema={},
+            tool_name="my_tool",
+        )
+        kwargs = MockSDK.return_value.messages.create.call_args.kwargs
+        assert kwargs["tool_choice"] == {"type": "tool", "name": "my_tool"}
+        assert kwargs["tools"][0]["name"] == "my_tool"

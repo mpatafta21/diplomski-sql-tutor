@@ -1,0 +1,70 @@
+concept_code: index_usage
+concept_name: "Korištenje indeksa"
+module_number: 6
+module_name: "Optimizacija upita"
+tier: hard
+
+target_misconceptions:
+  - code: "function_on_indexed_column"
+    description: "Wraps indexed column in a function (LOWER, DATE, EXTRACT) in WHERE clause — poništava indeks, full table scan"
+    priority: critical
+  - code: "leading_wildcard_like"
+    description: "Koristi LIKE '%foo' (wildcard na početku) na tekstualnoj koloni — B-tree indeks ne može ubrzati wildcard na početku"
+    priority: high
+  - code: "or_clause_index_loss"
+    description: "Koristi WHERE indexed_col = x OR non_indexed_col = y — OR s non-indexed uvjetom često onemogućava index scan"
+    priority: medium
+
+domain_hints:
+  - "Sandbox ecommerce_v1 ima sljedeće indekse na ORDER-relacionim tablicama: idx_orders_customer (customer_id), idx_orders_date (order_date DESC), idx_order_items_product (product_id)"
+  - "Postoji i idx_products_category (category_id) i idx_reviews_product (product_id)"
+  - "Za demonstraciju index usage: WHERE customer_id = 42 koristi idx_orders_customer"
+  - "Za demonstraciju function-disable: WHERE DATE(order_date) = '2024-01-15' ne koristi idx_orders_date"
+
+anti_patterns:
+  - "Ne piši zadatke koji zahtijevaju EXPLAIN ANALYZE output kao expected_result — sandbox runner ne podržava parsing plan output-a"
+  - "Ne piši zadatke koji zahtijevaju kreiranje novih indeksa (CREATE INDEX) — sandbox je read-only za studente"
+  - "Ne koristi EXPLAIN bez ANALYZE za tvrdnje o stvarnom planu izvršavanja"
+
+required_for_high_difficulty:
+  - "Zadatak mora demonstrirati kontrast: jedan upit koji koristi indeks i jedan koji ga ne koristi"
+  - "expected_query mora biti SELECT s WHERE klauzom na koloni koja ima indeks u sandbox shemi"
+
+few_shot_examples:
+  - difficulty: 5
+    title: "Narudžbe kupca — direktan vs. function-wrapped lookup"
+    description: |
+      Napiši SELECT upit koji dohvaća sve narudžbe za kupca s customer_id = 42.
+      Verzija A: WHERE customer_id = 42 (koristi idx_orders_customer).
+      U komentaru objasni zašto je ovo index-friendly.
+      Verzija B (anti-pattern za usporedbu): WHERE CAST(customer_id AS TEXT) = '42' ne koristi indeks.
+      Ispiši samo Verziju A kao expected_query.
+    expected_query: |
+      SELECT id, order_date, total_amount, status
+      FROM orders
+      WHERE customer_id = 42
+      ORDER BY order_date DESC;
+    expected_concepts: [index_usage, where_filter, order_by]
+    targets_misconception: "function_on_indexed_column"
+
+  - difficulty: 5
+    title: "Pretraga narudžbi po datumu — index-friendly vs. function-disabled"
+    description: |
+      Napiši upit koji dohvaća sve narudžbe iz siječnja 2024.
+      Koristi range uvjet na order_date koji MOŽE koristiti idx_orders_date (DESC indeks).
+      Anti-pattern koji NE koristi indeks: WHERE DATE(order_date) = '2024-01-15'.
+      expected_query mora biti index-friendly verzija s range filterom.
+    expected_query: |
+      SELECT id, customer_id, order_date, total_amount
+      FROM orders
+      WHERE order_date >= '2024-01-01'
+        AND order_date < '2024-02-01'
+      ORDER BY order_date DESC
+      LIMIT 50;
+    expected_concepts: [index_usage, where_filter, order_by, limit_offset]
+    targets_misconception: "leading_wildcard_like"
+
+ast_validation_rules:
+  - "expected_query mora biti SELECT s WHERE klauzom koja NIJE wrapped u funkciju na indexed koloni"
+  - "Kolona u WHERE klauzi mora biti jedna od indexed kolona u sandbox shemi (customer_id, order_date, product_id, category_id)"
+  - "Napomena: AST detector za index_usage je placeholder u 2A — manual review obavezan u fazi 2B-3"

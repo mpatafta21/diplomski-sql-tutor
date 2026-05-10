@@ -1,0 +1,77 @@
+concept_code: correlated_subquery
+concept_name: "Korelirani podupit"
+module_number: 4
+module_name: "Podupiti"
+tier: hard
+
+target_misconceptions:
+  - code: "correlated_vs_uncorrelated_confusion"
+    description: "Student ne razumije razliku — napiše uncorrelated subquery umjesto correlated (bez reference na outer tablicu)"
+    priority: critical
+  - code: "forgot_outer_reference"
+    description: "Napiše subquery koji ne referencira outer tablicu — semantički netočan rezultat bez greške"
+    priority: critical
+  - code: "correlated_in_select_clause"
+    description: "Koristi correlated subquery u SELECT klauzi umjesto JOIN+agregacije — radi ali je N+1 pattern"
+    priority: high
+
+domain_hints:
+  - "Korelacija između outer i inner upita kroz alias outer tablice (npr. c.id u WHERE inner upita)"
+  - "Per-row evaluation — svaki red outer upita izvršava inner upit zasebno"
+  - "Sandbox ima 200 kupaca i ~1000 narudžbi — korelacija po customer_id je prirodan slučaj"
+  - "Tipični scenarij: 'narudžbe veće od prosjeka tog kupca' zahtijeva referencu na outer customers alias"
+
+anti_patterns:
+  - "Ne napiši zadatak koji se trivijalno može zamijeniti JOIN+GROUP BY bez gubitka čitljivosti (anti-pattern u praksi)"
+  - "Ne koristi correlated subquery u FROM klauzi (lateral join) — to je napredna varijanta izvan scope-a modula 4"
+  - "expected_query mora eksplicitno referencirati outer alias u WHERE inner upita"
+
+required_for_high_difficulty:
+  - "Eksplicitna korelacija kroz outer alias (npr. WHERE inner.customer_id = outer_alias.id)"
+  - "Subquery u WHERE klauzi s usporednim uvjetom (>, <, =, IN, EXISTS)"
+
+few_shot_examples:
+  - difficulty: 4
+    title: "Narudžbe iznad prosječnog iznosa kupca"
+    description: |
+      Pronađi sve narudžbe čiji je total_amount veći od prosječnog total_amount
+      svih narudžbi tog istog kupca. Ispiši order_id, customer_id i total_amount.
+    expected_query: |
+      SELECT o.id AS order_id, o.customer_id, o.total_amount
+      FROM orders o
+      WHERE o.total_amount > (
+          SELECT AVG(o2.total_amount)
+          FROM orders o2
+          WHERE o2.customer_id = o.customer_id
+      )
+      ORDER BY o.customer_id, o.total_amount DESC
+      LIMIT 20;
+    expected_concepts: [correlated_subquery, where_filter, aggregate_functions]
+    targets_misconception: "forgot_outer_reference"
+
+  - difficulty: 5
+    title: "Kupci čija je posljednja narudžba bila skuplja od prve"
+    description: |
+      Pronađi kupce kod kojih je iznos posljednje narudžbe (po datumu) veći
+      od iznosa prve narudžbe. Ispiši customer_id i razliku u iznosu.
+    expected_query: |
+      SELECT c.id AS customer_id,
+             (SELECT o_last.total_amount FROM orders o_last
+              WHERE o_last.customer_id = c.id
+              ORDER BY o_last.order_date DESC LIMIT 1)
+             -
+             (SELECT o_first.total_amount FROM orders o_first
+              WHERE o_first.customer_id = c.id
+              ORDER BY o_first.order_date ASC LIMIT 1)
+             AS amount_diff
+      FROM customers c
+      WHERE (SELECT COUNT(*) FROM orders o3 WHERE o3.customer_id = c.id) >= 2
+      ORDER BY amount_diff DESC
+      LIMIT 10;
+    expected_concepts: [correlated_subquery, scalar_subquery, where_filter]
+    targets_misconception: "correlated_vs_uncorrelated_confusion"
+
+ast_validation_rules:
+  - "expected_query mora sadržavati subquery koji referencira alias outer tablice u WHERE klauzi inner upita"
+  - "Subquery mora biti u WHERE klauzi ili SELECT klauzi, ne samostalna CTE"
+  - "Outer alias mora biti različit od inner tablice aliasa kako bi korelacija bila eksplicitna"

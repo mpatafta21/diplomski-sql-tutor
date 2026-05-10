@@ -1,0 +1,72 @@
+concept_code: self_join
+concept_name: "SELF JOIN"
+module_number: 3
+module_name: "JOIN-ovi"
+tier: hard
+
+target_misconceptions:
+  - code: "missing_alias_in_self_join"
+    description: "Zaboravlja alias pri spajanju tablice sa samom sobom — SQL vrši ambiguous column error"
+    priority: critical
+  - code: "self_join_without_join_keyword"
+    description: "Koristi FROM employees, employees (implicit cross join) umjesto eksplicitnog JOIN-a — Cartesian product"
+    priority: high
+  - code: "wrong_self_join_direction"
+    description: "Zamijeni redoslijed u ON klauzi (e.manager_id = m.manager_id umjesto e.manager_id = m.id) — krivi rezultat"
+    priority: medium
+
+domain_hints:
+  - "Sandbox ima employees tablicu s 50 zaposlenika i self-referencom manager_id -> employees(id)"
+  - "Hijerarhija ima 4 razine: CEO (1) → VPs (4) → Managers (15) → Reps (30)"
+  - "Konvencija: alias e za zaposlenika (employee), m za managera (manager)"
+  - "CEO (top-level) nema managera — manager_id je NULL za 1 zaposlenika"
+
+anti_patterns:
+  - "Ne piši self-join bez eksplicitnih aliasa — uvijek koristi 2 različita aliasa za istu tablicu"
+  - "Ne koristi implicitan join (FROM employees e, employees m) bez WHERE — rezultira Cartesian productom"
+  - "Ne zaboravi da CEO nema managera (manager_id IS NULL) — LEFT JOIN potreban ako task zahtijeva sve zaposlenike"
+
+required_for_high_difficulty:
+  - "Oba aliasa moraju biti eksplicitno navedena u FROM klauzi"
+  - "ON klauza mora koristiti manager_id self-referencu (e.manager_id = m.id)"
+
+few_shot_examples:
+  - difficulty: 3
+    title: "Zaposlenici i njihovi manageri"
+    description: |
+      Ispiši ime i prezime svakog zaposlenika zajedno s imenom i prezimenom
+      njihovog neposrednog managera. Isključi CEO-a (koji nema managera).
+    expected_query: |
+      SELECT e.first_name AS employee_first,
+             e.last_name AS employee_last,
+             m.first_name AS manager_first,
+             m.last_name AS manager_last
+      FROM employees e
+      INNER JOIN employees m ON e.manager_id = m.id
+      ORDER BY e.last_name;
+    expected_concepts: [self_join, inner_join, column_alias, order_by]
+    targets_misconception: "missing_alias_in_self_join"
+
+  - difficulty: 5
+    title: "Zaposlenici koji zarađuju više od svog managera"
+    description: |
+      Pronađi sve zaposlenike čija je plaća (salary) veća od plaće njihovog neposrednog managera.
+      Ispiši employee_name, employee_salary, manager_name i manager_salary.
+      Sortiraj po razlici u plaći od najveće prema najmanjoj.
+    expected_query: |
+      SELECT e.first_name || ' ' || e.last_name AS employee_name,
+             e.salary AS employee_salary,
+             m.first_name || ' ' || m.last_name AS manager_name,
+             m.salary AS manager_salary,
+             e.salary - m.salary AS salary_diff
+      FROM employees e
+      INNER JOIN employees m ON e.manager_id = m.id
+      WHERE e.salary > m.salary
+      ORDER BY salary_diff DESC;
+    expected_concepts: [self_join, inner_join, where_filter, column_alias, order_by]
+    targets_misconception: "wrong_self_join_direction"
+
+ast_validation_rules:
+  - "expected_query mora referencirati istu tablicu (employees) dva puta s različitim aliasima"
+  - "ON klauza mora sadržavati manager_id self-referencu"
+  - "Oba aliasa moraju biti eksplicitno navedena — bez implicitnog cross-join syntaxa"

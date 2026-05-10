@@ -1,0 +1,75 @@
+concept_code: multi_table_join
+concept_name: "JOIN 3+ tablica"
+module_number: 3
+module_name: "JOIN-ovi"
+tier: hard
+
+target_misconceptions:
+  - code: "cardinality_explosion"
+    description: "Spajanje 4+ tablica bez razumijevanja da svaki JOIN umnožava redove — rezultira duplikatima bez GROUP BY"
+    priority: critical
+  - code: "missing_join_for_filter_table"
+    description: "Student dodaje WHERE filter na tablicu koju nije JOIN-ao — SQL error ili logički krivi rezultat"
+    priority: critical
+  - code: "wrong_join_order_with_outer"
+    description: "Kombinacija INNER i LEFT JOIN-ova u krivom redoslijedu mijenja semantiku — redovi koji bi trebali biti NULL postaju INNER"
+    priority: high
+
+domain_hints:
+  - "Sandbox ecommerce_v1 ima 5 prirodno spojenih tablica: customers → orders → order_items → products → categories"
+  - "orders ima ~1000 redova, order_items ~3000 — JOIN bez GROUP BY može vratiti desetke tisuća redova"
+  - "Svaki JOIN zahtijeva eksplicitnu ON klauzu s ispravnim foreign key-em (vidi sandbox shemu)"
+  - "Za agregacije: GROUP BY mora uključiti sve ne-agregirane stupce u SELECT-u"
+
+anti_patterns:
+  - "Ne koristi implicitan join syntax (FROM a, b, c WHERE a.id = b.a_id AND ...) — eksplicitan JOIN"
+  - "Ne piši JOIN bez ON klauze — Cartesian product eksponencijalno raste s brojem tablica"
+  - "Ne SELECT * u multi-table JOIN upitu — uvijek specificiraj tablicu.kolona za svaki stupac"
+
+required_for_high_difficulty:
+  - "Minimum 3 tablice u FROM klauzi s eksplicitnim JOIN ON klauzama"
+  - "Barem jedan agregacijski stupac (COUNT, SUM, AVG) s GROUP BY"
+
+few_shot_examples:
+  - difficulty: 4
+    title: "Prihod po kategoriji proizvoda u 2024."
+    description: |
+      Za svaku kategoriju proizvoda izračunaj ukupni prihod (SUM od quantity * unit_price)
+      generiran kroz narudžbe. Ispiši category name i total_revenue.
+      Sortiraj od najvećeg prihoda prema najmanjem.
+    expected_query: |
+      SELECT cat.name AS category,
+             SUM(oi.quantity * oi.unit_price) AS total_revenue
+      FROM order_items oi
+      INNER JOIN products p ON oi.product_id = p.id
+      INNER JOIN categories cat ON p.category_id = cat.id
+      GROUP BY cat.id, cat.name
+      ORDER BY total_revenue DESC;
+    expected_concepts: [multi_table_join, inner_join, aggregate_functions, group_by, order_by]
+    targets_misconception: "cardinality_explosion"
+
+  - difficulty: 5
+    title: "Top 5 kupaca po broju naručenih proizvoda s imenima kategorija"
+    description: |
+      Pronađi 5 kupaca koji su naručili najveći ukupni broj komada (SUM quantity).
+      Za svakog ispiši first_name, last_name, total_items i listu različitih kategorija
+      koje su naručivali (STRING_AGG). Koristi JOIN na 4 tablice.
+    expected_query: |
+      SELECT c.first_name, c.last_name,
+             SUM(oi.quantity) AS total_items,
+             STRING_AGG(DISTINCT cat.name, ', ' ORDER BY cat.name) AS categories
+      FROM customers c
+      INNER JOIN orders o ON c.id = o.customer_id
+      INNER JOIN order_items oi ON o.id = oi.order_id
+      INNER JOIN products p ON oi.product_id = p.id
+      INNER JOIN categories cat ON p.category_id = cat.id
+      GROUP BY c.id, c.first_name, c.last_name
+      ORDER BY total_items DESC
+      LIMIT 5;
+    expected_concepts: [multi_table_join, inner_join, aggregate_functions, group_by, order_by, limit_offset]
+    targets_misconception: "missing_join_for_filter_table"
+
+ast_validation_rules:
+  - "expected_query mora sadržavati najmanje 3 JOIN klauze u FROM dijelu"
+  - "Svaka JOIN klauza mora imati ON uvjet s foreign key referencom"
+  - "Za težinu >= 4: mora biti prisutan barem jedan agregacijski poziv (SUM, COUNT, AVG, MIN, MAX)"

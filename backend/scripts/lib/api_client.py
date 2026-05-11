@@ -80,7 +80,9 @@ class AnthropicClient:
             try:
                 msg = self.client.messages.create(**kwargs)
                 return AnthropicResponse(
-                    content=msg.content[0].text if msg.content else "",
+                    content=next(
+                        (b.text for b in msg.content if hasattr(b, "text")), ""
+                    ),
                     input_tokens=getattr(msg.usage, "input_tokens", 0),
                     output_tokens=getattr(msg.usage, "output_tokens", 0),
                     cached_tokens=getattr(msg.usage, "cache_read_input_tokens", 0)

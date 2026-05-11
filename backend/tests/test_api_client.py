@@ -236,3 +236,21 @@ def test_structured_output_mixed_content_extracts_tool_use():
             system="s", user_message="u", output_schema={}
         )
         assert resp.parsed == {"key": "value"}
+
+
+def test_generate_skips_thinking_block_extracts_text():
+    """ThinkingBlock kao content[0] ne smije puknut — uzima prvi blok s .text."""
+    thinking_block = MagicMock(spec=[])  # nema .text atribut
+    text_block = MagicMock()
+    text_block.text = '{"result": 42}'
+
+    msg = MagicMock()
+    msg.content = [thinking_block, text_block]
+    msg.usage = MagicMock(input_tokens=50, output_tokens=30, cache_read_input_tokens=0)
+    msg.stop_reason = "end_turn"
+
+    with patch("scripts.lib.api_client.Anthropic") as MockSDK:
+        MockSDK.return_value.messages.create.return_value = msg
+        client = AnthropicClient(api_key="fake")
+        resp = client.generate(system="s", user_message="u")
+        assert resp.content == '{"result": 42}'

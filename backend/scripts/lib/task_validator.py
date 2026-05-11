@@ -47,7 +47,7 @@ class TaskValidator:
         self.runner = sandbox_runner
         self.analyzer = ast_analyzer
 
-    def validate(self, task: GeneratedTask) -> ValidationResult:
+    def validate(self, task: GeneratedTask, dml: bool = False) -> ValidationResult:
         # razina 1
         syntax_failure = self._check_syntax(task.expected_query)
         if syntax_failure:
@@ -59,7 +59,7 @@ class TaskValidator:
             return ValidationResult(passed=False, failures=[coverage_failure])
 
         # razina 3
-        result_failure = self._check_result_match(task)
+        result_failure = self._check_result_match(task, dml=dml)
         if result_failure:
             return ValidationResult(passed=False, failures=[result_failure])
 
@@ -131,10 +131,10 @@ class TaskValidator:
         return None
 
     def _check_result_match(
-        self, task: GeneratedTask
+        self, task: GeneratedTask, dml: bool = False
     ) -> ValidationFailure | None:
         try:
-            actual = self.runner.execute(task.expected_query)
+            actual = self.runner.execute(task.expected_query, dml=dml)
         except Exception as e:
             # Defense — runner trebao bi vratiti ExecutionResult(success=False)
             # ali ako baci, ne ruši cijeli batch.

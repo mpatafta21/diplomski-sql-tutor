@@ -1,0 +1,227 @@
+concept_code: explain_plan
+concept_name: EXPLAIN i EXPLAIN ANALYZE — čitanje query execution plana
+module_number: 6
+module_name: Optimizacija
+tier: hard
+target_misconceptions:
+- code: seq_scan_vs_index_scan_confusion
+  description: Student ne razumije zašto planer odabire Seq Scan umjesto Index Scan
+    — misli da indeks uvijek znači Index Scan, ne shvaća da mali stolovi, neselektivni
+    uvjeti ili funkcije na stupcu mogu uzrokovati Seq Scan
+  priority: critical
+- code: function_disables_index_scan
+  description: Student wrapar indeksiranu kolonu u funkciju (npr. LOWER(email), DATE(order_date))
+    u WHERE klauzi — planer mora raditi Seq Scan jer ne može koristiti B-tree indeks
+    na transformiranoj vrijednosti
+  priority: critical
+- code: explain_vs_explain_analyze_confusion
+  description: Student ne razumije razliku između EXPLAIN (estimirani plan bez izvršavanja)
+    i EXPLAIN ANALYZE (stvarni plan s izmjerenim vremenom i brojem redova) — misli
+    da su ekvivalentni ili da EXPLAIN izvršava upit
+  priority: high
+- code: hash_join_vs_nested_loop_confusion
+  description: Student ne razumije kada planer bira Hash Join (veći skupovi, jednakost)
+    vs Nested Loop (mali inner skup, index na inner tablici) — misli da je jedan uvijek
+    bolji od drugog
+  priority: high
+- code: cost_unit_misunderstanding
+  description: Student misli da cost= vrijednost u EXPLAIN outputu predstavlja sekunde
+    ili milisekunde — zapravo su to arbitrarne planner jedinice (page reads + CPU),
+    ne wallclock vrijeme
+  priority: medium
+domain_hints:
+- 'Sandbox ecommerce_v1 PostgreSQL ima indekse: idx_orders_customer (customer_id),
+  idx_orders_date (order_date DESC), idx_order_items_product (product_id), idx_products_category
+  (category_id)'
+- 'Za demonstraciju Index Scan: WHERE customer_id = 42 na tablici orders — visoko
+  selektivni uvjet na indeksiranoj koloni → planer bira Index Scan'
+- 'Za demonstraciju Seq Scan: WHERE status = ''pending'' na tablici orders — neselektivni
+  uvjet (velika frakcija redova), planer procijeni da je Seq Scan jeftiniji od Index
+  Scan + heap fetch'
+- 'Za demonstraciju function-disables-index: WHERE DATE(order_date) = ''2024-01-15''
+  umjesto WHERE order_date >= ''2024-01-15'' AND order_date < ''2024-01-16'' — funkcija
+  onemogućava idx_orders_date'
+- Hash Join tipično se pojavljuje kod spajanja orders + customers (veće tablice) jer
+  planer gradi hash tablicu manjeg skupa
+- Nested Loop tipično se pojavljuje kod spajanja s malim filtriranim skupom (npr.
+  jedan kupac → njegove narudžbe) jer inner strana može koristiti indeks
+- EXPLAIN ANALYZE dodaje 'actual time', 'actual rows' i 'loops' uz estimirane vrijednosti
+  — razlika između rows= i actual rows= ukazuje na lošu statistiku (ANALYZE potreban)
+- 'Sandbox tablice: customers (~200 redova), orders (~1000), order_items (~3000),
+  products (~100), categories (~10) — mali stolovi mogu uvijek biti Seq Scan bez obzira
+  na indeks'
+anti_patterns:
+- Ne piši zadatak koji od studenta traži da napiše EXPLAIN ANALYZE i parsira numerički
+  output — sandbox runner uspoređuje SQL rezultate, ne EXPLAIN planove
+- Ne koristi CREATE INDEX ili ALTER TABLE — sandbox je read-only za studente
+- Ne tvrdi deterministically koji će join algoritam biti odabran — planer može varirati
+  ovisno o statistici; fokusiraj se na uvjete koji potiču određeni plan
+- Ne piši expected_query koji počinje s EXPLAIN ili EXPLAIN ANALYZE — expected_query
+  mora biti čisti SELECT koji student piše da demonstrira index-friendly ili index-hostile
+  obrazac
+- Ne koristi leading wildcard LIKE '%foo' kao primary fokus — to je bolje pokriveno
+  u index_usage konceptu
+- Ne miješaj EXPLAIN syntax zadatke (pisanje EXPLAIN naredbi) s query-writing zadacima
+  — u ovom konceptu student piše SELECT upite, a razumijevanje plana je teorijski
+  kontekst
+required_for_high_difficulty:
+- Zadatak mora demonstrirati kontrast između index-friendly i index-hostile verzije
+  istog upita
+- expected_query mora biti index-friendly SELECT s WHERE na indeksiranoj koloni bez
+  funkcijskog wrappera
+- Objašnjenje u description mora navesti koji plan operator se očekuje (Seq Scan /
+  Index Scan / Hash Join / Nested Loop) i zašto
+- 'Za težinu 5: kombinacija JOIN-a + WHERE filtera gdje student mora odabrati optimalni
+  oblik uvjeta koji omogućava Index Scan na join koloni'
+few_shot_examples:
+- difficulty: 3
+  title: Index Scan vs Seq Scan — lookup po customer_id
+  description: 'Napiši SELECT upit koji dohvaća sve narudžbe za kupca s customer_id
+    = 42.
+
+    Verzija A (index-friendly): koristi direktni equality uvjet WHERE customer_id
+    = 42 — planer bira Index Scan koristeći idx_orders_customer jer je uvjet visoko
+    selektivan (1 kupac od 200).
+
+    Verzija B (index-hostile, anti-pattern): WHERE CAST(customer_id AS TEXT) = ''42''
+    — wrapping u funkciju onemogućava indeks, planer mora raditi Seq Scan.
+
+    Napiši samo Verziju A kao svoje rješenje. Ispiši id, order_date, total_amount
+    i status.'
+  expected_query: 'SELECT id, order_date, total_amount, status
+
+    FROM orders
+
+    WHERE customer_id = 42
+
+    ORDER BY order_date DESC;'
+  expected_concepts:
+  - explain_plan
+  - index_usage
+  - where_filter
+  - order_by
+  targets_misconception: function_disables_index_scan
+- difficulty: 3
+  title: Seq Scan zbog neselektivnog uvjeta — filtriranje po statusu
+  description: 'Napiši SELECT upit koji broji narudžbe grupirane po statusu (status
+    IN (''pending'', ''shipped'', ''delivered'', ''cancelled'')).
+
+    Obrazloži u komentaru zašto PostgreSQL planer tipično bira Seq Scan na tablici
+    orders za ovakav upit:
+
+    - status kolona nema indeks u sandbox shemi
+
+    - čak i kada bi imao indeks, neselektivni uvjet (npr. sve ''delivered'' narudžbe
+    = 60% tablice) čini Seq Scan jeftinijim od Index Scan + heap fetch
+
+    Ispiši status i order_count, sortirano po order_count DESC.'
+  expected_query: 'SELECT status, COUNT(*) AS order_count
+
+    FROM orders
+
+    GROUP BY status
+
+    ORDER BY order_count DESC;'
+  expected_concepts:
+  - explain_plan
+  - aggregate_functions
+  - group_by
+  - order_by
+  targets_misconception: seq_scan_vs_index_scan_confusion
+- difficulty: 4
+  title: Date range filter — Index Scan vs function-disabled Seq Scan
+  description: "Napiši SELECT upit koji dohvaća sve narudžbe iz siječnja 2024.\nKoristi\
+    \ range uvjet na order_date koji MOŽE koristiti idx_orders_date (B-tree indeks\
+    \ na order_date DESC):\n  WHERE order_date >= '2024-01-01' AND order_date < '2024-02-01'\n\
+    Anti-pattern koji NE koristi indeks (Seq Scan zbog function wrap):\n  WHERE DATE(order_date)\
+    \ = '2024-01-15'  -- LOŠE: DATE() onemogućava idx_orders_date\n  WHERE EXTRACT(MONTH\
+    \ FROM order_date) = 1  -- LOŠE: EXTRACT() onemogućava idx_orders_date\nNapiši\
+    \ samo index-friendly verziju. Ispiši id, customer_id, order_date i total_amount,\
+    \ sortirano od najnovijeg."
+  expected_query: "SELECT id, customer_id, order_date, total_amount\nFROM orders\n\
+    WHERE order_date >= '2024-01-01'\n  AND order_date < '2024-02-01'\nORDER BY order_date\
+    \ DESC\nLIMIT 50;"
+  expected_concepts:
+  - explain_plan
+  - index_usage
+  - where_filter
+  - order_by
+  - limit_offset
+  targets_misconception: function_disables_index_scan
+- difficulty: 4
+  title: Hash Join vs Nested Loop — JOIN orders i customers
+  description: 'Napiši dva SELECT upita koji demonstriraju različite join strategije
+    planera:
+
+
+    SCENARIJ A — Hash Join (tipično za veće skupove):
+
+    Spoji sve orders s customers bez dodatnog filtera — planer procjenjuje velik broj
+    redova na obje strane, gradi hash tablicu customers (~200 redova) i probira orders
+    (~1000 redova) → Hash Join.
+
+
+    SCENARIJ B — Nested Loop (tipično za mali filtrirani skup):
+
+    Filtriraj najprije na jednog kupca (customer_id = 42), pa spoji s customers —
+    inner strana (customers) je jedan red dohvatljiv Index Scanom → Nested Loop je
+    jeftiniji.
+
+
+    Napiši samo Scenarij B kao expected_query (index-friendly, Nested Loop putanja).
+    Ispiši first_name, last_name, order_date i total_amount.'
+  expected_query: 'SELECT c.first_name, c.last_name, o.order_date, o.total_amount
+
+    FROM orders o
+
+    INNER JOIN customers c ON o.customer_id = c.id
+
+    WHERE o.customer_id = 42
+
+    ORDER BY o.order_date DESC;'
+  expected_concepts:
+  - explain_plan
+  - inner_join
+  - where_filter
+  - order_by
+  targets_misconception: hash_join_vs_nested_loop_confusion
+- difficulty: 5
+  title: Optimalni multi-table JOIN s index-friendly uvjetima
+  description: "Napiši SELECT upit koji dohvaća sve stavke narudžbi (order_items)\
+    \ za određenog kupca (customer_id = 10), zajedno s nazivom proizvoda i kategorijom.\n\
+    Zahtjevi za index-friendly plan:\n1. Filter WHERE o.customer_id = 10 mora biti\
+    \ postavljen rano (na orders tablici) kako bi planer mogao koristiti idx_orders_customer\
+    \ → Index Scan na orders\n2. JOIN order_items ON o.id = oi.order_id koristi idx_order_items_product\
+    \ implicitno kroz mali filtrirani skup\n3. JOIN products ON oi.product_id = p.id\
+    \ i JOIN categories ON p.category_id = cat.id bez funkcijskih wrappera\nAnti-pattern\
+    \ koji bi degradirao plan:\n  WHERE LOWER(cat.name) = 'electronics'  -- LOŠE:\
+    \ Seq Scan na categories umjesto Index Scan\nIspiši customer_id, order_date, product\
+    \ name, category name, quantity i unit_price.\nSortiraj po order_date DESC, product\
+    \ name ASC."
+  expected_query: "SELECT o.customer_id,\n       o.order_date,\n       p.name AS product_name,\n\
+    \       cat.name AS category_name,\n       oi.quantity,\n       oi.unit_price\n\
+    FROM orders o\nINNER JOIN order_items oi ON o.id = oi.order_id\nINNER JOIN products\
+    \ p ON oi.product_id = p.id\nINNER JOIN categories cat ON p.category_id = cat.id\n\
+    WHERE o.customer_id = 10\nORDER BY o.order_date DESC, p.name ASC;"
+  expected_concepts:
+  - explain_plan
+  - index_usage
+  - multi_table_join
+  - inner_join
+  - where_filter
+  - order_by
+  targets_misconception: seq_scan_vs_index_scan_confusion
+ast_validation_rules:
+- expected_query mora biti čisti SELECT — ne smije počinjati s EXPLAIN ili EXPLAIN
+  ANALYZE
+- WHERE klauza u expected_query mora koristiti indeksiranu kolonu (customer_id, order_date,
+  product_id, category_id) BEZ funkcijskog wrappera (LOWER, DATE, EXTRACT, CAST) kako
+  bi demonstrirala index-friendly obrazac
+- 'Za zadatke s difficulty >= 4: expected_query mora sadržavati JOIN s eksplicitnom
+  ON klauzom na foreign key koloni koja ima indeks u sandbox shemi'
+- 'Za zadatke koji demonstriraju Seq Scan: expected_query smije koristiti neindeksiranu
+  kolonu (npr. status) u GROUP BY ili filteru — to je namjerni Seq Scan scenarij'
+- 'Za zadatke koji demonstriraju date range: WHERE uvjet mora koristiti >= i < operatore
+  na sirovoj order_date koloni, ne funkcijske transformacije'
+- 'Napomena: AST detektor za explain_plan je placeholder — validacija index-friendliness
+  zahtijeva manuel review ili EXPLAIN ANALYZE izvršavanje u fazi evaluacije'

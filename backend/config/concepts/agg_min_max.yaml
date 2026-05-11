@@ -1,0 +1,112 @@
+concept_code: agg_min_max
+concept_name: MIN i MAX agregatne funkcije
+module_number: 2
+module_name: Agregacije i grupiranje
+tier: easy
+target_misconceptions:
+- code: min_max_ignores_nulls
+  description: Student misli da MIN/MAX uzimaju NULL kao najmanji/najveći — zapravo
+    MIN i MAX ignoriraju NULL vrijednosti pri računanju
+  priority: critical
+- code: min_max_only_numeric
+  description: Student misli da MIN/MAX rade samo na numeričkim stupcima — zapravo
+    rade i na TEXT stupcima (leksikografski poredak) i na DATE stupcima
+  priority: high
+- code: min_max_without_group_by
+  description: Student piše SELECT non_agg_col, MIN(col) bez GROUP BY — miješa agregatni
+    i ne-agregatni stupac, rezultira SQL greškom
+  priority: critical
+- code: min_max_confusion_order_by
+  description: Student koristi ORDER BY + LIMIT 1 umjesto MIN/MAX — semantički slično
+    ali ne isto (ne radi korektno uz GROUP BY po kategorijama)
+  priority: medium
+domain_hints:
+- Sandbox ima tablicu products s kolonom price (NUMERIC) — prirodan slučaj za MIN(price)
+  i MAX(price)
+- Sandbox ima tablicu orders s kolonom total_amount (NUMERIC) — MIN/MAX total_amount
+  daje raspon narudžbi
+- products.name je TEXT kolona — MIN(name) i MAX(name) vraćaju leksikografski najmanji/najveći
+  naziv
+- orders.order_date je DATE/TIMESTAMP kolona — MIN(order_date) i MAX(order_date) daju
+  prvu i zadnju narudžbu
+- 'NULL vrijednosti u stupcima: MIN i MAX ih automatski ignoriraju, što studenti često
+  ne znaju'
+- Kombinacija MIN i MAX u istom SELECT-u je validna — vraća jedan red s obje vrijednosti
+anti_patterns:
+- Ne koristi ORDER BY + LIMIT 1 kao zamjenu za MIN/MAX u expected_query — zadatak
+  treba eksplicitno koristiti MIN() i/ili MAX()
+- Ne piši SELECT product_name, MIN(price) bez GROUP BY — to je SQL greška i loš primjer
+  za easy tier
+- Ne koristi SELECT * uz MIN/MAX — uvijek specificiraj kolone
+- Ne miješaj MIN/MAX s WHERE klauzom koja filtrira na isti stupac — zadatak postaje
+  zbunjujući za easy tier
+required_for_high_difficulty:
+- MIN/MAX kombiniran s GROUP BY po kategoriji ili drugoj dimenziji
+- MIN/MAX na DATE ili TEXT koloni, ne samo na numeričkim stupcima
+- Korištenje oba MIN i MAX u istom upitu za izračun raspona (MAX - MIN)
+few_shot_examples:
+- difficulty: 1
+  title: Najjeftiniji i najskuplji proizvod
+  description: Pronađi najnižu i najvišu cijenu proizvoda u tablici products. Ispiši
+    rezultat kao min_price i max_price.
+  expected_query: "SELECT MIN(price) AS min_price,\n       MAX(price) AS max_price\n\
+    FROM products;\n"
+  expected_concepts:
+  - agg_min_max
+  - column_alias
+  - from_clause
+  targets_misconception: min_max_only_numeric
+- difficulty: 2
+  title: Raspon iznosa narudžbi
+  description: Izračunaj minimalni i maksimalni iznos narudžbe (total_amount) iz tablice
+    orders. Ispiši min_order, max_order i raspon (razliku između maksimalnog i minimalnog)
+    kao amount_range.
+  expected_query: "SELECT MIN(total_amount) AS min_order,\n       MAX(total_amount)\
+    \ AS max_order,\n       MAX(total_amount) - MIN(total_amount) AS amount_range\n\
+    FROM orders;\n"
+  expected_concepts:
+  - agg_min_max
+  - column_alias
+  - from_clause
+  targets_misconception: min_max_confusion_order_by
+- difficulty: 2
+  title: Prva i posljednja narudžba po datumu
+  description: Pronađi datum prve (najstarije) i posljednje (najnovije) narudžbe u
+    tablici orders. Ispiši rezultat kao first_order_date i last_order_date.
+  expected_query: "SELECT MIN(order_date) AS first_order_date,\n       MAX(order_date)\
+    \ AS last_order_date\nFROM orders;\n"
+  expected_concepts:
+  - agg_min_max
+  - column_alias
+  - from_clause
+  targets_misconception: min_max_only_numeric
+- difficulty: 3
+  title: Min i max cijena po kategoriji
+  description: Za svaku kategoriju proizvoda (category_id) pronađi najnižu i najvišu
+    cijenu. Ispiši category_id, min_price i max_price. Sortiraj po category_id uzlazno.
+  expected_query: "SELECT category_id,\n       MIN(price) AS min_price,\n       MAX(price)\
+    \ AS max_price\nFROM products\nGROUP BY category_id\nORDER BY category_id;\n"
+  expected_concepts:
+  - agg_min_max
+  - group_by
+  - column_alias
+  - order_by
+  targets_misconception: min_max_without_group_by
+- difficulty: 3
+  title: Leksikografski prvi i posljednji naziv proizvoda
+  description: Pronađi leksikografski (abecedno) prvi i posljednji naziv proizvoda
+    u tablici products. Ispiši rezultat kao first_name i last_name.
+  expected_query: "SELECT MIN(name) AS first_name,\n       MAX(name) AS last_name\n\
+    FROM products;\n"
+  expected_concepts:
+  - agg_min_max
+  - column_alias
+  - from_clause
+  targets_misconception: min_max_only_numeric
+ast_validation_rules:
+- expected_query mora sadržavati najmanje jedan poziv MIN() ili MAX() agregatne funkcije
+- 'Za zadatke s difficulty >= 3 koji uključuju ne-agregatne kolone u SELECT-u: mora
+  postojati GROUP BY klauza koja pokriva sve ne-agregatne stupce'
+- MIN/MAX argumenti moraju biti konkretna kolona iz sandbox sheme (price, total_amount,
+  order_date, name, ...)
+- expected_query ne smije koristiti ORDER BY + LIMIT 1 kao zamjenu za MIN/MAX

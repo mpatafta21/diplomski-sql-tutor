@@ -1,0 +1,142 @@
+concept_code: right_join
+concept_name: RIGHT OUTER JOIN
+module_number: 3
+module_name: JOIN-ovi
+tier: medium
+target_misconceptions:
+- code: right_join_vs_left_join_confusion
+  description: Student koristi LEFT JOIN umjesto RIGHT JOIN (ili obrnuto) ne razumijevajući
+    koja tablica zadržava sve retke — rezultat je semantički kriv
+  priority: critical
+- code: missing_null_check_for_unmatched
+  description: Student ne filtrira NULL vrijednosti lijevih stupaca kod anti-join
+    scenarija — ne razumije da RIGHT JOIN + IS NULL pronalazi retke desne tablice
+    bez poklapanja
+  priority: high
+- code: right_join_equals_left_join_unawareness
+  description: Student ne zna da se RIGHT JOIN uvijek može zamijeniti LEFT JOIN-om
+    promjenom redoslijeda tablica — ne razumije simetričnost operatora
+  priority: medium
+- code: cartesian_product_without_on
+  description: Student napiše RIGHT JOIN bez ON klauze — rezultira Cartesian productom
+    umjesto join-a po ključu
+  priority: critical
+domain_hints:
+- RIGHT JOIN zadržava SVE retke desne tablice (ona navedena iza RIGHT JOIN), a za
+  retke lijeve tablice gdje nema poklapanja vraća NULL
+- 'Prirodan sandbox scenarij: products RIGHT JOIN order_items — svaki order_item mora
+  imati product, ali demonstrira RIGHT JOIN sintaksu'
+- 'Ekvivalentni LEFT JOIN: zamijeni redoslijed tablica i promijeni RIGHT u LEFT (npr.
+  orders RIGHT JOIN customers ≡ customers LEFT JOIN orders)'
+- 'Sandbox invariant: 25 customers nema orders — RIGHT JOIN customers daje iste rezultate
+  kao LEFT JOIN customers (ali s obrnutim redoslijedom tablica)'
+- 'Anti-join pattern: categories RIGHT JOIN products WHERE categories.id IS NULL pronalazi
+  proizvode bez kategorije (ako postoje)'
+- Sandbox ima ~1000 orders i 200 customers — RIGHT JOIN orders ON customers ima puno
+  poklapanja, ali demonstrira sintaksu
+anti_patterns:
+- Ne piši zadatak gdje RIGHT JOIN i INNER JOIN daju isti rezultat (svi retci desne
+  tablice moraju imati bar neki NULL u lijevim kolonama, ili zadatak mora biti logički
+  besmislen bez RIGHT JOIN)
+- Ne koristi RIGHT JOIN tamo gdje je LEFT JOIN prirodniji i čitljiviji — jedini opravdan
+  razlog za RIGHT JOIN je kada je desna tablica 'primarna' u kontekstu upita
+- Ne piši SELECT * u expected_query — uvijek specificiraj tablicu.kolona za svaki
+  stupac
+- Ne piši RIGHT JOIN bez ON klauze — Cartesian product nije prihvatljiv
+- expected_query mora jasno demonstrirati da desna tablica zadržava sve retke (vidljivi
+  NULL-ovi u rezultatu ili logički smislen anti-join scenarij)
+required_for_high_difficulty:
+- RIGHT JOIN s agregacijom (COUNT, SUM) i GROUP BY na desnoj tablici
+- 'Anti-join pattern: RIGHT JOIN + WHERE lijeva_tablica.id IS NULL'
+- Kombinacija RIGHT JOIN s dodatnim INNER JOIN-om (multi-table aspekt)
+few_shot_examples:
+- difficulty: 2
+  title: Sve kategorije s brojem proizvoda (RIGHT JOIN)
+  description: 'Ispiši naziv svake kategorije i broj proizvoda koji joj pripada.
+
+    Koristi RIGHT JOIN tako da categories bude desna tablica (zadržava sve kategorije,
+
+    uključujući one bez proizvoda). Ispiši category_name i product_count.
+
+    Sortiraj po product_count od najvećeg prema najmanjem.'
+  expected_query: "SELECT cat.name AS category_name,\n       COUNT(p.id) AS product_count\n\
+    FROM products p\nRIGHT JOIN categories cat ON p.category_id = cat.id\nGROUP BY\
+    \ cat.id, cat.name\nORDER BY product_count DESC;"
+  expected_concepts:
+  - right_join
+  - aggregate_functions
+  - group_by
+  - order_by
+  - column_alias
+  targets_misconception: right_join_vs_left_join_confusion
+- difficulty: 3
+  title: Svi kupci i njihove narudžbe (RIGHT JOIN — kupci bez narudžbi vidljivi)
+  description: 'Prikaži sve kupce i narudžbe koje su napravili koristeći RIGHT JOIN
+    tako da
+
+    customers bude desna tablica. Za kupce koji nemaju narudžbi, order_id treba biti
+    NULL.
+
+    Ispiši customer_id, first_name, last_name i order_id.
+
+    Sortiraj po customer_id, zatim po order_id.'
+  expected_query: "SELECT c.id AS customer_id,\n       c.first_name,\n       c.last_name,\n\
+    \       o.id AS order_id\nFROM orders o\nRIGHT JOIN customers c ON o.customer_id\
+    \ = c.id\nORDER BY c.id, o.id\nLIMIT 30;"
+  expected_concepts:
+  - right_join
+  - null_handling
+  - order_by
+  - column_alias
+  - limit_offset
+  targets_misconception: cartesian_product_without_on
+- difficulty: 3
+  title: RIGHT JOIN ekvivalentan LEFT JOIN-u — usporedba redoslijeda tablica
+  description: 'Napiši upit koji prikazuje sve kupce i ukupan iznos njihovih narudžbi
+    (SUM total_amount).
+
+    Kupci bez narudžbi trebaju imati 0 kao ukupan iznos (koristi COALESCE).
+
+    Koristi RIGHT JOIN s customers kao desnom tablicom.
+
+    Ispiši first_name, last_name i total_spent. Sortiraj po total_spent DESC.'
+  expected_query: "SELECT c.first_name,\n       c.last_name,\n       COALESCE(SUM(o.total_amount),\
+    \ 0) AS total_spent\nFROM orders o\nRIGHT JOIN customers c ON o.customer_id =\
+    \ c.id\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY total_spent DESC\n\
+    LIMIT 20;"
+  expected_concepts:
+  - right_join
+  - aggregate_functions
+  - group_by
+  - null_handling
+  - order_by
+  - column_alias
+  targets_misconception: right_join_equals_left_join_unawareness
+- difficulty: 4
+  title: Proizvodi bez narudžbi — RIGHT JOIN anti-join pattern
+  description: 'Pronađi sve proizvode koji nisu ni jednom naručeni (ne pojavljuju
+    se ni u jednom order_item).
+
+    Koristi RIGHT JOIN s products kao desnom tablicom i filtriraj retke gdje
+
+    order_items strani ključ je NULL. Ispiši product_id, product name i price.
+
+    Sortiraj po cijeni od skupljeg prema jeftinijem.'
+  expected_query: "SELECT p.id AS product_id,\n       p.name AS product_name,\n  \
+    \     p.price\nFROM order_items oi\nRIGHT JOIN products p ON oi.product_id = p.id\n\
+    WHERE oi.id IS NULL\nORDER BY p.price DESC;"
+  expected_concepts:
+  - right_join
+  - null_handling
+  - where_filter
+  - order_by
+  - column_alias
+  targets_misconception: missing_null_check_for_unmatched
+ast_validation_rules:
+- expected_query mora sadržavati 'RIGHT JOIN' ili 'RIGHT OUTER JOIN' u FROM klauzi
+- RIGHT JOIN mora imati ON klauzu s ispravnim foreign key referencom (bez implicitnog
+  Cartesian producta)
+- Desna tablica u RIGHT JOIN mora biti ona čiji su svi retci zadržani (semantički
+  opravdan odabir)
+- 'Za težinu >= 3: mora biti vidljiv učinak RIGHT JOIN-a — ili NULL vrijednosti u
+  lijevim kolonama, ili agregacija s COALESCE, ili IS NULL filter'

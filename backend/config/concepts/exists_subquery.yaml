@@ -1,0 +1,175 @@
+concept_code: exists_subquery
+concept_name: EXISTS podupit
+module_number: 5
+module_name: Podupiti
+tier: medium
+target_misconceptions:
+- code: exists_select_list_matters
+  description: Student misli da SELECT lista unutar EXISTS podupita utječe na rezultat
+    — koristi EXISTS (SELECT specific_column) umjesto konvencionalnog EXISTS (SELECT
+    1) ili EXISTS (SELECT *), ne razumije da EXISTS samo testira egzistenciju reda
+  priority: critical
+- code: in_instead_of_exists
+  description: Koristi IN (subquery) umjesto EXISTS — funkcionalno može biti ekvivalentno,
+    ali IN ima problematan NULL handling (IN s NULL uvijek vraća UNKNOWN, ne FALSE),
+    EXISTS je robusniji
+  priority: high
+- code: not_exists_vs_not_in_null
+  description: Zamjenjuje NOT EXISTS s NOT IN — NOT IN vraća prazan skup ako podupit
+    sadrži ijednu NULL vrijednost, NOT EXISTS ispravno radi i s NULL vrijednostima
+    u podupitu
+  priority: critical
+- code: missing_correlated_condition
+  description: Napiše EXISTS (SELECT 1 FROM orders) bez korelacije na outer tablicu
+    — rezultira uvijek-TRUE ili uvijek-FALSE uvjetom koji ne filtrira po redu, semantički
+    krivi rezultat bez SQL greške
+  priority: critical
+- code: exists_in_select_clause
+  description: Pokušava koristiti EXISTS u SELECT klauzi kao boolean stupac umjesto
+    u WHERE klauzi — sintaktički može raditi u PostgreSQL-u, ali nije uobičajena i
+    željena upotreba u kontekstu ovog koncepta
+  priority: low
+domain_hints:
+- EXISTS i NOT EXISTS uvijek se koriste u WHERE klauzi s koreliranim podupiom koji
+  referencira outer tablicu
+- 'Konvencija: EXISTS (SELECT 1 FROM ...) ili EXISTS (SELECT * FROM ...) — SELECT
+  lista se ignorira, bitan je samo boolean rezultat (postoji li barem jedan red)'
+- 'Sandbox invariant: 25 customers NEMA niti jedne narudžbe — idealni kandidati za
+  NOT EXISTS filter'
+- 'Sandbox: products bez ijednog order_item-a postoje — NOT EXISTS (SELECT 1 FROM
+  order_items WHERE product_id = p.id) vraća neprazni skup'
+- EXISTS je kratko-spojni operator — prestaje skenirati podupit čim pronađe prvi red,
+  efikasno na velikim skupovima
+- 'NOT EXISTS vs NOT IN razlika: ako orders.customer_id sadrži NULL, NOT IN (SELECT
+  customer_id FROM orders) vraća 0 redova; NOT EXISTS ispravno vraća kupce bez narudžbi'
+- 'Tipičan scenarij korelacije: outer alias c.id se referencira u WHERE inner upita
+  (WHERE o.customer_id = c.id)'
+anti_patterns:
+- Ne piši EXISTS bez koreliranog uvjeta na outer tablicu — EXISTS (SELECT 1 FROM orders)
+  bez WHERE je logička greška, uvijek TRUE ako tablica nije prazna
+- Ne koristi EXISTS (SELECT konkretna_kolona FROM ...) kao expected_query — konvencija
+  je SELECT 1 ili SELECT * jer lista kolona nije bitna
+- Ne zamjenjuj NOT EXISTS s NOT IN u expected_query — NOT IN s NULL vrijednostima
+  u podupitu daje neočekivane rezultate i nije cilj ovog koncepta
+- Ne piši zadatke koji trivijalno rade i s IN i s EXISTS bez semantičke razlike —
+  preferiraj scenarije gdje EXISTS ima prednost (NULL handling, egzistencijalna provjera)
+- Ne koristiti EXISTS u FROM klauzi (LATERAL EXISTS) — to je napredna varijanta izvan
+  scope-a modula 5
+required_for_high_difficulty:
+- Eksplicitna korelacija između outer i inner upita kroz alias outer tablice (npr.
+  WHERE o.customer_id = c.id)
+- NOT EXISTS scenarij s potencijalnim NULL vrijednostima u podupitu (demonstrira prednost
+  nad NOT IN)
+- Kombinacija EXISTS s dodatnim WHERE uvjetima na outer tablici
+- EXISTS s više koreliranih uvjeta u inner WHERE klauzi (npr. filtriranje po datumu
+  I customer_id)
+few_shot_examples:
+- difficulty: 2
+  title: Kupci koji imaju barem jednu narudžbu
+  description: 'Pronađi sve kupce koji su napravili barem jednu narudžbu koristeći
+    EXISTS.
+
+    Ispiši id, first_name, last_name i email. Sortiraj po id.'
+  expected_query: "SELECT c.id, c.first_name, c.last_name, c.email\nFROM customers\
+    \ c\nWHERE EXISTS (\n    SELECT 1\n    FROM orders o\n    WHERE o.customer_id\
+    \ = c.id\n)\nORDER BY c.id;"
+  expected_concepts:
+  - exists_subquery
+  - correlated_subquery
+  - where_filter
+  targets_misconception: missing_correlated_condition
+- difficulty: 3
+  title: Kupci koji nikada nisu naručili — NOT EXISTS
+  description: 'Pronađi sve kupce koji nikada nisu napravili narudžbu koristeći NOT
+    EXISTS.
+
+    Ispiši id, first_name, last_name i email.
+
+    Sortiraj po last_name. Napomena: ne koristiti NOT IN zbog potencijalnih NULL vrijednosti.'
+  expected_query: "SELECT c.id, c.first_name, c.last_name, c.email\nFROM customers\
+    \ c\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM orders o\n    WHERE o.customer_id\
+    \ = c.id\n)\nORDER BY c.last_name;"
+  expected_concepts:
+  - exists_subquery
+  - correlated_subquery
+  - where_filter
+  - null_handling
+  targets_misconception: not_exists_vs_not_in_null
+- difficulty: 3
+  title: Proizvodi koji su bili naručeni barem jednom
+  description: 'Pronađi sve proizvode koji se pojavljuju u barem jednoj stavci narudžbe
+    (order_items).
+
+    Ispiši id, name i price iz tablice products.
+
+    Koristi EXISTS s korelacijom na product_id. Sortiraj po name.'
+  expected_query: "SELECT p.id, p.name, p.price\nFROM products p\nWHERE EXISTS (\n\
+    \    SELECT 1\n    FROM order_items oi\n    WHERE oi.product_id = p.id\n)\nORDER\
+    \ BY p.name;"
+  expected_concepts:
+  - exists_subquery
+  - correlated_subquery
+  - where_filter
+  targets_misconception: exists_select_list_matters
+- difficulty: 4
+  title: Kupci s narudžbom većom od 500 kn u 2024. godini
+  description: 'Pronađi sve kupce koji imaju barem jednu narudžbu s total_amount većim
+    od 500
+
+    naplavljenu u 2024. godini. Ispiši customer id, first_name i last_name.
+
+    Koristi EXISTS s višestrukim koreliranim uvjetima u inner WHERE klauzi.'
+  expected_query: "SELECT c.id, c.first_name, c.last_name\nFROM customers c\nWHERE\
+    \ EXISTS (\n    SELECT 1\n    FROM orders o\n    WHERE o.customer_id = c.id\n\
+    \      AND o.total_amount > 500\n      AND o.order_date >= '2024-01-01'\n    \
+    \  AND o.order_date < '2025-01-01'\n)\nORDER BY c.last_name, c.first_name;"
+  expected_concepts:
+  - exists_subquery
+  - correlated_subquery
+  - where_filter
+  targets_misconception: in_instead_of_exists
+- difficulty: 4
+  title: Kategorije koje imaju barem jedan proizvod u ponudi
+  description: 'Pronađi sve kategorije koje imaju barem jedan proizvod (iz tablice
+    products).
+
+    Ispiši category id i name. Koristi EXISTS — ne koristiti JOIN niti IN.
+
+    Sortiraj po category name.'
+  expected_query: "SELECT cat.id, cat.name\nFROM categories cat\nWHERE EXISTS (\n\
+    \    SELECT 1\n    FROM products p\n    WHERE p.category_id = cat.id\n)\nORDER\
+    \ BY cat.name;"
+  expected_concepts:
+  - exists_subquery
+  - correlated_subquery
+  - where_filter
+  targets_misconception: exists_select_list_matters
+- difficulty: 5
+  title: Kupci koji imaju narudžbu, ali ni jedan naručeni proizvod iz kategorije 'Electronics'
+  description: 'Pronađi kupce koji su napravili barem jednu narudžbu (EXISTS na orders),
+
+    ali NIJEDNA njihova narudžba ne sadrži proizvod iz kategorije ''Electronics''.
+
+    Ispiši customer id, first_name i last_name. Koristi EXISTS i NOT EXISTS.'
+  expected_query: "SELECT c.id, c.first_name, c.last_name\nFROM customers c\nWHERE\
+    \ EXISTS (\n    SELECT 1\n    FROM orders o\n    WHERE o.customer_id = c.id\n\
+    )\nAND NOT EXISTS (\n    SELECT 1\n    FROM orders o\n    INNER JOIN order_items\
+    \ oi ON o.id = oi.order_id\n    INNER JOIN products p ON oi.product_id = p.id\n\
+    \    INNER JOIN categories cat ON p.category_id = cat.id\n    WHERE o.customer_id\
+    \ = c.id\n      AND cat.name = 'Electronics'\n)\nORDER BY c.last_name, c.first_name;"
+  expected_concepts:
+  - exists_subquery
+  - correlated_subquery
+  - not_exists
+  - where_filter
+  - inner_join
+  targets_misconception: not_exists_vs_not_in_null
+ast_validation_rules:
+- expected_query mora sadržavati EXISTS ili NOT EXISTS ključnu riječ u WHERE klauzi
+- Podupit unutar EXISTS mora sadržavati WHERE klauzu koja referencira alias outer
+  tablice (korelacija je obavezna)
+- SELECT lista unutar EXISTS podupita mora biti '1' ili '*' — ne specifična kolona
+  (konvencija)
+- 'Za NOT EXISTS scenarije: outer WHERE klauza mora koristiti NOT EXISTS, ne NOT IN'
+- 'Za težinu >= 4: EXISTS podupit mora imati najmanje 2 uvjeta u inner WHERE klauzi
+  ILI zadatak mora kombinirati EXISTS i NOT EXISTS'

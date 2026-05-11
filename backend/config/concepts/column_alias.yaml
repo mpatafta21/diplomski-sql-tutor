@@ -1,0 +1,123 @@
+concept_code: column_alias
+concept_name: AS klauza — aliasi stupaca i tablica
+module_number: 0
+module_name: Transverzalni koncepti
+tier: easy
+target_misconceptions:
+- code: alias_in_where_clause
+  description: 'Student koristi alias definiran u SELECT klauzi unutar WHERE klauze
+    — nije moguće jer se WHERE evaluira prije SELECT-a (logički redoslijed: FROM →
+    WHERE → SELECT → ORDER BY)'
+  priority: critical
+- code: alias_in_having_without_group_by
+  description: Student pokušava koristiti alias u HAVING klauzi bez GROUP BY, ili
+    zaboravlja da HAVING filtrira agregirane grupe, a ne redove
+  priority: high
+- code: missing_as_keyword
+  description: Student potpuno izostavlja AS i alias — vraća stupac s originalnim,
+    nečitljivim imenom (npr. 'total_amount' umjesto 'Ukupni iznos')
+  priority: medium
+- code: alias_overrides_original_name
+  description: Student misli da AS mijenja ime stupca u bazi — alias je samo privremena
+    oznaka u rezultatu trenutnog upita, ne mijenja shemu
+  priority: low
+domain_hints:
+- 'Aliasi čine rezultate čitljivijima: ''first_name || last_name AS full_name'' umjesto
+  prikaza konkatenacije kao izraza'
+- 'Sandbox tablice s korisnim kolonama za alias: customers (first_name, last_name,
+  email), orders (total_amount, order_date), products (name, price)'
+- U PostgreSQL-u alias se MOŽE koristiti u GROUP BY i ORDER BY, ali NE u WHERE klauzi
+- Alias tablice (FROM customers c) skraćuje pisanje u multi-table upitima — transversalan
+  koncept za sve JOIN module
+- Izračunate kolone (SUM, AVG, konkatenacija) gotovo uvijek trebaju alias jer nemaju
+  prirodno ime u rezultatu
+anti_patterns:
+- Ne piši expected_query koji koristi alias u WHERE klauzi — to je upravo misconception
+  koji treba ispraviti
+- Ne koristi alias koji je identičan originalnom imenu kolone — to ne demonstrira
+  korisnost AS klauze
+- Ne piši zadatke koji ne zahtijevaju nikakav alias (npr. SELECT name FROM categories)
+  — svaki zadatak mora imati barem jedan AS
+- Ne koristi alias s razmacima bez navodnika (npr. AS total amount je sintaksna greška
+  — mora biti AS "total amount" ili AS total_amount)
+required_for_high_difficulty:
+- Alias na izračunatim izrazima (konkatenacija, aritmetika, agregacijska funkcija)
+- Alias tablice kombiniran s aliasom stupca u istom upitu
+- ORDER BY koji referencira alias definiran u SELECT klauzi
+few_shot_examples:
+- difficulty: 1
+  title: Čitljiva imena stupaca za kategorije
+  description: Ispiši sve kategorije iz tablice categories. Stupac name prikaži pod
+    aliasom category_name, a stupac description pod aliasom category_description.
+  expected_query: "SELECT name AS category_name,\n       description AS category_description\n\
+    FROM categories\nORDER BY category_name;"
+  expected_concepts:
+  - column_alias
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: missing_as_keyword
+- difficulty: 2
+  title: Puno ime kupca konkatenacijom
+  description: Za svakog kupca iz tablice customers ispiši puno ime kao jedan stupac
+    pod aliasom full_name (konkatenacija first_name, razmaka i last_name) te email.
+    Sortiraj po full_name.
+  expected_query: "SELECT first_name || ' ' || last_name AS full_name,\n       email\n\
+    FROM customers\nORDER BY full_name\nLIMIT 10;"
+  expected_concepts:
+  - column_alias
+  - select_basic
+  - from_clause
+  - order_by
+  - limit_offset
+  targets_misconception: missing_as_keyword
+- difficulty: 2
+  title: Alias ne smije biti u WHERE klauzi
+  description: 'Ispiši id i total_amount iz tablice orders pod aliasom iznos samo
+    za narudžbe čiji je total_amount veći od 500. NAPOMENA: filter mora biti na originalnom
+    imenu kolone (total_amount), ne na aliasom (iznos) — alias nije vidljiv u WHERE
+    klauzi.'
+  expected_query: "SELECT id AS order_id,\n       total_amount AS iznos\nFROM orders\n\
+    WHERE total_amount > 500\nORDER BY iznos DESC\nLIMIT 10;"
+  expected_concepts:
+  - column_alias
+  - select_basic
+  - where_filter
+  - order_by
+  targets_misconception: alias_in_where_clause
+- difficulty: 3
+  title: Alias tablice i stupca u kombinaciji
+  description: Iz tablice products (koristi alias tablice p) ispiši ime proizvoda
+    pod aliasom product_name i cijenu pod aliasom price_eur. Filtriraj samo proizvode
+    čija je cijena između 10 i 100. Sortiraj po price_eur uzlazno.
+  expected_query: "SELECT p.name AS product_name,\n       p.price AS price_eur\nFROM\
+    \ products p\nWHERE p.price BETWEEN 10 AND 100\nORDER BY price_eur ASC\nLIMIT\
+    \ 20;"
+  expected_concepts:
+  - column_alias
+  - select_basic
+  - where_filter
+  - order_by
+  targets_misconception: alias_in_where_clause
+- difficulty: 4
+  title: Agregirani alias u ORDER BY
+  description: Za svakog kupca izračunaj ukupni iznos svih njegovih narudžbi. Ispiši
+    customer_id i ukupni iznos pod aliasom total_spent. Sortiraj po total_spent od
+    najvećeg prema najmanjem i prikaži top 10 kupaca.
+  expected_query: "SELECT o.customer_id,\n       SUM(o.total_amount) AS total_spent\n\
+    FROM orders o\nGROUP BY o.customer_id\nORDER BY total_spent DESC\nLIMIT 10;"
+  expected_concepts:
+  - column_alias
+  - aggregate_functions
+  - group_by
+  - order_by
+  - limit_offset
+  targets_misconception: alias_in_having_without_group_by
+ast_validation_rules:
+- expected_query mora sadržavati barem jednu AS klauzu u SELECT listi
+- Alias definiran u SELECT klauzi NE smije biti korišten u WHERE klauzi istog upita
+  — WHERE mora referencirati originalno ime kolone ili izraz
+- Alias smije biti korišten u ORDER BY klauzi (PostgreSQL to podržava)
+- Alias smije biti korišten u GROUP BY klauzi (PostgreSQL to podržava)
+- Alias koji sadrži razmak mora biti u dvostrukim navodnicima (npr. AS "full name")
+  — snake_case aliasi (full_name) ne trebaju navodnike

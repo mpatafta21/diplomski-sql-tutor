@@ -1,0 +1,164 @@
+concept_code: delete
+concept_name: DELETE FROM — brisanje redova
+module_number: 4
+module_name: DML operacije
+tier: medium
+target_misconceptions:
+- code: delete_without_where
+  description: Student napiše DELETE FROM tablica bez WHERE klauze — briše SVE retke
+    u tablici, a ne samo ciljane
+  priority: critical
+- code: delete_vs_truncate_confusion
+  description: Zamjenjuje DELETE (DML, podržava WHERE, može rollback) s TRUNCATE (DDL,
+    briše sve retke, ne može rollback u PostgreSQL-u bez transakcije) — semantički
+    i transakcijski su različiti
+  priority: high
+- code: delete_vs_drop_confusion
+  description: Koristi DROP TABLE umjesto DELETE FROM — DROP briše cijelu tablicu
+    i njenu shemu, ne samo redove
+  priority: high
+- code: fk_constraint_violation
+  description: Briše referencirani red (npr. customer koji ima narudžbe) bez prethodnog
+    brisanja zavisnih redova — rezultira FK constraint violation greškom
+  priority: critical
+- code: delete_wrong_filter
+  description: WHERE uvjet u DELETE-u je preširok ili preuzak — npr. briše retke drugih
+    korisnika ili ne briše sve ciljane retke
+  priority: medium
+domain_hints:
+- Sandbox radi sa sandbox_readwrite rolom — sve DML operacije (DELETE) automatski
+  se rollback-aju nakon provjere, podaci ostaju netaknuti
+- Tablica orders ima FK orders.customer_id → customers.id — brisanje customer-a koji
+  ima narudžbe rezultira FK violation, prvo treba obrisati narudžbe (ili ORDER ITEMS)
+- Tablica order_items ima FK order_items.order_id → orders.id i order_items.product_id
+  → products.id — brisanje narudžbe bez brisanja njenih stavki je FK violation
+- 'Sigurno testno brisanje: DELETE s WHERE na specifičan id ili uvjet koji pogađa
+  mali broj redova (npr. status = ''cancelled'')'
+- 'Sandbox invariant: ~50 narudžbi ima status ''cancelled'' — sigurni su za DELETE
+  scenarije bez FK komplikacija jer order_items mogu biti dio WHERE filtera'
+- 'RETURNING klauzula u PostgreSQL-u: DELETE FROM ... WHERE ... RETURNING id, column
+  — korisno za provjeru što je obrisano bez posebnog SELECT-a'
+- Uvijek koristi BEGIN / ROLLBACK blok u primjerima kako bi demonstrirao sigurno testiranje
+  DML-a
+anti_patterns:
+- Ne piši DELETE bez WHERE klauze kao expected_query — to je kritični anti-pattern
+  koji briše sve retke
+- Ne piši zadatak gdje expected_query briše referencirani red bez prethodnog brisanja
+  zavisnih redova — FK constraint violation
+- Ne koristi TRUNCATE TABLE kao zamjenu za DELETE — TRUNCATE je DDL, izvan scope-a
+  ovog modula
+- Ne piši DROP TABLE u expected_query — to je DDL koji briše shemu, ne samo redove
+- Ne koristiti DELETE bez eksplicitnog WHERE uvjeta koji precizno targetira željene
+  retke
+- Ne pretpostavljaj da DELETE vraća broj obrisanih redova bez RETURNING klauze ili
+  posebnog upita
+required_for_high_difficulty:
+- DELETE s podupiton (subquery) u WHERE klauzi (npr. WHERE id IN (SELECT ...))
+- 'Kaskadno brisanje: prvo brisanje zavisnih redova (order_items), zatim referencirani
+  red (orders)'
+- Upotreba RETURNING klauze za provjeru obrisanih redova
+- DELETE s JOIN-like semantikom kroz subquery (npr. brisanje stavki narudžbi određenog
+  kupca)
+few_shot_examples:
+- difficulty: 2
+  title: Brisanje otkazanih narudžbi
+  description: 'Obriši sve narudžbe koje imaju status ''cancelled'' iz tablice orders.
+
+    Ispiši koliko redova je obrisano koristeći RETURNING klauzulu — vrati stupac id
+    obrisanih narudžbi.
+
+    Napomena: u sandboxu se sve promjene automatski rollback-aju.'
+  expected_query: 'DELETE FROM orders
+
+    WHERE status = ''cancelled''
+
+    RETURNING id;
+
+    '
+  expected_concepts:
+  - delete
+  - where_filter
+  targets_misconception: delete_without_where
+- difficulty: 3
+  title: Brisanje jedne specifične narudžbe po ID-u
+  description: 'Obriši narudžbu s id = 999 iz tablice orders.
+
+    Koristi WHERE uvjet koji precizno targetira samo taj jedan red.
+
+    Vrati id i status obrisanog reda koristeći RETURNING.
+
+    Napomena: u sandboxu se sve promjene automatski rollback-aju.'
+  expected_query: 'DELETE FROM orders
+
+    WHERE id = 999
+
+    RETURNING id, status;
+
+    '
+  expected_concepts:
+  - delete
+  - where_filter
+  targets_misconception: delete_wrong_filter
+- difficulty: 4
+  title: Kaskadno brisanje stavki pa narudžbe
+  description: 'Obriši narudžbu s id = 500 i sve njene stavke iz tablice order_items.
+
+    Budući da order_items ima FK na orders, prvo moraš obrisati stavke (order_items
+    WHERE order_id = 500),
+
+    a zatim samu narudžbu (orders WHERE id = 500).
+
+    Za oba koraka koristi RETURNING id kako bi potvrdio brisanje.
+
+    Napomena: u sandboxu se sve promjene automatski rollback-aju.'
+  expected_query: 'DELETE FROM order_items
+
+    WHERE order_id = 500
+
+    RETURNING id;
+
+
+    DELETE FROM orders
+
+    WHERE id = 500
+
+    RETURNING id;
+
+    '
+  expected_concepts:
+  - delete
+  - where_filter
+  - fk_constraints
+  targets_misconception: fk_constraint_violation
+- difficulty: 5
+  title: Brisanje stavki narudžbi određenog kupca (subquery)
+  description: 'Obriši sve stavke narudžbi (order_items) koje pripadaju kupcu s id
+    = 42.
+
+    Koristi subquery u WHERE klauzi koji dohvaća sve order_id-jeve narudžbi tog kupca
+    iz tablice orders.
+
+    Vrati id obrisanih stavki koristeći RETURNING.
+
+    Napomena: u sandboxu se sve promjene automatski rollback-aju.'
+  expected_query: "DELETE FROM order_items\nWHERE order_id IN (\n    SELECT id\n \
+    \   FROM orders\n    WHERE customer_id = 42\n)\nRETURNING id;\n"
+  expected_concepts:
+  - delete
+  - where_filter
+  - subquery
+  - fk_constraints
+  targets_misconception: fk_constraint_violation
+ast_validation_rules:
+- expected_query mora sadržavati DELETE FROM s eksplicitnom WHERE klauzom — DELETE
+  bez WHERE je zabranjen anti-pattern
+- WHERE klauza mora biti prisutna i mora sadržavati barem jedan uvjet koji precizno
+  targetira retke (npr. id = X, status = 'Y', ili subquery)
+- Ne smije sadržavati TRUNCATE TABLE ili DROP TABLE — to su DDL naredbe izvan scope-a
+  DELETE koncepta
+- 'Za težinu >= 4: WHERE klauza smije (i treba) sadržavati subquery (IN, EXISTS) koji
+  referencira drugu tablicu'
+- Ako zadatak uključuje FK zavisnost (order_items → orders), expected_query mora brisati
+  zavisne retke PRIJE referencirane tablice
+- RETURNING klauza je poželjna za sve DELETE upite kako bi potvrdila koje redove je
+  brisanje zahvatilo

@@ -1,0 +1,195 @@
+concept_code: null_handling
+concept_name: NULL handling
+module_number: 0
+module_name: Transverzalni koncepti
+tier: medium
+target_misconceptions:
+- code: null_equals_null
+  description: Student koristi = NULL ili != NULL umjesto IS NULL / IS NOT NULL —
+    uvjet uvijek vraća UNKNOWN (nikad TRUE), rezultat je prazan skup
+  priority: critical
+- code: three_valued_logic_ignored
+  description: Student ne razumije 3-valued logiku (TRUE/FALSE/UNKNOWN) — ne prepoznaje
+    da NULL u WHERE uvjetu znači da red biva odbačen, čak i za NOT uvjete
+  priority: critical
+- code: not_in_null_trap
+  description: Koristi NOT IN (podskup koji sadrži NULL) — SQL vraća 0 redova jer
+    svaka usporedba s NULL daje UNKNOWN, student ne koristi NOT EXISTS ili IS NOT
+    NULL filter
+  priority: critical
+- code: coalesce_wrong_argument_order
+  description: Zamijeni redoslijed argumenata u COALESCE — fallback vrijednost stavlja
+    na prvo mjesto umjesto nullable kolone, pa COALESCE uvijek vraća fallback
+  priority: high
+- code: count_star_vs_count_col
+  description: Koristi COUNT(*) misleći da broji ne-NULL vrijednosti kolone — COUNT(*)
+    broji sve redove, COUNT(col) ignorira NULL-ove
+  priority: high
+- code: nullif_misuse
+  description: Zamijeni argumente NULLIF-a ili ga koristi kao COALESCE — NULLIF(a,
+    b) vraća NULL kad je a = b, a ne fallback vrijednost
+  priority: medium
+domain_hints:
+- orders.employee_id je nullable — ~30% narudžbi nema dodjeljenog zaposlenika (employee_id
+  IS NULL)
+- products.description je nullable — dio proizvoda nema opis u sandbox bazi
+- customers.phone je nullable — pogodno za demonstraciju COALESCE s fallback stringom
+- COUNT(employee_id) vs COUNT(*) na tablici orders daje različite rezultate zbog NULL
+  employee_id vrijednosti
+- NOT IN + podzadatak koji vraća NULL redove rezultira praznim skupom — koristiti
+  NOT EXISTS ili dodati IS NOT NULL filter
+- NULLIF je koristan za izbjegavanje dijeljenja s nulom (npr. NULLIF(quantity, 0)
+  u kalkulacijama)
+- COALESCE prihvata više od 2 argumenta — vraća prvi ne-NULL argument slijeva nadesno
+anti_patterns:
+- Ne piši WHERE employee_id = NULL ili WHERE description != NULL — uvijek IS NULL
+  / IS NOT NULL
+- Ne koristi NOT IN s podupitom koji može vratiti NULL bez IS NOT NULL filtera u unutarnjem
+  upitu
+- Ne koristi COALESCE s fallback vrijednošću na prvom umjesto drugom argumentu kad
+  je cilj zadržati originalnu vrijednost gdje postoji
+- Ne pretpostavljaj da COUNT(*) i COUNT(nullable_col) uvijek daju isti rezultat
+- Ne piši NULLIF kao zamjenu za COALESCE — to su komplementarne, ne zamjenjive funkcije
+required_for_high_difficulty: []
+few_shot_examples:
+- difficulty: 2
+  title: Narudžbe bez dodijeljenog zaposlenika
+  description: 'Pronađi sve narudžbe kojima nije dodijeljen zaposlenik (employee_id
+    je NULL).
+
+    Ispiši order_id, customer_id, order_date i status.
+
+    Sortiraj po order_date od najnovije prema najstarijoj.
+
+    '
+  expected_query: 'SELECT id AS order_id, customer_id, order_date, status
+
+    FROM orders
+
+    WHERE employee_id IS NULL
+
+    ORDER BY order_date DESC
+
+    LIMIT 20;
+
+    '
+  expected_concepts:
+  - null_handling
+  - where_filter
+  - order_by
+  - limit_offset
+  targets_misconception: null_equals_null
+- difficulty: 2
+  title: Proizvodi s opisom i bez opisa — COUNT usporedba
+  description: 'Izračunaj ukupan broj svih proizvoda (COUNT(*)) i broj proizvoda koji
+    imaju unesen opis
+
+    (COUNT(description)). Ispiši obje vrijednosti kao total_products i products_with_description.
+
+    Ovaj zadatak demonstrira razliku između COUNT(*) i COUNT(nullable_col).
+
+    '
+  expected_query: "SELECT COUNT(*) AS total_products,\n       COUNT(description) AS\
+    \ products_with_description\nFROM products;\n"
+  expected_concepts:
+  - null_handling
+  - aggregate_functions
+  - select_basic
+  targets_misconception: count_star_vs_count_col
+- difficulty: 3
+  title: Prikaz telefonskog broja kupca s fallback vrijednošću
+  description: 'Za svakog kupca ispiši id, first_name, last_name i telefonski broj.
+
+    Ako kupac nema unesen telefonski broj (phone je NULL), prikaži string ''N/A''
+    umjesto NULL-a.
+
+    Koristi COALESCE. Sortiraj po id.
+
+    '
+  expected_query: "SELECT id,\n       first_name,\n       last_name,\n       COALESCE(phone,\
+    \ 'N/A') AS phone\nFROM customers\nORDER BY id\nLIMIT 20;\n"
+  expected_concepts:
+  - null_handling
+  - select_basic
+  - order_by
+  targets_misconception: coalesce_wrong_argument_order
+- difficulty: 3
+  title: Prosječan iznos narudžbe — zaštita od dijeljenja s nulom pomoću NULLIF
+  description: 'Za svakog zaposlenika (employee_id) izračunaj prosječni total_amount
+    narudžbi koje su mu dodijeljene.
+
+    Koristi NULLIF kako bi izbjegao potencijalno dijeljenje s nulom pri ručnom izračunu
+    prosjeka:
+
+    SUM(total_amount) / NULLIF(COUNT(*), 0). Ispiši employee_id i avg_order_amount.
+
+    Isključi narudžbe bez dodjeljenog zaposlenika. Sortiraj po employee_id.
+
+    '
+  expected_query: "SELECT employee_id,\n       SUM(total_amount) / NULLIF(COUNT(*),\
+    \ 0) AS avg_order_amount\nFROM orders\nWHERE employee_id IS NOT NULL\nGROUP BY\
+    \ employee_id\nORDER BY employee_id;\n"
+  expected_concepts:
+  - null_handling
+  - aggregate_functions
+  - group_by
+  - where_filter
+  targets_misconception: nullif_misuse
+- difficulty: 4
+  title: Kupci koji NISU naručili određeni proizvod — NOT IN NULL trap
+  description: 'Pronađi sve kupce koji nisu naručili proizvod s id = 5.
+
+    Napiši upit koji ISPRAVNO rješava problem koristeći NOT EXISTS (ili NOT IN s IS
+    NOT NULL filterom
+
+    na unutarnjem upitu) kako bi izbjegao NULL trap koji vraća 0 redova.
+
+    Ispiši id, first_name i last_name. Sortiraj po id.
+
+    '
+  expected_query: "SELECT c.id, c.first_name, c.last_name\nFROM customers c\nWHERE\
+    \ NOT EXISTS (\n    SELECT 1\n    FROM orders o\n    INNER JOIN order_items oi\
+    \ ON o.id = oi.order_id\n    WHERE o.customer_id = c.id\n      AND oi.product_id\
+    \ = 5\n)\nORDER BY c.id;\n"
+  expected_concepts:
+  - null_handling
+  - correlated_subquery
+  - where_filter
+  - inner_join
+  targets_misconception: not_in_null_trap
+- difficulty: 4
+  title: Narudžbe s imenima zaposlenika — 3-valued logika u praksi
+  description: 'Ispiši order_id, order_date, total_amount i puno ime zaposlenika koji
+    je obradio narudžbu.
+
+    Ako narudžba nema dodjeljenog zaposlenika, prikaži ''Nije dodjeljeno'' umjesto
+    NULL-a (koristi COALESCE).
+
+    Prikaži SAMO narudžbe iz 2024. godine. Sortiraj po order_date DESC.
+
+    '
+  expected_query: "SELECT o.id AS order_id,\n       o.order_date,\n       o.total_amount,\n\
+    \       COALESCE(e.first_name || ' ' || e.last_name, 'Nije dodjeljeno') AS employee_name\n\
+    FROM orders o\nLEFT JOIN employees e ON o.employee_id = e.id\nWHERE o.order_date\
+    \ >= '2024-01-01'\n  AND o.order_date < '2025-01-01'\nORDER BY o.order_date DESC\n\
+    LIMIT 20;\n"
+  expected_concepts:
+  - null_handling
+  - left_join
+  - where_filter
+  - order_by
+  - coalesce
+  targets_misconception: three_valued_logic_ignored
+ast_validation_rules:
+- expected_query koji testira NULL usporedbu mora koristiti IS NULL ili IS NOT NULL
+  — nikad = NULL ili != NULL
+- expected_query koji koristi COALESCE mora imati nullable kolonu kao prvi argument,
+  a fallback vrijednost kao drugi (ili kasniji) argument
+- expected_query koji koristi NULLIF mora imati izraz koji se testira kao prvi argument
+  i vrijednost koja se uspoređuje (npr. 0) kao drugi argument
+- 'Za zadatke s NOT IN anti-patternom: expected_query mora koristiti NOT EXISTS ili
+  NOT IN s eksplicitnim IS NOT NULL filterom u unutarnjem upitu'
+- 'Za zadatke koji demonstriraju COUNT razliku: expected_query mora sadržavati i COUNT(*)
+  i COUNT(nullable_col) u istom SELECT-u'
+- 'Za težinu >= 4: expected_query mora kombinirati NULL handling s barem jednim dodatnim
+  konceptom (LEFT JOIN, correlated subquery ili agregacija)'

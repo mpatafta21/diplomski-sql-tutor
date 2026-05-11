@@ -1,0 +1,170 @@
+concept_code: join_condition
+concept_name: ON klauzula — uvjet spajanja u JOIN-u
+module_number: 0
+module_name: Transverzalni koncepti
+tier: medium
+target_misconceptions:
+- code: on_vs_where_left_join
+  description: Filter u ON klauzi kod LEFT JOIN-a zadržava sve redove lijeve tablice
+    (NULL za nespojene), dok isti filter u WHERE klauzi eliminira NULL-ove i efektivno
+    pretvara LEFT JOIN u INNER JOIN.
+  priority: critical
+- code: wrong_join_keys
+  description: ON klauza spaja krive kolone (npr. o.id = c.id umjesto o.customer_id
+    = c.id) — upit se izvršava bez SQL greške ali vraća semantički netočan rezultat
+    (Cartesian-like ili prazan set).
+  priority: critical
+- code: missing_on_clause
+  description: JOIN bez ON klauze — rezultira Cartesian productom (svaki red lijeve
+    tablice spojen sa svakim redom desne tablice), što je rijetko željeno ponašanje.
+  priority: high
+- code: multiple_conditions_in_on
+  description: Student ne zna da ON klauza može imati više uvjeta povezanih s AND/OR,
+    ili krivo preseluje uvjet iz ON u WHERE kad se radi o LEFT JOIN-u.
+  priority: medium
+domain_hints:
+- 'Kritičan slučaj: orders LEFT JOIN customers ON o.customer_id = c.id WHERE c.country
+  = ''HR'' — WHERE filtrira NULL-ove, efektivno postaje INNER JOIN; premjesti uvjet
+  u ON da zadržiš sve narudžbe'
+- Sandbox ima 25 kupaca BEZ narudžbi i ~1000 narudžbi — LEFT JOIN customers → orders
+  ili orders → customers daje različite kardinalnosti
+- 'Ispravni join ključevi: orders.customer_id = customers.id, order_items.order_id
+  = orders.id, order_items.product_id = products.id, products.category_id = categories.id'
+- Zamjena krivog ključa (npr. o.id = c.id) ne baca grešku ali vraća prazan ili Cartesian
+  rezultat — sandbox ima max id u customers ~200, u orders ~1000 pa djelomičan match
+- 'Za demonstraciju ON vs WHERE razlike: filtriraj po status = ''pending'' — filter
+  u ON vraća sve kupce (NULLove za ostale), filter u WHERE vraća samo kupce s pending
+  narudžbom'
+anti_patterns:
+- Ne piši zadatak gdje ON vs WHERE razlika ne mijenja rezultat (tj. INNER JOIN scenarij)
+  — uvijek koristi LEFT JOIN za demonstraciju semantičke razlike
+- Ne koristi implicitan join syntax (FROM orders o, customers c WHERE o.customer_id
+  = c.id) — eksplicitan JOIN s ON klauzom je jedini prihvatljivi oblik
+- Ne stavljaj agregacijski filter (HAVING) u ON klauzu — ON smije sadržavati samo
+  uvjete spajanja ili statičke filtere koji mijenjaju skup spojenih redova
+- expected_query mora uvijek imati eksplicitnu ON klauzu s ispravnim foreign key parom
+required_for_high_difficulty:
+- Eksplicitna demonstracija ON vs WHERE razlike kod LEFT JOIN-a s obrazloženjem u
+  opisu zadatka
+- Višestruki uvjeti u ON klauzi (AND/OR kombinacija)
+- Kombinacija LEFT JOIN + agregacija (COUNT/SUM) gdje NULL-ovi utječu na rezultat
+  COUNT-a
+few_shot_examples:
+- difficulty: 2
+  title: Narudžbe s imenom kupca — ispravan join ključ
+  description: 'Za svaku narudžbu ispiši order_id, total_amount i ime kupca (first_name,
+    last_name).
+
+    Povezi tablice orders i customers kroz ispravan foreign key.
+
+    Sortiraj po order_id uzlazno, prikaži prvih 10 redova.'
+  expected_query: "SELECT o.id AS order_id,\n       o.total_amount,\n       c.first_name,\n\
+    \       c.last_name\nFROM orders o\nINNER JOIN customers c ON o.customer_id =\
+    \ c.id\nORDER BY o.id\nLIMIT 10;"
+  expected_concepts:
+  - join_condition
+  - inner_join
+  - column_alias
+  - order_by
+  - limit_offset
+  targets_misconception: wrong_join_keys
+- difficulty: 3
+  title: Sve narudžbe s filterom statusa u ON klauzi
+  description: 'Ispiši sve kupce zajedno s njihovim narudžbama statusa ''pending''.
+
+    Koristi LEFT JOIN i stavi uvjet status = ''pending'' u ON klauzu (ne u WHERE).
+
+    Rezultat mora uključivati i kupce koji nemaju pending narudžbe (prikazati NULL
+    za stupce narudžbe).
+
+    Ispiši customer_id, first_name, order_id i status. Sortiraj po customer_id.'
+  expected_query: "SELECT c.id AS customer_id,\n       c.first_name,\n       o.id\
+    \ AS order_id,\n       o.status\nFROM customers c\nLEFT JOIN orders o ON c.id\
+    \ = o.customer_id\n                   AND o.status = 'pending'\nORDER BY c.id\n\
+    LIMIT 20;"
+  expected_concepts:
+  - join_condition
+  - left_join
+  - where_filter
+  targets_misconception: on_vs_where_left_join
+- difficulty: 4
+  title: ON vs WHERE — semantička razlika kod LEFT JOIN-a
+  description: "Prikaži razliku između filtera u ON i WHERE klauzi kod LEFT JOIN-a.\n\
+    Zadatak A (ispravan): Dohvati sve kupce i, ako postoje, njihove narudžbe s iznosom\
+    \ većim od 500.\n  Kupci bez takvih narudžbi smiju se pojaviti u rezultatu s NULL\
+    \ vrijednostima za stupce narudžbe.\nZadatak B (anti-pattern): isti upit ali s\
+    \ filterom total_amount > 500 u WHERE klauzi — to eliminira\n  kupce bez narudžbi\
+    \ i kupce čije narudžbe nisu iznad 500, efektivno pretvarajući LEFT JOIN u INNER\
+    \ JOIN.\nIspiši samo Zadatak A kao expected_query: customer_id, first_name, order_id,\
+    \ total_amount.\nSortiraj po customer_id, zatim po total_amount DESC."
+  expected_query: "SELECT c.id AS customer_id,\n       c.first_name,\n       o.id\
+    \ AS order_id,\n       o.total_amount\nFROM customers c\nLEFT JOIN orders o ON\
+    \ c.id = o.customer_id\n                   AND o.total_amount > 500\nORDER BY\
+    \ c.id,\n         o.total_amount DESC\nLIMIT 30;"
+  expected_concepts:
+  - join_condition
+  - left_join
+  - where_filter
+  - null_handling
+  targets_misconception: on_vs_where_left_join
+- difficulty: 4
+  title: Višestruki uvjeti u ON klauzi
+  description: 'Dohvati sve stavke narudžbi (order_items) spojene s narudžbama, ali
+    samo za narudžbe
+
+    s statusom ''completed'' i kupca s ID-em manjim od 50.
+
+    Oba uvjeta stavi u ON klauzu LEFT JOIN-a kako bi zadržao sve stavke narudžbi čak
+    i ako
+
+    narudžba ne zadovoljava uvjete (NULL za stupce orders).
+
+    Ispiši oi.id AS item_id, oi.quantity, o.id AS order_id, o.status, o.customer_id.
+
+    Sortiraj po item_id, prikaži prvih 20 redova.'
+  expected_query: "SELECT oi.id AS item_id,\n       oi.quantity,\n       o.id AS order_id,\n\
+    \       o.status,\n       o.customer_id\nFROM order_items oi\nLEFT JOIN orders\
+    \ o ON oi.order_id = o.id\n                   AND o.status = 'completed'\n   \
+    \                AND o.customer_id < 50\nORDER BY item_id\nLIMIT 20;"
+  expected_concepts:
+  - join_condition
+  - left_join
+  - multiple_conditions
+  - null_handling
+  targets_misconception: multiple_conditions_in_on
+- difficulty: 5
+  title: Broj narudžbi po kupcu — ON filter vs WHERE filter usporedba
+  description: 'Izbroji broj ''shipped'' narudžbi za svakog kupca. Kupci bez shipped
+    narudžbi trebaju
+
+    se pojaviti s COUNT = 0 (dakle, filter statusa mora biti u ON klauzi, ne u WHERE).
+
+    Ispiši customer_id, first_name, last_name i shipped_orders_count.
+
+    Sortiraj po shipped_orders_count DESC, zatim po customer_id ASC.
+
+    Prikaži svih kupaca (bez LIMIT-a).'
+  expected_query: "SELECT c.id AS customer_id,\n       c.first_name,\n       c.last_name,\n\
+    \       COUNT(o.id) AS shipped_orders_count\nFROM customers c\nLEFT JOIN orders\
+    \ o ON c.id = o.customer_id\n                   AND o.status = 'shipped'\nGROUP\
+    \ BY c.id, c.first_name, c.last_name\nORDER BY shipped_orders_count DESC,\n  \
+    \       c.id ASC;"
+  expected_concepts:
+  - join_condition
+  - left_join
+  - aggregate_functions
+  - group_by
+  - order_by
+  - null_handling
+  targets_misconception: on_vs_where_left_join
+ast_validation_rules:
+- expected_query mora sadržavati eksplicitnu JOIN ... ON klauzu — implicitan join
+  syntax (FROM a, b WHERE ...) nije prihvatljiv
+- ON klauza mora referencirati ispravan foreign key par (npr. o.customer_id = c.id,
+  oi.order_id = o.id, oi.product_id = p.id, p.category_id = cat.id) — ON o.id = c.id
+  je anti-pattern
+- 'Za zadatke s težinom >= 3 koji demonstriraju ON vs WHERE razliku: filter koji se
+  testira mora biti prisutan u ON klauzi, a ne u WHERE klauzi'
+- 'Za LEFT JOIN zadatke: WHERE klauza ne smije sadržavati uvjet koji filtrira NULL-ove
+  desne tablice (čime bi poništila LEFT JOIN semantiku), osim ako je zadatak eksplicitno
+  anti-join pattern (IS NULL)'

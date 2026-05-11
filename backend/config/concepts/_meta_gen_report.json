@@ -1,0 +1,37 @@
+[
+  {
+    "status": "success",
+    "concept_code": "exists_subquery",
+    "attempts": 1,
+    "cost_usd": 0.0486879,
+    "error": null
+  },
+  {
+    "status": "success",
+    "concept_code": "explain_plan",
+    "attempts": 1,
+    "cost_usd": 0.0592779,
+    "error": null
+  },
+  {
+    "status": "success",
+    "concept_code": "null_handling",
+    "attempts": 1,
+    "cost_usd": 0.0466329,
+    "error": null
+  },
+  {
+    "status": "success",
+    "concept_code": "column_alias",
+    "attempts": 1,
+    "cost_usd": 0.0349629,
+    "error": null
+  },
+  {
+    "status": "success",
+    "concept_code": "join_condition",
+    "attempts": 1,
+    "cost_usd": 0.0488979,
+    "error": null
+  }
+]

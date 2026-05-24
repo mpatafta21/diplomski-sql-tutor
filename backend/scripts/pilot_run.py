@@ -93,6 +93,7 @@ def run_pilot(
                 concept=concept,
                 difficulty=difficulty,
                 dml=is_dml,
+                extended_thinking=True,
             )
 
             if meta is not None:

@@ -27,17 +27,26 @@ Generiraj 1 SQL zadatak za sljedeću specifikaciju:
 - `secondary_concepts` MUST NOT include the primary concept (no duplicates)
 - `secondary_concepts` MUST be different concepts that the task ALSO exercises
 
-## INTERNI CHECKLIST (provedi mentalno PRIJE generiranja JSON-a — NE piši ovo u response):
-1. Mentalno izvrši svoj `expected_query` na sandbox shemi
-2. Provjeri da `expected_result` odgovara stvarnom rezultatu
-3. Provjeri da `expected_query` stvarno koristi `{{concept_code}}` koncept (ne samo komentar/string, mora biti u FROM/JOIN/WHERE kontekstu)
-4. Provjeri da koncept nije slučajno prisutan zbog drugog rješenja (npr. INNER JOIN slučajno daje isti rezultat kao LEFT JOIN za ovaj dataset)
+## VERIFICATION CHECKLIST (use your thinking block — `<thinking>` tags or extended thinking budget — to work through ALL of these BEFORE writing the JSON):
 
-**OUTPUT FORMAT (strict):**
+1. **Write out `expected_query` step-by-step.** What rows match the WHERE/JOIN conditions? Walk row-by-row against SAMPLE ROWS and KEY INVARIANTS. If aggregation, compute it explicitly (e.g. "5 customers from Croatia × 1 order avg = 5 rows").
+
+2. **Derive `expected_result` from THAT execution.** Do NOT guess. Do NOT use placeholder rows. If you can't enumerate the result deterministically from the schema/sample data, **rewrite the query to be deterministic** (add `ORDER BY id LIMIT N`, switch to a COUNT/SUM that's invariant-based).
+
+3. **Verify `expected_query` syntactically USES `{{concept_code}}`.**
+   - For SQL keyword concepts (RIGHT JOIN, GROUP BY, EXPLAIN): the literal keyword(s) MUST appear in the query (not in comments/strings — in actual SQL position).
+   - For pattern concepts (scalar_subquery, correlated_subquery): the structural pattern MUST be present (e.g. scalar_subquery = `(SELECT ... FROM ... WHERE ...)` in SELECT list or comparison).
+   - For `explain_plan`: query MUST start with `EXPLAIN` or `EXPLAIN (ANALYZE, ...)`.
+   - If you wrote a query that gives a correct answer but uses a DIFFERENT concept → rewrite using `{{concept_code}}`, even if less elegant.
+
+4. **Confirm the concept is essential, not incidental.** Would the same `expected_result` come out if you swapped `{{concept_code}}` for an alternative (e.g. INNER JOIN instead of LEFT JOIN)? If yes, change the data filter so the concept becomes load-bearing.
+
+**OUTPUT FORMAT (strict — applies to the FINAL response, not the thinking block):**
 Respond with ONLY a valid JSON object matching the schema above.
 - DO NOT wrap the JSON in markdown code blocks (no ```json ... ``` fences)
 - DO NOT include any explanation, preamble, or "reasoning" before/after the JSON
 - DO NOT include comments inside the JSON
 - The first character of your response MUST be `{` and the last character MUST be `}`
-- If you need to think through the problem, do so internally — only the final JSON is your response
+- All checklist work above belongs in your thinking block, NOT in the response
+
 

@@ -1,0 +1,154 @@
+concept_code: full_outer_join
+concept_name: FULL OUTER JOIN
+module_number: 3
+module_name: JOIN-ovi
+tier: hard
+target_misconceptions:
+- code: full_outer_join_as_left_plus_right
+  description: Student misli da je FULL OUTER JOIN isto što i kombinacija LEFT JOIN
+    + RIGHT JOIN — ne razumije da FULL OUTER JOIN u jednom prolazu zadržava sve retke
+    obje tablice s NULL gdje nema poklapanja
+  priority: critical
+- code: full_outer_join_equals_inner_join
+  description: Zamjenjuje FULL OUTER JOIN s INNER JOIN-om — gubi sve retke bez poklapanja
+    (kupci bez narudžbi i narudžbe bez kupca)
+  priority: critical
+- code: missing_null_check_after_full_join
+  description: Ne koristi IS NULL provjere nakon FULL OUTER JOIN-a za filtriranje
+    redova koji nemaju poklapanja ni s jedne strane — anti-join pattern je ključna
+    primjena
+  priority: high
+- code: wrong_join_key_full_outer
+  description: ON klauza spaja krive kolone (npr. c.id = o.id umjesto c.id = o.customer_id)
+    — SQL ne javlja grešku ali rezultat je semantički netočan
+  priority: high
+- code: coalesce_not_used_for_null_display
+  description: Ne koristi COALESCE za prikaz smislenih vrijednosti umjesto NULL na
+    kolonama koje dolaze s 'prazne' strane FULL OUTER JOIN-a
+  priority: medium
+domain_hints:
+- 'Sandbox invariant: postoji ~25 customers BEZ orders (customer_id ne postoji ni
+  u jednoj narudžbi) — idealni kandidati za lijevu stranu FULL OUTER JOIN NULL-ova'
+- 'Sandbox invariant: sve orders imaju validan customer_id koji postoji u customers
+  tablici — desna strana (narudžbe bez kupca) u sandbox-u je prazna, ali koncept treba
+  demonstrirati'
+- 'Prirodna os spajanja: customers.id = orders.customer_id (foreign key relacija)'
+- COALESCE(c.first_name, 'Nepoznat kupac') koristan za prikaz NULL-ova s desne strane
+  JOIN-a
+- 'Anti-join dvostruki pattern: WHERE c.id IS NULL OR o.id IS NULL pronalazi sve retke
+  koji nemaju poklapanja ni s jedne strane'
+- 'Agregacija uz FULL OUTER JOIN: COUNT(o.id) umjesto COUNT(*) jer COUNT(*) broji
+  NULL redove, što daje krivi rezultat'
+- 'Usporedba s LEFT JOIN: FULL OUTER JOIN customers + orders vraća iste retke kao
+  LEFT JOIN u ovom sandboxu jer nema narudžbi bez kupca — ovo je dobra demonstracija
+  sandbox ograničenja'
+anti_patterns:
+- Ne koristi INNER JOIN ili LEFT JOIN gdje zadatak eksplicitno zahtijeva zadržavanje
+  redova s obje strane bez poklapanja — semantički netočno
+- Ne piši FULL OUTER JOIN bez ON klauze — rezultira Cartesian productom
+- Ne koristi SELECT * u FULL OUTER JOIN upitu — kolone s istim imenom s obje strane
+  JOIN-a uzrokuju konfuziju; uvijek kvalificiraj s tabličnim aliasom
+- Ne piši zadatak koji se može trivijalno riješiti LEFT JOIN-om jer sandbox nema narudžbi
+  bez kupca — jasno naznači da FULL OUTER JOIN pokriva oba smjera
+- Ne koristi UNION ALL LEFT JOIN + RIGHT JOIN kao zamjenu — to je anti-pattern koji
+  producira duplikate i lošiju čitljivost od FULL OUTER JOIN-a
+- expected_result mora sadržavati NULL vrijednosti barem na jednoj strani JOIN-a —
+  zadatak bez NULL-ova nije pravi FULL OUTER JOIN zadatak
+required_for_high_difficulty:
+- FULL OUTER JOIN mora biti eksplicitan u FROM klauzi (ne UNION simulacija)
+- ON klauza mora koristiti ispravni foreign key (customers.id = orders.customer_id)
+- 'Za težinu >= 4: zadatak mora demonstrirati NULL-ove barem s jedne strane i koristiti
+  IS NULL ili COALESCE'
+- 'Za težinu 5: kombinacija FULL OUTER JOIN + agregacija + COALESCE + HAVING ili dvostruki
+  anti-join pattern'
+few_shot_examples:
+- difficulty: 3
+  title: Svi kupci i sve narudžbe — uključujući nepovezane
+  description: Ispiši sve kupce i sve narudžbe koristeći FULL OUTER JOIN. Za kupce
+    bez narudžbi prikaži NULL u kolonama narudžbe, a za narudžbe bez kupca prikaži
+    NULL u kolonama kupca. Ispiši customer_id (iz customers), first_name, last_name,
+    order_id (iz orders) i total_amount. Sortiraj po customer_id (NULL-ovi na kraju),
+    pa po order_id.
+  expected_query: "SELECT c.id AS customer_id,\n       c.first_name,\n       c.last_name,\n\
+    \       o.id AS order_id,\n       o.total_amount\nFROM customers c\nFULL OUTER\
+    \ JOIN orders o ON c.id = o.customer_id\nORDER BY c.id NULLS LAST, o.id\nLIMIT\
+    \ 30;"
+  expected_concepts:
+  - full_outer_join
+  - from_clause
+  - order_by
+  - limit_offset
+  targets_misconception: full_outer_join_equals_inner_join
+- difficulty: 4
+  title: Kupci bez narudžbi i narudžbe bez kupca (dvostruki anti-join)
+  description: Pronađi sve kupce koji nemaju nijednu narudžbu I sve narudžbe koje
+    nemaju pridruženog kupca. Koristeći jedan FULL OUTER JOIN upit, ispiši COALESCE(c.id,
+    -1) AS customer_id, COALESCE(c.first_name || ' ' || c.last_name, 'Nepoznat kupac')
+    AS customer_name, o.id AS order_id i razlog zašto red nema poklapanja ('Kupac
+    bez narudžbe' ili 'Narudžba bez kupca'). Sortiraj po razlogu pa po customer_id.
+  expected_query: "SELECT\n    COALESCE(c.id::TEXT, 'N/A') AS customer_id,\n    COALESCE(c.first_name\
+    \ || ' ' || c.last_name, 'Nepoznat kupac') AS customer_name,\n    COALESCE(o.id::TEXT,\
+    \ 'N/A') AS order_id,\n    CASE\n        WHEN o.id IS NULL THEN 'Kupac bez narudžbe'\n\
+    \        WHEN c.id IS NULL THEN 'Narudžba bez kupca'\n    END AS razlog\nFROM\
+    \ customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS\
+    \ NULL OR c.id IS NULL\nORDER BY razlog, customer_id\nLIMIT 30;"
+  expected_concepts:
+  - full_outer_join
+  - null_handling
+  - where_filter
+  - case_expression
+  - coalesce
+  targets_misconception: missing_null_check_after_full_join
+- difficulty: 4
+  title: Broj narudžbi po kupcu — uključujući kupce s 0 narudžbi
+  description: Za svakog kupca ispiši first_name, last_name i ukupan broj narudžbi
+    (count_orders). Kupci koji nemaju narudžbi moraju se pojaviti s count_orders =
+    0 (ne NULL). Koristi FULL OUTER JOIN i COUNT(o.id) (ne COUNT(*)) kako bi NULL
+    redovi bili ispravno odbrojani. Sortiraj od kupca s najviše narudžbi prema kupcu
+    s najmanje, pa abecedno po last_name.
+  expected_query: "SELECT\n    COALESCE(c.first_name, 'Nepoznat') AS first_name,\n\
+    \    COALESCE(c.last_name, 'Kupac') AS last_name,\n    COUNT(o.id) AS count_orders\n\
+    FROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nGROUP BY c.id,\
+    \ c.first_name, c.last_name\nORDER BY count_orders DESC, c.last_name\nLIMIT 20;"
+  expected_concepts:
+  - full_outer_join
+  - aggregate_functions
+  - group_by
+  - order_by
+  - coalesce
+  - null_handling
+  targets_misconception: coalesce_not_used_for_null_display
+- difficulty: 5
+  title: Usporedba LEFT JOIN vs FULL OUTER JOIN — ukupni prihod ili NULL
+  description: Za svakog kupca izračunaj ukupni prihod (SUM total_amount) od narudžbi.
+    Uključi sve kupce (čak i one bez narudžbi, koji trebaju imati total_revenue =
+    0.00) i sve narudžbe (čak i one bez kupca, prikazane kao 'Nepoznat kupac'). Ispiši
+    customer_label (COALESCE od first_name || ' ' || last_name, 'Nepoznat kupac'),
+    total_revenue (COALESCE od SUM, 0.00) i has_orders (TRUE/FALSE). Sortiraj po total_revenue
+    DESC. Ovo ilustrira razliku od LEFT JOIN-a koji bi izgubio narudžbe bez kupca.
+  expected_query: "SELECT\n    COALESCE(c.first_name || ' ' || c.last_name, 'Nepoznat\
+    \ kupac') AS customer_label,\n    COALESCE(SUM(o.total_amount), 0.00) AS total_revenue,\n\
+    \    CASE WHEN COUNT(o.id) > 0 THEN TRUE ELSE FALSE END AS has_orders\nFROM customers\
+    \ c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nGROUP BY c.id, c.first_name,\
+    \ c.last_name\nORDER BY total_revenue DESC\nLIMIT 20;"
+  expected_concepts:
+  - full_outer_join
+  - aggregate_functions
+  - group_by
+  - order_by
+  - coalesce
+  - case_expression
+  - null_handling
+  targets_misconception: full_outer_join_as_left_plus_right
+ast_validation_rules:
+- expected_query mora sadržavati 'FULL OUTER JOIN' ili 'FULL JOIN' u FROM klauzi —
+  UNION simulacija nije prihvatljiva
+- ON klauza mora postojati i mora koristiti ispravni foreign key (customers.id = orders.customer_id
+  ili ekvivalent s aliasom)
+- 'Za težinu >= 4: mora biti prisutan barem jedan od (IS NULL u WHERE, COALESCE poziv,
+  CASE WHEN ... IS NULL ...)'
+- 'Za težinu 5: mora biti prisutan agregacijski poziv (SUM, COUNT, AVG) uz GROUP BY
+  klauzu'
+- SELECT mora koristiti kvalificirane kolone s tabličnim aliasom (c.kolona, o.kolona)
+  — ne nekvalificirane kolone zbog potencijalnih ambiguity grešaka u FULL OUTER JOIN
+  kontekstu

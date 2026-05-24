@@ -1,0 +1,107 @@
+concept_code: from_clause
+concept_name: FROM klauzula
+module_number: 1
+module_name: Osnove SELECT-a
+tier: easy
+target_misconceptions:
+- code: missing_from_clause
+  description: Student piše SELECT bez FROM klauze — SQL greška za upite koji zahtijevaju
+    tablicu
+  priority: critical
+- code: table_column_name_confusion
+  description: Student zamijeni naziv tablice i naziv stupca u FROM klauzi (npr. FROM
+    first_name umjesto FROM customers)
+  priority: critical
+- code: unknown_table_name
+  description: Student pogodi ili izmisli naziv tablice koja ne postoji u shemi (npr.
+    FROM customer umjesto FROM customers)
+  priority: high
+- code: alias_syntax_error
+  description: Student ne zna kako definirati alias za tablicu u FROM klauzi — izostavlja
+    AS ili koristi krivi syntax
+  priority: medium
+domain_hints:
+- 'Sandbox ecommerce_v1 ima ove tablice: customers, orders, order_items, products,
+  categories, employees'
+- FROM klauza uvijek dolazi neposredno nakon SELECT liste stupaca
+- Alias tablice u FROM klauzi definira se s AS (npr. FROM customers AS c) ili bez
+  AS (FROM customers c)
+- 'Najjednostavniji FROM slučajevi: FROM categories ili FROM products (bez JOIN-a)'
+- Ne miješaj naziv tablice (customers) s nazivom stupca (customer_id, first_name,
+  email)
+anti_patterns:
+- Ne piši zadatak koji zahtijeva JOIN — to je koncept modula 3
+- Ne dodavaj WHERE klauzu u expected_query — where_filter je zasebni koncept
+- Ne koristi SELECT * kao jedino rješenje — navedi eksplicitne kolone
+- Ne zahtijevaj podnazive (subqueries) u FROM klauzi — to je napredni koncept
+- Ne piši zadatak u kojemu je FROM klauza trivijalno implicitna (npr. SELECT 1+1)
+  — uvijek mora biti smislena tablica
+required_for_high_difficulty:
+- Eksplicitno definiranje aliasa tablice u FROM klauzi (AS syntax)
+- Korištenje aliasa tablice za kvalificiranje stupaca u SELECT listi (npr. c.first_name)
+few_shot_examples:
+- difficulty: 1
+  title: Dohvati sve kategorije
+  description: Ispiši stupce name i description iz tablice categories. Nemoj koristiti
+    SELECT *.
+  expected_query: 'SELECT name, description
+
+    FROM categories;'
+  expected_concepts:
+  - from_clause
+  - select_basic
+  targets_misconception: missing_from_clause
+- difficulty: 1
+  title: Dohvati proizvode
+  description: Ispiši stupce name i price iz tablice products.
+  expected_query: 'SELECT name, price
+
+    FROM products;'
+  expected_concepts:
+  - from_clause
+  - select_basic
+  targets_misconception: unknown_table_name
+- difficulty: 2
+  title: Ime i email kupaca
+  description: Ispiši stupce first_name, last_name i email iz tablice customers. Tablica
+    se zove customers (množina) — ne customer.
+  expected_query: 'SELECT first_name, last_name, email
+
+    FROM customers;'
+  expected_concepts:
+  - from_clause
+  - select_basic
+  targets_misconception: table_column_name_confusion
+- difficulty: 3
+  title: Alias tablice customers
+  description: Ispiši id, first_name i email iz tablice customers. Tablici dodjeli
+    alias c i koristi ga za kvalificiranje svakog stupca u SELECT listi (npr. c.id).
+  expected_query: 'SELECT c.id, c.first_name, c.email
+
+    FROM customers AS c;'
+  expected_concepts:
+  - from_clause
+  - select_basic
+  - column_alias
+  targets_misconception: alias_syntax_error
+- difficulty: 3
+  title: Alias tablice products
+  description: Dohvati stupce name i price iz tablice products koristeći alias p za
+    tablicu. Kvalificiraj svaki stupac u SELECT listi aliasem (npr. p.name).
+  expected_query: 'SELECT p.name, p.price
+
+    FROM products AS p;'
+  expected_concepts:
+  - from_clause
+  - select_basic
+  targets_misconception: alias_syntax_error
+ast_validation_rules:
+- expected_query mora sadržavati FROM klauzu s validnim nazivom tablice iz sandbox
+  sheme (customers, orders, order_items, products, categories, employees)
+- FROM klauza mora neposredno slijediti SELECT listu — bez umetanja WHERE ili JOIN
+  prije FROM
+- 'Za zadatke s aliasom (difficulty >= 3): FROM klauza mora sadržavati AS keyword
+  ili inline alias, a SELECT lista mora koristiti taj alias za kvalificiranje stupaca'
+- expected_query ne smije sadržavati JOIN klauze — FROM mora referencirati točno jednu
+  tablicu
+- SELECT lista ne smije koristiti SELECT * — mora sadržavati eksplicitne nazive stupaca

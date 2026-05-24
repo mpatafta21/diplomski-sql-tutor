@@ -1,0 +1,290 @@
+concept_code: agg_count
+concept_name: COUNT agregatna funkcija
+module_number: 2
+module_name: Agregacije i grupiranje
+tier: medium
+target_misconceptions:
+- code: count_star_vs_count_col_confusion
+  description: Student ne razumije razliku između COUNT(*) i COUNT(col) — misli da
+    su ekvivalentni, ne zna da COUNT(col) ignorira NULL vrijednosti u toj koloni dok
+    COUNT(*) broji sve retke uključujući one s NULL-ovima
+  priority: critical
+- code: count_distinct_syntax_error
+  description: Student piše COUNT(DISTINCT) bez navođenja kolone, ili piše DISTINCT
+    COUNT(*) umjesto COUNT(DISTINCT col) — sintaksna greška ili semantički krivo brojanje
+    unikatnih vrijednosti
+  priority: critical
+- code: count_in_where_clause
+  description: Student pokušava koristiti COUNT(*) direktno u WHERE klauzi (npr. WHERE
+    COUNT(*) > 5) — agregatne funkcije nisu dopuštene u WHERE; filter na agregiranoj
+    vrijednosti mora ići u HAVING klauzu
+  priority: critical
+- code: count_null_misconception
+  description: Student misli da COUNT(*) ne broji redove koji imaju NULL u bilo kojoj
+    koloni — zapravo COUNT(*) broji SVE retke bez iznimke; samo COUNT(col) preskače
+    NULL vrijednosti u toj specifičnoj koloni
+  priority: high
+- code: count_distinct_multiple_columns
+  description: Student piše COUNT(DISTINCT col1, col2) misleći da broji unikatne kombinacije
+    dviju kolona — PostgreSQL ne podržava COUNT(DISTINCT col1, col2) sintaksu; za
+    to je potreban subquery ili COUNT(DISTINCT (col1, col2)::text)
+  priority: medium
+domain_hints:
+- 'Tablica orders ima kolone: id (INT), customer_id (INT), status (VARCHAR: ''pending'',
+  ''shipped'', ''delivered'', ''cancelled''), total_amount (NUMERIC), order_date (TIMESTAMP)
+  — COUNT(*) na orders daje ukupan broj narudžbi'
+- 'Tablica customers ima kolone: id (INT), first_name, last_name, email, city, country
+  — COUNT(DISTINCT city) daje broj jedinstvenih gradova'
+- 'Tablica order_items ima kolone: order_id (INT), product_id (INT), quantity (INT),
+  unit_price (NUMERIC) — COUNT(*) po order_id daje broj stavki u narudžbi'
+- 'Sandbox invariant: orders tablica ima ~1000 redova s narudžbama svih 4 statusa
+  — COUNT(*) uvijek vraća ~1000, COUNT(*) WHERE status=''delivered'' vraća neprazan
+  skup'
+- 'Sandbox invariant: ~200 kupaca u tablici customers, od kojih 25 nema nijednu narudžbu
+  — COUNT(DISTINCT customer_id) na orders tablici vraća ~175, a COUNT(*) na customers
+  tablici vraća ~200'
+- 'Sandbox invariant: products tablica ima ~50 proizvoda raspoređenih u kategorije
+  — COUNT(*) GROUP BY category_id demonstrira brojanje po grupi'
+- 'COUNT(*) vs COUNT(col): ako tablica ima 1000 redova od kojih 50 ima NULL u koloni
+  ''manager_id'', COUNT(*) = 1000 ali COUNT(manager_id) = 950 — employees tablica
+  s manager_id je dobar primjer (CEO ima NULL manager_id)'
+- COUNT(DISTINCT col) uklanja duplikate prije brojanja — COUNT(DISTINCT customer_id)
+  na orders daje broj kupaca koji su napravili barem jednu narudžbu
+anti_patterns:
+- Ne piši COUNT(*) u WHERE klauzi u expected_query — to je SQL greška i upravo misconception
+  koji ovaj koncept cilja; filter na COUNT-u uvijek ide u HAVING
+- Ne miješaj COUNT s ostalim agregatima (SUM, AVG) kao primarnim fokusom zadatka —
+  zadatak mora biti fokusiran na COUNT semantiku (*, col, DISTINCT)
+- Ne piši COUNT(DISTINCT col1, col2) u expected_query — PostgreSQL ne podržava tu
+  sintaksu bez castinga; koristi single-column DISTINCT ili subquery
+- Ne koristi SELECT * zajedno s COUNT — uvijek navedi eksplicitne kolone u SELECT
+  listi uz agregat
+- Ne piši GROUP BY po poziciji stupca (GROUP BY 1) — uvijek koristi eksplicitno ime
+  stupca
+- Ne izostavlja GROUP BY kada COUNT(*) prati nenagregirani stupac u SELECT listi —
+  to je SQL greška (non_aggregated_column_not_in_group_by)
+- Ne objašnjavaj COUNT(col) kao ekvivalent COUNT(*) — uvijek naglasi razliku u tretiranju
+  NULL vrijednosti
+required_for_high_difficulty:
+- Kombinacija COUNT(*) i COUNT(DISTINCT col) u istom upitu uz obrazloženje razlike
+- WHERE pre-filter + GROUP BY + COUNT(*) + HAVING post-filter u ispravnom sintaksnom
+  redoslijedu
+- Eksplicitno demonstriranje razlike između COUNT(*), COUNT(col) i COUNT(DISTINCT
+  col) u opisu zadatka
+- Korištenje aliasa COUNT agregata u ORDER BY klauzi (ne u GROUP BY ni HAVING)
+few_shot_examples:
+- difficulty: 1
+  title: Ukupan broj narudžbi
+  description: Ispiši ukupan broj redova u tablici orders. Koristi COUNT(*) za brojanje
+    svih narudžbi bez obzira na NULL vrijednosti u bilo kojoj koloni. Rezultat ispiši
+    pod aliasom ukupno_narudzbi.
+  expected_query: 'SELECT COUNT(*) AS ukupno_narudzbi
+
+    FROM orders;'
+  expected_concepts:
+  - agg_count
+  - select_basic
+  - from_clause
+  targets_misconception: count_null_misconception
+- difficulty: 1
+  title: Broj kupaca u bazi
+  description: Ispiši ukupan broj kupaca u tablici customers. Koristi COUNT(*) i daj
+    rezultatu alias broj_kupaca.
+  expected_query: 'SELECT COUNT(*) AS broj_kupaca
+
+    FROM customers;'
+  expected_concepts:
+  - agg_count
+  - select_basic
+  - from_clause
+  targets_misconception: count_star_vs_count_col_confusion
+- difficulty: 2
+  title: COUNT(*) vs COUNT(col) — NULL razlika na employees tablici
+  description: 'U tablici employees kolona manager_id je NULL za CEO-a (koji nema
+    nadređenog). Ispiši dva broja: ukupan broj zaposlenika (COUNT(*)) i broj zaposlenika
+    koji imaju nadređenog (COUNT(manager_id) — ignorira NULL). Daj aliase ukupno_zaposlenika
+    i ima_managera.
+
+
+    Napomena: COUNT(*) broji SVE retke, COUNT(manager_id) preskače NULL vrijednosti.'
+  expected_query: "SELECT COUNT(*) AS ukupno_zaposlenika,\n       COUNT(manager_id)\
+    \ AS ima_managera\nFROM employees;"
+  expected_concepts:
+  - agg_count
+  - select_basic
+  - from_clause
+  targets_misconception: count_star_vs_count_col_confusion
+- difficulty: 2
+  title: Broj narudžbi po statusu
+  description: 'Za svaki status narudžbe ispiši naziv statusa i broj narudžbi s tim
+    statusom (COUNT(*)). Daj agregatu alias broj_narudzbi. Sortiraj od najvećeg broja
+    prema najmanjem.
+
+
+    Napomena: customer_id koji nije u agregatnoj funkciji mora biti u GROUP BY — ovdje
+    grupiramo po status.'
+  expected_query: 'SELECT status, COUNT(*) AS broj_narudzbi
+
+    FROM orders
+
+    GROUP BY status
+
+    ORDER BY broj_narudzbi DESC;'
+  expected_concepts:
+  - agg_count
+  - group_by
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: count_in_where_clause
+- difficulty: 2
+  title: Broj jedinstvenih gradova kupaca
+  description: 'Ispiši koliko različitih gradova (city) postoji u tablici customers.
+    Koristi COUNT(DISTINCT city) kako bi svaki grad bio brojan samo jednom. Daj rezultatu
+    alias broj_gradova.
+
+
+    Napomena: COUNT(DISTINCT city) != COUNT(city) ako postoje duplikati; COUNT(city)
+    broji sve ne-NULL vrijednosti, COUNT(DISTINCT city) broji samo unikatne.'
+  expected_query: 'SELECT COUNT(DISTINCT city) AS broj_gradova
+
+    FROM customers;'
+  expected_concepts:
+  - agg_count
+  - select_basic
+  - from_clause
+  targets_misconception: count_distinct_syntax_error
+- difficulty: 3
+  title: Broj narudžbi po kupcu — COUNT s GROUP BY
+  description: 'Za svakog kupca ispiši customer_id i broj njegovih narudžbi (COUNT(*)).
+    Daj agregatu alias broj_narudzbi. Sortiraj od najvećeg broja narudžbi prema najmanjem.
+    Prikaži prvih 10 kupaca.
+
+
+    Napomena: customer_id u SELECT listi nije unutar agregatne funkcije — mora biti
+    naveden u GROUP BY klauzi.'
+  expected_query: 'SELECT customer_id, COUNT(*) AS broj_narudzbi
+
+    FROM orders
+
+    GROUP BY customer_id
+
+    ORDER BY broj_narudzbi DESC
+
+    LIMIT 10;'
+  expected_concepts:
+  - agg_count
+  - group_by
+  - select_basic
+  - from_clause
+  - order_by
+  - limit_offset
+  targets_misconception: count_null_misconception
+- difficulty: 3
+  title: Broj različitih kupaca koji su naručivali — COUNT DISTINCT
+  description: 'Ispiši koliko je različitih kupaca (DISTINCT customer_id) napravilo
+    barem jednu narudžbu u tablici orders. Daj rezultatu alias aktivni_kupci.
+
+
+    Napomena: COUNT(DISTINCT customer_id) broji unikatne customer_id vrijednosti —
+    kupac koji je naručio 10 puta broji se samo jednom.'
+  expected_query: 'SELECT COUNT(DISTINCT customer_id) AS aktivni_kupci
+
+    FROM orders;'
+  expected_concepts:
+  - agg_count
+  - select_basic
+  - from_clause
+  targets_misconception: count_distinct_syntax_error
+- difficulty: 4
+  title: Broj dostavljenih narudžbi po kupcu — WHERE + COUNT + GROUP BY
+  description: 'Pronađi broj dostavljenih narudžbi (status = ''delivered'') za svakog
+    kupca. Ispiši customer_id i broj_dostavljenih. Sortiraj od najvećeg broja prema
+    najmanjem. Prikaži prvih 10 rezultata.
+
+
+    Pazi na ispravan redoslijed klauza: WHERE dolazi PRIJE GROUP BY. COUNT(*) u WHERE
+    nije dopušteno — za filtriranje agregata koristi HAVING.'
+  expected_query: 'SELECT customer_id, COUNT(*) AS broj_dostavljenih
+
+    FROM orders
+
+    WHERE status = ''delivered''
+
+    GROUP BY customer_id
+
+    ORDER BY broj_dostavljenih DESC
+
+    LIMIT 10;'
+  expected_concepts:
+  - agg_count
+  - group_by
+  - where_filter
+  - select_basic
+  - from_clause
+  - order_by
+  - limit_offset
+  targets_misconception: count_in_where_clause
+- difficulty: 4
+  title: Kupci s više od 3 narudžbe — COUNT + HAVING
+  description: 'Pronađi sve kupce koji imaju više od 3 narudžbe. Ispiši customer_id
+    i broj_narudzbi. Sortiraj od najvećeg broja prema najmanjem.
+
+
+    Napomena: filter na COUNT(*) > 3 mora koristiti HAVING klauzu — WHERE COUNT(*)
+    > 3 je SQL greška jer WHERE se evaluira PRIJE GROUP BY i ne može koristiti agregatne
+    funkcije.'
+  expected_query: 'SELECT customer_id, COUNT(*) AS broj_narudzbi
+
+    FROM orders
+
+    GROUP BY customer_id
+
+    HAVING COUNT(*) > 3
+
+    ORDER BY broj_narudzbi DESC;'
+  expected_concepts:
+  - agg_count
+  - group_by
+  - having_filter
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: count_in_where_clause
+- difficulty: 5
+  title: Usporedba COUNT(*), COUNT(col) i COUNT(DISTINCT col) u jednom upitu
+  description: "U tablici orders ispiši za svaki status narudžbe:\n  (a) ukupan broj\
+    \ redova tog statusa — COUNT(*) AS ukupno\n  (b) broj redova gdje customer_id\
+    \ nije NULL — COUNT(customer_id) AS ima_kupca\n  (c) broj različitih kupaca koji\
+    \ su napravili narudžbu tog statusa — COUNT(DISTINCT customer_id) AS razliciti_kupci\n\
+    \nSortiraj po statusu uzlazno.\n\nNapomena: u sandbox shemi customer_id na orders\
+    \ nije NULL, pa će ukupno i ima_kupca biti jednaki — ali demonstrira razliku u\
+    \ semantici između triju oblika COUNT-a."
+  expected_query: "SELECT status,\n       COUNT(*) AS ukupno,\n       COUNT(customer_id)\
+    \ AS ima_kupca,\n       COUNT(DISTINCT customer_id) AS razliciti_kupci\nFROM orders\n\
+    GROUP BY status\nORDER BY status ASC;"
+  expected_concepts:
+  - agg_count
+  - group_by
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: count_star_vs_count_col_confusion
+ast_validation_rules:
+- expected_query mora sadržavati barem jedan poziv agregatne funkcije COUNT — COUNT(*),
+  COUNT(col) ili COUNT(DISTINCT col)
+- COUNT u WHERE klauzi nije dopušteno — agregatne funkcije u WHERE uzrokuju SQL grešku;
+  filter na COUNT rezultatu mora ići u HAVING klauzu
+- Ako SELECT lista sadrži nenagregirani stupac uz COUNT, taj stupac mora biti naveden
+  u GROUP BY klauzi — PostgreSQL striktno primjenjuje ovo pravilo
+- COUNT(DISTINCT col) mora imati eksplicitno navedenu kolonu iza DISTINCT — COUNT(DISTINCT)
+  bez kolone je sintaksna greška
+- 'Za zadatke s HAVING klauzom (difficulty >= 4): HAVING mora dolaziti NAKON GROUP
+  BY i mora sadržavati COUNT ili drugu agregatnu funkciju'
+- 'Ispravan sintaksni redoslijed klauza mora biti ispoštovan: FROM → WHERE (ako postoji)
+  → GROUP BY (ako postoji) → HAVING (ako postoji) → ORDER BY (ako postoji) → LIMIT
+  (ako postoji)'
+- SELECT lista ne smije koristiti SELECT * uz COUNT — uvijek navedi eksplicitne kolone
+  ili samo agregat
+- GROUP BY ne smije koristiti pozicijski broj stupca (GROUP BY 1) — uvijek eksplicitno
+  ime stupca

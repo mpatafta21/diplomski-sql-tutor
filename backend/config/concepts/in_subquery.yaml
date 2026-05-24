@@ -1,0 +1,157 @@
+concept_code: in_subquery
+concept_name: IN / NOT IN s podupitom
+module_number: 5
+module_name: Podupiti
+tier: medium
+target_misconceptions:
+- code: not_in_null_trap
+  description: 'NOT IN s podupitom koji može vratiti NULL uvijek vraća 0 redova —
+    student ne razumije 3-valued logiku: NULL IN (...) je UNKNOWN, NOT UNKNOWN je
+    UNKNOWN, ne TRUE — cijeli WHERE uvjet pada'
+  priority: critical
+- code: in_vs_exists_confusion
+  description: Student koristi IN s podupitom koji vraća više kolona (npr. SELECT
+    * ili SELECT id, name) — IN očekuje točno jedan stupac u podupitu
+  priority: critical
+- code: in_subquery_with_outer_ref
+  description: Pokušava napisati korelirani podupit unutar IN klauze — za korelaciju
+    je prirodniji EXISTS, a IN s korelacijom zbunjuje studente i loše se optimizira
+  priority: high
+- code: not_in_vs_not_exists_semantics
+  description: Student koristi NOT IN umjesto NOT EXISTS za anti-join scenarije gdje
+    podupit može vratiti NULL — NOT EXISTS je sigurnija alternativa jer NULL ne utječe
+    na rezultat
+  priority: high
+- code: in_subquery_duplicates_irrelevant
+  description: Student dodaje DISTINCT u podupit unutar IN klauze misleći da duplikati
+    uzrokuju greške — IN automatski ignorira duplikate, DISTINCT je redundantan (ali
+    nije greška)
+  priority: low
+domain_hints:
+- 'Prirodan slučaj: customers IN (SELECT customer_id FROM orders WHERE ...) — membership
+  test bez JOIN-a'
+- 'NOT IN NULL trap: ako orders.customer_id ima i jedan NULL red, NOT IN vraća 0 redova
+  — sandbox customer_id u orders je NOT NULL, ali category_id u products može biti
+  NULL (oprez!)'
+- 'Sandbox invariant: 25 customers nema nijednu narudžbu — dobri kandidati za NOT
+  IN / NOT EXISTS usporedbu'
+- 'IN s podupitom na products: WHERE category_id IN (SELECT id FROM categories WHERE
+  name = ''...'') — čist slučaj bez NULL problema'
+- 'IN s podupitom na order_items: WHERE product_id IN (SELECT product_id FROM order_items
+  WHERE quantity > 5) — filtriranje proizvoda po prodaji'
+- Podupit u IN klauzi mora vraćati točno jedan stupac — česta greška je SELECT * ili
+  SELECT id, name
+anti_patterns:
+- Ne piši podupit koji vraća više od jednog stupca unutar IN klauze — SQL greška
+- Ne koristi NOT IN s podupitom koji može sadržavati NULL vrijednosti bez upozorenja
+  studenta — sandbox customer_id je NOT NULL, ali demonstriraj opasnost kroz primjer
+- Ne zamjenjuj IN s EXISTS u expected_query za zadatke koji specifično ciljaju IN/NOT
+  IN misconceptions — čuvaj distinkciju između koncepta
+- Ne koristi korelirani podupit unutar IN klauze kao expected_query — to je correlated_subquery
+  koncept
+- Ne dodavaj DISTINCT u podupit unutar IN klauze u expected_query — misleading je
+  studentima i sugerira da je potrebno
+required_for_high_difficulty:
+- NOT IN s eksplicitnom obradom potencijalnog NULL problema (WHERE col IS NOT NULL
+  u podupitu ili komentar)
+- Ugniježđeni podupit (podupit unutar podupita) u IN klauzi
+- Kombinacija IN i NOT IN u istom upitu
+- IN podupit s agregatnom funkcijom ili GROUP BY u inner upitu
+few_shot_examples:
+- difficulty: 2
+  title: Kupci koji su napravili barem jednu narudžbu
+  description: Pronađi sve kupce koji su napravili barem jednu narudžbu. Ispiši id,
+    first_name i last_name. Koristi IN s podupitom na tablici orders. Sortiraj po
+    id.
+  expected_query: "SELECT c.id, c.first_name, c.last_name\nFROM customers c\nWHERE\
+    \ c.id IN (\n    SELECT o.customer_id\n    FROM orders o\n)\nORDER BY c.id;"
+  expected_concepts:
+  - in_subquery
+  - where_filter
+  - select_basic
+  targets_misconception: in_vs_exists_confusion
+- difficulty: 2
+  title: Proizvodi iz kategorije 'Electronics'
+  description: Ispiši id i name svih proizvoda koji pripadaju kategoriji čiji je name
+    točno 'Electronics'. Koristi IN s podupitom na tablici categories. Sortiraj po
+    product name.
+  expected_query: "SELECT p.id, p.name\nFROM products p\nWHERE p.category_id IN (\n\
+    \    SELECT c.id\n    FROM categories c\n    WHERE c.name = 'Electronics'\n)\n\
+    ORDER BY p.name;"
+  expected_concepts:
+  - in_subquery
+  - where_filter
+  - select_basic
+  targets_misconception: in_vs_exists_confusion
+- difficulty: 3
+  title: Kupci koji NISU napravili nijednu narudžbu (NOT IN — sigurna varijanta)
+  description: 'Pronađi sve kupce koji nikada nisu napravili narudžbu koristeći NOT
+    IN s podupitom. Ispiši id, first_name, last_name i email. Napomena: jer je customer_id
+    u orders definiran kao NOT NULL, NOT IN je ovdje siguran — ali u praksi uvijek
+    provjeri! Sortiraj po id.'
+  expected_query: "SELECT c.id, c.first_name, c.last_name, c.email\nFROM customers\
+    \ c\nWHERE c.id NOT IN (\n    SELECT o.customer_id\n    FROM orders o\n    WHERE\
+    \ o.customer_id IS NOT NULL\n)\nORDER BY c.id;"
+  expected_concepts:
+  - in_subquery
+  - where_filter
+  - null_handling
+  targets_misconception: not_in_null_trap
+- difficulty: 3
+  title: Proizvodi koji su ikad naručeni u količini većoj od 10
+  description: Pronađi sve proizvode koji su u barem jednoj stavci narudžbe naručeni
+    u količini (quantity) većoj od 10. Ispiši product id i name. Koristi IN s podupitom
+    na tablici order_items. Sortiraj po name.
+  expected_query: "SELECT p.id, p.name\nFROM products p\nWHERE p.id IN (\n    SELECT\
+    \ oi.product_id\n    FROM order_items oi\n    WHERE oi.quantity > 10\n)\nORDER\
+    \ BY p.name;"
+  expected_concepts:
+  - in_subquery
+  - where_filter
+  - select_basic
+  targets_misconception: in_vs_exists_confusion
+- difficulty: 4
+  title: Kupci koji su naručivali skuplje proizvode (ugniježđeni IN)
+  description: Pronađi kupce koji su naručivali barem jedan proizvod čija je cijena
+    (unit_price u order_items) veća od prosječne cijene svih narudženih stavki. Ispiši
+    customer id, first_name i last_name. Koristi IN s podupitom koji i sam sadrži
+    podupit (ugniježđeni IN ili usporedbu s agregacijom). Sortiraj po id.
+  expected_query: "SELECT c.id, c.first_name, c.last_name\nFROM customers c\nWHERE\
+    \ c.id IN (\n    SELECT o.customer_id\n    FROM orders o\n    WHERE o.id IN (\n\
+    \        SELECT oi.order_id\n        FROM order_items oi\n        WHERE oi.unit_price\
+    \ > (\n            SELECT AVG(oi2.unit_price)\n            FROM order_items oi2\n\
+    \        )\n    )\n)\nORDER BY c.id;"
+  expected_concepts:
+  - in_subquery
+  - where_filter
+  - aggregate_functions
+  - scalar_subquery
+  targets_misconception: in_subquery_with_outer_ref
+- difficulty: 5
+  title: NULL zamka — NOT IN koji vraća 0 redova
+  description: 'Demonstriraj NOT IN NULL trap: napiši upit koji traži kategorije čiji
+    id NIJE u skupu category_id vrijednosti iz tablice products. Zamisli da products.category_id
+    može biti NULL za neke redove — u tom slučaju NOT IN vraća 0 redova. Napiši ISPRAVNU
+    varijantu koja dodaje WHERE category_id IS NOT NULL u podupit kako bi zaštitila
+    od NULL zamke. Ispiši id i name kategorija. Sortiraj po id.'
+  expected_query: "-- Ispravna varijanta (zaštićena od NULL zamke):\nSELECT cat.id,\
+    \ cat.name\nFROM categories cat\nWHERE cat.id NOT IN (\n    SELECT p.category_id\n\
+    \    FROM products p\n    WHERE p.category_id IS NOT NULL\n)\nORDER BY cat.id;\n\
+    \n-- Anti-pattern (NULL zamka — može vratiti 0 redova ako ijedan category_id je\
+    \ NULL):\n-- WHERE cat.id NOT IN (SELECT p.category_id FROM products p)"
+  expected_concepts:
+  - in_subquery
+  - null_handling
+  - where_filter
+  targets_misconception: not_in_null_trap
+ast_validation_rules:
+- expected_query mora sadržavati IN ili NOT IN operator s podupitom u zagradama (ne
+  literal lista vrijednosti)
+- Podupit unutar IN klauze mora vraćati točno jedan stupac — AST provjeri da SELECT
+  lista inner upita ima samo jedan izraz
+- 'Za zadatke koji ciljaju not_in_null_trap: NOT IN podupit mora sadržavati WHERE
+  col IS NOT NULL uvjet u inner upitu ili komentar koji objašnjava zamku'
+- Podupit unutar IN klauze ne smije sadržavati referencu na outer tablicu (nije korelirani
+  podupit) — za korelaciju koristiti EXISTS koncept
+- 'Za težinu >= 4: mora biti prisutan ugniježđeni podupit (subquery unutar subquery)
+  ili agregacijska funkcija u inner upitu'

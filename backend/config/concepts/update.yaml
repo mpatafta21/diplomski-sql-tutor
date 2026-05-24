@@ -1,0 +1,154 @@
+concept_code: update
+concept_name: UPDATE — izmjena postojećih redova
+module_number: 4
+module_name: DML operacije
+tier: medium
+target_misconceptions:
+- code: update_without_where
+  description: UPDATE bez WHERE klauze — mijenja SVE retke u tablici, destruktivna
+    operacija koja se teško oporavlja
+  priority: critical
+- code: wrong_where_condition
+  description: WHERE uvjet cilja krivi skup redova (npr. koristi nejednakost umjesto
+    jednakosti, ili kriva kolona) — neočekivani redovi se mijenjaju
+  priority: critical
+- code: update_multiple_columns_syntax
+  description: Pogrešna sintaksa pri ažuriranju više kolona — student piše SET col1
+    = val1 SET col2 = val2 umjesto SET col1 = val1, col2 = val2
+  priority: high
+- code: subquery_in_set_confusion
+  description: Student ne zna kako ažurirati kolonu vrijednošću iz druge tablice —
+    pokušava JOIN umjesto subquery u SET ili FROM klauzi
+  priority: medium
+domain_hints:
+- Sandbox koristi sandbox_readwrite role — UPDATE je dozvoljen, ali se sve promjene
+  automatski rollback-aju na kraju sesije
+- 'Tablica orders ima kolonu status (VARCHAR) s vrijednostima: ''pending'', ''processing'',
+  ''shipped'', ''delivered'', ''cancelled'''
+- Tablica products ima kolonu price (NUMERIC) i stock_quantity (INTEGER) — dobri kandidati
+  za UPDATE scenarije
+- Tablica customers ima kolonu email i phone — ažuriranje kontakt podataka je prirodan
+  primjer
+- Za ciljani UPDATE uvijek koristi primarni ključ (id) ili jedinstven uvjet u WHERE
+  klauzi
+- UPDATE s FROM klauzu (PostgreSQL extension) omogućuje ažuriranje na temelju vrijednosti
+  iz JOIN-ane tablice
+- RETURNING klauza (PostgreSQL) vraća izmijenjene retke — korisno za verifikaciju
+  bez posebnog SELECT-a
+anti_patterns:
+- Ne piši expected_query bez WHERE klauze — svaki primjer mora ciljati specifičan
+  skup redova
+- Ne koristi UPDATE bez jasnog obrazloženja koji retci se mijenjaju i zašto
+- Ne miješaj UPDATE s DELETE — student može pobrkati koncepte pri 'uklanjanju' vrijednosti
+  (postavljanje na NULL vs. brisanje retka)
+- Ne piši zadatke koji zahtijevaju trajnu promjenu podataka — sandbox rollback-a sve,
+  naglasi to u opisu
+- Ne koristi UPDATE ... JOIN sintaksu (MySQL stil) — PostgreSQL koristi UPDATE ...
+  FROM sintaksu
+required_for_high_difficulty:
+- UPDATE s podupidom (subquery) u SET ili WHERE klauzi
+- UPDATE s FROM klauzu i JOIN uvjetom (PostgreSQL sintaksa)
+- UPDATE koji mijenja više kolona istovremeno (SET col1 = ..., col2 = ...)
+- RETURNING klauza za verifikaciju izmijenjenih redova
+- Uvjet u WHERE koji koristi agregiranu vrijednost iz subqueryja
+few_shot_examples:
+- difficulty: 1
+  title: Promjena statusa jedne narudžbe
+  description: 'Ažuriraj status narudžbe s id = 1 na vrijednost ''shipped''.
+
+    Ispiši izmijenjeni redak koristeći RETURNING klauzu (id, status).
+
+    Napomena: sandbox automatski rollback-a sve promjene.'
+  expected_query: 'UPDATE orders
+
+    SET status = ''shipped''
+
+    WHERE id = 1
+
+    RETURNING id, status;'
+  expected_concepts:
+  - update
+  - where_filter
+  targets_misconception: update_without_where
+- difficulty: 2
+  title: Ažuriranje emaila kupca
+  description: 'Kupac s id = 42 promijenio je email adresu na ''novi.email@example.com''.
+
+    Ažuriraj njegovu email adresu u tablici customers.
+
+    Koristi RETURNING id, first_name, last_name, email za verifikaciju.'
+  expected_query: 'UPDATE customers
+
+    SET email = ''novi.email@example.com''
+
+    WHERE id = 42
+
+    RETURNING id, first_name, last_name, email;'
+  expected_concepts:
+  - update
+  - where_filter
+  targets_misconception: wrong_where_condition
+- difficulty: 3
+  title: Sniženje cijene i ažuriranje zalihe za proizvod
+  description: 'Proizvod s id = 10 ide na rasprodaju: smanji mu cijenu (price) za
+    15%
+
+    i postavi stock_quantity na 50.
+
+    Ažuriraj obje kolone u jednom UPDATE iskazu.
+
+    Koristi RETURNING id, name, price, stock_quantity.'
+  expected_query: "UPDATE products\nSET price = price * 0.85,\n    stock_quantity\
+    \ = 50\nWHERE id = 10\nRETURNING id, name, price, stock_quantity;"
+  expected_concepts:
+  - update
+  - where_filter
+  - arithmetic_expressions
+  targets_misconception: update_multiple_columns_syntax
+- difficulty: 4
+  title: Otkazivanje svih narudžbi u statusu 'pending' za određenog kupca
+  description: 'Kupac s id = 7 zatražio je otkazivanje svih svojih narudžbi koje su
+    još uvijek u statusu ''pending''.
+
+    Ažuriraj status tih narudžbi na ''cancelled''.
+
+    Koristi RETURNING id, customer_id, status da potvrdiš koje su narudžbe izmijenjene.'
+  expected_query: "UPDATE orders\nSET status = 'cancelled'\nWHERE customer_id = 7\n\
+    \  AND status = 'pending'\nRETURNING id, customer_id, status;"
+  expected_concepts:
+  - update
+  - where_filter
+  - multiple_conditions
+  targets_misconception: wrong_where_condition
+- difficulty: 5
+  title: Povećanje cijene svih proizvoda u najskupljoj kategoriji
+  description: 'Pronađi kategoriju čiji proizvodi imaju najviši prosječni iznos (AVG
+    price),
+
+    te svim proizvodima u toj kategoriji povećaj cijenu za 10%.
+
+    Koristi subquery u WHERE klauzi za identifikaciju category_id.
+
+    Koristi RETURNING id, name, category_id, price.'
+  expected_query: "UPDATE products\nSET price = price * 1.10\nWHERE category_id =\
+    \ (\n    SELECT category_id\n    FROM products\n    GROUP BY category_id\n   \
+    \ ORDER BY AVG(price) DESC\n    LIMIT 1\n)\nRETURNING id, name, category_id, price;"
+  expected_concepts:
+  - update
+  - where_filter
+  - subquery
+  - aggregate_functions
+  - group_by
+  - order_by
+  targets_misconception: subquery_in_set_confusion
+ast_validation_rules:
+- expected_query mora počinjati s UPDATE keywordom (top-level DML iskaz)
+- SET klauza mora sadržavati barem jednu col = value dodjelu
+- WHERE klauza je OBAVEZNA u svakom expected_query — UPDATE bez WHERE nije dozvoljen
+  kao primjer
+- 'Za težinu >= 3: SET klauza može sadržavati aritmetički izraz (npr. price * 0.85)
+  ili višestruke dodjele odvojene zarezom'
+- 'Za težinu >= 4: WHERE klauza mora sadržavati barem dva uvjeta (AND/OR) ili subquery'
+- 'Za težinu = 5: mora biti prisutan subquery u WHERE ili SET klauzi'
+- RETURNING klauza je preporučena (nije obavezna) — ako postoji, mora navoditi eksplicitne
+  kolone, ne *

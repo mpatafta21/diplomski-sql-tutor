@@ -1,0 +1,282 @@
+concept_code: group_by
+concept_name: GROUP BY klauzula
+module_number: 2
+module_name: Agregacije i grupiranje
+tier: medium
+target_misconceptions:
+- code: non_aggregated_column_not_in_group_by
+  description: Student u SELECT listi navodi nenagregirani stupac koji nije naveden
+    u GROUP BY klauzi — SQL standard violation (npr. SELECT customer_id, status, COUNT(*)
+    ... GROUP BY customer_id izostavlja status)
+  priority: critical
+- code: group_by_vs_where_confusion
+  description: Student filtrira grupirane rezultate s WHERE umjesto HAVING (npr. WHERE
+    COUNT(*) > 5 umjesto HAVING COUNT(*) > 5) — WHERE se evaluira PRIJE GROUP BY i
+    ne može koristiti agregatne funkcije
+  priority: critical
+- code: group_by_without_aggregate
+  description: Student koristi GROUP BY bez ijedne agregatne funkcije u SELECT listi
+    — semantički je ekvivalent DISTINCT-u, ali je konvencionalno kriv i zbunjujući;
+    GROUP BY uvijek treba imati barem jedan agregat u SELECT-u
+  priority: high
+- code: group_by_column_not_in_select
+  description: 'Student misli da sve kolone u GROUP BY moraju biti u SELECT listi
+    — zapravo je obratno: sve nenagregirane kolone iz SELECT liste moraju biti u GROUP
+    BY, ali GROUP BY smije sadržavati i kolone koje nisu u SELECT-u'
+  priority: high
+- code: group_by_order_confusion
+  description: Student zamijeni redoslijed klauza i piše GROUP BY nakon ORDER BY ili
+    HAVING — ispravan redoslijed je WHERE → GROUP BY → HAVING → ORDER BY → LIMIT
+  priority: medium
+- code: aggregate_alias_in_group_by
+  description: Student pokušava koristiti alias agregatne funkcije unutar GROUP BY
+    klauze (npr. GROUP BY total_orders gdje je total_orders alias za COUNT(*)) — alias
+    iz SELECT liste nije dostupan u GROUP BY (PostgreSQL to dopušta samo u ORDER BY)
+  priority: medium
+domain_hints:
+- 'Tablica orders ima kolone: customer_id (INT), status (VARCHAR: ''pending'', ''shipped'',
+  ''delivered'', ''cancelled''), total_amount (NUMERIC), order_date (TIMESTAMP) —
+  idealna za GROUP BY customer_id ili GROUP BY status'
+- 'Tablica order_items ima kolone: order_id (INT), product_id (INT), quantity (INT),
+  unit_price (NUMERIC) — GROUP BY product_id s SUM(quantity) daje ukupno naručene
+  komade po proizvodu'
+- 'Tablica products ima kolone: id (INT), name (VARCHAR), price (NUMERIC), category_id
+  (INT) — GROUP BY category_id s COUNT(*) daje broj proizvoda po kategoriji'
+- 'Sandbox invariant: tablica orders ima ~1000 redova s narudžbama svih 4 statusa
+  — GROUP BY status uvijek vraća 4 grupe'
+- 'Sandbox invariant: ~200 kupaca s narudžbama — GROUP BY customer_id na orders tablici
+  vraća do 175 grupa (25 kupaca nema narudžbi)'
+- 'Ispravan redoslijed klauza: SELECT → FROM → WHERE → GROUP BY → HAVING → ORDER BY
+  → LIMIT — GROUP BY dolazi NAKON WHERE i PRIJE HAVING'
+- 'Pravilo: sve kolone u SELECT listi koje NISU unutar agregatne funkcije MORAJU biti
+  navedene u GROUP BY klauzi — to je SQL standard i PostgreSQL ga striktno primjenjuje'
+- HAVING filtrira grupirane rezultate (agregati) — evaluira se NAKON GROUP BY; WHERE
+  filtrira pojedinačne redove — evaluira se PRIJE GROUP BY
+anti_patterns:
+- Ne piši GROUP BY bez ijedne agregatne funkcije (COUNT, SUM, AVG, MIN, MAX) u SELECT
+  listi — uvijek mora postojati barem jedan agregat
+- Ne koristi HAVING u expected_query za zadatke koji ciljaju GROUP BY kao primarni
+  koncept bez HAVING — ne miješaj koncepte u jednom primjeru bez jasnog obrazloženja
+- Ne piši nenagregirani stupac u SELECT listi koji nije u GROUP BY — expected_query
+  mora biti validan PostgreSQL SQL
+- Ne piši GROUP BY po poziciji stupca (GROUP BY 1, GROUP BY 2) — uvijek koristi eksplicitno
+  ime stupca
+- Ne dodavaj JOIN klauze u zadatke difficulty ≤ 2 — scope neka ostane na jednoj tablici
+  za lakše primjere
+- Ne koristi WHERE za filtriranje agregiranih vrijednosti — uvijek HAVING za post-GROUP
+  BY filtriranje
+- Ne piši ORDER BY prije GROUP BY u expected_query — ispravan sintaksni redoslijed
+  mora biti uvijek ispoštovan
+required_for_high_difficulty:
+- GROUP BY po više stupaca (multi-column grouping) s odgovarajućim SELECT listom
+- Kombinacija WHERE (pre-filter) + GROUP BY + HAVING (post-filter) + ORDER BY u ispravnom
+  redoslijedu
+- GROUP BY s JOIN-om na 2+ tablice uz agregaciju
+- Korištenje aliasa agregatne funkcije iz SELECT liste u ORDER BY klauzi (ne u GROUP
+  BY)
+few_shot_examples:
+- difficulty: 1
+  title: Broj narudžbi po statusu
+  description: Za svaki status narudžbe ispiši naziv statusa i ukupan broj narudžbi
+    s tim statusom. Koristi GROUP BY na koloni status u tablici orders. Sortiraj abecedno
+    po statusu.
+  expected_query: 'SELECT status, COUNT(*) AS broj_narudzbi
+
+    FROM orders
+
+    GROUP BY status
+
+    ORDER BY status ASC;'
+  expected_concepts:
+  - group_by
+  - aggregate_functions
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: non_aggregated_column_not_in_group_by
+- difficulty: 2
+  title: Ukupni prihod po kupcu
+  description: 'Za svakog kupca izračunaj ukupni iznos svih njegovih narudžbi (SUM
+    od total_amount). Ispiši customer_id i ukupni_iznos. Sortiraj od najvećeg prema
+    najmanjem ukupnom iznosu. Prikaži prvih 10 kupaca.
+
+
+    Napomena: customer_id u SELECT listi MORA biti u GROUP BY klauzi jer nije unutar
+    agregatne funkcije.'
+  expected_query: 'SELECT customer_id, SUM(total_amount) AS ukupni_iznos
+
+    FROM orders
+
+    GROUP BY customer_id
+
+    ORDER BY ukupni_iznos DESC
+
+    LIMIT 10;'
+  expected_concepts:
+  - group_by
+  - aggregate_functions
+  - select_basic
+  - from_clause
+  - order_by
+  - limit_offset
+  targets_misconception: non_aggregated_column_not_in_group_by
+- difficulty: 2
+  title: Prosječni iznos narudžbe po statusu
+  description: Za svaki status narudžbe izračunaj prosječni iznos (AVG od total_amount)
+    i ukupan broj narudžbi (COUNT(*)). Ispiši status, prosjecni_iznos (zaokružen na
+    2 decimale) i broj_narudzbi. Sortiraj od najvećeg prosječnog iznosa prema najmanjem.
+  expected_query: "SELECT status,\n       ROUND(AVG(total_amount), 2) AS prosjecni_iznos,\n\
+    \       COUNT(*) AS broj_narudzbi\nFROM orders\nGROUP BY status\nORDER BY prosjecni_iznos\
+    \ DESC;"
+  expected_concepts:
+  - group_by
+  - aggregate_functions
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: group_by_without_aggregate
+- difficulty: 3
+  title: Ukupno naručeni komadi po proizvodu — WHERE pre-filter
+  description: 'Pronađi ukupan broj naručenih komada (SUM od quantity) za svaki proizvod
+    u tablici order_items, ali samo za stavke čija je jedinična cijena (unit_price)
+    veća od 50. Ispiši product_id i ukupna_kolicina. Sortiraj od najveće količine
+    prema najmanjoj.
+
+
+    Pazi na ispravan redoslijed klauza: WHERE mora doći PRIJE GROUP BY.'
+  expected_query: 'SELECT product_id, SUM(quantity) AS ukupna_kolicina
+
+    FROM order_items
+
+    WHERE unit_price > 50
+
+    GROUP BY product_id
+
+    ORDER BY ukupna_kolicina DESC;'
+  expected_concepts:
+  - group_by
+  - aggregate_functions
+  - where_filter
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: group_by_order_confusion
+- difficulty: 3
+  title: GROUP BY po više stupaca — status i kupac
+  description: 'Za svaku kombinaciju kupca (customer_id) i statusa narudžbe (status)
+    izračunaj ukupan iznos (SUM od total_amount). Ispiši customer_id, status i ukupni_iznos.
+    Sortiraj po customer_id uzlazno, a unutar istog kupca po ukupnom iznosu silazno.
+
+
+    Napomena: oba stupca u SELECT listi (customer_id i status) moraju biti u GROUP
+    BY klauzi.'
+  expected_query: 'SELECT customer_id, status, SUM(total_amount) AS ukupni_iznos
+
+    FROM orders
+
+    GROUP BY customer_id, status
+
+    ORDER BY customer_id ASC, ukupni_iznos DESC;'
+  expected_concepts:
+  - group_by
+  - aggregate_functions
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: non_aggregated_column_not_in_group_by
+- difficulty: 4
+  title: Kupci s više od 5 narudžbi — GROUP BY + HAVING
+  description: 'Pronađi sve kupce koji imaju više od 5 narudžbi u tablici orders.
+    Ispiši customer_id i broj_narudzbi. Sortiraj od najvećeg broja narudžbi prema
+    najmanjem.
+
+
+    Napomena: filter na agregiranoj vrijednosti (COUNT(*) > 5) mora koristiti HAVING,
+    NE WHERE — WHERE se evaluira PRIJE GROUP BY i ne može koristiti agregatne funkcije.'
+  expected_query: 'SELECT customer_id, COUNT(*) AS broj_narudzbi
+
+    FROM orders
+
+    GROUP BY customer_id
+
+    HAVING COUNT(*) > 5
+
+    ORDER BY broj_narudzbi DESC;'
+  expected_concepts:
+  - group_by
+  - aggregate_functions
+  - having_filter
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: group_by_vs_where_confusion
+- difficulty: 4
+  title: Prihod po kategoriji — GROUP BY s JOIN-om
+  description: 'Za svaki category_id u tablici products izračunaj ukupni prihod koji
+    su generirali proizvodi te kategorije kroz stavke narudžbi (SUM od quantity *
+    unit_price u order_items). Ispiši category_id i ukupni_prihod. Sortiraj od najvećeg
+    prihoda prema najmanjem. Prikaži prvih 5 kategorija.
+
+
+    Koristi INNER JOIN između order_items i products na product_id.'
+  expected_query: 'SELECT p.category_id, SUM(oi.quantity * oi.unit_price) AS ukupni_prihod
+
+    FROM order_items oi
+
+    INNER JOIN products p ON oi.product_id = p.id
+
+    GROUP BY p.category_id
+
+    ORDER BY ukupni_prihod DESC
+
+    LIMIT 5;'
+  expected_concepts:
+  - group_by
+  - aggregate_functions
+  - inner_join
+  - select_basic
+  - from_clause
+  - order_by
+  - limit_offset
+  targets_misconception: group_by_column_not_in_select
+- difficulty: 5
+  title: Aktivni kupci s visokim prosječnim iznosom — WHERE + GROUP BY + HAVING +
+    ORDER BY
+  description: "Pronađi sve kupce koji:\n  (a) imaju isključivo narudžbe koje NISU\
+    \ u statusu 'cancelled' (filtriraj 'cancelled' s WHERE),\n  (b) imaju barem 3\
+    \ narudžbe (HAVING COUNT(*) >= 3),\n  (c) čiji je prosječni iznos narudžbe veći\
+    \ od 150 (HAVING AVG(total_amount) > 150).\n\nIspiši customer_id, broj_narudzbi\
+    \ i prosjecni_iznos (zaokružen na 2 decimale). Sortiraj od najvećeg prosječnog\
+    \ iznosa prema najmanjem.\n\nPazi na ispravan redoslijed klauza: WHERE → GROUP\
+    \ BY → HAVING → ORDER BY."
+  expected_query: "SELECT customer_id,\n       COUNT(*) AS broj_narudzbi,\n      \
+    \ ROUND(AVG(total_amount), 2) AS prosjecni_iznos\nFROM orders\nWHERE status !=\
+    \ 'cancelled'\nGROUP BY customer_id\nHAVING COUNT(*) >= 3\n   AND AVG(total_amount)\
+    \ > 150\nORDER BY prosjecni_iznos DESC;"
+  expected_concepts:
+  - group_by
+  - aggregate_functions
+  - having_filter
+  - where_filter
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: group_by_vs_where_confusion
+ast_validation_rules:
+- expected_query mora sadržavati GROUP BY klauzu — upiti bez GROUP BY nisu validni
+  za ovaj koncept
+- Sve kolone u SELECT listi koje NISU unutar agregatne funkcije (COUNT, SUM, AVG,
+  MIN, MAX) MORAJU biti navedene u GROUP BY klauzi — PostgreSQL striktno primjenjuje
+  ovo pravilo
+- 'GROUP BY klauza mora dolaziti NAKON FROM i WHERE klauza, a PRIJE HAVING i ORDER
+  BY klauza — ispravan redoslijed: WHERE → GROUP BY → HAVING → ORDER BY → LIMIT'
+- expected_query mora sadržavati barem jednu agregatnu funkciju (COUNT, SUM, AVG,
+  MIN, MAX) u SELECT listi — GROUP BY bez agregata nije prihvatljiv u few_shot primjerima
+- GROUP BY ne smije koristiti pozicijski broj stupca (GROUP BY 1, GROUP BY 2) — uvijek
+  eksplicitno ime stupca
+- WHERE klauza (ako postoji) mora se nalaziti između FROM i GROUP BY klauze — WHERE
+  ne smije sadržavati agregatne funkcije
+- 'Za zadatke s HAVING klauzom (difficulty >= 4): HAVING mora dolaziti neposredno
+  NAKON GROUP BY i mora sadržavati agregatnu funkciju ili uvjet na agregiranoj vrijednosti'
+- Alias agregatne funkcije iz SELECT liste smije se koristiti u ORDER BY klauzi (PostgreSQL
+  to podržava), ali NE u GROUP BY ni HAVING klauzi

@@ -1,0 +1,198 @@
+concept_code: where_filter
+concept_name: WHERE klauzula
+module_number: 1
+module_name: Osnove SELECT-a
+tier: easy
+target_misconceptions:
+- code: where_vs_having_confusion
+  description: Student koristi HAVING umjesto WHERE za filtriranje ne-agregiranih
+    redova, ili WHERE umjesto HAVING za filtiranje agregiranih vrijednosti — fundamentalna
+    greška u redoslijedu izvršavanja SQL-a
+  priority: critical
+- code: aggregate_in_where
+  description: Student piše WHERE SUM(...) > x ili WHERE COUNT(...) = y — agregirane
+    funkcije nisu dopuštene u WHERE klauzi jer se WHERE evaluira prije GROUP BY
+  priority: critical
+- code: wrong_logical_operator
+  description: Student zamijeni AND s OR (ili obratno) u složenim uvjetima — npr.
+    WHERE status = 'shipped' OR total_amount > 100 umjesto AND, što vraća previše
+    redova
+  priority: high
+- code: string_comparison_without_quotes
+  description: Student uspoređuje string kolone bez navodnika (npr. WHERE status =
+    shipped) — SQL interpretira 'shipped' kao naziv kolone, što rezultira greškom
+  priority: high
+- code: not_operator_misuse
+  description: Student ne zna koristiti NOT operator ispravno — piše WHERE status
+    != 'cancelled' ali zaboravlja kombinirati s IS NOT NULL, ili krivo negira složene
+    uvjete
+  priority: medium
+domain_hints:
+- 'Tablica orders ima kolone: status (VARCHAR: ''pending'', ''shipped'', ''delivered'',
+  ''cancelled''), total_amount (NUMERIC), order_date (TIMESTAMP), customer_id (INT)'
+- 'Tablica customers ima kolone: first_name, last_name, email, city, country — korisno
+  za WHERE filtriranje po lokaciji'
+- 'Tablica products ima kolone: name, price (NUMERIC), stock_quantity (INT), category_id
+  (INT) — filtriranje po cijeni ili zalihi'
+- 'Sandbox invariant: u tablici orders postoje narudžbe svih statusa — WHERE status
+  = ''shipped'' vraća neprazan skup redova'
+- 'WHERE se evaluira PRIJE GROUP BY i HAVING — to je ključna razlika: WHERE filtrira
+  pojedinačne redove, HAVING filtrira grupirane rezultate'
+- 'Logički operatori prioritet: NOT > AND > OR — zagrade su preporučene za složene
+  uvjete s miješanim AND/OR'
+- 'NULL vrijednosti: WHERE kolona = NULL nikad ne vraća retke — mora se koristiti
+  IS NULL / IS NOT NULL'
+anti_patterns:
+- Ne koristi agregirane funkcije (SUM, COUNT, AVG) u WHERE klauzi — to je HAVING koncept
+  (modul 2)
+- Ne piši WHERE klauzu koja uvijek vraća sve redove (trivijalani uvjet) — npr. WHERE
+  1=1
+- Ne koristi implicitan tip casting za usporedbu stringa s brojem bez eksplicitne
+  konverzije
+- Ne piši WHERE s kolonama koje ne postoje u sandboxu — svaki filter mora koristiti
+  validne kolone iz sheme
+- Ne miješaj WHERE i JOIN uvjete za filtriranje — za ovaj modul, FROM klauza smije
+  imati samo jednu tablicu
+- Ne koristi BETWEEN s grebnišnjim rubovima (WHERE price BETWEEN 100 AND 50) — uvijek
+  manji THEN veći
+required_for_high_difficulty:
+- Kombinacija više logičkih operatora (AND + OR + NOT) s potrebnim zagradama
+- Usporedba s više uvjeta na različitim kolonama iste tablice
+- Korištenje BETWEEN, IN, LIKE operatora u WHERE klauzi
+- IS NULL / IS NOT NULL provjera uz ostale uvjete
+few_shot_examples:
+- difficulty: 1
+  title: Dostavljene narudžbe
+  description: Ispiši id, customer_id i total_amount svih narudžbi čiji je status
+    jednak 'delivered'. Koristi WHERE klauzu za filtriranje.
+  expected_query: 'SELECT id, customer_id, total_amount
+
+    FROM orders
+
+    WHERE status = ''delivered''
+
+    ORDER BY id
+
+    LIMIT 10;'
+  expected_concepts:
+  - where_filter
+  - select_basic
+  - from_clause
+  targets_misconception: string_comparison_without_quotes
+- difficulty: 2
+  title: Skupi proizvodi
+  description: Ispiši name i price svih proizvoda čija je cijena veća od 100. Koristi
+    WHERE klauzu s numeričkim uvjetom. Sortiraj od najskupljeg prema najjeftinijem.
+  expected_query: 'SELECT name, price
+
+    FROM products
+
+    WHERE price > 100
+
+    ORDER BY price DESC;'
+  expected_concepts:
+  - where_filter
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: aggregate_in_where
+- difficulty: 2
+  title: Narudžbe s AND uvjetom
+  description: Pronađi sve narudžbe čiji je status 'shipped' I čiji je total_amount
+    veći od 200. Ispiši id, status i total_amount. Koristi AND operator.
+  expected_query: "SELECT id, status, total_amount\nFROM orders\nWHERE status = 'shipped'\n\
+    \  AND total_amount > 200\nORDER BY total_amount DESC\nLIMIT 20;"
+  expected_concepts:
+  - where_filter
+  - select_basic
+  - from_clause
+  targets_misconception: wrong_logical_operator
+- difficulty: 3
+  title: Kupci iz određenih gradova
+  description: Pronađi sve kupce koji žive u gradu 'Zagreb' ILI 'Split'. Ispiši first_name,
+    last_name, email i city. Koristi OR operator u WHERE klauzi.
+  expected_query: "SELECT first_name, last_name, email, city\nFROM customers\nWHERE\
+    \ city = 'Zagreb'\n   OR city = 'Split'\nORDER BY city, last_name;"
+  expected_concepts:
+  - where_filter
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: wrong_logical_operator
+- difficulty: 3
+  title: Proizvodi s niskom zalihom koji nisu rasprodani
+  description: Pronađi sve proizvode čija je zaliha (stock_quantity) manja od 10,
+    ali veća od 0 — dakle, nisu potpuno rasprodani. Ispiši name, price i stock_quantity.
+    Koristi AND operator.
+  expected_query: "SELECT name, price, stock_quantity\nFROM products\nWHERE stock_quantity\
+    \ < 10\n  AND stock_quantity > 0\nORDER BY stock_quantity ASC;"
+  expected_concepts:
+  - where_filter
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: wrong_logical_operator
+- difficulty: 4
+  title: Narudžbe koje nisu otkazane ni na čekanju
+  description: Ispiši id, status i total_amount svih narudžbi čiji status NIJE 'cancelled'
+    NI 'pending'. Koristi NOT i IN operator (ili AND s != operatorima) u WHERE klauzi.
+  expected_query: 'SELECT id, status, total_amount
+
+    FROM orders
+
+    WHERE status NOT IN (''cancelled'', ''pending'')
+
+    ORDER BY total_amount DESC
+
+    LIMIT 20;'
+  expected_concepts:
+  - where_filter
+  - select_basic
+  - from_clause
+  targets_misconception: not_operator_misuse
+- difficulty: 4
+  title: Skupi proizvodi u rasponu cijena s BETWEEN
+  description: Pronađi sve proizvode čija je cijena između 50 i 200 (uključujući rubove).
+    Ispiši name i price. Koristi BETWEEN operator u WHERE klauzi.
+  expected_query: 'SELECT name, price
+
+    FROM products
+
+    WHERE price BETWEEN 50 AND 200
+
+    ORDER BY price ASC;'
+  expected_concepts:
+  - where_filter
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: aggregate_in_where
+- difficulty: 5
+  title: Složeni uvjet — narudžbe visokog iznosa ili određenog statusa u 2024.
+  description: Pronađi sve narudžbe koje su ili (a) u statusu 'delivered' s iznosom
+    većim od 500, ili (b) u statusu 'shipped' s iznosom većim od 1000. Ispiši id,
+    status, total_amount i order_date. Koristi zagrade za grupiranje OR i AND uvjeta.
+  expected_query: "SELECT id, status, total_amount, order_date\nFROM orders\nWHERE\
+    \ (status = 'delivered' AND total_amount > 500)\n   OR (status = 'shipped' AND\
+    \ total_amount > 1000)\nORDER BY total_amount DESC\nLIMIT 20;"
+  expected_concepts:
+  - where_filter
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: where_vs_having_confusion
+ast_validation_rules:
+- expected_query mora sadržavati WHERE klauzu — upiti bez WHERE klauze nisu validni
+  za ovaj koncept
+- WHERE klauza mora referencirati kolone koje postoje u navedenoj tablici sandbox
+  sheme
+- WHERE klauza NE smije sadržavati agregirane funkcije (SUM, COUNT, AVG, MIN, MAX)
+  — to je HAVING koncept
+- String vrijednosti u WHERE uvjetu moraju biti omeđene jednostrukim navodnicima (npr.
+  'delivered')
+- 'Za zadatke s OR uvjetom (difficulty >= 3): složeni OR/AND uvjeti moraju imati eksplicitne
+  zagrade gdje je semantika višeznačna'
+- FROM klauza smije referencirati točno jednu tablicu — bez JOIN klauza (one-table
+  constraint za modul 1)
+- 'Za NOT IN / BETWEEN zadatke (difficulty >= 4): mora biti prisutan odgovarajući
+  operator u WHERE klauzi'

@@ -1,0 +1,250 @@
+concept_code: limit_offset
+concept_name: LIMIT i OFFSET klauzule
+module_number: 1
+module_name: Osnove SELECT-a
+tier: easy
+target_misconceptions:
+- code: limit_without_order_by
+  description: Student koristi LIMIT bez ORDER BY klauze — rezultat je nedeterministički
+    jer SQL ne garantira redoslijed redova bez eksplicitnog ORDER BY, pa paginacija
+    daje različite (i nepredvidljive) rezultate pri svakom pozivu
+  priority: critical
+- code: offset_misunderstood_as_page_number
+  description: Student zamijeni OFFSET s brojem stranice (npr. OFFSET 2 misleći da
+    dobiva 2. stranicu) umjesto broja redova koji se preskače — ne razumije da OFFSET
+    10 preskače prvih 10 redova, a ne odlazi na stranicu broj 10
+  priority: critical
+- code: limit_offset_order_confusion
+  description: Student zamijeni redoslijed klauza i piše OFFSET ili LIMIT prije ORDER
+    BY — SQL sintaksna greška jer LIMIT/OFFSET moraju doći nakon ORDER BY
+  priority: high
+- code: offset_without_limit
+  description: Student koristi OFFSET bez LIMIT klauze — u PostgreSQL-u OFFSET bez
+    LIMIT-a je tehnički validan ali neintuitivan i rijetko koristan; student ne razumije
+    da se tipično koriste zajedno
+  priority: medium
+- code: limit_zero_misconception
+  description: Student misli da LIMIT 0 vraća sve retke (jer 'nula znači bez ograničenja')
+    — zapravo LIMIT 0 vraća praznu tablicu; za sve retke izostavlja se LIMIT klauza
+  priority: low
+domain_hints:
+- Sandbox ecommerce_v1 ima ~200 kupaca, ~50 proizvoda, ~1000 narudžbi — LIMIT 10 je
+  prirodan za pregled prvih N rezultata
+- Tablica products ima kolonu price (NUMERIC) — ORDER BY price DESC LIMIT 5 je klasičan
+  'top 5 najskupljih' scenarij
+- Tablica orders ima kolonu order_date (TIMESTAMP) i total_amount (NUMERIC) — ORDER
+  BY order_date DESC LIMIT 10 daje najnovije narudžbe
+- Tablica customers ima kolone first_name, last_name — abecedno sortiranje pa LIMIT/OFFSET
+  prirodno demonstrira paginaciju
+- 'Paginacija formula: stranica P s veličinom N → LIMIT N OFFSET (P-1)*N — npr. stranica
+  2 s 10 redova po stranici = LIMIT 10 OFFSET 10'
+- 'LIMIT/OFFSET klauze dolaze NA KRAJU upita, uvijek nakon ORDER BY — redoslijed:
+  SELECT → FROM → WHERE → ORDER BY → LIMIT → OFFSET'
+- PostgreSQL podržava i sintaksu LIMIT N OFFSET M i FETCH FIRST N ROWS ONLY — u sandboxu
+  koristimo LIMIT/OFFSET sintaksu
+anti_patterns:
+- Ne piši expected_query s LIMIT bez ORDER BY — svaki primjer paginacije mora imati
+  deterministički ORDER BY
+- Ne koristi OFFSET bez LIMIT klauze u few_shot primjerima — uvijek ih koristi zajedno
+- Ne piši zadatke koji zahtijevaju GROUP BY ili JOIN — scope je modul 1, jedna tablica
+- Ne koristi agregatne funkcije (SUM, COUNT) — to su koncepti modula 2
+- Ne objašnjavaj OFFSET kao 'broj stranice' — uvijek naglasi da je OFFSET broj preskočenih
+  redova
+- Ne koristi ORDER BY po poziciji stupca (ORDER BY 1) — uvijek koristi eksplicitno
+  ime stupca ili alias
+- Ne piši LIMIT vrijednosti veće od ukupnog broja redova u tablici bez komentara —
+  može biti zbunjujuće za studente
+required_for_high_difficulty:
+- Kombinacija WHERE klauze + ORDER BY + LIMIT + OFFSET u ispravnom sintaksnom redoslijedu
+- Eksplicitno obrazloženje OFFSET formule za paginaciju (stranica P, veličina N →
+  OFFSET (P-1)*N)
+- Korištenje aliasa iz SELECT liste u ORDER BY klauzi zajedno s LIMIT/OFFSET
+- Multi-column ORDER BY uz LIMIT/OFFSET za potpuno deterministički redoslijed
+few_shot_examples:
+- difficulty: 1
+  title: Prvih 5 proizvoda po cijeni
+  description: Ispiši name i price iz tablice products. Sortiraj od najskupljeg prema
+    najjeftinijem i prikaži samo prvih 5 rezultata. Koristi ORDER BY i LIMIT.
+  expected_query: 'SELECT name, price
+
+    FROM products
+
+    ORDER BY price DESC
+
+    LIMIT 5;'
+  expected_concepts:
+  - limit_offset
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: limit_without_order_by
+- difficulty: 1
+  title: Prvih 10 narudžbi po datumu
+  description: Ispiši id, customer_id i order_date iz tablice orders. Sortiraj od
+    najnovije prema najstarijoj narudžbi i prikaži samo prvih 10 redova. Koristi ORDER
+    BY i LIMIT.
+  expected_query: 'SELECT id, customer_id, order_date
+
+    FROM orders
+
+    ORDER BY order_date DESC
+
+    LIMIT 10;'
+  expected_concepts:
+  - limit_offset
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: limit_without_order_by
+- difficulty: 2
+  title: Kupci abecedno — druga stranica
+  description: 'Ispiši first_name i last_name svih kupaca iz tablice customers. Sortiraj
+    abecedno po prezimenu uzlazno. Prikaži redove 11–20 (drugu stranicu od 10 redova)
+    koristeći LIMIT i OFFSET. Napomena: OFFSET 10 preskače prvih 10 redova — to nije
+    broj stranice!'
+  expected_query: 'SELECT first_name, last_name
+
+    FROM customers
+
+    ORDER BY last_name ASC
+
+    LIMIT 10 OFFSET 10;'
+  expected_concepts:
+  - limit_offset
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: offset_misunderstood_as_page_number
+- difficulty: 2
+  title: Treća stranica proizvoda sortirano po imenu
+  description: 'Ispiši name i price iz tablice products. Sortiraj abecedno po imenu
+    proizvoda uzlazno. Prikaži treću stranicu uz 5 redova po stranici (redovi 11–15).
+    Formula: OFFSET = (broj_stranice - 1) * veličina_stranice.'
+  expected_query: 'SELECT name, price
+
+    FROM products
+
+    ORDER BY name ASC
+
+    LIMIT 5 OFFSET 10;'
+  expected_concepts:
+  - limit_offset
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: offset_misunderstood_as_page_number
+- difficulty: 3
+  title: LIMIT i OFFSET moraju doći nakon ORDER BY
+  description: 'Ispiši id, status i total_amount iz tablice orders. Sortiraj po total_amount
+    silazno. Prikaži redove 6–10 (preskači prvih 5 redova, prikaži sljedećih 5). Pazi
+    na ispravan redoslijed klauza: ORDER BY mora doći PRIJE LIMIT i OFFSET.'
+  expected_query: 'SELECT id, status, total_amount
+
+    FROM orders
+
+    ORDER BY total_amount DESC
+
+    LIMIT 5 OFFSET 5;'
+  expected_concepts:
+  - limit_offset
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: limit_offset_order_confusion
+- difficulty: 3
+  title: Jeftini proizvodi — paginacija s WHERE
+  description: 'Pronađi sve proizvode čija je cijena manja od 100. Ispiši name i price.
+    Sortiraj od najjeftinije prema najskupljoj. Prikaži drugu stranicu uz 5 redova
+    po stranici (OFFSET 5). Pazi: WHERE dolazi prije ORDER BY, a LIMIT/OFFSET dolaze
+    na kraju.'
+  expected_query: 'SELECT name, price
+
+    FROM products
+
+    WHERE price < 100
+
+    ORDER BY price ASC
+
+    LIMIT 5 OFFSET 5;'
+  expected_concepts:
+  - limit_offset
+  - where_filter
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: limit_offset_order_confusion
+- difficulty: 4
+  title: Najnovije isporučene narudžbe — WHERE + ORDER BY + LIMIT/OFFSET
+  description: Pronađi sve narudžbe čiji je status 'delivered'. Ispiši id, order_date
+    i total_amount. Sortiraj od najnovije prema najstarijoj. Prikaži treću stranicu
+    uz 10 redova po stranici (preskači prvih 20 redova). Koristi ispravan redoslijed
+    svih klauza.
+  expected_query: 'SELECT id, order_date, total_amount
+
+    FROM orders
+
+    WHERE status = ''delivered''
+
+    ORDER BY order_date DESC
+
+    LIMIT 10 OFFSET 20;'
+  expected_concepts:
+  - limit_offset
+  - where_filter
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: offset_misunderstood_as_page_number
+- difficulty: 4
+  title: Kupci sortirani po gradu i prezimenu — paginacija s alias
+  description: Ispiši first_name, last_name i city iz tablice customers uz alias 'grad'
+    za kolonu city. Sortiraj PRVO po gradu uzlazno, zatim po prezimenu uzlazno. Prikaži
+    redove 21–30 (treću stranicu od 10 redova). Koristi alias 'grad' u ORDER BY klauzi.
+  expected_query: 'SELECT first_name, last_name, city AS grad
+
+    FROM customers
+
+    ORDER BY grad ASC, last_name ASC
+
+    LIMIT 10 OFFSET 20;'
+  expected_concepts:
+  - limit_offset
+  - select_basic
+  - from_clause
+  - order_by
+  - column_alias
+  targets_misconception: limit_offset_order_confusion
+- difficulty: 5
+  title: Paginacija skupih narudžbi — složeni uvjet i deterministički redoslijed
+  description: Pronađi sve narudžbe čiji total_amount prelazi 200 i čiji status nije
+    'cancelled'. Ispiši id, status, total_amount i order_date. Sortiraj PRVO po total_amount
+    silazno, a zatim po id uzlazno (za potpuno deterministički redoslijed u slučaju
+    jednakih iznosa). Prikaži četvrtu stranicu uz 5 redova po stranici (OFFSET 15).
+    Koristi ispravan redoslijed svih klauza.
+  expected_query: "SELECT id, status, total_amount, order_date\nFROM orders\nWHERE\
+    \ total_amount > 200\n  AND status != 'cancelled'\nORDER BY total_amount DESC,\
+    \ id ASC\nLIMIT 5 OFFSET 15;"
+  expected_concepts:
+  - limit_offset
+  - where_filter
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: limit_without_order_by
+ast_validation_rules:
+- expected_query mora sadržavati LIMIT klauzu — upiti bez LIMIT-a nisu validni za
+  ovaj koncept
+- LIMIT klauza mora uvijek biti popraćena ORDER BY klauzom — LIMIT bez ORDER BY nije
+  prihvatljiv u few_shot primjerima jer daje nedeterministički rezultat
+- LIMIT i OFFSET klauze moraju dolaziti NAKON ORDER BY klauze u sintaksi — redoslijed
+  SELECT → FROM → WHERE → ORDER BY → LIMIT → OFFSET je obavezan
+- 'Za zadatke s OFFSET (difficulty >= 2): OFFSET vrijednost mora biti nenegativan
+  cijeli broj, a LIMIT mora biti prisutan zajedno s OFFSET-om'
+- WHERE klauza (ako postoji) mora se nalaziti između FROM i ORDER BY klauze — LIMIT/OFFSET
+  ne smiju prethoditi WHERE ni ORDER BY
+- FROM klauza smije referencirati točno jednu tablicu — bez JOIN klauza (one-table
+  constraint za modul 1)
+- SELECT lista ne smije koristiti SELECT * — mora sadržavati eksplicitne nazive stupaca
+- ORDER BY klauza mora referencirati kolonu koja postoji u navedenoj tablici sandbox
+  sheme ili alias definiran u SELECT listi — ne smije koristiti pozicijski broj stupca
+  (ORDER BY 1)

@@ -1,0 +1,284 @@
+concept_code: agg_sum_avg
+concept_name: SUM i AVG agregatne funkcije
+module_number: 2
+module_name: Agregacije i grupiranje
+tier: medium
+target_misconceptions:
+- code: avg_not_equal_sum_div_count_with_nulls
+  description: Student misli da je AVG(col) uvijek ekvivalent SUM(col)/COUNT(*) —
+    to je netočno kada kolona sadrži NULL vrijednosti jer AVG(col) dijeli samo s brojem
+    ne-NULL redova (COUNT(col)), dok COUNT(*) broji sve retke uključujući one s NULL-ovima
+  priority: critical
+- code: sum_avg_null_treated_as_zero
+  description: Student misli da SUM i AVG tretiraju NULL vrijednosti kao 0 — zapravo
+    ih obje funkcije ignoriraju (preskače); SUM na svim NULL-ovima vraća NULL, ne
+    0, a AVG isto tako
+  priority: critical
+- code: sum_avg_in_where_clause
+  description: Student pokušava koristiti SUM() ili AVG() direktno u WHERE klauzi
+    (npr. WHERE AVG(salary) > 5000) — agregatne funkcije nisu dopuštene u WHERE; filter
+    na agregiranoj vrijednosti mora ići u HAVING klauzu
+  priority: critical
+- code: avg_integer_truncation
+  description: Student ne zna da AVG nad INTEGER kolonom u PostgreSQL-u vraća NUMERIC
+    (s decimalama), ali zaboravlja zaokružiti rezultat s ROUND() — ne razumije da
+    je rezultat precizni decimalni broj, a ne cijeli broj
+  priority: high
+- code: sum_avg_without_group_by
+  description: Student dodaje nenagregirani stupac u SELECT listu zajedno sa SUM/AVG
+    bez GROUP BY klauze — PostgreSQL baca grešku jer se nenagregirani stupci moraju
+    nalaziti u GROUP BY ako postoji agregatna funkcija u SELECT-u
+  priority: high
+- code: sum_vs_avg_confusion
+  description: Student zamijeni semantiku SUM i AVG — koristi SUM kada treba prosjek
+    ili AVG kada treba ukupni zbroj; ne razumije da SUM zbraja sve vrijednosti dok
+    AVG dijeli zbroj s brojem ne-NULL vrijednosti
+  priority: medium
+domain_hints:
+- 'Tablica order_items ima kolone: order_id (INT), product_id (INT), quantity (INT),
+  unit_price (NUMERIC) — SUM(quantity * unit_price) daje ukupni prihod, AVG(unit_price)
+  daje prosječnu cijenu stavki'
+- 'Tablica orders ima kolone: id (INT), customer_id (INT), total_amount (NUMERIC),
+  status (VARCHAR), order_date (TIMESTAMP) — SUM(total_amount) i AVG(total_amount)
+  su prirodni agregati po kupcu ili statusu'
+- 'Tablica employees ima kolone: id (INT), first_name, last_name, salary (NUMERIC),
+  manager_id (INT, nullable) — AVG(salary) vs SUM(salary)/COUNT(*) demonstrira NULL
+  razliku jer CEO (manager_id IS NULL) može imati poseban tretman; salary nije nullable
+  ali je dobra tablica za grupiranje po odjelu'
+- 'Tablica products ima kolone: id (INT), name (VARCHAR), price (NUMERIC), stock_quantity
+  (INT), category_id (INT) — SUM(stock_quantity) i AVG(price) po category_id su korisni
+  primjeri'
+- 'Sandbox invariant: order_items tablica ima ~3000 redova — SUM(quantity * unit_price)
+  bez GROUP BY vraća jedan ukupni prihod, GROUP BY product_id vraća prihod po proizvodu'
+- 'Sandbox invariant: employees tablica ima 50 zaposlenika s različitim plaćama —
+  AVG(salary) demonstrira ROUND() potrebu (decimalni rezultat); GROUP BY manager_id
+  demonstrira NULL tretman'
+- AVG(col) = SUM(col) / COUNT(col) — COUNT(col) ignorira NULL-ove, pa je to RAZLIČITO
+  od SUM(col) / COUNT(*) kada postoje NULL-ovi u koloni
+- ROUND(AVG(salary), 2) je konvencija za čitljiv prikaz decimalnog prosjeka — PostgreSQL
+  AVG nad NUMERIC kolonom vraća NUMERIC s mnogo decimala
+anti_patterns:
+- Ne piši SUM ili AVG u WHERE klauzi u expected_query — agregatne funkcije u WHERE
+  uzrokuju SQL grešku; filter na agregiranoj vrijednosti uvijek ide u HAVING
+- Ne piši nenagregirani stupac u SELECT listi zajedno sa SUM/AVG bez odgovarajućeg
+  GROUP BY — expected_query mora biti validan PostgreSQL SQL
+- Ne koristi SELECT * uz agregatne funkcije — uvijek navedi eksplicitne kolone u SELECT
+  listi
+- Ne piši GROUP BY po poziciji stupca (GROUP BY 1, GROUP BY 2) — uvijek koristi eksplicitno
+  ime stupca
+- Ne prikazuj SUM i AVG kao ekvivalente — uvijek naglasi semantičku razliku (zbrajanje
+  vs. prosjek) i razliku u tretiranju NULL-ova
+- Ne piši AVG bez ROUND() za high-difficulty primjere gdje se ispisuje decimalni rezultat
+  — zaokruži na 2 decimale za čitljivost
+- Ne miješaj SUM i COUNT kao primarni fokus zadatka — zadatak mora biti fokusiran
+  na SUM/AVG semantiku, COUNT je sekundarni koncept
+- 'Ne piši ORDER BY prije GROUP BY u expected_query — ispravan sintaksni redoslijed
+  mora uvijek biti ispoštovan: WHERE → GROUP BY → HAVING → ORDER BY'
+required_for_high_difficulty:
+- Kombinacija SUM i AVG u istom upitu uz obrazloženje semantičke razlike
+- WHERE pre-filter + GROUP BY + SUM/AVG + HAVING post-filter u ispravnom sintaksnom
+  redoslijedu
+- Eksplicitno demonstriranje razlike između AVG(col) i SUM(col)/COUNT(*) u kontekstu
+  NULL vrijednosti
+- Korištenje aliasa SUM/AVG agregata u ORDER BY klauzi (ne u GROUP BY ni HAVING)
+- ROUND() omotač oko AVG za čitljiv decimalni prikaz
+few_shot_examples:
+- difficulty: 1
+  title: Ukupni prihod od svih narudžbi
+  description: 'Izračunaj ukupni iznos svih narudžbi iz tablice orders. Koristi SUM(total_amount)
+    i daj rezultatu alias ukupni_prihod.
+
+
+    Napomena: SUM ignorira NULL vrijednosti — ako bi total_amount bio NULL u nekom
+    redu, taj red ne bi utjecao na zbroj.'
+  expected_query: 'SELECT SUM(total_amount) AS ukupni_prihod
+
+    FROM orders;'
+  expected_concepts:
+  - agg_sum_avg
+  - select_basic
+  - from_clause
+  targets_misconception: sum_avg_null_treated_as_zero
+- difficulty: 1
+  title: Prosječna plaća zaposlenika
+  description: 'Izračunaj prosječnu plaću (salary) svih zaposlenika iz tablice employees.
+    Koristi AVG(salary) i daj rezultatu alias prosjecna_placa. Zaokruži na 2 decimale
+    koristeći ROUND().
+
+
+    Napomena: AVG vraća decimalni broj — ROUND(AVG(salary), 2) ga čini čitljivijim.'
+  expected_query: 'SELECT ROUND(AVG(salary), 2) AS prosjecna_placa
+
+    FROM employees;'
+  expected_concepts:
+  - agg_sum_avg
+  - select_basic
+  - from_clause
+  targets_misconception: avg_integer_truncation
+- difficulty: 2
+  title: Ukupni i prosječni iznos narudžbi po statusu
+  description: 'Za svaki status narudžbe izračunaj ukupni iznos svih narudžbi (SUM
+    od total_amount) i prosječni iznos narudžbe (AVG od total_amount, zaokružen na
+    2 decimale). Ispiši status, ukupni_iznos i prosjecni_iznos. Sortiraj od najvećeg
+    ukupnog iznosa prema najmanjem.
+
+
+    Napomena: status u SELECT listi nije unutar agregatne funkcije — mora biti naveden
+    u GROUP BY klauzi.'
+  expected_query: "SELECT status,\n       SUM(total_amount) AS ukupni_iznos,\n   \
+    \    ROUND(AVG(total_amount), 2) AS prosjecni_iznos\nFROM orders\nGROUP BY status\n\
+    ORDER BY ukupni_iznos DESC;"
+  expected_concepts:
+  - agg_sum_avg
+  - group_by
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: sum_vs_avg_confusion
+- difficulty: 2
+  title: Ukupna vrijednost stavki po narudžbi
+  description: 'Za svaku narudžbu iz tablice order_items izračunaj ukupnu vrijednost
+    stavki kao SUM(quantity * unit_price). Ispiši order_id i ukupna_vrijednost. Sortiraj
+    od najveće prema najmanjoj vrijednosti. Prikaži prvih 10 narudžbi.
+
+
+    Napomena: izraz quantity * unit_price unutar SUM() množi kolone po retku, a SUM
+    sabire sve te produkte po grupi.'
+  expected_query: "SELECT order_id,\n       SUM(quantity * unit_price) AS ukupna_vrijednost\n\
+    FROM order_items\nGROUP BY order_id\nORDER BY ukupna_vrijednost DESC\nLIMIT 10;"
+  expected_concepts:
+  - agg_sum_avg
+  - group_by
+  - select_basic
+  - from_clause
+  - order_by
+  - limit_offset
+  targets_misconception: sum_avg_without_group_by
+- difficulty: 3
+  title: Prosječna cijena proizvoda po kategoriji — AVG s GROUP BY
+  description: 'Za svaki category_id u tablici products izračunaj prosječnu cijenu
+    (AVG od price, zaokruženu na 2 decimale) i ukupnu zalihu (SUM od stock_quantity).
+    Ispiši category_id, prosjecna_cijena i ukupna_zaliha. Sortiraj po prosječnoj cijeni
+    silazno.
+
+
+    Napomena: category_id u SELECT listi nije unutar agregatne funkcije — mora biti
+    naveden u GROUP BY klauzi.'
+  expected_query: "SELECT category_id,\n       ROUND(AVG(price), 2) AS prosjecna_cijena,\n\
+    \       SUM(stock_quantity) AS ukupna_zaliha\nFROM products\nGROUP BY category_id\n\
+    ORDER BY prosjecna_cijena DESC;"
+  expected_concepts:
+  - agg_sum_avg
+  - group_by
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: avg_integer_truncation
+- difficulty: 3
+  title: AVG nije SUM/COUNT(*) — demonstracija s NULL-ovima na employees
+  description: "U tablici employees kolona manager_id je NULL za CEO-a. Ispiši tri\
+    \ vrijednosti:\n  (a) AVG(manager_id) — prosjek koji ignorira NULL (dijeli samo\
+    \ s brojem ne-NULL redova)\n  (b) SUM(manager_id) / COUNT(*) — krivi prosjek koji\
+    \ dijeli s ukupnim brojem redova uključujući NULL\n  (c) SUM(manager_id) / COUNT(manager_id)\
+    \ — ekvivalent AVG-u (djeli samo s ne-NULL redovima)\n\nDaj im aliase avg_funkcija,\
+    \ sum_div_count_star i sum_div_count_col. Zaokruži sve na 2 decimale.\n\nNapomena:\
+    \ (a) i (c) će biti jednaki, ali (b) će biti manji zbog dijeljenja s COUNT(*)\
+    \ koji broji i NULL red."
+  expected_query: "SELECT ROUND(AVG(manager_id), 2) AS avg_funkcija,\n       ROUND(SUM(manager_id)::NUMERIC\
+    \ / COUNT(*), 2) AS sum_div_count_star,\n       ROUND(SUM(manager_id)::NUMERIC\
+    \ / COUNT(manager_id), 2) AS sum_div_count_col\nFROM employees;"
+  expected_concepts:
+  - agg_sum_avg
+  - agg_count
+  - select_basic
+  - from_clause
+  targets_misconception: avg_not_equal_sum_div_count_with_nulls
+- difficulty: 4
+  title: Ukupni prihod po kupcu — WHERE pre-filter + SUM + GROUP BY
+  description: 'Izračunaj ukupni prihod (SUM od total_amount) po kupcu, ali samo za
+    narudžbe koje nisu otkazane (status != ''cancelled''). Ispiši customer_id i ukupni_prihod.
+    Sortiraj od najvećeg prihoda prema najmanjem. Prikaži prvih 10 kupaca.
+
+
+    Pazi na ispravan redoslijed klauza: WHERE dolazi PRIJE GROUP BY. SUM() u WHERE
+    nije dopušteno — za filtriranje agregata koristi HAVING.'
+  expected_query: "SELECT customer_id,\n       SUM(total_amount) AS ukupni_prihod\n\
+    FROM orders\nWHERE status != 'cancelled'\nGROUP BY customer_id\nORDER BY ukupni_prihod\
+    \ DESC\nLIMIT 10;"
+  expected_concepts:
+  - agg_sum_avg
+  - group_by
+  - where_filter
+  - select_basic
+  - from_clause
+  - order_by
+  - limit_offset
+  targets_misconception: sum_avg_in_where_clause
+- difficulty: 4
+  title: Kategorije čiji je prosječni prihod po stavki iznad praga — GROUP BY + HAVING
+  description: 'Pronađi sve kategorije proizvoda (category_id u tablici products)
+    kod kojih je prosječna cijena (AVG od price) veća od 100. Ispiši category_id i
+    prosjecna_cijena (zaokružena na 2 decimale). Sortiraj od najveće prosječne cijene
+    prema najmanjoj.
+
+
+    Napomena: filter AVG(price) > 100 je filter na agregiranoj vrijednosti — mora
+    biti u HAVING klauzi, NE WHERE. Alias ''prosjecna_cijena'' smije se koristiti
+    u ORDER BY, ali NE u HAVING — u HAVING ponovi AVG(price).'
+  expected_query: "SELECT category_id,\n       ROUND(AVG(price), 2) AS prosjecna_cijena\n\
+    FROM products\nGROUP BY category_id\nHAVING AVG(price) > 100\nORDER BY prosjecna_cijena\
+    \ DESC;"
+  expected_concepts:
+  - agg_sum_avg
+  - group_by
+  - having_filter
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: sum_avg_in_where_clause
+- difficulty: 5
+  title: Usporedba ukupnog i prosječnog prihoda po kupcu — WHERE + GROUP BY + HAVING
+    + ORDER BY
+  description: "Pronađi kupce koji ispunjavaju OBA uvjeta:\n  (a) imaju isporučene\
+    \ narudžbe (status = 'delivered') — filtriraj s WHERE\n  (b) čiji je ukupni iznos\
+    \ isporučenih narudžbi veći od 500 (HAVING SUM > 500)\n  (c) čiji je prosječni\
+    \ iznos narudžbe veći od 150 (HAVING AVG > 150)\n\nIspiši customer_id, ukupni_iznos\
+    \ (SUM od total_amount, zaokružen na 2 decimale) i prosjecni_iznos (AVG od total_amount,\
+    \ zaokružen na 2 decimale). Sortiraj od najvećeg ukupnog iznosa prema najmanjem.\n\
+    \nPazi na ispravan redoslijed klauza: WHERE → GROUP BY → HAVING → ORDER BY. Aliase\
+    \ iz SELECT liste smij koristiti u ORDER BY, ali NE u HAVING — u HAVING uvijek\
+    \ ponovi punu agregatnu funkciju."
+  expected_query: "SELECT customer_id,\n       ROUND(SUM(total_amount), 2) AS ukupni_iznos,\n\
+    \       ROUND(AVG(total_amount), 2) AS prosjecni_iznos\nFROM orders\nWHERE status\
+    \ = 'delivered'\nGROUP BY customer_id\nHAVING SUM(total_amount) > 500\n   AND\
+    \ AVG(total_amount) > 150\nORDER BY ukupni_iznos DESC;"
+  expected_concepts:
+  - agg_sum_avg
+  - group_by
+  - having_filter
+  - where_filter
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: avg_not_equal_sum_div_count_with_nulls
+ast_validation_rules:
+- expected_query mora sadržavati barem jedan poziv agregatne funkcije SUM() ili AVG()
+  — upiti bez SUM/AVG nisu validni za ovaj koncept
+- SUM ili AVG ne smiju se pojaviti u WHERE klauzi — agregatne funkcije u WHERE uzrokuju
+  SQL grešku; filter na SUM/AVG rezultatu mora ići u HAVING klauzu
+- Ako SELECT lista sadrži nenagregirani stupac uz SUM/AVG, taj stupac mora biti naveden
+  u GROUP BY klauzi — PostgreSQL striktno primjenjuje ovo pravilo
+- AVG pozivi u few_shot primjerima difficulty >= 2 moraju biti omotani u ROUND(...,
+  2) za čitljiv prikaz decimalnog rezultata — iznimka je samo difficulty 1 primjer
+  koji demonstrira sirovi output
+- 'Ispravan sintaksni redoslijed klauza mora biti ispoštovan: FROM → WHERE (ako postoji)
+  → GROUP BY (ako postoji) → HAVING (ako postoji) → ORDER BY (ako postoji) → LIMIT
+  (ako postoji)'
+- Alias agregatne funkcije iz SELECT liste smije se koristiti u ORDER BY klauzi (PostgreSQL
+  to podržava), ali NE u GROUP BY ni HAVING klauzi — u HAVING uvijek mora biti ponovljena
+  puna agregatna funkcija (npr. HAVING SUM(total_amount) > 500, ne HAVING ukupni_iznos
+  > 500)
+- GROUP BY ne smije koristiti pozicijski broj stupca (GROUP BY 1) — uvijek eksplicitno
+  ime stupca
+- 'Za zadatke s HAVING klauzom (difficulty >= 4): HAVING mora dolaziti neposredno
+  NAKON GROUP BY i mora sadržavati SUM, AVG ili drugu agregatnu funkciju'

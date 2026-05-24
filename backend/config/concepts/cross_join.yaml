@@ -1,0 +1,135 @@
+concept_code: cross_join
+concept_name: CROSS JOIN
+module_number: 3
+module_name: JOIN-ovi
+tier: medium
+target_misconceptions:
+- code: accidental_cross_join_missing_on
+  description: Student piše INNER JOIN bez ON klauze ili zaboravi ON uvjet — nesvjesno
+    stvara Kartezijev produkt umjesto namjernog CROSS JOIN-a
+  priority: critical
+- code: cross_join_with_on_clause
+  description: Student dodaje ON klauzu uz CROSS JOIN — sintaksno je pogrešno ili
+    semantički mijenja namjeru (CROSS JOIN ne smije imati ON uvjet)
+  priority: critical
+- code: underestimates_cardinality
+  description: Student ne razumije da CROSS JOIN vraća N × M redova — iznenadi ga
+    eksplozija redova kad su obje tablice veće (npr. 1000 × 200 = 200 000 redova)
+  priority: high
+- code: cross_join_vs_inner_join_confusion
+  description: Student koristi CROSS JOIN gdje je semantički potreban INNER JOIN s
+    uvjetom — ne razlikuje namjerno kombiniranje svih parova od filtriranog spajanja
+  priority: medium
+domain_hints:
+- 'Sandbox ecommerce_v1: tablica categories ima ~8 redova, a DISTINCT status vrijednosti
+  u orders su 4 (pending, processing, shipped, delivered) — CROSS JOIN vraća 8 × 4
+  = 32 kombinacije'
+- 'Tipičan use-case: generiranje matrice svih kombinacija kategorija i statusa narudžbi
+  za reporting izvještaje'
+- orders.status je VARCHAR kolona — CROSS JOIN s (SELECT DISTINCT status FROM orders)
+  je prirodan sandbox primjer
+- 'products i categories: CROSS JOIN bi vratio ~50 × 8 = 400 kombinacija — korisno
+  za demonstraciju eksplozije redova'
+- CROSS JOIN se eksplicitno piše bez ON klauze — to je jedini JOIN bez uvjeta koji
+  je namjeran, a ne greška
+- 'Sandbox invariant: categories ima id, name, description — prirodno za kombiniranje
+  s listom statusa ili zaposlenika'
+anti_patterns:
+- Ne piši CROSS JOIN s ON klauzom — sintaksno je neispravno i nema smisla u CROSS
+  JOIN semantici
+- Ne piši zadatak gdje CROSS JOIN može biti zamijenjen INNER JOIN-om bez gubitka smisla
+  — CROSS JOIN mora biti jedino ispravno rješenje
+- Ne koristi CROSS JOIN na velikim tablicama (orders × order_items) u expected_query
+  — rezultat ima previše redova za sandbox runner
+- Ne miješaj CROSS JOIN s implicitan join sintaksom (FROM a, b) bez WHERE — potonji
+  je anti-pattern koji studenti moraju prepoznati kao slučajan CROSS JOIN
+- expected_query mora koristiti eksplicitni CROSS JOIN keyword, ne FROM tablica1,
+  tablica2 bez WHERE
+required_for_high_difficulty:
+- Kombinacija CROSS JOIN s agregacijom (COUNT, SUM) ili GROUP BY nad generiranom matricom
+- CROSS JOIN s podupidom (npr. SELECT DISTINCT status FROM orders) kao jednom od tablica
+- LEFT JOIN dodan nakon CROSS JOIN-a za dohvat stvarnih podataka iz matrice kombinacija
+few_shot_examples:
+- difficulty: 2
+  title: Sve kombinacije kategorija i statusa narudžbi
+  description: Generiraj sve moguće kombinacije između naziva kategorija (categories.name)
+    i različitih statusa narudžbi koji postoje u tablici orders. Ispiši category_name
+    i order_status. Sortiraj po category_name, zatim po order_status.
+  expected_query: "SELECT c.name AS category_name,\n       s.status AS order_status\n\
+    FROM categories c\nCROSS JOIN (SELECT DISTINCT status FROM orders) s\nORDER BY\
+    \ c.name, s.status;\n"
+  expected_concepts:
+  - cross_join
+  - select_basic
+  - order_by
+  targets_misconception: cross_join_with_on_clause
+- difficulty: 3
+  title: Matrica kategorija i statusa s brojem narudžbi
+  description: Za svaku kombinaciju kategorije i statusa narudžbe prikaži koliko narudžbi
+    stvarno postoji u toj kombinaciji. Ispiši category_name, order_status i order_count
+    (može biti 0 ako nema narudžbi). Koristi CROSS JOIN za generiranje svih kombinacija,
+    a zatim LEFT JOIN za spajanje stvarnih podataka. Sortiraj po category_name i order_status.
+  expected_query: "SELECT c.name AS category_name,\n       s.status AS order_status,\n\
+    \       COUNT(o.id) AS order_count\nFROM categories c\nCROSS JOIN (SELECT DISTINCT\
+    \ status FROM orders) s\nLEFT JOIN orders o\n       ON o.status = s.status\n \
+    \     AND o.id IN (\n            SELECT DISTINCT oi.order_id\n            FROM\
+    \ order_items oi\n            INNER JOIN products p ON oi.product_id = p.id\n\
+    \            WHERE p.category_id = c.id\n          )\nGROUP BY c.name, s.status\n\
+    ORDER BY c.name, s.status;\n"
+  expected_concepts:
+  - cross_join
+  - left_join
+  - aggregate_functions
+  - group_by
+  - order_by
+  targets_misconception: underestimates_cardinality
+- difficulty: 3
+  title: Kombinacije kategorija i zaposlenika — demonstracija eksplozije redova
+  description: 'Napiši upit koji generira sve kombinacije naziva kategorija (categories.name)
+    i punog imena zaposlenika (first_name || '' '' || last_name) iz tablice employees.
+    Ispiši category_name i employee_name. Dodaj LIMIT 20 kako bi spriječio prevelik
+    output. Koliko redova ukupno bi imao rezultat bez LIMIT-a? (odgovor: broj kategorija
+    × broj zaposlenika)'
+  expected_query: "SELECT c.name AS category_name,\n       e.first_name || ' ' ||\
+    \ e.last_name AS employee_name\nFROM categories c\nCROSS JOIN employees e\nORDER\
+    \ BY c.name, e.last_name\nLIMIT 20;\n"
+  expected_concepts:
+  - cross_join
+  - select_basic
+  - column_alias
+  - order_by
+  - limit_offset
+  targets_misconception: accidental_cross_join_missing_on
+- difficulty: 4
+  title: 'Reportna matrica: prosječna vrijednost narudžbe po kategoriji i statusu'
+  description: Za svaku kombinaciju kategorije i statusa narudžbe izračunaj prosječni
+    total_amount narudžbi koje sadrže proizvod iz te kategorije i imaju taj status.
+    Koristi CROSS JOIN za generiranje pune matrice kombinacija, pa LEFT JOIN za stvarne
+    podatke. Ispiši category_name, order_status i avg_order_amount (NULL ako nema
+    narudžbi). Sortiraj po category_name i order_status.
+  expected_query: "SELECT c.name AS category_name,\n       s.status AS order_status,\n\
+    \       ROUND(AVG(o.total_amount)::numeric, 2) AS avg_order_amount\nFROM categories\
+    \ c\nCROSS JOIN (SELECT DISTINCT status FROM orders) s\nLEFT JOIN (\n    SELECT\
+    \ DISTINCT oi.order_id, p.category_id\n    FROM order_items oi\n    INNER JOIN\
+    \ products p ON oi.product_id = p.id\n) cp ON cp.category_id = c.id\nLEFT JOIN\
+    \ orders o ON o.id = cp.order_id AND o.status = s.status\nGROUP BY c.name, s.status\n\
+    ORDER BY c.name, s.status;\n"
+  expected_concepts:
+  - cross_join
+  - left_join
+  - inner_join
+  - aggregate_functions
+  - group_by
+  - order_by
+  targets_misconception: cross_join_vs_inner_join_confusion
+ast_validation_rules:
+- expected_query mora sadržavati eksplicitni CROSS JOIN keyword — FROM a, b sintaksa
+  bez WHERE nije prihvatljiva
+- CROSS JOIN klauza ne smije imati ON uvjet — prisutnost ON uz CROSS JOIN je sintaksna
+  ili semantička greška
+- 'Za težinu >= 3: CROSS JOIN mora biti kombiniran s barem jednim dodatnim JOIN-om
+  (LEFT JOIN ili INNER JOIN) ili s GROUP BY agregacijom'
+- Barem jedna strana CROSS JOIN-a mora biti konkretna sandbox tablica (categories,
+  employees, products) ili podupit nad sandbox tablicom
+- 'Za težinu >= 4: mora biti prisutan barem jedan agregacijski poziv (COUNT, AVG,
+  SUM, MIN, MAX) s GROUP BY klauzom'

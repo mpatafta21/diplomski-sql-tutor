@@ -1,0 +1,259 @@
+concept_code: order_by
+concept_name: ORDER BY klauzula
+module_number: 1
+module_name: Osnove SELECT-a
+tier: easy
+target_misconceptions:
+- code: order_by_before_where_confusion
+  description: Student misli da ORDER BY dolazi prije WHERE u logičkom redoslijedu
+    izvršavanja SQL-a — pokušava pisati ORDER BY ispred WHERE klauze i dobiva syntax
+    error
+  priority: critical
+- code: default_sort_direction_unknown
+  description: Student ne zna da je zadani smjer sortiranja ASC (uzlazno) — izostavlja
+    ASC/DESC keyword i ne razumije što dobiva, ili pogrešno pretpostavlja da je default
+    DESC
+  priority: high
+- code: sort_column_not_in_select
+  description: Student misli da ORDER BY smije koristiti samo stupce koji su navedeni
+    u SELECT listi — ne zna da je sortiranje po stupcu izvan SELECT liste validno
+    (bez DISTINCT)
+  priority: high
+- code: order_by_with_having_confusion
+  description: Student zamijeni ORDER BY i HAVING — pokušava filtrirati sortirane
+    rezultate s ORDER BY umjesto HAVING/WHERE, ili ne zna gdje ORDER BY stoji u odnosu
+    na ostale klauze
+  priority: medium
+- code: multi_column_sort_order_misuse
+  description: Student pri sortiranju po više kolona ne razumije da se smjer (ASC/DESC)
+    navodi zasebno za svaku kolonu — piše ORDER BY col1, col2 DESC misleći da DESC
+    vrijedi za obje kolone
+  priority: medium
+domain_hints:
+- Tablica products ima kolone price (NUMERIC) i name (VARCHAR) — prirodni kandidati
+  za ORDER BY ASC/DESC demonstraciju
+- Tablica orders ima kolone total_amount (NUMERIC) i order_date (TIMESTAMP) — sortiranje
+  po datumu ili iznosu je čest realni scenarij
+- Tablica customers ima kolone last_name, first_name (VARCHAR) — sortiranje po prezimenu
+  pa imenu demonstrira multi-column ORDER BY
+- 'ORDER BY dolazi NAKON WHERE klauze u sintaksi — redoslijed klauza: SELECT → FROM
+  → WHERE → ORDER BY → LIMIT'
+- 'Logički redoslijed izvršavanja: FROM → WHERE → SELECT → ORDER BY — ORDER BY se
+  evaluira nakon SELECT liste'
+- ORDER BY može referencirati alias definiran u SELECT listi (npr. SELECT price AS
+  cijena ... ORDER BY cijena)
+- 'Sandbox invariant: products tablica ima ~50 proizvoda s različitim cijenama — ORDER
+  BY price DESC daje smislene rezultate'
+anti_patterns:
+- Ne piši ORDER BY prije WHERE klauze u expected_query — sintaksni redoslijed je uvijek
+  SELECT → FROM → WHERE → ORDER BY
+- Ne koristi ORDER BY bez smislenog razloga — svaki zadatak mora imati jasnu motivaciju
+  zašto se sortira (npr. 'od najskupljeg')
+- Ne piši zadatak koji zahtijeva GROUP BY ili HAVING — to su koncepti modula 2
+- Ne koristi ORDER BY s agregatnim funkcijama (SUM, COUNT) — to je beyond scope ovog
+  koncepta
+- Ne piši ORDER BY po poziciji stupca (ORDER BY 1, ORDER BY 2) — uvijek koristi eksplicitno
+  ime stupca ili alias
+- Ne dodavaj JOIN klauze — FROM klauza smije imati samo jednu tablicu za modul 1
+required_for_high_difficulty:
+- Sortiranje po više kolona s različitim smjerovima (npr. ORDER BY city ASC, last_name
+  DESC)
+- Kombinacija WHERE klauze i ORDER BY klauze u ispravnom redoslijedu
+- Korištenje aliasa iz SELECT liste u ORDER BY klauzi
+- Eksplicitno navođenje ASC/DESC za svaku kolonu u multi-column ORDER BY
+few_shot_examples:
+- difficulty: 1
+  title: Proizvodi sortirani po cijeni uzlazno
+  description: Ispiši stupce name i price iz tablice products. Sortiraj rezultate
+    po cijeni od najjeftinije prema najskupljoj (uzlazno). Koristi ORDER BY s ASC
+    smjerom.
+  expected_query: 'SELECT name, price
+
+    FROM products
+
+    ORDER BY price ASC;'
+  expected_concepts:
+  - order_by
+  - select_basic
+  - from_clause
+  targets_misconception: default_sort_direction_unknown
+- difficulty: 1
+  title: Proizvodi sortirani po cijeni silazno
+  description: Ispiši stupce name i price iz tablice products. Sortiraj rezultate
+    po cijeni od najskupljeg prema najjeftinijem (silazno). Koristi ORDER BY s DESC
+    smjerom.
+  expected_query: 'SELECT name, price
+
+    FROM products
+
+    ORDER BY price DESC;'
+  expected_concepts:
+  - order_by
+  - select_basic
+  - from_clause
+  targets_misconception: default_sort_direction_unknown
+- difficulty: 2
+  title: Kupci abecedno po prezimenu
+  description: Ispiši first_name i last_name svih kupaca iz tablice customers. Sortiraj
+    rezultate abecedno po prezimenu (uzlazno). Prikaži prvih 20 redova.
+  expected_query: 'SELECT first_name, last_name
+
+    FROM customers
+
+    ORDER BY last_name ASC
+
+    LIMIT 20;'
+  expected_concepts:
+  - order_by
+  - select_basic
+  - from_clause
+  - limit_offset
+  targets_misconception: default_sort_direction_unknown
+- difficulty: 2
+  title: Najnovije narudžbe
+  description: Ispiši id, customer_id i order_date iz tablice orders. Sortiraj rezultate
+    po datumu narudžbe od najnovije prema najstarijoj. Prikaži prvih 10 redova.
+  expected_query: 'SELECT id, customer_id, order_date
+
+    FROM orders
+
+    ORDER BY order_date DESC
+
+    LIMIT 10;'
+  expected_concepts:
+  - order_by
+  - select_basic
+  - from_clause
+  - limit_offset
+  targets_misconception: default_sort_direction_unknown
+- difficulty: 3
+  title: Skupi isporučene narudžbe — WHERE pa ORDER BY
+  description: 'Pronađi sve narudžbe čiji je status ''delivered''. Ispiši id, status
+    i total_amount. Sortiraj rezultate po total_amount od najvećeg prema najmanjem.
+    Pazi na ispravan redoslijed klauza: WHERE mora doći PRIJE ORDER BY.'
+  expected_query: 'SELECT id, status, total_amount
+
+    FROM orders
+
+    WHERE status = ''delivered''
+
+    ORDER BY total_amount DESC
+
+    LIMIT 20;'
+  expected_concepts:
+  - order_by
+  - where_filter
+  - select_basic
+  - from_clause
+  targets_misconception: order_by_before_where_confusion
+- difficulty: 3
+  title: Jeftini proizvodi s malo na zalihi
+  description: Pronađi sve proizvode čija je cijena manja od 50. Ispiši name, price
+    i stock_quantity. Sortiraj rezultate po cijeni uzlazno. Klauza WHERE mora biti
+    prije ORDER BY.
+  expected_query: 'SELECT name, price, stock_quantity
+
+    FROM products
+
+    WHERE price < 50
+
+    ORDER BY price ASC;'
+  expected_concepts:
+  - order_by
+  - where_filter
+  - select_basic
+  - from_clause
+  targets_misconception: order_by_before_where_confusion
+- difficulty: 3
+  title: Sortiranje po stupcu izvan SELECT liste
+  description: Ispiši samo first_name i last_name kupaca iz tablice customers. Sortiraj
+    rezultate po stupcu city uzlazno — čak i ako city nije u SELECT listi, ORDER BY
+    ga smije koristiti. Prikaži prvih 15 redova.
+  expected_query: 'SELECT first_name, last_name
+
+    FROM customers
+
+    ORDER BY city ASC
+
+    LIMIT 15;'
+  expected_concepts:
+  - order_by
+  - select_basic
+  - from_clause
+  targets_misconception: sort_column_not_in_select
+- difficulty: 4
+  title: Kupci sortirani po gradu pa prezimenu — multi-column ORDER BY
+  description: Ispiši first_name, last_name i city iz tablice customers. Sortiraj
+    rezultate PRVO po gradu uzlazno (ASC), a zatim po prezimenu silazno (DESC) unutar
+    istog grada. Navedi smjer za svaku kolonu zasebno.
+  expected_query: 'SELECT first_name, last_name, city
+
+    FROM customers
+
+    ORDER BY city ASC, last_name DESC
+
+    LIMIT 30;'
+  expected_concepts:
+  - order_by
+  - select_basic
+  - from_clause
+  targets_misconception: multi_column_sort_order_misuse
+- difficulty: 4
+  title: Narudžbe sortirane po statusu pa iznosu — multi-column ORDER BY s WHERE
+  description: 'Pronađi sve narudžbe čiji total_amount prelazi 100. Ispiši id, status
+    i total_amount. Sortiraj PRVO po statusu abecedno (ASC), a unutar istog statusa
+    po total_amount od najvećeg prema najmanjem (DESC). Pazi: smjer se navodi za svaku
+    kolonu posebno.'
+  expected_query: 'SELECT id, status, total_amount
+
+    FROM orders
+
+    WHERE total_amount > 100
+
+    ORDER BY status ASC, total_amount DESC
+
+    LIMIT 30;'
+  expected_concepts:
+  - order_by
+  - where_filter
+  - select_basic
+  - from_clause
+  targets_misconception: multi_column_sort_order_misuse
+- difficulty: 5
+  title: Skupi proizvodi — alias u ORDER BY
+  description: Ispiši name i price iz tablice products uz alias 'cijena' za kolonu
+    price. Filtriraj samo proizvode čija je cijena veća od 20. Sortiraj silazno koristeći
+    alias 'cijena' u ORDER BY klauzi (ne originalnu kolonu). Prikaži prvih 10 rezultata.
+  expected_query: 'SELECT name, price AS cijena
+
+    FROM products
+
+    WHERE price > 20
+
+    ORDER BY cijena DESC
+
+    LIMIT 10;'
+  expected_concepts:
+  - order_by
+  - where_filter
+  - select_basic
+  - from_clause
+  - column_alias
+  targets_misconception: order_by_before_where_confusion
+ast_validation_rules:
+- expected_query mora sadržavati ORDER BY klauzu — upiti bez ORDER BY nisu validni
+  za ovaj koncept
+- ORDER BY klauza mora dolaziti NAKON FROM i WHERE klauza u sintaksi — redoslijed
+  SELECT → FROM → WHERE → ORDER BY → LIMIT je obavezan
+- ORDER BY klauza mora referencirati kolonu koja postoji u navedenoj tablici sandbox
+  sheme ili alias definiran u SELECT listi
+- Smjer sortiranja (ASC ili DESC) mora biti eksplicitno naveden u svim few_shot primjerima
+  (ne oslanjati se na implicitni default)
+- 'Za multi-column ORDER BY (difficulty >= 4): svaka kolona u ORDER BY mora imati
+  eksplicitno naveden smjer (ASC ili DESC)'
+- FROM klauza smije referencirati točno jednu tablicu — bez JOIN klauza (one-table
+  constraint za modul 1)
+- WHERE klauza (ako postoji) mora se nalaziti između FROM i ORDER BY klauze — ORDER
+  BY ne smije prethoditi WHERE
+- ORDER BY ne smije sadržavati agregatne funkcije (SUM, COUNT, AVG, MIN, MAX) — to
+  je beyond scope modula 1

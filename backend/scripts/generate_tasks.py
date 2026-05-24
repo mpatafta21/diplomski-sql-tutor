@@ -64,8 +64,16 @@ def generate_one(
     extended_thinking: bool | None = None,
     max_retries: int = MAX_RETRIES_DEFAULT,
     logger: logging.Logger | None = None,
+    dml: bool = False,
 ) -> tuple[GeneratedTaskMeta | None, list[dict]]:
-    """Generira 1 zadatak. Vraća (meta, list-of-failure-records)."""
+    """Generira 1 zadatak. Vraća (meta, list-of-failure-records).
+
+    Args:
+        dml: True za INSERT/UPDATE/DELETE koncepte. Propagira u
+            validator.validate(..., dml=True) → SandboxRunner.execute(..., dml=True)
+            → SET ROLE sandbox_readwrite + rollback. Default False (SELECT path,
+            sandbox_readonly role).
+    """
     log = logger or logging.getLogger(__name__)
     use_thinking = (
         extended_thinking if extended_thinking is not None else (difficulty >= 4)
@@ -101,7 +109,7 @@ def generate_one(
             log.warning("Schema/parse error on attempt %d: %s", attempt, e)
             continue
 
-        validation = validator.validate(task)
+        validation = validator.validate(task, dml=dml)
         meta = GeneratedTaskMeta(
             task=task,
             generation_id=str(uuid.uuid4()),
@@ -185,6 +193,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Skip DB write (Faza 2A default — ne piše u tasks tablicu)",
     )
     parser.add_argument("--no-extended-thinking", action="store_true")
+    parser.add_argument(
+        "--dml",
+        action="store_true",
+        help="Koristi sandbox_readwrite role (INSERT/UPDATE/DELETE koncepti, M4).",
+    )
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--model", default=MODEL_DEFAULT)
     args = parser.parse_args(argv)
@@ -228,6 +241,7 @@ def main(argv: list[str] | None = None) -> int:
             extended_thinking=extended,
             max_retries=args.max_retries,
             logger=log,
+            dml=args.dml,
         )
 
         if meta is None:

@@ -1,7 +1,8 @@
-"""Sandbox SQL runner — read-only execution u ecommerce_v1 schemi."""
+"""Sandbox SQL runner — read-only i DML execution u ecommerce_v1 schemi."""
 
 from __future__ import annotations
 
+import logging
 import re
 import time
 from dataclasses import dataclass, field
@@ -11,6 +12,7 @@ from decimal import Decimal
 import psycopg
 
 
+_log = logging.getLogger(__name__)
 _ORDER_BY_RE = re.compile(r"\bORDER\s+BY\b", re.IGNORECASE)
 
 
@@ -46,37 +48,81 @@ class SandboxRunner:
         self.connection_string = connection_string
         self.timeout_ms = timeout_seconds * 1000
 
-    def execute(self, query: str, schema: str = "ecommerce_v1") -> ExecutionResult:
+    def execute(
+        self,
+        query: str,
+        schema: str = "ecommerce_v1",
+        dml: bool = False,
+    ) -> ExecutionResult:
+        """
+        Izvršava SQL upit u sandbox PostgreSQL bazi.
+
+        Args:
+            query: SQL upit za izvršavanje.
+            dml: Ako True, koristi sandbox_readwrite role i uvijek rollback-a
+                 transakciju na kraju (DML promjene ne perzistiraju).
+                 Ako False (default), koristi sandbox_readonly.
+            schema: PostgreSQL schema (default: ecommerce_v1).
+        """
         start = time.perf_counter()
+        role = "sandbox_readwrite" if dml else "sandbox_readonly"
+
         try:
-            with psycopg.connect(self.connection_string, autocommit=True) as conn:
-                with conn.cursor() as cur:
-                    cur.execute(f"SET search_path TO {schema}")
-                    cur.execute(f"SET statement_timeout = {self.timeout_ms}")
-                    cur.execute("SET ROLE sandbox_readonly")
-                    cur.execute(query)
-                    if cur.description is None:
+            with psycopg.connect(self.connection_string, autocommit=not dml) as conn:
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute(f"SET search_path TO {schema}")
+                        cur.execute(f"SET statement_timeout = {self.timeout_ms}")
+                        cur.execute(f"SET ROLE {role}")
+                        cur.execute(query)
+                        if cur.description is None:
+                            return ExecutionResult(
+                                success=True,
+                                execution_time_ms=int(
+                                    (time.perf_counter() - start) * 1000
+                                ),
+                            )
+                        cols = [d.name for d in cur.description]
+                        rows = [
+                            {c: _normalize_value(v) for c, v in zip(cols, r)}
+                            for r in cur.fetchall()
+                        ]
                         return ExecutionResult(
                             success=True,
-                            execution_time_ms=int((time.perf_counter() - start) * 1000),
+                            rows=rows,
+                            column_names=cols,
+                            execution_time_ms=int(
+                                (time.perf_counter() - start) * 1000
+                            ),
                         )
-                    cols = [d.name for d in cur.description]
-                    rows = [
-                        {c: _normalize_value(v) for c, v in zip(cols, r)}
-                        for r in cur.fetchall()
-                    ]
+                except psycopg.errors.QueryCanceled as e:
                     return ExecutionResult(
-                        success=True,
-                        rows=rows,
-                        column_names=cols,
+                        success=False,
+                        error=f"Statement timeout after {self.timeout_ms}ms: {e}",
                         execution_time_ms=int((time.perf_counter() - start) * 1000),
                     )
-        except psycopg.errors.QueryCanceled as e:
-            return ExecutionResult(
-                success=False,
-                error=f"Statement timeout after {self.timeout_ms}ms: {e}",
-                execution_time_ms=int((time.perf_counter() - start) * 1000),
-            )
+                except psycopg.Error as e:
+                    return ExecutionResult(
+                        success=False,
+                        error=str(e),
+                        execution_time_ms=int((time.perf_counter() - start) * 1000),
+                    )
+                finally:
+                    if dml:
+                        try:
+                            conn.rollback()
+                        except Exception as rb_exc:
+                            # Konekcija je vjerojatno već mrtva (statement_timeout je
+                            # ubio session). Zatvaranje konekcije će svejedno rollback-ati
+                            # neuspjelu transakciju. Logiramo da invarijanta "DML promjene
+                            # ne perzistiraju" ne bude tiha pretpostavka.
+                            _log.warning(
+                                "Sandbox DML rollback failed (connection close will retry): %s",
+                                rb_exc,
+                            )
+                # Invariant: each execute() call opens and closes its own connection.
+                # The per-call rollback is safe only because no outer transaction exists.
+                # If a connection pool is introduced, switch to SAVEPOINT pattern.
         except psycopg.Error as e:
             return ExecutionResult(
                 success=False,

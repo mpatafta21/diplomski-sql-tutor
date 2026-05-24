@@ -1,0 +1,296 @@
+concept_code: having_filter
+concept_name: HAVING klauzula
+module_number: 2
+module_name: Agregacije i grupiranje
+tier: medium
+target_misconceptions:
+- code: where_instead_of_having
+  description: Student koristi WHERE umjesto HAVING za filtriranje agregiranih vrijednosti
+    — npr. WHERE COUNT(*) > 5 umjesto HAVING COUNT(*) > 5. WHERE se evaluira PRIJE
+    GROUP BY i ne može koristiti agregatne funkcije, što rezultira SQL greškom.
+  priority: critical
+- code: having_without_group_by
+  description: Student piše HAVING klauzu bez GROUP BY klauze — HAVING bez GROUP BY
+    tretira cijeli rezultat kao jednu grupu, što je rijetko namjeravano ponašanje
+    i gotovo uvijek greška u razumijevanju koncepta
+  priority: critical
+- code: having_instead_of_where
+  description: Student koristi HAVING umjesto WHERE za filtriranje ne-agregiranih
+    redova (npr. HAVING status = 'delivered' umjesto WHERE status = 'delivered') —
+    semantički krivo jer HAVING filtrira grupe, a ne individualne redove; uzrokuje
+    i performance problem jer se filtriranje događa nakon grupiranja
+  priority: high
+- code: having_order_confusion
+  description: Student zamijeni redoslijed klauza i piše HAVING prije GROUP BY, ili
+    HAVING nakon ORDER BY — ispravan redoslijed je WHERE → GROUP BY → HAVING → ORDER
+    BY → LIMIT
+  priority: high
+- code: having_alias_unavailable
+  description: Student pokušava koristiti alias agregatne funkcije unutar HAVING klauze
+    (npr. HAVING ukupni_iznos > 500 gdje je ukupni_iznos alias za SUM(total_amount))
+    — PostgreSQL ne dopušta alias iz SELECT liste u HAVING klauzi (za razliku od ORDER
+    BY gdje to jest dopušteno)
+  priority: medium
+domain_hints:
+- 'Tablica orders ima kolone: customer_id (INT), status (VARCHAR: ''pending'', ''shipped'',
+  ''delivered'', ''cancelled''), total_amount (NUMERIC), order_date (TIMESTAMP) —
+  GROUP BY customer_id + HAVING COUNT(*) > N je klasičan scenarij'
+- 'Tablica order_items ima kolone: order_id (INT), product_id (INT), quantity (INT),
+  unit_price (NUMERIC) — GROUP BY product_id + HAVING SUM(quantity) > N demonstrira
+  filtriranje po ukupnoj naručenoj količini'
+- 'Tablica products ima kolone: id (INT), name (VARCHAR), price (NUMERIC), category_id
+  (INT) — GROUP BY category_id + HAVING COUNT(*) >= N daje kategorije s dovoljno proizvoda'
+- 'Sandbox invariant: ~200 kupaca, ~1000 narudžbi, ~3000 order_items redova — HAVING
+  COUNT(*) > 5 na orders GROUP BY customer_id vraća neprazan skup'
+- 'Sandbox invariant: tablica orders ima narudžbe svih 4 statusa — WHERE status =
+  ''delivered'' GROUP BY customer_id HAVING COUNT(*) >= 2 vraća smislen neprazan skup'
+- 'Ispravan redoslijed klauza: SELECT → FROM → WHERE → GROUP BY → HAVING → ORDER BY
+  → LIMIT — HAVING dolazi NAKON GROUP BY i PRIJE ORDER BY'
+- 'Ključna razlika: WHERE filtrira individualne redove PRIJE grupiranja (ne smije
+  koristiti agregate), HAVING filtrira grupe NAKON GROUP BY (mora koristiti agregate
+  ili grupirane kolone)'
+- PostgreSQL dopušta alias iz SELECT liste u ORDER BY klauzi, ali NE u HAVING klauzi
+  — u HAVING uvijek ponovi punu agregatnu funkciju (npr. HAVING COUNT(*) > 3, ne HAVING
+  broj_narudzbi > 3)
+anti_patterns:
+- Ne piši WHERE s agregatnom funkcijom (WHERE COUNT(*) > x, WHERE SUM(...) > x) u
+  expected_query — to je SQL greška i upravo misconception koji ovaj koncept cilja
+- Ne piši HAVING bez GROUP BY klauze u expected_query — HAVING uvijek mora biti u
+  paru s GROUP BY
+- Ne piši HAVING s ne-agregiranim uvjetom koji bi trebao biti u WHERE (npr. HAVING
+  status = 'delivered') — za redovne filtere uvijek koristi WHERE
+- Ne piši HAVING klauzu prije GROUP BY klauze u expected_query — ispravan sintaksni
+  redoslijed mora uvijek biti ispoštovan
+- Ne koristi alias agregatne funkcije iz SELECT liste unutar HAVING klauze — uvijek
+  ponovi punu agregatnu funkciju u HAVING (npr. HAVING SUM(total_amount) > 500)
+- Ne koristi GROUP BY po poziciji stupca (GROUP BY 1) — uvijek eksplicitno ime stupca
+- Ne piši zadatke koji se mogu riješiti samo s WHERE klauzom bez GROUP BY/HAVING —
+  svaki zadatak mora zahtijevati filtriranje na razini grupe, ne pojedinačnog reda
+required_for_high_difficulty:
+- Kombinacija WHERE (pre-filter redova) + GROUP BY + HAVING (post-filter grupa) +
+  ORDER BY u ispravnom redoslijedu
+- HAVING s kombinacijom više agregatnih uvjeta (AND/OR između dvaju HAVING uvjeta)
+- HAVING s JOIN-om na 2+ tablice uz agregaciju
+- Eksplicitno isticanje razlike između WHERE i HAVING filtera u opisu zadatka — student
+  mora demonstrirati razumijevanje redoslijeda izvršavanja
+few_shot_examples:
+- difficulty: 1
+  title: Kupci s više od 5 narudžbi
+  description: 'Pronađi sve kupce koji imaju više od 5 narudžbi u tablici orders.
+
+    Ispiši customer_id i broj_narudzbi (COUNT(*)). Sortiraj od najvećeg broja narudžbi
+    prema najmanjem.
+
+
+    Napomena: filter na agregiranoj vrijednosti (COUNT(*) > 5) mora koristiti HAVING,
+    NE WHERE — WHERE ne može koristiti agregatne funkcije.'
+  expected_query: 'SELECT customer_id, COUNT(*) AS broj_narudzbi
+
+    FROM orders
+
+    GROUP BY customer_id
+
+    HAVING COUNT(*) > 5
+
+    ORDER BY broj_narudzbi DESC;'
+  expected_concepts:
+  - having_filter
+  - group_by
+  - aggregate_functions
+  - order_by
+  targets_misconception: where_instead_of_having
+- difficulty: 2
+  title: Statusi narudžbi s prosječnim iznosom iznad 200
+  description: 'Za svaki status narudžbe izračunaj prosječni iznos (AVG od total_amount).
+
+    Ispiši samo one statuse čiji je prosječni iznos veći od 200.
+
+    Ispiši status i prosjecni_iznos (zaokružen na 2 decimale). Sortiraj od najvećeg
+    prosječnog iznosa prema najmanjem.
+
+
+    Napomena: filter AVG(total_amount) > 200 mora biti u HAVING klauzi, jer WHERE
+    ne može koristiti agregatne funkcije.'
+  expected_query: 'SELECT status, ROUND(AVG(total_amount), 2) AS prosjecni_iznos
+
+    FROM orders
+
+    GROUP BY status
+
+    HAVING AVG(total_amount) > 200
+
+    ORDER BY prosjecni_iznos DESC;'
+  expected_concepts:
+  - having_filter
+  - group_by
+  - aggregate_functions
+  - order_by
+  targets_misconception: where_instead_of_having
+- difficulty: 2
+  title: Proizvodi naručeni u ukupnoj količini većoj od 50
+  description: 'U tablici order_items pronađi sve proizvode (product_id) za koje je
+    ukupno naručena količina (SUM od quantity) veća od 50.
+
+    Ispiši product_id i ukupna_kolicina. Sortiraj od najveće ukupne količine prema
+    najmanjoj.
+
+
+    Napomena: uvjet SUM(quantity) > 50 je filter na agregiranoj vrijednosti — mora
+    biti u HAVING klauzi, ne u WHERE.'
+  expected_query: 'SELECT product_id, SUM(quantity) AS ukupna_kolicina
+
+    FROM order_items
+
+    GROUP BY product_id
+
+    HAVING SUM(quantity) > 50
+
+    ORDER BY ukupna_kolicina DESC;'
+  expected_concepts:
+  - having_filter
+  - group_by
+  - aggregate_functions
+  - order_by
+  targets_misconception: where_instead_of_having
+- difficulty: 3
+  title: Dostavljene narudžbe — WHERE za status, HAVING za iznos
+  description: 'Pronađi sve kupce čiji je ukupni iznos isporučenih (status = ''delivered'')
+    narudžbi veći od 500.
+
+    Ispiši customer_id i ukupni_iznos (SUM od total_amount). Sortiraj od najvećeg
+    iznosa prema najmanjem.
+
+
+    Pazi na ispravan redoslijed i ulogu klauza:
+
+    - WHERE status = ''delivered'' filtrira individualne redove PRIJE grupiranja (ne
+    koristi agregat)
+
+    - HAVING SUM(total_amount) > 500 filtrira grupe NAKON GROUP BY (koristi agregat)
+
+    NE piši HAVING status = ''delivered'' — to bi bilo semantički krivo.'
+  expected_query: 'SELECT customer_id, SUM(total_amount) AS ukupni_iznos
+
+    FROM orders
+
+    WHERE status = ''delivered''
+
+    GROUP BY customer_id
+
+    HAVING SUM(total_amount) > 500
+
+    ORDER BY ukupni_iznos DESC;'
+  expected_concepts:
+  - having_filter
+  - group_by
+  - aggregate_functions
+  - where_filter
+  - order_by
+  targets_misconception: having_instead_of_where
+- difficulty: 3
+  title: Kategorije s više od 3 proizvoda
+  description: 'U tablici products pronađi sve kategorije (category_id) koje imaju
+    više od 3 proizvoda.
+
+    Ispiši category_id i broj_proizvoda (COUNT(*)). Sortiraj od najvećeg broja prema
+    najmanjem.
+
+
+    Napomena: alias ''broj_proizvoda'' smije se koristiti u ORDER BY klauzi, ali NE
+    u HAVING klauzi — u HAVING uvijek ponovi punu agregatnu funkciju COUNT(*).'
+  expected_query: 'SELECT category_id, COUNT(*) AS broj_proizvoda
+
+    FROM products
+
+    GROUP BY category_id
+
+    HAVING COUNT(*) > 3
+
+    ORDER BY broj_proizvoda DESC;'
+  expected_concepts:
+  - having_filter
+  - group_by
+  - aggregate_functions
+  - order_by
+  targets_misconception: having_alias_unavailable
+- difficulty: 4
+  title: Aktivni kupci s visokim brojem i iznosom narudžbi — dva HAVING uvjeta
+  description: "Pronađi kupce koji ispunjavaju OBA uvjeta:\n  (a) imaju barem 3 narudžbe\
+    \ (HAVING COUNT(*) >= 3)\n  (b) čiji je ukupni iznos narudžbi veći od 300 (HAVING\
+    \ SUM(total_amount) > 300)\n\nFiltriramo isključivo narudžbe koje nisu otkazane\
+    \ (WHERE status != 'cancelled').\nIspiši customer_id, broj_narudzbi i ukupni_iznos\
+    \ (zaokružen na 2 decimale).\nSortiraj od najvećeg ukupnog iznosa prema najmanjem.\n\
+    \nPazi na ispravan redoslijed klauza: WHERE → GROUP BY → HAVING → ORDER BY."
+  expected_query: "SELECT customer_id,\n       COUNT(*) AS broj_narudzbi,\n      \
+    \ ROUND(SUM(total_amount), 2) AS ukupni_iznos\nFROM orders\nWHERE status != 'cancelled'\n\
+    GROUP BY customer_id\nHAVING COUNT(*) >= 3\n   AND SUM(total_amount) > 300\nORDER\
+    \ BY ukupni_iznos DESC;"
+  expected_concepts:
+  - having_filter
+  - group_by
+  - aggregate_functions
+  - where_filter
+  - order_by
+  targets_misconception: having_order_confusion
+- difficulty: 4
+  title: Narudžbe s visokim prosječnim iznosom stavki — HAVING s JOIN-om
+  description: 'Pronađi sve narudžbe (order_id) u kojima je prosječna jedinična cijena
+    stavki (AVG od unit_price u order_items) veća od 100, a ukupan broj stavki u narudžbi
+    veći od 2.
+
+    Ispiši order_id, avg_unit_price (zaokružen na 2 decimale) i broj_stavki.
+
+    Sortiraj od najvećeg prosječnog iznosa prema najmanjem. Prikaži prvih 10 rezultata.'
+  expected_query: "SELECT oi.order_id,\n       ROUND(AVG(oi.unit_price), 2) AS avg_unit_price,\n\
+    \       COUNT(*) AS broj_stavki\nFROM order_items oi\nGROUP BY oi.order_id\nHAVING\
+    \ AVG(oi.unit_price) > 100\n   AND COUNT(*) > 2\nORDER BY avg_unit_price DESC\n\
+    LIMIT 10;"
+  expected_concepts:
+  - having_filter
+  - group_by
+  - aggregate_functions
+  - order_by
+  - limit_offset
+  targets_misconception: where_instead_of_having
+- difficulty: 5
+  title: Top kupci po prihodu od skupih proizvoda — WHERE + JOIN + GROUP BY + HAVING
+  description: "Pronađi kupce koji su potrošili ukupno više od 1000 na narudžbe koje:\n\
+    \  (a) NISU otkazane (WHERE status != 'cancelled') — filter na individualnom redu,\
+    \ pripada WHERE klauzi\n  (b) sadrže barem 2 stavke (HAVING COUNT(oi.id) >= 2)\
+    \ — filter na agregatu, pripada HAVING klauzi\n\nKoristi JOIN između orders i\
+    \ order_items. Ispiši customer_id, ukupni_iznos (SUM od total_amount) i broj_stavki\
+    \ (COUNT od order_items.id).\nSortiraj od najvećeg ukupnog iznosa prema najmanjem.\
+    \ Prikaži prvih 10 rezultata.\n\nPazi: ukupni_iznos alias smije se koristiti u\
+    \ ORDER BY, ali NE u HAVING — u HAVING ponovi SUM(o.total_amount)."
+  expected_query: "SELECT o.customer_id,\n       ROUND(SUM(o.total_amount), 2) AS\
+    \ ukupni_iznos,\n       COUNT(oi.id) AS broj_stavki\nFROM orders o\nINNER JOIN\
+    \ order_items oi ON o.id = oi.order_id\nWHERE o.status != 'cancelled'\nGROUP BY\
+    \ o.customer_id\nHAVING SUM(o.total_amount) > 1000\n   AND COUNT(oi.id) >= 2\n\
+    ORDER BY ukupni_iznos DESC\nLIMIT 10;"
+  expected_concepts:
+  - having_filter
+  - group_by
+  - aggregate_functions
+  - where_filter
+  - inner_join
+  - order_by
+  - limit_offset
+  targets_misconception: having_alias_unavailable
+ast_validation_rules:
+- expected_query mora sadržavati HAVING klauzu — upiti bez HAVING nisu validni za
+  ovaj koncept
+- HAVING klauza mora uvijek biti popraćena GROUP BY klauzom — HAVING bez GROUP BY
+  nije prihvatljivo u few_shot primjerima
+- HAVING klauza mora sadržavati barem jednu agregatnu funkciju (COUNT, SUM, AVG, MIN,
+  MAX) ili uvjet na agregiranoj vrijednosti — HAVING s ne-agregiranim uvjetom koji
+  pripada WHERE-u nije prihvatljiv
+- 'Ispravan sintaksni redoslijed mora biti ispoštovan: FROM → WHERE (ako postoji)
+  → GROUP BY → HAVING → ORDER BY (ako postoji) → LIMIT (ako postoji) — HAVING ne smije
+  prethoditi GROUP BY niti slijediti iza ORDER BY'
+- WHERE klauza (ako postoji) mora se nalaziti između FROM i GROUP BY klauze — WHERE
+  ne smije sadržavati agregatne funkcije (SQL greška)
+- Alias agregatne funkcije iz SELECT liste ne smije se koristiti unutar HAVING klauze
+  — u HAVING uvijek mora biti ponovljena puna agregatna funkcija (npr. HAVING COUNT(*)
+  > 3, a ne HAVING broj_narudzbi > 3)
+- 'Za zadatke s difficulty >= 4: HAVING klauza mora sadržavati barem dva uvjeta spojena
+  s AND ili OR, ili mora biti u kombinaciji s WHERE pre-filterom'

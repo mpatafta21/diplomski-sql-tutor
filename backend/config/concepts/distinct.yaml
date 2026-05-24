@@ -1,0 +1,236 @@
+concept_code: distinct
+concept_name: DISTINCT klauzula
+module_number: 1
+module_name: Osnove SELECT-a
+tier: easy
+target_misconceptions:
+- code: distinct_after_group_by_redundant
+  description: Student koristi SELECT DISTINCT zajedno s GROUP BY — DISTINCT je redundantan
+    jer GROUP BY već garantira jedinstvenost grupa; dvostruki deduplikacijski mehanizam
+    bez koristi, ali uz performance cost
+  priority: critical
+- code: distinct_on_single_column_with_multi_select
+  description: Student misli da DISTINCT djeluje samo na prvu kolonu u SELECT listi
+    (npr. SELECT DISTINCT city, country misli da deduplicira samo po city) — DISTINCT
+    uvijek djeluje na kombinaciju SVIH stupaca u SELECT listi
+  priority: critical
+- code: distinct_vs_group_by_confusion
+  description: Student koristi GROUP BY bez agregacije umjesto DISTINCT za uklanjanje
+    duplikata — GROUP BY bez agregacijske funkcije je semantički ekvivalent DISTINCT-u,
+    ali je manje čitljiv i konvencionalno kriv za tu svrhu
+  priority: high
+- code: distinct_with_where_order_misuse
+  description: Student zamijeni redoslijed klauza i piše DISTINCT nakon FROM ili WHERE
+    — DISTINCT je dio SELECT liste i mora doći odmah iza SELECT keyworda, prije nabrajanja
+    stupaca
+  priority: high
+- code: distinct_eliminates_all_duplicates_misconception
+  description: Student misli da DISTINCT uklanja sve redove koji imaju isti podatak
+    u bilo kojoj koloni — zapravo DISTINCT uklanja samo redove gdje su SVE selektirane
+    kolone identične; različite vrijednosti u bilo kojoj koloni znači različit red
+  priority: medium
+domain_hints:
+- Tablica customers ima kolonu city (VARCHAR) i country (VARCHAR) — SELECT DISTINCT
+  city FROM customers vraća jedinstvene gradove bez duplikata
+- 'Tablica orders ima kolonu status (VARCHAR: ''pending'', ''shipped'', ''delivered'',
+  ''cancelled'') — SELECT DISTINCT status FROM orders vraća točno 4 različite vrijednosti'
+- Tablica order_items ima kolonu product_id (INT) — SELECT DISTINCT product_id FROM
+  order_items vraća unikatne naručene proizvode
+- 'Sandbox invariant: customers tablica ima ~200 redova ali daleko manji broj jedinstvenih
+  gradova i zemalja — DISTINCT city daje smislenu redukciju skupa'
+- DISTINCT djeluje na kombinaciju SVIH stupaca u SELECT listi — SELECT DISTINCT city,
+  country vraća jedinstvene parove (grad, zemlja), ne samo jedinstvene gradove
+- DISTINCT dolazi odmah iza SELECT keyworda, prije nabrajanja stupaca — sintaksa je
+  SELECT DISTINCT col1, col2 FROM tablica
+- 'Performance napomena: DISTINCT zahtijeva sortiranje ili hash-dedup cijelog međurezultata
+  — na velikim tablicama može biti sporiji od alternativnih pristupa'
+- 'Sandbox invariant: tablica orders ima narudžbe u sva 4 statusa — SELECT DISTINCT
+  status uvijek vraća 4 reda'
+anti_patterns:
+- Ne koristi SELECT DISTINCT zajedno s GROUP BY u expected_query — GROUP BY već garantira
+  jedinstvenost i DISTINCT je u toj kombinaciji redundantan
+- Ne koristi SELECT DISTINCT * — uvijek navedi eksplicitne kolone čija se jedinstvenost
+  traži
+- Ne piši zadatke koji zahtijevaju agregatne funkcije (COUNT, SUM) uz DISTINCT u istom
+  upitu — to je beyond scope modula 1 (SELECT DISTINCT kolona, ne COUNT(DISTINCT kolona))
+- Ne dodavaj JOIN klauze u FROM klauzi — scope je modul 1, jedna tablica
+- Ne piši zadatke gdje DISTINCT ne mijenja ništa (tablica nema duplikata za tražene
+  kolone) — primjer mora demonstrirati stvarnu redukciju broja redova
+- Ne miješaj DISTINCT i ORDER BY sintaksni redoslijed — DISTINCT mora biti odmah iza
+  SELECT, ORDER BY dolazi na kraj
+required_for_high_difficulty:
+- Kombinacija SELECT DISTINCT s WHERE klauzom i ORDER BY u ispravnom sintaksnom redoslijedu
+- DISTINCT primijenjen na više stupaca uz obrazloženje da djeluje na kombinaciju svih
+  navedenih stupaca
+- Eksplicitno isticanje razlike između DISTINCT i GROUP BY (bez agregacije) u opisu
+  zadatka
+- Kombinacija WHERE filtera + DISTINCT + ORDER BY + LIMIT za potpun prikaz redoslijeda
+  klauza
+few_shot_examples:
+- difficulty: 1
+  title: Jedinstveni statusi narudžbi
+  description: Ispiši sve različite vrijednosti statusa (status) koje postoje u tablici
+    orders. Svaki status smije se pojaviti samo jednom u rezultatu. Koristi DISTINCT.
+  expected_query: 'SELECT DISTINCT status
+
+    FROM orders
+
+    ORDER BY status ASC;'
+  expected_concepts:
+  - distinct
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: distinct_with_where_order_misuse
+- difficulty: 1
+  title: Jedinstveni gradovi kupaca
+  description: Ispiši sve različite gradove (city) u kojima žive kupci iz tablice
+    customers. Svaki grad smije se pojaviti samo jednom. Koristi DISTINCT i sortiraj
+    abecedno.
+  expected_query: 'SELECT DISTINCT city
+
+    FROM customers
+
+    ORDER BY city ASC;'
+  expected_concepts:
+  - distinct
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: distinct_eliminates_all_duplicates_misconception
+- difficulty: 2
+  title: Jedinstveni parovi grad–zemlja
+  description: 'Ispiši sve različite kombinacije grada (city) i zemlje (country) iz
+    tablice customers. Napomena: DISTINCT djeluje na kombinaciju SVIH navedenih stupaca
+    — isti grad u različitim zemljama smatra se različitim parom. Sortiraj po zemlji
+    pa gradu uzlazno.'
+  expected_query: 'SELECT DISTINCT city, country
+
+    FROM customers
+
+    ORDER BY country ASC, city ASC;'
+  expected_concepts:
+  - distinct
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: distinct_on_single_column_with_multi_select
+- difficulty: 2
+  title: Jedinstveni naručeni proizvodi
+  description: Pronađi sve različite proizvode (product_id) koji su ikad bili naručeni
+    — tj. koji se pojavljuju u tablici order_items. Svaki product_id smije se pojaviti
+    samo jednom. Koristi DISTINCT i sortiraj uzlazno po product_id.
+  expected_query: 'SELECT DISTINCT product_id
+
+    FROM order_items
+
+    ORDER BY product_id ASC;'
+  expected_concepts:
+  - distinct
+  - select_basic
+  - from_clause
+  - order_by
+  targets_misconception: distinct_vs_group_by_confusion
+- difficulty: 3
+  title: Jedinstvene zemlje kupaca s WHERE filterom
+  description: 'Pronađi sve različite zemlje (country) kupaca koji žive u gradovima
+    čije ime počinje slovom ''S'' (koristi LIKE ''S%''). Svaka zemlja smije se pojaviti
+    samo jednom. Pazi na ispravan redoslijed klauza: DISTINCT odmah iza SELECT, WHERE
+    iza FROM, ORDER BY na kraju.'
+  expected_query: 'SELECT DISTINCT country
+
+    FROM customers
+
+    WHERE city LIKE ''S%''
+
+    ORDER BY country ASC;'
+  expected_concepts:
+  - distinct
+  - select_basic
+  - from_clause
+  - where_filter
+  - order_by
+  targets_misconception: distinct_with_where_order_misuse
+- difficulty: 3
+  title: DISTINCT nije isto što i GROUP BY bez agregacije
+  description: Ispiši sve različite statuse narudžbi (status) čiji total_amount prelazi
+    100. Koristi SELECT DISTINCT — nemoj koristiti GROUP BY, jer DISTINCT je čitljiviji
+    izbor kada ne agregiraš podatke. Sortiraj abecedno.
+  expected_query: 'SELECT DISTINCT status
+
+    FROM orders
+
+    WHERE total_amount > 100
+
+    ORDER BY status ASC;'
+  expected_concepts:
+  - distinct
+  - select_basic
+  - from_clause
+  - where_filter
+  - order_by
+  targets_misconception: distinct_vs_group_by_confusion
+- difficulty: 4
+  title: Jedinstveni parovi status–zemlja kupca — DISTINCT na više stupaca
+  description: 'U tablici orders postoji kolona customer_id, a u tablici customers
+    kolona country. Za ovaj zadatak radi samo s tablicom orders: ispiši sve različite
+    kombinacije statusa (status) i customer_id-a za narudžbe čiji total_amount prelazi
+    500. Napomena: DISTINCT djeluje na cijelu kombinaciju (status, customer_id) —
+    ne samo na status. Sortiraj po statusu pa customer_id uzlazno. Prikaži prvih 20
+    redova.'
+  expected_query: 'SELECT DISTINCT status, customer_id
+
+    FROM orders
+
+    WHERE total_amount > 500
+
+    ORDER BY status ASC, customer_id ASC
+
+    LIMIT 20;'
+  expected_concepts:
+  - distinct
+  - select_basic
+  - from_clause
+  - where_filter
+  - order_by
+  - limit_offset
+  targets_misconception: distinct_on_single_column_with_multi_select
+- difficulty: 5
+  title: DISTINCT nije potreban uz GROUP BY — prepoznaj redundanciju
+  description: Ispiši sve različite gradove (city) kupaca iz Hrvatske (country = 'Croatia').
+    Koristi SELECT DISTINCT — NE koristi GROUP BY, jer uz DISTINCT je GROUP BY redundantan
+    i nepotreban. Sortiraj abecedno po gradu. Prikaži prvih 10 rezultata.
+  expected_query: 'SELECT DISTINCT city
+
+    FROM customers
+
+    WHERE country = ''Croatia''
+
+    ORDER BY city ASC
+
+    LIMIT 10;'
+  expected_concepts:
+  - distinct
+  - select_basic
+  - from_clause
+  - where_filter
+  - order_by
+  - limit_offset
+  targets_misconception: distinct_after_group_by_redundant
+ast_validation_rules:
+- expected_query mora sadržavati SELECT DISTINCT sintaksu — DISTINCT mora biti odmah
+  iza SELECT keyworda, prije nabrajanja stupaca
+- DISTINCT ne smije biti kombiniran s GROUP BY klauzom u istom upitu — takva kombinacija
+  je redundantna i nije prihvatljiva u few_shot primjerima
+- SELECT lista ne smije koristiti SELECT DISTINCT * — mora sadržavati eksplicitne
+  nazive stupaca
+- FROM klauza smije referencirati točno jednu tablicu — bez JOIN klauza (one-table
+  constraint za modul 1)
+- WHERE klauza (ako postoji) mora se nalaziti između FROM i ORDER BY klauze — DISTINCT
+  ne mijenja redoslijed ostalih klauza
+- 'Za zadatke s više stupaca u SELECT listi (difficulty >= 2): AST validator mora
+  provjeriti da DISTINCT prethodi svim stupcima, ne samo prvom'
+- ORDER BY klauza (ako postoji) mora dolaziti nakon FROM i WHERE — LIMIT/OFFSET na
+  kraju ako su prisutni
+- expected_query ne smije sadržavati agregatne funkcije (SUM, COUNT, AVG, MIN, MAX)
+  — COUNT(DISTINCT ...) nije u scope-u modula 1

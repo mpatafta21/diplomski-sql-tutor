@@ -1,0 +1,146 @@
+concept_code: insert
+concept_name: INSERT INTO — unos novih redova
+module_number: 4
+module_name: DML operacije
+tier: easy
+target_misconceptions:
+- code: wrong_values_order
+  description: Student navodi vrijednosti u VALUES klauzuli krivim redoslijedom —
+    ne prate redoslijed stupaca navedenih u INSERT INTO listi, što rezultira krivim
+    podacima ili type error-om
+  priority: critical
+- code: insert_without_column_list
+  description: Koristi INSERT INTO tablica VALUES (...) bez eksplicitnog navođenja
+    stupaca — krhak upit koji puca pri svakoj promjeni sheme tablice i zahtijeva poznavanje
+    točnog redoslijeda svih kolona
+  priority: high
+- code: not_null_violation
+  description: Izostavlja obavezne NOT NULL stupce iz INSERT-a (npr. first_name, last_name,
+    email u customers) — rezultira constraint violation greškom
+  priority: critical
+- code: unique_constraint_violation
+  description: Pokušava INSERT s email adresom koja već postoji u tablici customers
+    (UNIQUE constraint) — ne provjerava jedinstvenost prije unosa
+  priority: high
+- code: fk_constraint_violation
+  description: Unosi red s foreign key vrijednošću koja ne postoji u referenciranoj
+    tablici (npr. customer_id koji ne postoji u customers pri INSERT u orders) — narušava
+    referencijalnu integritu
+  priority: high
+- code: wrong_data_type_in_values
+  description: Unosi string vrijednost za numerički stupac ili krive format datuma
+    (npr. '01-15-2024' umjesto '2024-01-15') — type mismatch ili implicit cast greška
+  priority: medium
+domain_hints:
+- Sandbox koristi sandbox_readwrite rolu — INSERT je dozvoljen, ali sve promjene se
+  automatski rollback-aju nakon izvršavanja
+- 'Tablica customers ima NOT NULL stupce: first_name, last_name, email, a email mora
+  biti UNIQUE'
+- 'Tablica categories ima stupce: id (serial PK), name (NOT NULL), description (nullable)
+  — idealna za jednostavne INSERT primjere'
+- Tablica orders zahtijeva validan customer_id (FK → customers.id) i status (npr.
+  'pending', 'completed', 'cancelled') te order_date
+- Tablica products zahtijeva category_id (FK → categories.id), name, price — nije
+  pogodna za prve INSERT primjere zbog FK lanca
+- 'Preporučeni redoslijed za INSERT demonstraciju: categories (bez FK) → customers
+  (bez FK) → orders (FK na customers)'
+- Serial/IDENTITY primarni ključevi (id) se NE navode eksplicitno u INSERT — baza
+  ih generira automatski
+- 'Koristi eksplicitnu listu stupaca uvijek: INSERT INTO tablica (kol1, kol2) VALUES
+  (val1, val2)'
+anti_patterns:
+- Ne piši INSERT INTO tablica VALUES (...) bez eksplicitne liste stupaca — uvijek
+  navedi stupce
+- Ne uključuj id (serial PK) u INSERT listu stupaca — baza ga generira automatski
+  (SERIAL / GENERATED ALWAYS AS IDENTITY)
+- Ne piši INSERT koji krši UNIQUE constraint na email u tablici customers (koristi
+  testne email adrese formata 'test_xyz@example.com')
+- Ne piši INSERT u tablice s FK ovisnošću (orders, order_items) kao first primjer
+  — počni s categories ili customers
+- Ne piši multi-row INSERT s VALUES (...), (...) u zadacima za početnike — jedan red
+  po zadatku za jasnoću
+- Ne koristi INSERT ... SELECT za easy tier — to je napredna varijanta
+- Ne zaboravi da se sve promjene rollback-aju u sandboxu — expected_query ne smije
+  ovisiti o prethodnim INSERT-ima iz istog zadatka
+required_for_high_difficulty:
+- INSERT s eksplicitnom listom stupaca koja uključuje sve NOT NULL kolone
+- INSERT koji demonstrira FK referencu (npr. orders s validnim customer_id)
+- INSERT s RETURNING klauzom za dohvat generiranog PK ili izračunatih vrijednosti
+- Multi-row INSERT VALUES (...), (...), (...) s 3+ redova
+few_shot_examples:
+- difficulty: 1
+  title: Unos nove kategorije proizvoda
+  description: Dodaj novu kategoriju u tablicu categories s nazivom 'Dodaci za dom'
+    i opisom 'Razni dodaci i dekoracije za dom'. Ne navodi id — baza ga generira automatski.
+  expected_query: 'INSERT INTO categories (name, description)
+
+    VALUES (''Dodaci za dom'', ''Razni dodaci i dekoracije za dom'');'
+  expected_concepts:
+  - insert
+  - values_clause
+  targets_misconception: insert_without_column_list
+- difficulty: 2
+  title: Unos novog kupca
+  description: 'Dodaj novog kupca u tablicu customers. Ime: ''Ana'', prezime: ''Kovač'',
+    email: ''ana.kovac.test@example.com'', telefon: ''+385911234567''. Pazi na redoslijed
+    vrijednosti u VALUES — mora odgovarati redoslijedu navedenih stupaca.'
+  expected_query: 'INSERT INTO customers (first_name, last_name, email, phone)
+
+    VALUES (''Ana'', ''Kovač'', ''ana.kovac.test@example.com'', ''+385911234567'');'
+  expected_concepts:
+  - insert
+  - values_clause
+  - not_null_constraint
+  targets_misconception: wrong_values_order
+- difficulty: 2
+  title: Unos kategorije — samo obavezni stupci
+  description: Dodaj novu kategoriju s nazivom 'Sportska oprema'. Stupac description
+    je nullable — izostaviti ga je legitimno. Ispiši samo obavezne stupce u INSERT
+    listi.
+  expected_query: 'INSERT INTO categories (name)
+
+    VALUES (''Sportska oprema'');'
+  expected_concepts:
+  - insert
+  - values_clause
+  - nullable_columns
+  targets_misconception: not_null_violation
+- difficulty: 3
+  title: Unos narudžbe s RETURNING
+  description: Dodaj novu narudžbu za kupca s id=1 u tablicu orders. Status narudžbe
+    je 'pending', datum narudžbe je '2024-06-01', total_amount je 0.00. Koristi RETURNING
+    id kako bi dohvatio automatski generirani primarni ključ nove narudžbe.
+  expected_query: 'INSERT INTO orders (customer_id, order_date, status, total_amount)
+
+    VALUES (1, ''2024-06-01'', ''pending'', 0.00)
+
+    RETURNING id;'
+  expected_concepts:
+  - insert
+  - values_clause
+  - returning_clause
+  - fk_reference
+  targets_misconception: fk_constraint_violation
+- difficulty: 3
+  title: Unos više kupaca odjednom (multi-row INSERT)
+  description: 'Dodaj dva nova kupca u jednom INSERT upitu koristeći višestruke VALUES
+    parove. Kupac 1: ''Marko'', ''Marković'', ''marko.markovic.test@example.com''.
+    Kupac 2: ''Ivana'', ''Ivanić'', ''ivana.ivanic.test@example.com''.'
+  expected_query: "INSERT INTO customers (first_name, last_name, email)\nVALUES\n\
+    \  ('Marko', 'Marković', 'marko.markovic.test@example.com'),\n  ('Ivana', 'Ivanić',\
+    \ 'ivana.ivanic.test@example.com');"
+  expected_concepts:
+  - insert
+  - multi_row_insert
+  - values_clause
+  targets_misconception: insert_without_column_list
+ast_validation_rules:
+- expected_query mora sadržavati INSERT INTO ključne riječi kao top-level DML naredbu
+- INSERT mora imati eksplicitnu listu stupaca u zagradama između naziva tablice i
+  VALUES — INSERT INTO tablica (kol1, kol2) VALUES (...)
+- Stupac id (serial PK) ne smije biti naveden u listi stupaca INSERT-a
+- Broj vrijednosti u VALUES mora odgovarati broju navedenih stupaca u INSERT listi
+- 'Za zadatke s FK referencom (orders.customer_id): customer_id mora biti literalna
+  INTEGER vrijednost (ne string)'
+- 'Za difficulty >= 3: prihvatljiva je prisutnost RETURNING klauze ili višestrukih
+  VALUES parova (...), (...)'

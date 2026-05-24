@@ -160,3 +160,87 @@ def test_croatian_characters_roundtrip_utf8(
         "Croatian ž mora biti UTF-8 byte-ovan, ne ASCII escape (Pydantic ensure_ascii=False)"
     )
     assert b"\\u017e" not in raw_bytes
+
+
+def test_generate_one_propagates_dml_to_validator(fixture_message, tmp_path):
+    """generate_one(dml=True) mora pozvati validator.validate(task, dml=True).
+
+    Regression: pilot_run je propustio proslijediti dml flag, pa su svi INSERT
+    zadaci pucali permission denied iako je sandbox_readwrite imao GRANT-ove.
+    """
+    from scripts.generate_tasks import generate_one
+    from scripts.lib.api_client import AnthropicResponse
+
+    builder = MagicMock()
+    prompt = MagicMock(system="sys", user="user")
+    builder.build.return_value = prompt
+
+    api = MagicMock()
+    # generate_one koristi api.generate() — ne SDK direktno
+    raw = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    api.generate.return_value = AnthropicResponse(
+        content=raw["content"],
+        input_tokens=raw["input_tokens"],
+        output_tokens=raw["output_tokens"],
+        cached_tokens=raw["cached_tokens"],
+        stop_reason="end_turn",
+    )
+    api.model = "claude-sonnet-4-6"
+
+    validator = MagicMock()
+    from scripts.lib.task_validator import ValidationResult
+    validator.validate.return_value = ValidationResult(passed=True)
+
+    meta, _ = generate_one(
+        builder=builder,
+        api=api,
+        validator=validator,
+        concept="insert",
+        difficulty=1,
+        dml=True,
+        max_retries=1,
+    )
+
+    assert meta is not None and meta.validation_passed
+    # Bitno: validator.validate mora biti pozvan s dml=True
+    call = validator.validate.call_args
+    assert call.kwargs.get("dml") is True or (len(call.args) >= 2 and call.args[1] is True), (
+        f"validator.validate mora biti pozvan s dml=True, dobio: args={call.args}, kwargs={call.kwargs}"
+    )
+
+
+def test_generate_one_default_dml_false(fixture_message, tmp_path):
+    """generate_one() bez dml arg-a mora propagirati dml=False (default behavior za SELECT)."""
+    from scripts.generate_tasks import generate_one
+    from scripts.lib.api_client import AnthropicResponse
+
+    builder = MagicMock()
+    builder.build.return_value = MagicMock(system="sys", user="user")
+
+    api = MagicMock()
+    raw = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    api.generate.return_value = AnthropicResponse(
+        content=raw["content"],
+        input_tokens=raw["input_tokens"],
+        output_tokens=raw["output_tokens"],
+        cached_tokens=raw["cached_tokens"],
+        stop_reason="end_turn",
+    )
+    api.model = "claude-sonnet-4-6"
+
+    validator = MagicMock()
+    from scripts.lib.task_validator import ValidationResult
+    validator.validate.return_value = ValidationResult(passed=True)
+
+    generate_one(
+        builder=builder,
+        api=api,
+        validator=validator,
+        concept="select_basic",
+        difficulty=1,
+        max_retries=1,
+    )
+
+    call = validator.validate.call_args
+    dml_arg = call.kwargs.get("dml", call.args[1] if len(call.args) >= 2 else False)
+    assert dml_arg is False, f"default dml mora biti False, dobio: {dml_arg}"

@@ -74,6 +74,7 @@ def run_pilot(
                 validator,
                 concept=concept,
                 difficulty=difficulty,
+                dml=is_dml,
             )
 
             if meta is not None:
@@ -117,10 +118,11 @@ def _print_analysis(report: dict) -> None:
         for r in results
         if r["status"] == "validated"
     )
+    pct = (100 * validated // total) if total else 0
     print(f"\n{'='*55}")
     print(f"PILOT ANALIZA")
     print(f"  Ukupno zadataka:  {total}")
-    print(f"  Validated:        {validated}/{total} ({100*validated//total}%)")
+    print(f"  Validated:        {validated}/{total} ({pct}%)")
     print(f"  Ukupni trošak:    ${report['total_cost']:.4f}")
     print()
     print(f"{'Koncept':<20} {'d=1':>5} {'d=2':>5} {'d=3':>5} {'d=4':>5}")

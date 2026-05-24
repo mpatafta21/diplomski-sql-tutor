@@ -209,6 +209,89 @@ def test_generate_one_propagates_dml_to_validator(fixture_message, tmp_path):
     )
 
 
+def test_generate_one_extended_thinking_always_on_default(fixture_message, tmp_path):
+    """2B-1E: generate_one bez explicit extended_thinking enable-a thinking za sve difficulty levele.
+
+    Regression za 2B-1D root cause: prije je default bio difficulty>=4, pa su d=1-3
+    zadaci dobili thinking OFF i halucinirali expected_result u 19/27 fail-ova.
+    """
+    from scripts.generate_tasks import generate_one
+    from scripts.lib.api_client import AnthropicResponse
+
+    builder = MagicMock()
+    builder.build.return_value = MagicMock(system="sys", user="user")
+
+    api = MagicMock()
+    raw = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    api.generate.return_value = AnthropicResponse(
+        content=raw["content"],
+        input_tokens=raw["input_tokens"],
+        output_tokens=raw["output_tokens"],
+        cached_tokens=raw["cached_tokens"],
+        stop_reason="end_turn",
+    )
+    api.model = "claude-sonnet-4-6"
+
+    validator = MagicMock()
+    from scripts.lib.task_validator import ValidationResult
+    validator.validate.return_value = ValidationResult(passed=True)
+
+    for difficulty in [1, 2, 3, 4, 5]:
+        api.generate.reset_mock()
+        generate_one(
+            builder=builder,
+            api=api,
+            validator=validator,
+            concept="select_basic",
+            difficulty=difficulty,
+            max_retries=1,
+        )
+        call = api.generate.call_args
+        assert call.kwargs.get("extended_thinking") is True, (
+            f"d={difficulty}: extended_thinking mora biti True po default-u, "
+            f"dobio: {call.kwargs.get('extended_thinking')}"
+        )
+
+
+def test_generate_one_extended_thinking_explicit_false_respected(fixture_message, tmp_path):
+    """generate_one(extended_thinking=False) eksplicitno mora biti respektiran (escape hatch)."""
+    from scripts.generate_tasks import generate_one
+    from scripts.lib.api_client import AnthropicResponse
+
+    builder = MagicMock()
+    builder.build.return_value = MagicMock(system="sys", user="user")
+
+    api = MagicMock()
+    raw = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    api.generate.return_value = AnthropicResponse(
+        content=raw["content"],
+        input_tokens=raw["input_tokens"],
+        output_tokens=raw["output_tokens"],
+        cached_tokens=raw["cached_tokens"],
+        stop_reason="end_turn",
+    )
+    api.model = "claude-sonnet-4-6"
+
+    validator = MagicMock()
+    from scripts.lib.task_validator import ValidationResult
+    validator.validate.return_value = ValidationResult(passed=True)
+
+    generate_one(
+        builder=builder,
+        api=api,
+        validator=validator,
+        concept="select_basic",
+        difficulty=3,
+        extended_thinking=False,
+        max_retries=1,
+    )
+    call = api.generate.call_args
+    assert call.kwargs.get("extended_thinking") is False, (
+        f"explicit extended_thinking=False mora biti respektiran, "
+        f"dobio: {call.kwargs.get('extended_thinking')}"
+    )
+
+
 def test_generate_one_default_dml_false(fixture_message, tmp_path):
     """generate_one() bez dml arg-a mora propagirati dml=False (default behavior za SELECT)."""
     from scripts.generate_tasks import generate_one

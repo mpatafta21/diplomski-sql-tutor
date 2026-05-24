@@ -118,6 +118,58 @@ def test_pilot_run_forwards_dml_kwarg_to_generate_one(tmp_path: Path):
         )
 
 
+def test_pilot_run_filters_by_concepts(tmp_path: Path):
+    """run_pilot s concepts=[...] zove generate_one samo za odabrane koncepte."""
+    builder, api, validator = MagicMock(), MagicMock(), MagicMock()
+
+    with patch("scripts.pilot_run.generate_one") as mock_gen:
+        mock_gen.side_effect = lambda builder, api, validator, concept, difficulty, **kw: (
+            _make_fake_meta(concept, difficulty),
+            [],
+        )
+        report = run_pilot(
+            builder,
+            api,
+            validator,
+            tmp_path,
+            concepts=["where_filter", "group_by"],
+        )
+
+    called_concepts = {call.kwargs["concept"] for call in mock_gen.call_args_list}
+    assert called_concepts == {"where_filter", "group_by"}
+    assert set(report["per_concept"].keys()) == {"where_filter", "group_by"}
+
+
+def test_pilot_run_unknown_concept_raises(tmp_path: Path):
+    """run_pilot s nepoznatim konceptom diže ValueError s popisom dostupnih."""
+    builder, api, validator = MagicMock(), MagicMock(), MagicMock()
+
+    with pytest.raises(ValueError, match="Nepoznati koncepti"):
+        run_pilot(builder, api, validator, tmp_path, concepts=["nonexistent_concept"])
+
+
+def test_pilot_run_output_suffix_renames_report(tmp_path: Path):
+    """run_pilot s output_suffix='iter1' kreira pilot_report_iter1.json."""
+    builder, api, validator = MagicMock(), MagicMock(), MagicMock()
+
+    with patch("scripts.pilot_run.generate_one") as mock_gen:
+        mock_gen.side_effect = lambda builder, api, validator, concept, difficulty, **kw: (
+            _make_fake_meta(concept, difficulty),
+            [],
+        )
+        run_pilot(
+            builder,
+            api,
+            validator,
+            tmp_path,
+            concepts=["where_filter"],
+            output_suffix="iter1",
+        )
+
+    assert (tmp_path / "pilot_report_iter1.json").exists()
+    assert not (tmp_path / "pilot_report.json").exists()
+
+
 def test_print_analysis_empty_report_no_zero_division(capsys):
     """_print_analysis ne smije pucati s ZeroDivisionError na praznom reportu."""
     from scripts.pilot_run import _print_analysis

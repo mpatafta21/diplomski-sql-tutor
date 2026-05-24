@@ -46,9 +46,15 @@ def run_pilot(
     api,
     validator,
     output_dir: Path,
+    concepts: list[str] | None = None,
+    output_suffix: str = "",
 ) -> dict:
     """
     Core pilot logika — testabilna bez CLI args.
+
+    Args:
+        concepts: ako zadan, filtrira PILOT_CONFIG samo na koncepte iz liste.
+        output_suffix: ako zadan, report path → pilot_report_<suffix>.json.
 
     Returns:
         report dict s per_concept, total_cost, started_at.
@@ -60,7 +66,19 @@ def run_pilot(
         "started_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    for entry in PILOT_CONFIG:
+    if concepts:
+        wanted = set(concepts)
+        active_config = [e for e in PILOT_CONFIG if e["concept"] in wanted]
+        missing = wanted - {e["concept"] for e in PILOT_CONFIG}
+        if missing:
+            raise ValueError(
+                f"Nepoznati koncepti za pilot: {sorted(missing)}. "
+                f"Dostupni: {sorted(e['concept'] for e in PILOT_CONFIG)}"
+            )
+    else:
+        active_config = PILOT_CONFIG
+
+    for entry in active_config:
         concept = entry["concept"]
         is_dml = entry.get("dml", False)
         report["per_concept"][concept] = []
@@ -75,6 +93,7 @@ def run_pilot(
                 concept=concept,
                 difficulty=difficulty,
                 dml=is_dml,
+                extended_thinking=True,
             )
 
             if meta is not None:
@@ -101,8 +120,9 @@ def run_pilot(
             report["per_concept"][concept].append(entry_result)
             report["total_cost"] += cost
 
-    # Spremi report
-    report_path = output_dir / "pilot_report.json"
+    # Spremi report (s opcionalnim suffix-om za iteration history)
+    report_name = f"pilot_report_{output_suffix}.json" if output_suffix else "pilot_report.json"
+    report_path = output_dir / report_name
     report_path.write_text(
         json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
     )
@@ -150,6 +170,24 @@ def parse_args() -> argparse.Namespace:
         default="claude-sonnet-4-6",
         help="Anthropic model (default: claude-sonnet-4-6)",
     )
+    parser.add_argument(
+        "--concepts",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated lista koncepata iz PILOT_CONFIG (npr. "
+            "'where_filter,group_by'). Default: svi koncepti iz PILOT_CONFIG."
+        ),
+    )
+    parser.add_argument(
+        "--output-suffix",
+        type=str,
+        default="",
+        help=(
+            "Suffix za pilot_report fajl (npr. 'iter1' → pilot_report_iter1.json). "
+            "Default: nema suffix-a, fajl je pilot_report.json."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -171,12 +209,30 @@ def main() -> None:
     )
 
     output_dir = Path(args.output_dir)
-    print(f"Pilot run → {output_dir}")
+    concepts_list = (
+        [c.strip() for c in args.concepts.split(",") if c.strip()]
+        if args.concepts
+        else None
+    )
+    if concepts_list:
+        print(f"Pilot run → {output_dir} (koncepti: {', '.join(concepts_list)})")
+    else:
+        print(f"Pilot run → {output_dir}")
 
-    report = run_pilot(builder, api, validator, output_dir)
+    report = run_pilot(
+        builder,
+        api,
+        validator,
+        output_dir,
+        concepts=concepts_list,
+        output_suffix=args.output_suffix,
+    )
 
     _print_analysis(report)
-    print(f"\nReport: {output_dir / 'pilot_report.json'}")
+    report_name = (
+        f"pilot_report_{args.output_suffix}.json" if args.output_suffix else "pilot_report.json"
+    )
+    print(f"\nReport: {output_dir / report_name}")
 
 
 if __name__ == "__main__":

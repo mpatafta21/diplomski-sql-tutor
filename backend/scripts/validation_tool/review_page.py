@@ -123,9 +123,17 @@ def render(
         st.info("Nijedan zadatak ne match-a trenutne filtere.")
         return
 
-    # Session-state navigation — reset ako filter promijeni count
+    # Session-state navigation — reset ako filter ILI broj rezultata promijeni
+    # (count je dio signature jer bootstrap_pending_reviews može dodati nove zadatke
+    # mid-session pa bi sirovi clamp na current_idx skočio na pogrešan task).
     state_key = "filter_signature"
-    sig = (filters["module_number"], filters["concept_code"], filters["decision"], filters["failure_type"])
+    sig = (
+        filters["module_number"],
+        filters["concept_code"],
+        filters["decision"],
+        filters["failure_type"],
+        len(filtered),
+    )
     if st.session_state.get(state_key) != sig:
         st.session_state.current_idx = 0
         st.session_state[state_key] = sig

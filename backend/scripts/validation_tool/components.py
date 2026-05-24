@@ -160,7 +160,11 @@ def query_runner_panel(task: dict, sandbox_runner) -> None:
         try:
             result = sandbox_runner.execute(query, dml=is_dml)
         except Exception as exc:  # noqa: BLE001 — UI hard-error guard
+            # Cached runner može držati dead connection nakon Docker bounce-a.
+            # Clear cache_resource pa Reload da se napravi fresh pre-flight ping.
             st.error(f"Sandbox exception: {type(exc).__name__}: {exc}")
+            st.cache_resource.clear()
+            st.info("Connection cache cleared — reload stranice za fresh sandbox pre-flight.")
             return
 
     if not result.success:

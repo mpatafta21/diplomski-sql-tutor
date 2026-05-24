@@ -34,7 +34,7 @@ CONCEPTS_DIR = _BACKEND_ROOT / "config" / "concepts"
 
 def _configure_page() -> None:
     st.set_page_config(
-        page_title="2B-3 Validation Tool",
+        page_title="2B-1C Validation Tool",
         page_icon="✓",
         layout="wide",
         initial_sidebar_state="expanded",
@@ -69,7 +69,7 @@ def main() -> None:
     _configure_page()
     db = get_db()
 
-    st.sidebar.title("2B-3 Validation Tool")
+    st.sidebar.title("2B-1C Validation Tool")
     page = st.sidebar.radio("Page", ["Review", "Stats"], key="nav_page")
 
     stats = db.get_stats()

@@ -57,3 +57,6 @@ docs/superpowers/
 
 #Plans
 docs/prompts
+
+# Playwright MCP smoke test artifacts (lokalni snapshots/logovi)
+.playwright-mcp/

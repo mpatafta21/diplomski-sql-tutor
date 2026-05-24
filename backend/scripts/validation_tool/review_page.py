@@ -141,7 +141,7 @@ def render(
 
     st.caption(f"Task {idx + 1} / {len(filtered)} — `{task_id}`")
 
-    components.navigation_panel(len(filtered))
+    components.navigation_panel(len(filtered), filtered_tasks=filtered, db=db)
     components.task_metadata_panel(task, failure_type=failure_type)
     components.task_content_panel(task)
     components.failure_panel(task)

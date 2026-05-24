@@ -177,13 +177,44 @@ def query_runner_panel(task: dict, sandbox_runner) -> None:
         st.caption("(no rows returned)")
 
 
-def navigation_panel(total: int) -> None:
-    """Prev/Next buttons koji updejtaju st.session_state.current_idx."""
+def navigation_panel(
+    total: int,
+    filtered_tasks: list[dict] | None = None,
+    db=None,
+) -> None:
+    """Prev/Next + opcionalni Next pending button.
+
+    Ako su filtered_tasks i db proslijeđeni, prikazuje "⏭ Next pending" koji
+    skače na prvi sljedeći task s decision='pending'."""
     idx = st.session_state.get("current_idx", 0)
-    cols = st.columns([1, 1, 6])
+    cols = st.columns([1, 1, 2, 4])
     if cols[0].button("◀ Prev", disabled=idx <= 0, key="nav_prev"):
         st.session_state.current_idx = max(0, idx - 1)
         st.rerun()
     if cols[1].button("Next ▶", disabled=idx >= total - 1, key="nav_next"):
         st.session_state.current_idx = min(total - 1, idx + 1)
         st.rerun()
+
+    if filtered_tasks is None or db is None:
+        return
+
+    next_pending_idx = _find_next_pending(filtered_tasks, db, idx)
+    disabled = next_pending_idx is None
+    if cols[2].button(
+        "⏭ Next pending",
+        disabled=disabled,
+        key="nav_next_pending",
+        help="Skoči na sljedeći task s decision=pending (skipa already-reviewed)",
+    ):
+        st.session_state.current_idx = next_pending_idx
+        st.rerun()
+
+
+def _find_next_pending(filtered_tasks: list[dict], db, current_idx: int) -> int | None:
+    """Linearni scan od current_idx+1 do kraja, traži prvi pending."""
+    for offset in range(1, len(filtered_tasks) + 1):
+        candidate = (current_idx + offset) % len(filtered_tasks)
+        review = db.get_review(filtered_tasks[candidate]["_task_id"])
+        if review is None or review.decision == "pending":
+            return candidate
+    return None

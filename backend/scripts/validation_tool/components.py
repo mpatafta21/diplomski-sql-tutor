@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import streamlit as st
 
+# DML koncepti — detekcija po primary_concept za toggle dml=True u SandboxRunneru
+_DML_CONCEPTS = frozenset({"insert", "update", "delete"})
+
 
 def _status_badge(status: str, failure_type: str | None) -> str:
     if status == "validated":
@@ -126,6 +129,52 @@ def decision_panel(
     if cols[2].button("⚠ Needs Fix", key=f"needsfix_{task_id}"):
         _save("needs_fix", notes)
         st.rerun()
+
+
+def query_runner_panel(task: dict, sandbox_runner) -> None:
+    """Opcionalni re-run zadanog upita u sandbox-u. Auto-rollback za DML."""
+    if sandbox_runner is None:
+        st.warning(
+            "⚠ Sandbox nije dostupan (postavi SANDBOX_DATABASE_URL i pokreni docker). "
+            "Re-run feature je onemogućen."
+        )
+        return
+
+    inner = task.get("task", {})
+    concept = inner.get("primary_concept", "")
+    is_dml = concept in _DML_CONCEPTS
+
+    st.subheader("⚙ Re-run query u sandboxu")
+    cols = st.columns([3, 1])
+    with cols[0]:
+        mode = "DML (write, auto-rollback)" if is_dml else "SELECT (read-only)"
+        st.caption(f"Mode: {mode}")
+    with cols[1]:
+        rerun = st.button("▶ Run", key=f"rerun_{task['_task_id']}")
+
+    if not rerun:
+        return
+
+    query = inner.get("expected_query", "")
+    with st.spinner("Izvršavanje upita…"):
+        try:
+            result = sandbox_runner.execute(query, dml=is_dml)
+        except Exception as exc:  # noqa: BLE001 — UI hard-error guard
+            st.error(f"Sandbox exception: {type(exc).__name__}: {exc}")
+            return
+
+    if not result.success:
+        st.error(f"✗ Sandbox vratio error: {result.error}")
+        return
+
+    st.success(
+        f"✓ {len(result.rows)} rows · {result.execution_time_ms} ms · "
+        f"columns: {', '.join(result.column_names) or '(none)'}"
+    )
+    if result.rows:
+        st.dataframe(result.rows, hide_index=True, use_container_width=True)
+    else:
+        st.caption("(no rows returned)")
 
 
 def navigation_panel(total: int) -> None:

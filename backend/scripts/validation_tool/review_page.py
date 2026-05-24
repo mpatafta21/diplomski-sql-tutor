@@ -97,6 +97,7 @@ def render(
     db: ManualReviewDB,
     tasks_dir: Path,
     concepts_dir: Path,
+    sandbox_runner=None,
 ) -> None:
     st.title("Review")
 
@@ -144,4 +145,5 @@ def render(
     components.task_metadata_panel(task, failure_type=failure_type)
     components.task_content_panel(task)
     components.failure_panel(task)
+    components.query_runner_panel(task, sandbox_runner)
     components.decision_panel(task, db, failure_type, concept_map)

@@ -394,6 +394,9 @@ def main() -> None:
 
     results = []
     cumulative_cost = 0.0
+    # Konzervativna procjena cijene jednog YAML-a — koristi se za pre-flight
+    # cap check. ~$0.06 po pozivu (Sonnet 4.6 s big system prompt + few-shot).
+    EXPECTED_COST_PER_YAML = 0.06
 
     for concept_code in targets:
         if concept_code not in CONCEPT_META:
@@ -404,6 +407,15 @@ def main() -> None:
         if existing_path.exists():
             print(f"⏭  Preskačem '{concept_code}': YAML već postoji")
             continue
+
+        # Pre-flight cap — sprječava prekoračenje za cijenu jednog poziva
+        if cumulative_cost + EXPECTED_COST_PER_YAML > args.hard_cap_usd:
+            print(
+                f"\nHARD CAP ${args.hard_cap_usd:.2f} preventivno aktiviran "
+                f"(trenutni ${cumulative_cost:.4f} + procjena "
+                f"${EXPECTED_COST_PER_YAML:.4f} bi prešao cap). Zaustavljam."
+            )
+            break
 
         print(f"→  Generiram '{concept_code}'...", end=" ", flush=True)
 
@@ -424,6 +436,8 @@ def main() -> None:
             f"${result['cost_usd']:.4f} | ukupno ${cumulative_cost:.4f}"
         )
 
+        # Post-flight cap kao backup — npr. ako je stvarni trošak bio veći od
+        # procjene zbog retry-a.
         if cumulative_cost > args.hard_cap_usd:
             print(
                 f"\nHARD CAP ${args.hard_cap_usd:.2f} dostignut "

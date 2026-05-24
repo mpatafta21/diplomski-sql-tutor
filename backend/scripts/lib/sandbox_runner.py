@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import time
 from dataclasses import dataclass, field
@@ -11,6 +12,7 @@ from decimal import Decimal
 import psycopg
 
 
+_log = logging.getLogger(__name__)
 _ORDER_BY_RE = re.compile(r"\bORDER\s+BY\b", re.IGNORECASE)
 
 
@@ -109,8 +111,15 @@ class SandboxRunner:
                     if dml:
                         try:
                             conn.rollback()
-                        except Exception:
-                            pass  # connection close will rollback anyway
+                        except Exception as rb_exc:
+                            # Konekcija je vjerojatno već mrtva (statement_timeout je
+                            # ubio session). Zatvaranje konekcije će svejedno rollback-ati
+                            # neuspjelu transakciju. Logiramo da invarijanta "DML promjene
+                            # ne perzistiraju" ne bude tiha pretpostavka.
+                            _log.warning(
+                                "Sandbox DML rollback failed (connection close will retry): %s",
+                                rb_exc,
+                            )
                 # Invariant: each execute() call opens and closes its own connection.
                 # The per-call rollback is safe only because no outer transaction exists.
                 # If a connection pool is introduced, switch to SAVEPOINT pattern.

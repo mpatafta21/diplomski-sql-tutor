@@ -204,10 +204,35 @@ def _detect_delete(query: str) -> ConceptDetectionResult:
 
 
 def _detect_explain_plan(query: str) -> ConceptDetectionResult:
+    """PLACEHOLDER — explain_plan koncept se ne može pouzdano detektirati AST-om.
+
+    Pedagoški, explain_plan zadatak ima dva legitimna oblika (vidi
+    `config/concepts/explain_plan.yaml` anti_patterns + ast_validation_rules):
+
+    1. Čisti SELECT koji demonstrira index-friendly/hostile obrazac (preferred
+       u YAML-u — student piše upit, EXPLAIN je teorijski kontekst u description-u)
+    2. Doslovni EXPLAIN [(...)] SELECT (rjeđe, koristi se kad zadatak eksplicitno
+       traži EXPLAIN ANALYZE output)
+
+    Stvarna validacija "demonstrira li ovaj query traženi planner pattern" zahtijeva
+    runtime EXPLAIN ANALYZE protiv sandbox-a (Modul 6 / Faza 6). Zato vraćamo
+    detected=True za sve query-jeve s explain_plan kao primary_concept-om;
+    odgovornost prelazi na result_match validaciju (data sanity) + manual review.
+    """
     stripped = _strip_comments_and_strings(query).lstrip()
-    detected = stripped.upper().startswith("EXPLAIN")
+    leading_explain = stripped.upper().startswith("EXPLAIN")
     return ConceptDetectionResult(
-        detected=detected, location="leading EXPLAIN" if detected else None
+        detected=True,
+        location=(
+            "leading EXPLAIN"
+            if leading_explain
+            else "SELECT (index-friendly pattern, deferred to runtime)"
+        ),
+        extra_info={
+            "placeholder": True,
+            "leading_explain": leading_explain,
+            "reason": "explain_plan AST check je placeholder — runtime EXPLAIN ANALYZE deferred to Phase 6",
+        },
     )
 
 

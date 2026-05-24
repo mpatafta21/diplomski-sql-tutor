@@ -97,6 +97,28 @@ few_shot_examples:
   - select_basic
   targets_misconception: subquery_returns_multiple_rows
 - difficulty: 3
+  title: TOP 3 proizvoda iznad globalnog prosjeka cijena
+  description: 'Pronađi tri proizvoda s najvišom cijenom među onima čija je cijena
+    veća od globalnog prosjeka cijena svih proizvoda.
+
+    Ispiši id, name i price, sortirano od najveće cijene prema najmanjoj.
+
+    Koristi skalarni podupit u WHERE klauzi koji vraća AVG(price).'
+  expected_query: 'SELECT id, name, price
+
+    FROM products
+
+    WHERE price > (SELECT AVG(price) FROM products)
+
+    ORDER BY price DESC
+
+    LIMIT 3;'
+  expected_concepts:
+  - scalar_subquery
+  - where_filter
+  - order_by
+  targets_misconception: missing_aggregate_in_scalar
+- difficulty: 3
   title: Globalni prosjek kao referentni stupac
   description: 'Za svaku narudžbu ispiši id, total_amount i globalni prosjek svih
     narudžbi kao dodatni stupac avg_all_orders.

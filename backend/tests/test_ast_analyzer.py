@@ -190,14 +190,41 @@ def test_delete_in_comment(analyzer):
     assert not r.detected
 
 
-def test_explain_plan_positive(analyzer):
+def test_explain_plan_leading_explain(analyzer):
+    """Doslovni EXPLAIN prefix se detektira i obilježava u location-u."""
     r = analyzer.detects_concept("EXPLAIN SELECT * FROM categories;", "explain_plan")
     assert r.detected
+    assert r.extra_info["leading_explain"] is True
+    assert r.location == "leading EXPLAIN"
 
 
-def test_explain_plan_not_at_start(analyzer):
+def test_explain_plan_select_without_explain_still_detected(analyzer):
+    """2B-1E: placeholder semantika — čisti SELECT je legitiman explain_plan zadatak.
+
+    Pedagoški, explain_plan koncept (YAML anti_patterns) ZABRANJUJE expected_query
+    koji počinje s EXPLAIN; student treba pisati index-friendly SELECT. AST detektor
+    je placeholder dok runtime EXPLAIN ANALYZE check ne stigne u Modul 6.
+    """
+    r = analyzer.detects_concept(
+        "SELECT id, order_date FROM orders WHERE customer_id = 42 ORDER BY order_date DESC;",
+        "explain_plan",
+    )
+    assert r.detected
+    assert r.extra_info["placeholder"] is True
+    assert r.extra_info["leading_explain"] is False
+    assert "Phase 6" in r.extra_info["reason"]
+
+
+def test_explain_plan_explain_in_string_literal_still_placeholder(analyzer):
+    """Čak i EXPLAIN unutar string literal-a (ne prefix) — placeholder vraća True.
+
+    Backwards-incompat s pre-2B-1E ponašanjem (gdje je vraćalo False); namjerno,
+    jer placeholder semantika prelazi odgovornost na result_match validaciju.
+    """
     r = analyzer.detects_concept("SELECT 'EXPLAIN' FROM x;", "explain_plan")
-    assert not r.detected
+    assert r.detected
+    assert r.extra_info["placeholder"] is True
+    assert r.extra_info["leading_explain"] is False
 
 
 def test_null_handling_is_null(analyzer):

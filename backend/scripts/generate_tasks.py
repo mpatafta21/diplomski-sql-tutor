@@ -75,9 +75,10 @@ def generate_one(
             sandbox_readonly role).
     """
     log = logger or logging.getLogger(__name__)
-    use_thinking = (
-        extended_thinking if extended_thinking is not None else (difficulty >= 4)
-    )
+    # 2B-1E: always-on default (lessons learned iz 2B-1D Iter 2 — 5x improvement).
+    # Eksplicitan extended_thinking=False ostaje supported (npr. za testove ili
+    # ako se kasnije pokaže da je trošak previsok za d=1 batch).
+    use_thinking = extended_thinking if extended_thinking is not None else True
 
     failures: list[dict] = []
     last_meta: GeneratedTaskMeta | None = None

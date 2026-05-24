@@ -112,26 +112,40 @@ def parse_and_validate(
     Validira parsed dict kroz ConceptConfig, piše YAML fajl ako prolazi.
 
     Returns:
-        (config, None) ako validan; (None, error_msg) ako fail-a.
+        (config, None) ako validan; (None, error_msg) ako schema fail-a.
+
+    Note:
+        Drugi exception tipovi (RuntimeError, OSError, ...) propagiraju —
+        ne ulaze u retry loop kao "Schema validation failed". Roundtrip-check
+        piše u temp fajl pa atomic-rename → corrupt YAML nikad ne ostaje na disku.
     """
     try:
         config = ConceptConfig.model_validate(response_parsed)
-    except (ValidationError, Exception) as exc:
+    except ValidationError as exc:
         return None, f"Schema validation failed: {exc}"
 
     yaml_path = output_dir / f"{config.concept_code}.yaml"
+    tmp_path = yaml_path.with_suffix(".yaml.tmp")
     yaml_text = yaml.safe_dump(
         config.model_dump(),
         allow_unicode=True,
         sort_keys=False,
         default_flow_style=False,
     )
-    yaml_path.write_text(yaml_text, encoding="utf-8")
+    tmp_path.write_text(yaml_text, encoding="utf-8")
 
-    # Paranoia roundtrip check — potvrđuje da YAML fajl prolazi load_concept_config
-    reloaded = load_concept_config(yaml_path)
-    assert reloaded.concept_code == config.concept_code
+    try:
+        # Paranoia roundtrip — potvrđuje da YAML prolazi load_concept_config
+        reloaded = load_concept_config(tmp_path)
+        assert reloaded.concept_code == config.concept_code, (
+            f"roundtrip mismatch: {reloaded.concept_code} != {config.concept_code}"
+        )
+    except BaseException:
+        # Bilo koja greška (AssertionError, parser fail, ...) → očisti temp
+        tmp_path.unlink(missing_ok=True)
+        raise
 
+    tmp_path.replace(yaml_path)  # atomic na POSIX-u
     return config, None
 
 

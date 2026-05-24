@@ -116,6 +116,51 @@ def test_parse_and_validate_schema_fail_returns_error(tmp_path: Path):
     assert isinstance(err, str) and len(err) > 0
 
 
+def test_parse_and_validate_roundtrip_fail_leaves_no_yaml_on_disk(
+    tmp_path, monkeypatch
+):
+    """Roundtrip-check fail NE smije ostaviti corrupted YAML na disku.
+
+    Regression: ranija verzija je pisala YAML *prije* `assert reloaded.concept_code
+    == config.concept_code`. Ako assert pukne, fajl ostaje na disku, a sljedeći
+    run preskače taj koncept (meta_generate_yamls.py:404 existing_path.exists()
+    guard) → tihi corruption.
+    """
+    from scripts.lib import meta_gen
+
+    # Simuliraj roundtrip mismatch — load_concept_config vraća drugačiji code
+    def _bad_reload(path):
+        cfg = MagicMock()
+        cfg.concept_code = "DIFFERENT"
+        return cfg
+
+    monkeypatch.setattr(meta_gen, "load_concept_config", _bad_reload)
+
+    # AssertionError treba propagirati (signalna greška za debug),
+    # ali bez obzira na to, NIKAKAV .yaml fajl ne smije ostati na disku.
+    with pytest.raises(AssertionError):
+        parse_and_validate(MINIMAL_VALID_CONFIG, tmp_path)
+
+    leftovers = list(tmp_path.iterdir())
+    assert not leftovers, f"Roundtrip fail ostavila fajlove: {leftovers}"
+
+
+def test_parse_and_validate_non_validation_error_propagates(tmp_path, monkeypatch):
+    """Programer-greške (npr. RuntimeError iz interne logike) ne smiju biti
+    zamaskirane kao 'Schema validation failed'. Bare-except (ValidationError,
+    Exception) je antipattern — moramo eksplicitno hvatati samo ValidationError.
+    """
+    from scripts.lib import meta_gen
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("simulirana programer-greška u model_validate")
+
+    monkeypatch.setattr(meta_gen.ConceptConfig, "model_validate", _boom)
+
+    with pytest.raises(RuntimeError, match="simulirana"):
+        parse_and_validate({"any": "thing"}, tmp_path)
+
+
 def test_generate_one_yaml_success_first_try(tmp_path: Path):
     """Happy path: validan response → status=success, attempts=1."""
     client = MagicMock()

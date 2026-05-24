@@ -34,24 +34,38 @@ target_misconceptions:
     iz SELECT liste nije dostupan u GROUP BY (PostgreSQL to dopušta samo u ORDER BY)
   priority: medium
 domain_hints:
-- 'Tablica orders ima kolone: customer_id (INT), status (VARCHAR: ''pending'', ''shipped'',
-  ''delivered'', ''cancelled''), total_amount (NUMERIC), order_date (TIMESTAMP) —
-  idealna za GROUP BY customer_id ili GROUP BY status'
+- 'Tablica orders ima kolone: customer_id (INT), status (VARCHAR: ''pending'', ''processing'',
+  ''shipped'', ''delivered'', ''cancelled''), total_amount (NUMERIC), order_date (TIMESTAMP)
+  — idealna za GROUP BY customer_id ili GROUP BY status'
 - 'Tablica order_items ima kolone: order_id (INT), product_id (INT), quantity (INT),
   unit_price (NUMERIC) — GROUP BY product_id s SUM(quantity) daje ukupno naručene
   komade po proizvodu'
 - 'Tablica products ima kolone: id (INT), name (VARCHAR), price (NUMERIC), category_id
   (INT) — GROUP BY category_id s COUNT(*) daje broj proizvoda po kategoriji'
-- 'Sandbox invariant: tablica orders ima ~1000 redova s narudžbama svih 4 statusa
-  — GROUP BY status uvijek vraća 4 grupe'
-- 'Sandbox invariant: ~200 kupaca s narudžbama — GROUP BY customer_id na orders tablici
-  vraća do 175 grupa (25 kupaca nema narudžbi)'
+- 'Sandbox topline counts (Faker seed=42, deterministic): customers=200, customers_with_orders=175
+  (25 kupaca nema narudžbi), orders=1000, products=100, categories=15, order_items=3000'
+- 'GROUND TRUTH: GROUP BY status na orders → 5 grupa s ovim COUNT vrijednostima:
+  cancelled=57, delivered=484, pending=95, processing=167, shipped=197 (suma = 1000)'
+- 'GROUND TRUTH: GROUP BY status na orders → SUM(total_amount): cancelled=236091.98,
+  delivered=2174992.73, pending=389731.36, processing=750954.02, shipped=928301.27'
+- 'GROUND TRUTH: GROUP BY status na orders → AVG(total_amount) (zaokruženo 2 decimale):
+  cancelled=4141.96, delivered=4493.79, pending=4102.44, processing=4496.73, shipped=4712.19'
+- 'GROUND TRUTH: GROUP BY name na products JOIN categories → 15 kategorija s product_count:
+  Automotive=5, Beauty=3, Books=10, Clothing=6, Electronics=6, Garden=7, Health=7,
+  Home=7, Movies=7, Music=7, Office=9, Pet Supplies=7, Sports=8, Tools=6, Toys=5
+  (suma = 100)'
+- 'GROUND TRUTH: GROUP BY country na customers → Croatia=140 (dominantna), 52 ostale
+  zemlje s 1-2 kupca svaka — koristi Croatia za visoko-volume primjere, IZBJEGAVAJ
+  ostale zemlje koje imaju malu kardinalnost'
 - 'Ispravan redoslijed klauza: SELECT → FROM → WHERE → GROUP BY → HAVING → ORDER BY
   → LIMIT — GROUP BY dolazi NAKON WHERE i PRIJE HAVING'
 - 'Pravilo: sve kolone u SELECT listi koje NISU unutar agregatne funkcije MORAJU biti
   navedene u GROUP BY klauzi — to je SQL standard i PostgreSQL ga striktno primjenjuje'
 - HAVING filtrira grupirane rezultate (agregati) — evaluira se NAKON GROUP BY; WHERE
   filtrira pojedinačne redove — evaluira se PRIJE GROUP BY
+- 'Za deterministički expected_result: preferiraj GROUP BY status (5 grupa s ground-truth
+  COUNT/SUM/AVG iznad) ili GROUP BY name na categories — IZBJEGAVAJ GROUP BY customer_id
+  bez LIMIT jer daje 175 redova (preko 5-row sample limit-a iz system_static.md)'
 anti_patterns:
 - Ne piši GROUP BY bez ijedne agregatne funkcije (COUNT, SUM, AVG, MIN, MAX) u SELECT
   listi — uvijek mora postojati barem jedan agregat

@@ -56,9 +56,12 @@ def render(
 
     task = tasks[idx]
     task_id = task["_task_id"]
+    failure_type = extract_failure_type(task)
 
     st.caption(f"Task {idx + 1} / {len(tasks)} — `{task_id}`")
 
-    components.task_metadata_panel(task, failure_type=extract_failure_type(task))
+    components.navigation_panel(len(tasks))
+    components.task_metadata_panel(task, failure_type=failure_type)
     components.task_content_panel(task)
     components.failure_panel(task)
+    components.decision_panel(task, db, failure_type, concept_map)

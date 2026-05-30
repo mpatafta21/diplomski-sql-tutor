@@ -635,10 +635,13 @@ def test_correlated_subquery_with_bare_table_names(analyzer):
 
 
 def test_index_usage_placeholder(analyzer):
+    """2B-2: placeholder semantika — kao explain_plan, vraća detected=True jer pravi
+    check zahtijeva runtime EXPLAIN ANALYZE (Faza 6). Validator pušta task da prođe;
+    odgovornost je na result_match + manual review u 2B-3.
+    """
     r = analyzer.detects_concept(
         "SELECT * FROM orders WHERE customer_id = 1;", "index_usage"
     )
-    # Placeholder uvijek vraća detected=False s razlogom
-    assert not r.detected
+    assert r.detected
     assert r.extra_info["placeholder"] is True
     assert "EXPLAIN" in r.extra_info["reason"]

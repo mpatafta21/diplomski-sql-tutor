@@ -10,12 +10,12 @@ Per-modul rezultati LLM batch generation runova. Data fajlovi (validated/+failed
 | M2 (Agregacije) | ⊘ skip → manual | 0/14 (LLM aborted) | 0% | $0.03 | systematic |
 | M3 (JOIN-ovi) | ✓ | 18/28 | 64.3% | $0.71 | no |
 | M4 (DML) | ✓ | 9/11 | 81.8% | $0.21 | no |
-| M5 (Subqueries) | — | — | — | — | — |
+| M5 (Subqueries) | ✓ | 10/15 | 66.7% | $0.44 | no |
 | M6 (Optimizacija) | — | — | — | — | — |
 | M0 (null_handling) | — | — | — | — | — |
-| **Total (LLM)** | — | 46/86 | — | $1.39 | — |
+| **Total (LLM)** | — | 56/86 | — | $1.83 | — |
 | **+ Manual (group_by 5 + agregacije 14)** | — | 0/19 | — | $0.00 | — |
-| **= 105 total** | — | 46/105 | — | $1.39 | — |
+| **= 105 total** | — | 56/105 | — | $1.83 | — |
 
 ---
 
@@ -128,3 +128,27 @@ SandboxRunner DML mode (sandbox_readwrite role + auto-rollback) propagira throug
 ### Decision
 
 **Continue to M5** — DML pipeline radi solidno. Update/delete fails su isolated cases, ne pattern.
+
+---
+
+## M5 — Subqueries (2026-05-30, ~22 min)
+
+**Status:** ✓ ACCEPTABLE (pass rate 66.7% ≥ 50% threshold)
+**Pass rate:** 10/15 validated (66.7%)
+**Cost:** $0.4380 (29% iskorišten od $1.50 soft cap)
+**Trajanje:** ~22 minuta (18:32 → 18:54)
+
+### Per-koncept breakdown
+
+| Concept | Validated/Planned | Cost | Note |
+|---|---|---|---|
+| scalar_subquery | 1/4 (25%) | $0.140 | medium tier, NAJSLABIJI — model halucinira scalar values |
+| in_subquery | 3/4 (75%) | $0.094 | medium tier, solid |
+| exists_subquery | 3/3 (100%) | $0.087 | medium tier, perfect ✓ |
+| correlated_subquery | 3/4 (75%) | $0.117 | hard tier, surprisingly solid |
+
+**scalar_subquery slabost:** model halucinira scalar (single-row, single-column) values. Slično kao group_by hallucination pattern. 2B-1E je dodao d=3 deterministic example ali ostali difficulties imaju isti problem.
+
+### Decision
+
+**Continue to M6** — overall 66.7% acceptable, scalar_subquery failures su isolated concept-level. Manual review u 2B-3 može pokupiti slabe scalar_subquery zadatke ako treba.

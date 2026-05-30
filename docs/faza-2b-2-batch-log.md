@@ -8,14 +8,14 @@ Per-modul rezultati LLM batch generation runova. Data fajlovi (validated/+failed
 |---|---|---|---|---|---|
 | M1 (Osnove SELECT) | ✓ | 19/21 | 90.5% | $0.44 | no |
 | M2 (Agregacije) | ⊘ skip → manual | 0/14 (LLM aborted) | 0% | $0.03 | systematic |
-| M3 (JOIN-ovi) | — | — | — | — | — |
+| M3 (JOIN-ovi) | ✓ | 18/28 | 64.3% | $0.71 | no |
 | M4 (DML) | — | — | — | — | — |
 | M5 (Subqueries) | — | — | — | — | — |
 | M6 (Optimizacija) | — | — | — | — | — |
 | M0 (null_handling) | — | — | — | — | — |
-| **Total (LLM)** | — | 19/86 | — | $0.47 | — |
+| **Total (LLM)** | — | 37/86 | — | $1.18 | — |
 | **+ Manual (group_by 5 + agregacije 14)** | — | 0/19 | — | $0.00 | — |
-| **= 105 total** | — | 19/105 | — | $0.47 | — |
+| **= 105 total** | — | 37/105 | — | $1.18 | — |
 
 ---
 
@@ -80,3 +80,28 @@ Svi having_filter d=2 attempts (5 retries):
 - Plan §6 Korak 11 (5 group_by manual) → eksplandira na **19 manual tasks**
 - Total LLM target: 86 (umjesto 100), Manual: 19 (umjesto 5)
 - Cost saving od $0.20-0.40 koje bi M2 inače potrošio
+
+---
+
+## M3 — JOIN-ovi (2026-05-30, ~47 min)
+
+**Status:** ✓ ACCEPTABLE (pass rate 64.3% ≥ 50% threshold per plan §3.5)
+**Pass rate:** 18/28 validated (64.3%)
+**Cost:** $0.7089 (47% iskorišten od $1.50 soft cap)
+**Trajanje:** ~47 minuta (17:36 → 18:23) — najveći modul, hard tier dominant
+
+### Per-koncept breakdown
+
+| Concept | Validated/Planned | Cost | Note |
+|---|---|---|---|
+| inner_join | 4/5 (80%) | $0.136 | medium tier, ok |
+| left_join | 3/6 (50%) | $0.076 | hard tier, NULL handling edge cases |
+| right_join | 1/3 (33%) | $0.065 | hard tier, low pass |
+| full_outer_join | 3/3 (100%) | $0.096 | hard tier, perfect ✓ |
+| cross_join | 1/2 (50%) | $0.048 | hard tier |
+| self_join | 4/4 (100%) | $0.095 | hard tier, perfect ✓ |
+| multi_table_join | 2/5 (40%) | $0.192 | hardest, model struggles s 3+ join chain |
+
+### Decision
+
+**Continue to M4** — pass rate 64.3% well above 50% threshold. multi_table_join i right_join failures su očekivani (hard tier, kompleksne edge cases).

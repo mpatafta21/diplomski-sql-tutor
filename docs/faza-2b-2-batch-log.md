@@ -9,13 +9,13 @@ Per-modul rezultati LLM batch generation runova. Data fajlovi (validated/+failed
 | M1 (Osnove SELECT) | ✓ | 19/21 | 90.5% | $0.44 | no |
 | M2 (Agregacije) | ⊘ skip → manual | 0/14 (LLM aborted) | 0% | $0.03 | systematic |
 | M3 (JOIN-ovi) | ✓ | 18/28 | 64.3% | $0.71 | no |
-| M4 (DML) | — | — | — | — | — |
+| M4 (DML) | ✓ | 9/11 | 81.8% | $0.21 | no |
 | M5 (Subqueries) | — | — | — | — | — |
 | M6 (Optimizacija) | — | — | — | — | — |
 | M0 (null_handling) | — | — | — | — | — |
-| **Total (LLM)** | — | 37/86 | — | $1.18 | — |
+| **Total (LLM)** | — | 46/86 | — | $1.39 | — |
 | **+ Manual (group_by 5 + agregacije 14)** | — | 0/19 | — | $0.00 | — |
-| **= 105 total** | — | 37/105 | — | $1.18 | — |
+| **= 105 total** | — | 46/105 | — | $1.39 | — |
 
 ---
 
@@ -105,3 +105,26 @@ Svi having_filter d=2 attempts (5 retries):
 ### Decision
 
 **Continue to M4** — pass rate 64.3% well above 50% threshold. multi_table_join i right_join failures su očekivani (hard tier, kompleksne edge cases).
+
+---
+
+## M4 — DML (2026-05-30, ~7 min)
+
+**Status:** ✓ ACCEPTABLE (pass rate 81.8% ≥ 50% threshold)
+**Pass rate:** 9/11 validated (81.8%)
+**Cost:** $0.2051 (14% iskorišten od $1.50 soft cap)
+**Trajanje:** ~7 minuta — brzo zbog manjeg broja tasks i easy/medium tier
+
+### Per-koncept breakdown
+
+| Concept | Validated/Planned | Cost | Note |
+|---|---|---|---|
+| insert | 3/3 (100%) | $0.042 | easy tier, perfect ✓ |
+| update | 3/4 (75%) | $0.074 | medium tier |
+| delete | 3/4 (75%) | $0.088 | medium tier |
+
+SandboxRunner DML mode (sandbox_readwrite role + auto-rollback) propagira through batch flag — bez issue-ova.
+
+### Decision
+
+**Continue to M5** — DML pipeline radi solidno. Update/delete fails su isolated cases, ne pattern.

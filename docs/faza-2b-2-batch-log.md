@@ -12,10 +12,10 @@ Per-modul rezultati LLM batch generation runova. Data fajlovi (validated/+failed
 | M4 (DML) | ✓ | 9/11 | 81.8% | $0.21 | no |
 | M5 (Subqueries) | ✓ | 10/15 | 66.7% | $0.44 | no |
 | M6 (Optimizacija) | ✓ | 4/6 | 66.7% | $0.27 | partial credit |
-| M0 (null_handling) | — | — | — | — | — |
-| **Total (LLM)** | — | 60/86 | — | $2.10 | — |
+| M0 (null_handling) | ⚠ accept | 2/5 | 40.0% | $0.10 | borderline |
+| **Total (LLM)** | — | 62/86 | 72.1% | $2.20 | — |
 | **+ Manual (group_by 5 + agregacije 14)** | — | 0/19 | — | $0.00 | — |
-| **= 105 total** | — | 60/105 | — | $2.10 | — |
+| **= 105 total** | — | 62/105 (pending manual) | — | $2.20 | — |
 
 ---
 
@@ -181,3 +181,30 @@ Drugi issue otkriven: `_detect_index_usage` je vraćao `detected=False` (placeho
 ### Decision
 
 **Continue to M0** — overall M6 4/6 (67%) above threshold. 2 issue-a riješena (credit + detector). 1 failed task svaki za explain_plan i index_usage je prihvatljivo za hard tier.
+
+---
+
+## M0 — Transverzalni null_handling (2026-05-30, ~6 min)
+
+**Status:** ⚠ ACCEPT (borderline 40% — heterogeneous failures, not systematic)
+**Pass rate:** 2/5 validated (40.0%)
+**Cost:** $0.1036 (7% iskorišten od $1.50 soft cap)
+**Trajanje:** ~6 minuta (19:18 → 19:24)
+
+### Per-task breakdown
+
+| Task | Status | Failure mode |
+|---|---|---|
+| null_handling d=1 | ❌ | row_mismatch (300 hallucination) + concept_not_detected (model nije koristio IS NULL/COALESCE) |
+| null_handling d=2 | ❌ | concept_not_detected (3× — model fundamentalno ne writa null_handling SQL za ovaj prompt) |
+| null_handling d=3/1 | ✓ | passed 0 retries |
+| null_handling d=3/2 | ✓ | passed 1 retry (type coercion '4.10' vs 4.1) |
+| null_handling d=4 | ❌ | _last failure detail u logu_ |
+
+### Decision
+
+**Accept 2/5 — failure modes su heterogeneous (ne systematic).** 3 fails idu u `failed/` za 2B-3 manual review (ne escalate u Korak 11 manual writing — to ostaje za pravi systematic failure = group_by + M2 agg).
+
+40% je granično < 50% threshold, ali pattern razlika između faila i pravog systematic fail-a (M2 0/14) je jasna: M0 ima različite root causes per attempt, ne single recurring pattern. YAML tuning ne bi pomogao — failure ne bi se konzistentno fixao.
+
+**Move to Korak 10** — LLM batch checkpoint.

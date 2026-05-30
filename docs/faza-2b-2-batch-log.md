@@ -208,3 +208,33 @@ Drugi issue otkriven: `_detect_index_usage` je vraćao `detected=False` (placeho
 40% je granično < 50% threshold, ali pattern razlika između faila i pravog systematic fail-a (M2 0/14) je jasna: M0 ima različite root causes per attempt, ne single recurring pattern. YAML tuning ne bi pomogao — failure ne bi se konzistentno fixao.
 
 **Move to Korak 10** — LLM batch checkpoint.
+
+---
+
+## Korak 10 — LLM batch checkpoint (2026-05-30)
+
+### Aggregated final stats (`batch_report.json`)
+
+| Module | Validated | Failed | Cost | Pass rate |
+|---|---|---|---|---|
+| M1 | 19 | 2 | $0.444 | 90.5% |
+| M2 | 0 | 14 | $0.028 | 0% (aborted, → manual) |
+| M3 | 18 | 10 | $0.709 | 64.3% |
+| M4 | 9 | 2 | $0.205 | 81.8% |
+| M5 | 10 | 5 | $0.438 | 66.7% |
+| M6 | 4 | 2 | $0.164 | 66.7% |
+| M0 | 2 | 3 | $0.104 | 40.0% |
+| **TOTAL** | **62** | **38** | **$2.091** | **62.0%** |
+
+(M2 + group_by 5 idu u Korak 11 manual writing.)
+
+### Files on disk
+
+- `data/generated_tasks/validated/`: 62 files
+- `data/generated_tasks/failed/`: 18 files (20 task-records imali `meta=None` → no save, samo counter increment)
+- `data/generated_tasks/batch_report.json`: aggregated
+- `data/generated_tasks/batch_report_M[0-6]*.json`: per-module raw
+
+### Tag
+
+`faza-2b-2-llm-batch-complete` push-an

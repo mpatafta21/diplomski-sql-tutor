@@ -213,3 +213,65 @@ Final dataset target nakon 2B-3: **~70-90 approved tasks** za production import 
 ---
 
 *2B-2 complete. Move to 2B-3 — manual validation kroz Streamlit tool.*
+
+---
+
+## 11. Faza 2B-2.5 — Phantom Regeneration
+
+**Cilj:** Nadoknaditi phantom failures iz 2B-2 batch-a koji nisu save-ani (meta=None na svim retry-ima) — file-ovi koji "izostaju" iz dataset-a unatoč count-u u `batch_report.json`.
+
+**Discovery i scope adjustment:**
+- Raw `report_failed - saved_files = 20` — to je bilo originalno očekivanje
+- ALI 14 of 20 "phantoms" su M2 koncepti (agg_count, agg_min_max, agg_sum_avg, having_filter) koji su intencionalno rewritten ručno u 2B-2 Koraku 11
+- Matrix slots za njih su POPUNJENI manualnim taskovima, pa nisu pravi phantom-i
+- Pravi regen-needed = **6 phantoms** (cross-referenced s matrix po difficulty)
+
+**Phantom set (svi hard tier d4/d5):**
+- M3 / left_join / d4 (×2)
+- M3 / left_join / d5
+- M3 / right_join / d4
+- M5 / correlated_subquery / d5
+- M6 / explain_plan / d5
+
+### Regeneration outcome
+
+| Phantom | Attempts | Result |
+|---|---|---|
+| M3 / left_join / d4 (1st) | 3 retries | saved as failed (row_mismatch) |
+| M3 / left_join / d4 (2nd) | 3 retries | saved as failed (row_mismatch) |
+| M3 / left_join / d5 | 3 retries | saved as failed (row_mismatch) |
+| M3 / right_join / d4 | 3 retries | saved as failed (row_mismatch + Prazan tekst) |
+| M5 / correlated_subquery / d5 | 3 retries | meta=None (Prazan tekst all retries) — **stays phantom** |
+| M6 / explain_plan / d5 | 3 retries | meta=None (Prazan tekst all retries) — **stays phantom** |
+
+**Summary:** 4/6 recovered as failed JSON, 0/6 validated, 2/6 stay phantom.
+
+**Cost:** $0.118 (well under $0.50 target, $0.75 hard abort)
+**Trajanje:** ~17 min
+
+### Dataset za 2B-3 nakon 2B-2.5
+
+| Pre-2B-2.5 | Post-2B-2.5 |
+|---|---|
+| 81 validated | 81 validated (unchanged) |
+| 18 failed (saved) | 22 failed (saved, +4) |
+| 99 task files | **103 task files** |
+| 20 phantoms in report | 2 phantoms in report |
+
+**Smoke verification:** `loaders.load_all_tasks` returns 103 tasks (81v + 22f, 84 LLM + 19 manual). All loadable u Streamlit tool. 256 testova passed.
+
+### Hard-tier failure pattern (potvrđen)
+
+Sve 4 recovered failed JSONs su row_mismatch — model halucinira expected_result za high-difficulty queries (left_join d4/d5 sa NULL edge cases, right_join d4 s tricky join semantics, scalar values u correlated_subquery, EXPLAIN row counts u explain_plan).
+
+**Implikacija za 2B-3 reviewer:** ovi 4 recovered tasks imaju **solidan task description i expected_query** ali halucinirane `expected_result`. Reviewer može JSON-editirati expected_result kroz sandbox re-run u Streamlit tool-u (feature iz 2B-1C Korak 8). Recoverable via manual fix.
+
+2 stay-phantom (correlated_subquery d5, explain_plan d5) ne mogu se review-irati jer file ne postoji. **Defer:** 2B-3 može odlučiti je li dataset OK s 103 (zaboravi 2 phantoms) ili treba dodatni manual write.
+
+### Tagovi
+
+- `faza-2b-2-5-complete` — nakon Korak 4
+
+---
+
+*2B-2.5 complete. Move to 2B-3 — 103 task files (81 validated + 22 failed) ready for review.*

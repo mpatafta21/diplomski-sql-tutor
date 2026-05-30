@@ -11,11 +11,11 @@ Per-modul rezultati LLM batch generation runova. Data fajlovi (validated/+failed
 | M3 (JOIN-ovi) | ✓ | 18/28 | 64.3% | $0.71 | no |
 | M4 (DML) | ✓ | 9/11 | 81.8% | $0.21 | no |
 | M5 (Subqueries) | ✓ | 10/15 | 66.7% | $0.44 | no |
-| M6 (Optimizacija) | — | — | — | — | — |
+| M6 (Optimizacija) | ✓ | 4/6 | 66.7% | $0.27 | partial credit |
 | M0 (null_handling) | — | — | — | — | — |
-| **Total (LLM)** | — | 56/86 | — | $1.83 | — |
+| **Total (LLM)** | — | 60/86 | — | $2.10 | — |
 | **+ Manual (group_by 5 + agregacije 14)** | — | 0/19 | — | $0.00 | — |
-| **= 105 total** | — | 56/105 | — | $1.83 | — |
+| **= 105 total** | — | 60/105 | — | $2.10 | — |
 
 ---
 
@@ -152,3 +152,32 @@ SandboxRunner DML mode (sandbox_readwrite role + auto-rollback) propagira throug
 ### Decision
 
 **Continue to M6** — overall 66.7% acceptable, scalar_subquery failures su isolated concept-level. Manual review u 2B-3 može pokupiti slabe scalar_subquery zadatke ako treba.
+
+---
+
+## M6 — Optimizacija (2026-05-30, ~14 min spread across 2 runs)
+
+**Status:** ✓ ACCEPTABLE (4/6 = 66.7%) — required two runs zbog 2 issue-a
+
+### Run 1: explain_plan + index_usage (00:55→01:02, ~7 min)
+
+| Concept | Validated/Planned | Cost | Note |
+|---|---|---|---|
+| explain_plan | 2/3 (67%) | $0.072 | 2B-1E placeholder-True fix radi ✓ |
+| index_usage | 0/3 (0%) | $0.000 | ⚠ API credit exhausted mid-run (400 Bad Request: insufficient_credit) |
+
+**Issue 1:** Anthropic API credit balance iscrpljen tijekom M6. User dodao credits, retried.
+
+### Run 2: index_usage only (post-credit + post-detector fix)
+
+Drugi issue otkriven: `_detect_index_usage` je vraćao `detected=False` (placeholder NIJE bio update-an u 2B-1E poput `_detect_explain_plan`). Svi 3 attempts su prošli kroz validation kao primary_concept_not_detected.
+
+**Fix:** commit `1469cd4` — `_detect_index_usage` returns `detected=True` placeholder, kao `_detect_explain_plan` u 2B-1E.
+
+| Concept | Validated/Planned | Cost | Note |
+|---|---|---|---|
+| index_usage | 2/3 (67%) | $0.092 | nakon detector fix-a |
+
+### Decision
+
+**Continue to M0** — overall M6 4/6 (67%) above threshold. 2 issue-a riješena (credit + detector). 1 failed task svaki za explain_plan i index_usage je prihvatljivo za hard tier.

@@ -39,3 +39,4 @@ class GeneratedTaskMeta(BaseModel):
     generated_at: str
     model_used: str
     extended_thinking: bool
+    generation_method: str = "llm"  # "llm" (default) ili "manual" (group_by × 5 u 2B-2)

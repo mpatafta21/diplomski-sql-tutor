@@ -1,0 +1,62 @@
+# Distribucijska matrica za Fazu 2B-2 batch generation.
+# Source: docs/faza-2a-plan.md §2 (105 dediciranih zadataka kroz 7 modula).
+#
+# Per koncept:
+#   tier:         easy | medium | hard (informativno; max_retries se podiže za M2 agregacije)
+#   distribution: count za svaku difficulty 1..5
+#   dml:          true samo za M4 (insert/update/delete) — propagira u sandbox_readwrite role
+#
+# Sum:
+#   M1=21, M2=19 (skip group_by 5 → 14 LLM), M3=28, M4=11, M5=15, M6=6, M0=5  → 105 total
+#   LLM batch: 100, manual group_by: 5
+
+modules:
+  1:
+    name: "Osnove SELECT-a"
+    concepts:
+      select_basic:  {tier: easy, distribution: {1: 2, 2: 1, 3: 1, 4: 0, 5: 0}}
+      from_clause:   {tier: easy, distribution: {1: 2, 2: 1, 3: 0, 4: 0, 5: 0}}
+      where_filter:  {tier: easy, distribution: {1: 2, 2: 2, 3: 1, 4: 0, 5: 0}}
+      order_by:      {tier: easy, distribution: {1: 1, 2: 1, 3: 1, 4: 0, 5: 0}}
+      limit_offset:  {tier: easy, distribution: {1: 1, 2: 1, 3: 1, 4: 0, 5: 0}}
+      distinct:      {tier: easy, distribution: {1: 1, 2: 1, 3: 1, 4: 0, 5: 0}}
+  2:
+    name: "Agregacije"
+    concepts:
+      group_by:      {tier: medium, distribution: {1: 1, 2: 1, 3: 2, 4: 1, 5: 0}}  # SKIP — manualno (5)
+      having_filter: {tier: medium, distribution: {1: 0, 2: 1, 3: 2, 4: 1, 5: 0}}
+      agg_count:     {tier: medium, distribution: {1: 1, 2: 1, 3: 1, 4: 1, 5: 0}}
+      agg_sum_avg:   {tier: medium, distribution: {1: 0, 2: 1, 3: 1, 4: 1, 5: 0}}
+      agg_min_max:   {tier: medium, distribution: {1: 1, 2: 1, 3: 1, 4: 0, 5: 0}}
+  3:
+    name: "JOIN-ovi"
+    concepts:
+      inner_join:        {tier: medium, distribution: {1: 1, 2: 1, 3: 2, 4: 1, 5: 0}}
+      left_join:         {tier: hard,   distribution: {1: 0, 2: 1, 3: 2, 4: 2, 5: 1}}
+      right_join:        {tier: hard,   distribution: {1: 0, 2: 1, 3: 1, 4: 1, 5: 0}}
+      full_outer_join:   {tier: hard,   distribution: {1: 0, 2: 0, 3: 1, 4: 1, 5: 1}}
+      cross_join:        {tier: hard,   distribution: {1: 0, 2: 1, 3: 1, 4: 0, 5: 0}}
+      self_join:         {tier: hard,   distribution: {1: 0, 2: 0, 3: 1, 4: 2, 5: 1}}
+      multi_table_join:  {tier: hard,   distribution: {1: 0, 2: 0, 3: 2, 4: 2, 5: 1}}
+  4:
+    name: "DML"
+    concepts:
+      insert: {tier: easy,   dml: true, distribution: {1: 1, 2: 1, 3: 1, 4: 0, 5: 0}}
+      update: {tier: medium, dml: true, distribution: {1: 0, 2: 1, 3: 2, 4: 1, 5: 0}}
+      delete: {tier: medium, dml: true, distribution: {1: 0, 2: 1, 3: 2, 4: 1, 5: 0}}
+  5:
+    name: "Subqueries"
+    concepts:
+      scalar_subquery:     {tier: medium, distribution: {1: 0, 2: 1, 3: 2, 4: 1, 5: 0}}
+      in_subquery:         {tier: medium, distribution: {1: 0, 2: 1, 3: 1, 4: 2, 5: 0}}
+      exists_subquery:     {tier: medium, distribution: {1: 0, 2: 1, 3: 1, 4: 1, 5: 0}}
+      correlated_subquery: {tier: hard,   distribution: {1: 0, 2: 0, 3: 1, 4: 2, 5: 1}}
+  6:
+    name: "Optimizacija"
+    concepts:
+      explain_plan: {tier: hard, distribution: {1: 0, 2: 0, 3: 1, 4: 1, 5: 1}}
+      index_usage:  {tier: hard, distribution: {1: 0, 2: 0, 3: 1, 4: 1, 5: 1}}
+  0:
+    name: "Transverzalni"
+    concepts:
+      null_handling: {tier: medium, distribution: {1: 1, 2: 1, 3: 2, 4: 1, 5: 0}}

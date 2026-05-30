@@ -9,13 +9,16 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
+import yaml
 from dotenv import load_dotenv
 from pydantic import ValidationError
 
@@ -35,6 +38,8 @@ from scripts.lib.task_validator import TaskValidator
 
 
 MAX_RETRIES_DEFAULT = 3
+MAX_RETRIES_AGGREGATIONS = 5  # M2 (per 2B-1E memory note)
+MODULE_BUDGET_USD_DEFAULT = 1.50
 MODEL_DEFAULT = "claude-sonnet-4-6"
 
 
@@ -179,9 +184,251 @@ def save_meta(meta: GeneratedTaskMeta, output_dir: Path, status: str) -> Path:
     return path
 
 
+# ─── Batch mode (2B-2) ────────────────────────────────────────────────────────
+
+
+def load_distribution_matrix(matrix_path: Path) -> dict[str, Any]:
+    """Učitaj distribucijsku matricu iz YAML-a.
+
+    Returns dict with structure: {"modules": {0: {"name": str, "concepts": {code: {tier, distribution, dml?}}}}}
+    Throws yaml.YAMLError ili FileNotFoundError ako fajl ne postoji ili je malformed.
+    """
+    raw = yaml.safe_load(Path(matrix_path).read_text(encoding="utf-8"))
+    if not isinstance(raw, dict) or "modules" not in raw:
+        raise ValueError(f"Matrix YAML mora imati top-level 'modules' ključ: {matrix_path}")
+    return raw
+
+
+def _iter_matrix_plan(
+    matrix: dict[str, Any],
+    only_module: int | None,
+    skip_concepts: set[str],
+) -> list[tuple[int, str, dict[str, Any], int, int]]:
+    """Razviju matricu u plan: [(module_num, concept_code, concept_data, difficulty, count_idx), ...].
+
+    Filtrira po `only_module` (None = svi) i `skip_concepts` (set kodova za skip).
+    Concept-i s `dml: true` se propagiraju kroz concept_data.
+    """
+    plan: list[tuple[int, str, dict[str, Any], int, int]] = []
+    modules = matrix["modules"]
+    module_nums = [only_module] if only_module is not None else sorted(modules.keys())
+
+    for mod_num in module_nums:
+        if mod_num not in modules:
+            continue
+        mod_data = modules[mod_num]
+        for concept_code, concept_data in mod_data["concepts"].items():
+            if concept_code in skip_concepts:
+                continue
+            distribution = concept_data.get("distribution", {})
+            for difficulty in sorted(distribution.keys()):
+                count = distribution[difficulty]
+                for i in range(count):
+                    plan.append((mod_num, concept_code, concept_data, int(difficulty), i))
+    return plan
+
+
+def batch_generate_from_matrix(
+    builder: PromptBuilder,
+    api: AnthropicClient,
+    validator: TaskValidator,
+    matrix: dict[str, Any],
+    output_dir: Path,
+    only_module: int | None = None,
+    skip_concepts: set[str] | None = None,
+    module_budget_usd: float = MODULE_BUDGET_USD_DEFAULT,
+    logger: logging.Logger | None = None,
+    interactive: bool = True,
+) -> dict[str, Any]:
+    """Batch generation kroz distribucijsku matricu.
+
+    Per-modul soft cap (module_budget_usd) — abort modul ako trošak pređe,
+    pause na interactive=True (`input()` waits for user).
+
+    Returns batch_report dict s per-modul stats + global totals.
+    """
+    log = logger or logging.getLogger("batch_generate")
+    skip_concepts = skip_concepts or set()
+
+    report: dict[str, Any] = {
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "matrix_module_filter": only_module,
+        "skip_concepts": sorted(skip_concepts),
+        "module_budget_usd": module_budget_usd,
+        "modules": {},
+        "total_cost_usd": 0.0,
+        "total_validated": 0,
+        "total_failed": 0,
+    }
+
+    modules = matrix["modules"]
+    module_nums = [only_module] if only_module is not None else sorted(modules.keys())
+
+    for mod_num in module_nums:
+        if mod_num not in modules:
+            log.warning("Module %s nije u matrici, preskačem", mod_num)
+            continue
+        mod_data = modules[mod_num]
+        mod_report: dict[str, Any] = {
+            "name": mod_data["name"],
+            "concepts": {},
+            "module_cost_usd": 0.0,
+            "validated": 0,
+            "failed": 0,
+            "aborted": False,
+        }
+        # M2 (agregacije) dobiju veći retry budget (per 2B-1E memory note)
+        max_retries = MAX_RETRIES_AGGREGATIONS if mod_num == 2 else MAX_RETRIES_DEFAULT
+
+        log.info("=" * 60)
+        log.info("Module %d — %s (max_retries=%d)", mod_num, mod_data["name"], max_retries)
+        log.info("=" * 60)
+
+        for concept_code, concept_data in mod_data["concepts"].items():
+            if concept_code in skip_concepts:
+                log.info("⊘ Skipping %s (--skip-concepts)", concept_code)
+                continue
+            distribution = concept_data.get("distribution", {})
+            dml = bool(concept_data.get("dml", False))
+            concept_stats = {"validated": 0, "failed": 0, "cost_usd": 0.0}
+
+            for difficulty in sorted(distribution.keys()):
+                count = distribution[difficulty]
+                for i in range(count):
+                    if mod_report["module_cost_usd"] >= module_budget_usd:
+                        log.warning(
+                            "⚠ Module %d cost $%.4f ≥ cap $%.2f. Aborting module.",
+                            mod_num,
+                            mod_report["module_cost_usd"],
+                            module_budget_usd,
+                        )
+                        mod_report["aborted"] = True
+                        break
+
+                    log.info(
+                        "[M%d/%s/d%d/%d] generating...",
+                        mod_num,
+                        concept_code,
+                        difficulty,
+                        i + 1,
+                    )
+                    meta, _failures = generate_one(
+                        builder=builder,
+                        api=api,
+                        validator=validator,
+                        concept=concept_code,
+                        difficulty=int(difficulty),
+                        max_retries=max_retries,
+                        logger=log,
+                        dml=dml,
+                    )
+
+                    if meta is None:
+                        log.error(
+                            "[M%d/%s/d%d/%d] no meta after %d retries",
+                            mod_num,
+                            concept_code,
+                            difficulty,
+                            i + 1,
+                            max_retries,
+                        )
+                        concept_stats["failed"] += 1
+                        mod_report["failed"] += 1
+                        continue
+
+                    task_cost = estimate_cost_usd(
+                        meta.api_input_tokens,
+                        meta.api_output_tokens,
+                        meta.api_cached_tokens,
+                    )
+                    concept_stats["cost_usd"] += task_cost
+                    mod_report["module_cost_usd"] += task_cost
+
+                    status = "validated" if meta.validation_passed else "failed"
+                    save_meta(meta, output_dir, status)
+                    log.info(
+                        "[M%d/%s/d%d/%d] %s ($%.4f, %d retries)",
+                        mod_num,
+                        concept_code,
+                        difficulty,
+                        i + 1,
+                        status,
+                        task_cost,
+                        meta.retries,
+                    )
+
+                    if meta.validation_passed:
+                        concept_stats["validated"] += 1
+                        mod_report["validated"] += 1
+                    else:
+                        concept_stats["failed"] += 1
+                        mod_report["failed"] += 1
+                if mod_report["aborted"]:
+                    break
+            if mod_report["aborted"]:
+                break
+
+            mod_report["concepts"][concept_code] = concept_stats
+
+        report["modules"][mod_num] = mod_report
+        report["total_cost_usd"] += mod_report["module_cost_usd"]
+        report["total_validated"] += mod_report["validated"]
+        report["total_failed"] += mod_report["failed"]
+
+        # Per-module summary
+        attempted = mod_report["validated"] + mod_report["failed"]
+        pass_rate = mod_report["validated"] / attempted if attempted else 0.0
+        log.info(
+            "--- Module %d summary: %d/%d validated (%.1f%%), $%.4f ---",
+            mod_num,
+            mod_report["validated"],
+            attempted,
+            pass_rate * 100,
+            mod_report["module_cost_usd"],
+        )
+        if mod_report["aborted"] and interactive and only_module is None:
+            input(
+                f"⚠ Module {mod_num} aborted. Press Enter to continue to next module, "
+                "Ctrl+C to abort all..."
+            )
+
+    report["finished_at"] = datetime.now(timezone.utc).isoformat()
+    report_path = output_dir / "batch_report.json"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(
+        json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    log.info("=" * 60)
+    log.info(
+        "BATCH TOTAL: %d validated, %d failed, $%.4f",
+        report["total_validated"],
+        report["total_failed"],
+        report["total_cost_usd"],
+    )
+    log.info("Report saved to %s", report_path)
+    return report
+
+
+def _print_dry_run_plan(plan: list[tuple[int, str, dict[str, Any], int, int]]) -> None:
+    """Print plan na stdout za --dry-run --from-matrix sanity check."""
+    by_module: dict[int, dict[str, list[int]]] = {}
+    for mod_num, concept, _, diff, _i in plan:
+        by_module.setdefault(mod_num, {}).setdefault(concept, []).append(diff)
+    total = 0
+    for mod_num in sorted(by_module):
+        mod_total = sum(len(v) for v in by_module[mod_num].values())
+        total += mod_total
+        print(f"\n=== Module {mod_num} ({mod_total} tasks) ===")
+        for concept, diffs in by_module[mod_num].items():
+            diff_str = ", ".join(f"d{d}" for d in diffs)
+            print(f"  {concept}: {len(diffs)} ({diff_str})")
+    print(f"\nTOTAL planned: {total} tasks")
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Generator SQL zadataka (Faza 2A)")
-    parser.add_argument("--concept", required=True, help="Concept code (npr. inner_join)")
+    parser = argparse.ArgumentParser(description="Generator SQL zadataka (Faza 2A/2B-2)")
+    # Single-task mode (Faza 2A) — --concept required ako --from-matrix nije zadan
+    parser.add_argument("--concept", help="Concept code (npr. inner_join)")
     parser.add_argument("--difficulty", type=int, choices=[1, 2, 3, 4, 5], default=2)
     parser.add_argument("--count", type=int, default=1)
     parser.add_argument(
@@ -191,7 +438,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Skip DB write (Faza 2A default — ne piše u tasks tablicu)",
+        help="Skip API/DB; u --from-matrix mode ispiše plan i izlazi.",
     )
     parser.add_argument("--no-extended-thinking", action="store_true")
     parser.add_argument(
@@ -201,7 +448,37 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--model", default=MODEL_DEFAULT)
+
+    # Batch mode (Faza 2B-2)
+    parser.add_argument(
+        "--from-matrix",
+        type=Path,
+        help="Put do distribucijske matrice YAML. Triggera batch mode.",
+    )
+    parser.add_argument(
+        "--module",
+        type=int,
+        choices=[0, 1, 2, 3, 4, 5, 6],
+        help="Filtriraj na jedan modul (samo u --from-matrix mode).",
+    )
+    parser.add_argument(
+        "--skip-concepts",
+        type=str,
+        default="",
+        help="Comma-separated concept codes za skip (npr. 'group_by').",
+    )
+    parser.add_argument(
+        "--module-budget-usd",
+        type=float,
+        default=MODULE_BUDGET_USD_DEFAULT,
+        help=f"Per-modul soft cap u USD (default ${MODULE_BUDGET_USD_DEFAULT:.2f}).",
+    )
+
     args = parser.parse_args(argv)
+
+    # Argument cross-validation
+    if not args.from_matrix and not args.concept:
+        parser.error("Mora se zadati ili --concept (single-task) ili --from-matrix (batch).")
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
@@ -211,6 +488,38 @@ def main(argv: list[str] | None = None) -> int:
 
     backend_root = Path(__file__).resolve().parents[1]
     load_dotenv(backend_root / ".env")
+
+    # Batch mode: --from-matrix
+    if args.from_matrix:
+        matrix = load_distribution_matrix(args.from_matrix)
+        skip_set = {c.strip() for c in args.skip_concepts.split(",") if c.strip()}
+
+        if args.dry_run:
+            plan = _iter_matrix_plan(matrix, args.module, skip_set)
+            _print_dry_run_plan(plan)
+            return 0
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            log.error("ANTHROPIC_API_KEY nije postavljen u .env")
+            return 2
+
+        builder, api, validator = _build_pipeline(backend_root, api_key, args.model)
+        report = batch_generate_from_matrix(
+            builder=builder,
+            api=api,
+            validator=validator,
+            matrix=matrix,
+            output_dir=args.output_dir,
+            only_module=args.module,
+            skip_concepts=skip_set,
+            module_budget_usd=args.module_budget_usd,
+            logger=log,
+        )
+        # Exit 0 ako nema aborted modules, 1 ako jest
+        return 0 if not any(m.get("aborted") for m in report["modules"].values()) else 1
+
+    # Single-task mode (Faza 2A)
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         log.error("ANTHROPIC_API_KEY nije postavljen u .env")

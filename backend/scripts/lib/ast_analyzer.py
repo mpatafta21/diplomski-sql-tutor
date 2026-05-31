@@ -502,16 +502,22 @@ def _detect_correlated_subquery(query: str) -> ConceptDetectionResult:
 
 
 def _detect_index_usage(query: str) -> ConceptDetectionResult:
-    """PLACEHOLDER — pravi index_usage check zahtijeva EXPLAIN parsing.
+    """PLACEHOLDER — pravi index_usage check zahtijeva runtime EXPLAIN parsing.
 
-    Vraća detected=False uvijek, s razlogom u extra_info. Implementacija ide u
-    Modul 6 / Faza 6 jer zahtijeva runtime EXPLAIN ANALYZE protiv sandbox-a.
+    Pedagoški, index_usage zadatak demonstrira index-friendly (`WHERE customer_id = ?`)
+    ili index-hostile (`WHERE LOWER(country) = ?`) pattern u običnom SELECT-u.
+    Stvarno "koristi li ovaj query indeks" pitanje zahtijeva EXPLAIN ANALYZE protiv
+    sandbox-a (Faza 6, RecommenderAgent). Zato — slično kao `_detect_explain_plan`
+    nakon 2B-1E fix-a — vraćamo `detected=True` placeholder za sve query-jeve s
+    index_usage kao primary_concept-om; odgovornost prelazi na result_match
+    validaciju (data sanity) + manual review u 2B-3.
     """
     return ConceptDetectionResult(
-        detected=False,
+        detected=True,
+        location="SELECT (index-relevant pattern, deferred to runtime)",
         extra_info={
             "placeholder": True,
-            "reason": "index_usage requires EXPLAIN parsing — deferred to Phase 6",
+            "reason": "index_usage AST check je placeholder — runtime EXPLAIN ANALYZE deferred to Phase 6",
         },
     )
 

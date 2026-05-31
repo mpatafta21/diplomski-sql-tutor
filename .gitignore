@@ -33,6 +33,7 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 data/generated_tasks/
+data/generated_tasks.*backup*/
 
 # Docker
 docker-volumes/

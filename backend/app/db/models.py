@@ -172,6 +172,7 @@ class Attempt(Base):
     __tablename__ = "attempts"
     __table_args__ = (
         CheckConstraint("attempt_number >= 1", name="ck_attempts_num_min"),
+        UniqueConstraint("user_id", "task_id", "attempt_number", name="uq_attempts_user_task_number"),
         Index("idx_attempts_user_task", "user_id", "task_id"),
         Index("idx_attempts_user_created", "user_id", "created_at"),
         Index(

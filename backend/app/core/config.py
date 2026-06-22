@@ -28,6 +28,8 @@ SANDBOX_DATABASE_URL: str | None = os.getenv("SANDBOX_DATABASE_URL")
 # XMPP / Prosody
 XMPP_SERVER: str = os.getenv("XMPP_SERVER", "localhost")
 XMPP_PORT: int = int(os.getenv("XMPP_PORT", "5222"))
+# Dopušta PLAIN bez TLS-a — samo za dev; produkcija zahtijeva TLS+SCRAM
+XMPP_ALLOW_PLAINTEXT: bool = os.getenv("XMPP_ALLOW_PLAINTEXT", "false").lower() == "true"
 
 AGENT_EVALUATOR_JID: str = os.getenv("AGENT_EVALUATOR_JID", "evaluator@localhost")
 AGENT_EVALUATOR_PASSWORD: str = os.getenv("AGENT_EVALUATOR_PASSWORD", "eval_pw")

@@ -35,8 +35,9 @@ class TutorAgent(Agent):
         )
 
     async def _async_connect(self) -> None:
-        # DEV: slixmpp odbija PLAIN i SCRAM bez TLS-a — dopusti PLAIN eksplicitno.
-        self.client["feature_mechanisms"].unencrypted_plain = True
+        # DEV: dopušta PLAIN bez TLS-a; produkcija mora imati TLS+SCRAM i XMPP_ALLOW_PLAINTEXT=false.
+        if config.XMPP_ALLOW_PLAINTEXT:
+            self.client["feature_mechanisms"].unencrypted_plain = True
         await super()._async_connect()
 
     # ------------------------------------------------------------------

@@ -26,7 +26,7 @@ from spade.template import Template
 from sqlalchemy import delete, select
 
 from agents.base import TutorAgent
-from agents.knowledge import KnowledgeModelAgent
+from agents.knowledge_agent import KnowledgeModelAgent
 from agents.messages import Ontology, Performative, body_to_payload
 from app.core import config
 from app.db.models import Concept, SkillMastery, User

@@ -15,11 +15,18 @@ from sqlalchemy import Inspector, inspect
 from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal, engine
+from scripts.lib.sandbox_runner import SandboxRunner
 
 
 @pytest.fixture(scope="session")
 def db_inspector() -> Inspector:
     return inspect(engine)
+
+
+@pytest.fixture(scope="session")
+def sandbox_runner(sandbox_connection_string) -> SandboxRunner:
+    """SandboxRunner spojen na sandbox bazu — session-scoped (konekcija se otvara per-query)."""
+    return SandboxRunner(sandbox_connection_string)
 
 
 @pytest.fixture

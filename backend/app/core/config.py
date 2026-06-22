@@ -24,3 +24,24 @@ def _required(name: str) -> str:
 
 DATABASE_URL: str = _required("DATABASE_URL")
 SANDBOX_DATABASE_URL: str | None = os.getenv("SANDBOX_DATABASE_URL")
+
+# XMPP / Prosody
+XMPP_SERVER: str = os.getenv("XMPP_SERVER", "localhost")
+XMPP_PORT: int = int(os.getenv("XMPP_PORT", "5222"))
+# Dopušta PLAIN bez TLS-a — samo za dev; produkcija zahtijeva TLS+SCRAM
+XMPP_ALLOW_PLAINTEXT: bool = os.getenv("XMPP_ALLOW_PLAINTEXT", "false").lower() == "true"
+
+AGENT_EVALUATOR_JID: str = os.getenv("AGENT_EVALUATOR_JID", "evaluator@localhost")
+AGENT_EVALUATOR_PASSWORD: str = os.getenv("AGENT_EVALUATOR_PASSWORD", "eval_pw")
+
+AGENT_COORDINATOR_JID: str = os.getenv("AGENT_COORDINATOR_JID", "coordinator@localhost")
+AGENT_COORDINATOR_PASSWORD: str = os.getenv("AGENT_COORDINATOR_PASSWORD", "coord_pw")
+
+AGENT_KNOWLEDGE_JID: str = os.getenv("AGENT_KNOWLEDGE_JID", "knowledge@localhost")
+AGENT_KNOWLEDGE_PASSWORD: str = os.getenv("AGENT_KNOWLEDGE_PASSWORD", "know_pw")
+
+AGENT_RECOMMENDER_JID: str = os.getenv("AGENT_RECOMMENDER_JID", "recommender@localhost")
+AGENT_RECOMMENDER_PASSWORD: str = os.getenv("AGENT_RECOMMENDER_PASSWORD", "recom_pw")
+
+AGENT_GAMIFICATION_JID: str = os.getenv("AGENT_GAMIFICATION_JID", "gamification@localhost")
+AGENT_GAMIFICATION_PASSWORD: str = os.getenv("AGENT_GAMIFICATION_PASSWORD", "gamif_pw")

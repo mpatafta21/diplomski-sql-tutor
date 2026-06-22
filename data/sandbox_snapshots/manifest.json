@@ -1,0 +1,18 @@
+{
+  "dataset_version": "2b-3",
+  "dump_file": "ecommerce_v1__ds-2b3.sql",
+  "sha256": "5d2c894fe85aa27120470b6d75153db480d9c0a4208459c3574b5831ce7a9f6e",
+  "git_sha": "0a671aabc55ee88da26e360bd4236afd6b91db4d",
+  "schema": "ecommerce_v1",
+  "created_at": "2026-06-22T22:31:00+00:00",
+  "row_counts": {
+    "categories": 15,
+    "customers": 200,
+    "employees": 50,
+    "order_items": 3000,
+    "orders": 1000,
+    "products": 100,
+    "reviews": 500,
+    "suppliers": 30
+  }
+}

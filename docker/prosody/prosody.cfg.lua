@@ -22,6 +22,7 @@ allow_registration = true
 c2s_require_encryption = false  -- DEV ONLY - produkcija treba TLS
 s2s_require_encryption = false
 authentication = "internal_plain"
+allow_unencrypted_plain_auth = true  -- DEV ONLY: SPADE/slixmpp odbija SCRAM bez TLS-a
 
 log = {
     info = "*console";

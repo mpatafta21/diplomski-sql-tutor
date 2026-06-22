@@ -24,6 +24,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -42,7 +43,7 @@ class User(Base):
         CheckConstraint("current_streak >= 0", name="ck_users_cstreak_nonneg"),
         CheckConstraint("longest_streak >= 0", name="ck_users_lstreak_nonneg"),
         CheckConstraint("role IN ('student', 'admin')", name="ck_users_role"),
-        Index("idx_users_xp_desc", "xp"),  # leaderboard; DESC se može dodati u migraciji
+        Index("idx_users_xp_desc", text("xp DESC")),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -124,12 +125,14 @@ class Task(Base):
     __tablename__ = "tasks"
     __table_args__ = (
         CheckConstraint("difficulty BETWEEN 1 AND 5", name="ck_tasks_difficulty"),
+        UniqueConstraint("source_id", name="uq_tasks_source_id"),
         Index("idx_tasks_module", "module_id"),
         Index("idx_tasks_difficulty", "difficulty"),
         Index("idx_tasks_active", "is_active", postgresql_where="is_active = TRUE"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     module_id: Mapped[int] = mapped_column(ForeignKey("modules.id"), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)

@@ -12,13 +12,22 @@ import os
 
 import pytest
 from sqlalchemy import Inspector, inspect
+from sqlalchemy.orm import Session
 
-from app.db.session import engine
+from app.db.session import SessionLocal, engine
 
 
 @pytest.fixture(scope="session")
 def db_inspector() -> Inspector:
     return inspect(engine)
+
+
+@pytest.fixture
+def db_session() -> Session:
+    """Funkcijsko-scoped session s automatskim rollbackom — nema commit-a po testu."""
+    with SessionLocal() as session:
+        yield session
+        session.rollback()
 
 
 @pytest.fixture(scope="session")

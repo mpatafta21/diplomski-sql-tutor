@@ -7,7 +7,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 import psycopg
 
@@ -41,6 +41,45 @@ def _normalize_value(v):
     if isinstance(v, Decimal):
         return str(v)
     return v
+
+
+def _as_decimal(v) -> Decimal | None:
+    """Pretvara numeričku vrijednost u Decimal za usporedbu. bool se ne tretira kao broj."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float, Decimal)):
+        return Decimal(
+            str(v)
+        )  # kroz str() da sačuva precision (Decimal(726.7) je garbage)
+    if isinstance(v, str):
+        try:
+            return Decimal(v)
+        except (InvalidOperation, ValueError):
+            return None
+    return None
+
+
+def _values_equal(a, b) -> bool:
+    """Uspoređuje dvije vrijednosti uz numeričku toleranciju.
+
+    Numerička grana se aktivira ako je BAR JEDNA strana pravi numerički tip
+    (int/float/Decimal, ne bool). Dva čista stringa ('007' vs '7') ne ulaze
+    u numeričku granu pa ostaju različiti — štiti zip/id kodove s leading zeros.
+    """
+    a_num = isinstance(a, (int, float, Decimal)) and not isinstance(a, bool)
+    b_num = isinstance(b, (int, float, Decimal)) and not isinstance(b, bool)
+    if a_num or b_num:
+        da, db = _as_decimal(a), _as_decimal(b)
+        if da is not None and db is not None:
+            return da == db
+    return _normalize_value(a) == _normalize_value(b)
+
+
+def _rows_equal(row_a: dict, row_b: dict) -> bool:
+    """Uspoređuje dva reda koristeći _values_equal po svakoj koloni."""
+    if row_a.keys() != row_b.keys():
+        return False
+    return all(_values_equal(row_a[k], row_b[k]) for k in row_a)
 
 
 class SandboxRunner:
@@ -91,9 +130,7 @@ class SandboxRunner:
                             success=True,
                             rows=rows,
                             column_names=cols,
-                            execution_time_ms=int(
-                                (time.perf_counter() - start) * 1000
-                            ),
+                            execution_time_ms=int((time.perf_counter() - start) * 1000),
                         )
                 except psycopg.errors.QueryCanceled as e:
                     return ExecutionResult(
@@ -170,7 +207,7 @@ class SandboxRunner:
 
         if order_matters:
             for i, (a, e) in enumerate(zip(actual_rows, expected_rows)):
-                if a != e:
+                if not _rows_equal(a, e):
                     return ComparisonResult(
                         matches=False,
                         diff_summary=f"Row {i} differs",
@@ -179,18 +216,28 @@ class SandboxRunner:
                         first_mismatch={"actual": a, "expected": e},
                     )
         else:
-            actual_set = {tuple(sorted(r.items())) for r in actual_rows}
-            expected_set = {tuple(sorted(r.items())) for r in expected_rows}
-            if actual_set != expected_set:
-                missing = expected_set - actual_set
+            # O(n²) greedy matching — potrebno jer float vs str nije hashabilno konzistentno
+            remaining = list(expected_rows)
+            first_unmatched: dict | None = None
+            for a_row in actual_rows:
+                for i, e_row in enumerate(remaining):
+                    if _rows_equal(a_row, e_row):
+                        remaining.pop(i)
+                        break
+                else:
+                    first_unmatched = a_row
+                    break
+
+            if first_unmatched is not None or remaining:
+                n_missing = len(remaining)
                 return ComparisonResult(
                     matches=False,
                     diff_summary=(
-                        f"Set diff: {len(missing)} expected rows missing from actual"
+                        f"Set diff: {n_missing} expected rows missing from actual"
                     ),
                     actual_count=len(actual_rows),
                     expected_count=len(expected_rows),
-                    first_mismatch=dict(next(iter(missing))) if missing else None,
+                    first_mismatch=first_unmatched or remaining[0],
                 )
 
         return ComparisonResult(

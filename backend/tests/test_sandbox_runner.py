@@ -3,9 +3,8 @@
 import pytest
 
 from scripts.lib.sandbox_runner import (
-    SandboxRunner,
     ExecutionResult,
-    ComparisonResult,
+    SandboxRunner,
 )
 
 
@@ -37,7 +36,9 @@ def test_execute_insert_blocked_by_readonly_role(runner: SandboxRunner):
 
 
 def test_compare_identical_results_match(runner: SandboxRunner):
-    actual = runner.execute("SELECT id FROM categories WHERE id IN (1, 2, 3) ORDER BY id;")
+    actual = runner.execute(
+        "SELECT id FROM categories WHERE id IN (1, 2, 3) ORDER BY id;"
+    )
     expected = [{"id": 1}, {"id": 2}, {"id": 3}]
     result = runner.compare(actual, expected, query="SELECT ... ORDER BY id")
     assert result.matches
@@ -70,6 +71,7 @@ def test_compare_handles_null_values(runner: SandboxRunner):
 # ============================================================
 # DML path (dml=True) — Korak 1 iz 2B-1B
 # ============================================================
+
 
 def test_execute_dml_insert_rollbacks(runner: SandboxRunner):
     """INSERT s dml=True succeeds ali se rollback-a — red ne perzistira."""
@@ -139,3 +141,95 @@ def test_execute_dml_no_returning_returns_empty_rows(runner: SandboxRunner):
     )
     assert result.success
     assert result.rows == []
+
+
+# ============================================================
+# compare() — numerička usporedba (errata 2A, fix 3.0)
+#
+# Bug: execute() normalizira Decimal→str via _normalize_value, ali
+# expected_result iz JSONB dolazi kao Python float. Usporedba str '726.70'
+# != float 726.7 davala je lažni mismatch.
+# ============================================================
+
+
+def _fake_runner() -> SandboxRunner:
+    """Runner koji se koristi samo za compare() — ne otvara stvarnu konekciju."""
+    return SandboxRunner("postgresql://fake:fake@localhost/fake")
+
+
+def _actual(rows: list[dict]) -> ExecutionResult:
+    """Simulira rezultat execute() gdje su Decimal vrijednosti već str."""
+    return ExecutionResult(
+        success=True,
+        rows=rows,
+        column_names=list(rows[0].keys()) if rows else [],
+        execution_time_ms=1,
+    )
+
+
+# --- padajući testovi na trenutnom kodu (Korak A) ---
+
+
+def test_compare_float_vs_decimal_str_ordered() -> None:
+    """float iz JSONB (72755.21) mora matchati Decimal-as-str ('72755.21') — ORDER BY put."""
+    r = _fake_runner()
+    actual = _actual(
+        [
+            {"customer_id": 21, "ukupna_potrosnja": "72755.21"},
+            {"customer_id": 13, "ukupna_potrosnja": "67527.47"},
+        ]
+    )
+    expected = [
+        {"customer_id": 21, "ukupna_potrosnja": 72755.21},
+        {"customer_id": 13, "ukupna_potrosnja": 67527.47},
+    ]
+    res = r.compare(actual, expected, query="... ORDER BY ...")
+    assert res.matches, f"Trebalo matchati ali nije: {res.diff_summary}"
+
+
+def test_compare_trailing_zero_float_vs_str() -> None:
+    """'726.70' (str s trailing zero iz Decimal) mora matchati 726.7 (float iz JSONB)."""
+    r = _fake_runner()
+    actual = _actual([{"prosjecna_cijena": "726.70"}])
+    expected = [{"prosjecna_cijena": 726.7}]
+    res = r.compare(actual, expected)
+    assert res.matches, f"Trebalo matchati ali nije: {res.diff_summary}"
+
+
+# --- regresijski testovi (moraju prolaziti i prije i poslije fixa) ---
+
+
+def test_compare_int_vs_int_regression() -> None:
+    """int == int ostaje ispravan."""
+    r = _fake_runner()
+    actual = _actual([{"broj_proizvoda": 7}])
+    expected = [{"broj_proizvoda": 7}]
+    res = r.compare(actual, expected)
+    assert res.matches
+
+
+def test_compare_null_vs_null_regression() -> None:
+    """None == None ostaje ispravan."""
+    r = _fake_runner()
+    actual = _actual([{"employee_id": None}])
+    expected = [{"employee_id": None}]
+    res = r.compare(actual, expected)
+    assert res.matches
+
+
+def test_compare_null_vs_number_no_match() -> None:
+    """None vs broj → NE match."""
+    r = _fake_runner()
+    actual = _actual([{"val": None}])
+    expected = [{"val": 5}]
+    res = r.compare(actual, expected)
+    assert not res.matches
+
+
+def test_compare_leading_zero_string_guard() -> None:
+    """'007' i '7' su oba stringa — NE smiju matchati numerički (zip-code guard)."""
+    r = _fake_runner()
+    actual = _actual([{"zip_code": "007"}])
+    expected = [{"zip_code": "7"}]
+    res = r.compare(actual, expected)
+    assert not res.matches, "String '007' ne smije numerički matchati '7'"

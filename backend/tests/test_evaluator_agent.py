@@ -29,7 +29,7 @@ from spade.template import Template
 from sqlalchemy import delete, func, select
 
 from agents.base import TutorAgent
-from agents.evaluator import EvaluatorAgent
+from agents.evaluator_agent import EvaluatorAgent
 from agents.messages import Ontology, Performative, body_to_payload
 from app.core import config
 from app.db.models import Attempt, Module, Task, User

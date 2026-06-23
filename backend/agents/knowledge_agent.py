@@ -23,6 +23,7 @@ from spade.template import Template
 from agents.base import TutorAgent
 from agents.knowledge_logic import update_mastery_for_attempt
 from agents.messages import Ontology, Performative, body_to_payload
+from agents.misconception_logic import record_misconception_if_failed
 from app.db.session import SessionLocal
 from app.prolog.prolog_engine import PrologEngine
 
@@ -45,6 +46,8 @@ class KnowledgeModelAgent(TutorAgent):
                 user_id: int = payload["user_id"]
                 is_correct: bool = payload["is_correct"]
                 concepts: list[str] = [c["code"] for c in payload["concepts"]]
+                primary_concept: str | None = payload.get("primary_concept")
+                error_type: str | None = payload.get("error_type")
                 correlation_id: str | None = msg.get_metadata("correlation_id")
 
                 self.agent.log_message(
@@ -69,6 +72,17 @@ class KnowledgeModelAgent(TutorAgent):
                     user_id,
                     len(updated),
                 )
+
+                with SessionLocal() as session:
+                    mc_code = record_misconception_if_failed(
+                        session, user_id, primary_concept, error_type, is_correct
+                    )
+                if mc_code:
+                    _log.info(
+                        "KnowledgeModelAgent: misconception zabilježena user=%s code=%s",
+                        user_id,
+                        mc_code,
+                    )
 
                 # TODO: pošalji "model-updated" inform Coordinatoru kad 3E zatreba orkestraciju
                 # payload = {"user_id": user_id, "updated_concepts": updated}

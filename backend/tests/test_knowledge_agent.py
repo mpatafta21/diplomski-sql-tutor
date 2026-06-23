@@ -29,7 +29,7 @@ from agents.base import TutorAgent
 from agents.knowledge_agent import KnowledgeModelAgent
 from agents.messages import Ontology, Performative, body_to_payload
 from app.core import config
-from app.db.models import Concept, SkillMastery, User
+from app.db.models import Concept, Misconception, SkillMastery, User
 from app.db.session import SessionLocal
 
 
@@ -67,6 +67,7 @@ def km_test_env():
     yield {"user_id": user_id}
 
     with SessionLocal() as cleanup:
+        cleanup.execute(delete(Misconception).where(Misconception.user_id == user_id))
         cleanup.execute(delete(SkillMastery).where(SkillMastery.user_id == user_id))
         cleanup.execute(delete(User).where(User.id == user_id))
         cleanup.commit()
@@ -352,4 +353,86 @@ async def test_template_routing_wrong_ontology_ignored(km_test_env):
     row = _get_skill_mastery(user_id, agg_id)
     assert row is None, (
         "UpdateBehaviour ne smije obraditi poruku s krivom ontologijom — Template routing broken"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Pomoćnik za misconception testove
+# ---------------------------------------------------------------------------
+
+
+def _get_misconception_occurrences(user_id: int, code: str) -> int:
+    with SessionLocal() as sess:
+        row = sess.execute(
+            select(Misconception).where(
+                Misconception.user_id == user_id,
+                Misconception.code == code,
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            return 0
+        return row.occurrences
+
+
+# ---------------------------------------------------------------------------
+# T5 — E2E misconception: occurrences=2 na ponovljenoj grešci
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_e2e_misconception_increments_on_repeated_failure(km_test_env):
+    """2× attempt-result (is_correct=False, left_join, row_mismatch) → Misconception.occurrences=2.
+
+    Exit kriterij §3B: misconception se inkrementira na ponovljenoj grešci.
+    Sync točka: poll DB dok occurrences ne dosegne 2 (timeout 15s).
+    """
+    user_id = km_test_env["user_id"]
+    mc_code = "left_join__row_mismatch"
+
+    _incorrect_payload = {
+        "attempt_id": 99905,
+        "user_id": user_id,
+        "task_id": 5,
+        "is_correct": False,
+        "error_type": "row_mismatch",
+        "verdict": "incorrect",
+        "execution_time_ms": 40,
+        "concepts": [{"code": "left_join", "is_primary": True}],
+        "primary_concept": "left_join",
+    }
+
+    class _TwoShotSender(TutorAgent):
+        """Šalje isti incorrect inform dvaput s pauzom između."""
+
+        class _Send(OneShotBehaviour):
+            async def run(self) -> None:
+                payload = getattr(self.agent, "_payload", {})
+                for _ in range(2):
+                    msg = self.agent.build_message(
+                        to=config.AGENT_KNOWLEDGE_JID,
+                        performative=Performative.INFORM,
+                        ontology=Ontology.ATTEMPT_RESULT,
+                        payload=payload,
+                    )
+                    await self.send(msg)
+                    await asyncio.sleep(1.5)  # čekaj da agent obradi prvi prije slanja drugog
+                await self.agent.stop()
+
+        async def setup(self) -> None:
+            # _payload je INPUT
+            self.add_behaviour(self._Send())
+
+    sender = _TwoShotSender("coordinator")
+    sender._payload = _incorrect_payload
+    knowledge = KnowledgeModelAgent("knowledge")
+
+    async with _running(knowledge, sender):
+        await _poll(
+            lambda: _get_misconception_occurrences(user_id, mc_code) >= 2,
+            timeout=15.0,
+        )
+
+    occurrences = _get_misconception_occurrences(user_id, mc_code)
+    assert occurrences == 2, (
+        f"Ocekivano occurrences=2 za '{mc_code}', dobiveno {occurrences}"
     )

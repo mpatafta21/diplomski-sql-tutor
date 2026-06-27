@@ -17,10 +17,12 @@ setup() se poziva unutar start() i override-a vrijednosti. Samo OUTPUT atribute.
 from __future__ import annotations
 
 import asyncio
+import uuid
 from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock
 
 import pytest
-from spade.behaviour import OneShotBehaviour
+from spade.behaviour import CyclicBehaviour, OneShotBehaviour
 from spade.message import Message
 from spade.template import Template
 from sqlalchemy import delete, select
@@ -436,3 +438,178 @@ async def test_e2e_misconception_increments_on_repeated_failure(km_test_env):
     assert occurrences == 2, (
         f"Ocekivano occurrences=2 za '{mc_code}', dobiveno {occurrences}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Fan-in signal (3E.1) — model-updated prema Coordinatoru
+# ---------------------------------------------------------------------------
+
+
+class _CoordinatorProbe(TutorAgent):
+    """Simulira Coordinatora: pošalje attempt-result KM-u i hvata model-updated.
+
+    Prijavljuje se kao 'coordinator' (isti JID na koji KM šalje fan-in signal),
+    pa istovremeno šalje ulazni inform i sluša povratni 'model-updated'.
+    Primljeni signali se spremaju u self._received (OUTPUT atribut).
+    """
+
+    class _Send(OneShotBehaviour):
+        async def run(self) -> None:
+            payload = getattr(self.agent, "_payload", {})
+            correlation_id = getattr(self.agent, "_correlation_id", None)
+            msg = self.agent.build_message(
+                to=config.AGENT_KNOWLEDGE_JID,
+                performative=Performative.INFORM,
+                ontology=Ontology.ATTEMPT_RESULT,
+                payload=payload,
+                correlation_id=correlation_id,
+            )
+            await self.send(msg)
+            # NE zaustavlja agenta — mora ostati živ da uhvati model-updated.
+
+    class _Listen(CyclicBehaviour):
+        async def run(self) -> None:
+            msg = await self.receive(timeout=10)
+            if msg is None:
+                return
+            self.agent._received.append(
+                {
+                    "to": str(msg.to),
+                    "sender": str(msg.sender),
+                    "performative": msg.get_metadata("performative"),
+                    "ontology": msg.get_metadata("ontology"),
+                    "correlation_id": msg.get_metadata("correlation_id"),
+                    "payload": body_to_payload(msg.body),
+                }
+            )
+
+    async def setup(self) -> None:
+        # _payload / _correlation_id su INPUT — ne inicijalizirati ovdje.
+        self._received: list[dict] = []  # OUTPUT
+        self.add_behaviour(self._Send())
+        listen_tmpl = Template()
+        listen_tmpl.set_metadata("ontology", Ontology.MODEL_UPDATED)
+        self.add_behaviour(self._Listen(), listen_tmpl)
+
+
+# ---------------------------------------------------------------------------
+# T6 — model-updated se šalje na uspješan attempt (updated NEprazan)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_model_updated_sent_on_success_with_correlation(km_test_env):
+    """E2E: uspješan attempt → KM šalje model-updated Coordinatoru.
+
+    Asertira to/performative/ontology/payload + da je correlation_id propagiran
+    s ulazne poruke na izlazni signal.
+    """
+    user_id = km_test_env["user_id"]
+    correlation_id = str(uuid.uuid4())
+
+    probe = _CoordinatorProbe("coordinator")
+    probe._payload = {
+        "attempt_id": 99906,
+        "user_id": user_id,
+        "task_id": 6,
+        "is_correct": True,
+        "error_type": None,
+        "verdict": "correct",
+        "execution_time_ms": 33,
+        "concepts": [{"code": "agg_count", "is_primary": True}],
+        "primary_concept": "agg_count",
+    }
+    probe._correlation_id = correlation_id
+    knowledge = KnowledgeModelAgent("knowledge")
+
+    async with _running(knowledge, probe):
+        await _poll(lambda: len(probe._received) >= 1)
+
+    assert len(probe._received) >= 1, "Coordinator nije primio model-updated signal"
+    signal = probe._received[0]
+    assert signal["ontology"] == Ontology.MODEL_UPDATED
+    assert signal["performative"] == Performative.INFORM
+    assert "coordinator" in signal["to"], (
+        f"model-updated mora ići Coordinatoru, dobiveno to={signal['to']!r}"
+    )
+    assert signal["correlation_id"] == correlation_id, (
+        "correlation_id mora biti propagiran s ulazne poruke na model-updated"
+    )
+    assert signal["payload"]["user_id"] == user_id
+    assert signal["payload"]["attempt_id"] == 99906
+    assert "agg_count" in signal["payload"]["updated_concepts"], (
+        "updated_concepts mora sadržavati stvarno diran koncept"
+    )
+
+
+# ---------------------------------------------------------------------------
+# T7 — 🔴 GUARD: model-updated se šalje i kad nijedan koncept nije diran
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_model_updated_sent_on_mechanical_error_empty_updated(km_test_env):
+    """E2E GUARD: mehanička greška bez konceptualnog updatea → updated_concepts == [],
+    ali model-updated SVEJEDNO stiže.
+
+    Bez ovog signala Coordinator FSM visi (čeka signal koji nikad ne stigne) →
+    HTTP timeout. Simuliramo "nijedan koncept diran" praznom concepts listom
+    (KM update vrati {} → updated_concepts == []).
+    """
+    user_id = km_test_env["user_id"]
+    correlation_id = str(uuid.uuid4())
+
+    probe = _CoordinatorProbe("coordinator")
+    probe._payload = {
+        "attempt_id": 99907,
+        "user_id": user_id,
+        "task_id": 7,
+        "is_correct": False,
+        "error_type": "syntax_error",  # mehanička greška
+        "verdict": "incorrect",
+        "execution_time_ms": 5,
+        "concepts": [],  # nijedan koncept → updated == {}
+        "primary_concept": None,
+    }
+    probe._correlation_id = correlation_id
+    knowledge = KnowledgeModelAgent("knowledge")
+
+    async with _running(knowledge, probe):
+        await _poll(lambda: len(probe._received) >= 1)
+
+    assert len(probe._received) >= 1, (
+        "model-updated MORA stići i na mehaničkoj grešci (updated==[]) — "
+        "inače Coordinator FSM visi"
+    )
+    signal = probe._received[0]
+    assert signal["ontology"] == Ontology.MODEL_UPDATED
+    assert signal["correlation_id"] == correlation_id
+    assert signal["payload"]["attempt_id"] == 99907
+    assert signal["payload"]["updated_concepts"] == [], (
+        "updated_concepts mora biti prazan kad nijedan koncept nije diran"
+    )
+
+
+# ---------------------------------------------------------------------------
+# T8 — best-effort: pad self.send-a NE ruši behaviour
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_model_updated_send_is_best_effort_on_send_failure():
+    """Unit: ako self.send digne iznimku (Coordinator/XMPP nedostupan), _send_model_updated
+    je proguta — UpdateBehaviour ne pada (signal je best-effort kao log_message)."""
+    knowledge = KnowledgeModelAgent("knowledge")
+    behaviour = KnowledgeModelAgent.UpdateBehaviour()
+    behaviour.set_agent(knowledge)
+    behaviour.send = AsyncMock(side_effect=RuntimeError("XMPP down"))
+
+    # Ne smije podići iznimku unatoč padu send-a.
+    await behaviour._send_model_updated(
+        user_id=99999,
+        attempt_id=99999,
+        updated_concepts=[],
+        correlation_id=None,
+    )
+
+    behaviour.send.assert_awaited_once()

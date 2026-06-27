@@ -24,6 +24,7 @@ from agents.base import TutorAgent
 from agents.knowledge_logic import update_mastery_for_attempt
 from agents.messages import Ontology, Performative, body_to_payload
 from agents.misconception_logic import record_misconception_if_failed
+from app.core import config
 from app.db.session import SessionLocal
 from app.prolog.prolog_engine import PrologEngine
 
@@ -48,6 +49,7 @@ class KnowledgeModelAgent(TutorAgent):
                 concepts: list[str] = [c["code"] for c in payload["concepts"]]
                 primary_concept: str | None = payload.get("primary_concept")
                 error_type: str | None = payload.get("error_type")
+                attempt_id: int | None = payload.get("attempt_id")
                 correlation_id: str | None = msg.get_metadata("correlation_id")
 
                 self.agent.log_message(
@@ -84,12 +86,65 @@ class KnowledgeModelAgent(TutorAgent):
                         mc_code,
                     )
 
-                # TODO: pošalji "model-updated" inform Coordinatoru kad 3E zatreba orkestraciju
-                # payload = {"user_id": user_id, "updated_concepts": updated}
+                # Fan-in signal Coordinatoru (3E): "KM gotov s ovim attemptom".
+                # Šalje se BEZUVJETNO — i kad nijedan koncept nije diran (updated == [])
+                # — jer Coordinator FSM čeka ovaj signal prije RECOMMEND koraka.
+                await self._send_model_updated(
+                    user_id=user_id,
+                    attempt_id=attempt_id,
+                    updated_concepts=list(updated),
+                    correlation_id=correlation_id,
+                )
 
             except Exception:
                 _log.exception(
                     "UpdateBehaviour: neuhvaćena greška — CyclicBehaviour se nastavlja"
+                )
+
+        async def _send_model_updated(
+            self,
+            user_id: int,
+            attempt_id: int | None,
+            updated_concepts: list[str],
+            correlation_id: str | None,
+        ) -> None:
+            """Pošalji 'model-updated' inform Coordinatoru (fan-in signal, best-effort).
+
+            Ovo je "ja sam gotov" signal, ne "nešto se promijenilo" — šalje se na
+            SVAKOM obrađenom attempt-result informu, neovisno o tome je li ijedan
+            koncept stvarno updatean (`updated_concepts` može biti []). Bez njega bi
+            Coordinator (3E.2) krenuo u RECOMMEND prije nego KM commita skill_mastery
+            (utrka stale masteryja).
+
+            Best-effort kao log_message: ako Coordinator nije gore (npr. 3E.2 još
+            nije napisan), send se proguta i ne ruši UpdateBehaviour.
+            """
+            payload = {
+                "user_id": user_id,
+                "attempt_id": attempt_id,
+                "updated_concepts": updated_concepts,
+            }
+            try:
+                signal = self.agent.build_message(
+                    to=config.AGENT_COORDINATOR_JID,
+                    performative=Performative.INFORM,
+                    ontology=Ontology.MODEL_UPDATED,
+                    payload=payload,
+                    correlation_id=correlation_id,
+                )
+                await self.send(signal)
+                self.agent.log_message(
+                    sender=str(self.agent.jid),
+                    receiver=config.AGENT_COORDINATOR_JID,
+                    performative=Performative.INFORM,
+                    content=payload,
+                    correlation_id=correlation_id,
+                )
+            except Exception:
+                _log.warning(
+                    "KnowledgeModelAgent: slanje model-updated signala nije uspjelo "
+                    "(Coordinator nedostupan?) — best-effort, nastavljam",
+                    exc_info=True,
                 )
 
     async def setup(self) -> None:

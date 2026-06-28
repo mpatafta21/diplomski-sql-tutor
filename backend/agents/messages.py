@@ -28,6 +28,7 @@ class Ontology:
     RECOMMEND_NEXT = "recommend-next"
     UPDATE_MASTERY = "update-mastery"
     GAMIFICATION_EVENT = "gamification-event"
+    MODEL_UPDATED = "model-updated"
 
 
 # ---------------------------------------------------------------------------

@@ -45,3 +45,11 @@ AGENT_RECOMMENDER_PASSWORD: str = os.getenv("AGENT_RECOMMENDER_PASSWORD", "recom
 
 AGENT_GAMIFICATION_JID: str = os.getenv("AGENT_GAMIFICATION_JID", "gamification@localhost")
 AGENT_GAMIFICATION_PASSWORD: str = os.getenv("AGENT_GAMIFICATION_PASSWORD", "gamif_pw")
+
+# Gateway (3E.3) — XMPP arm HTTP gatewaya; most između AgentBridge i FIPA svijeta.
+AGENT_GATEWAY_JID: str = os.getenv("AGENT_GATEWAY_JID", "gateway@localhost")
+AGENT_GATEWAY_PASSWORD: str = os.getenv("AGENT_GATEWAY_PASSWORD", "gateway_pw")
+
+# HTTP gateway timeout (s) — MORA biti > Coordinator UPDATE+RECOMMEND timeouta, da
+# gateway ne istekne PRIJE Coordinatorovog definiranog timeout-odgovora.
+GATEWAY_TIMEOUT: float = float(os.getenv("GATEWAY_TIMEOUT", "15"))

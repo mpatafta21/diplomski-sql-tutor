@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.orm import Session
 
 from agents.db_helpers import load_concept_code_map
-from app.db.models import SkillMastery
+from app.db.models import SkillMastery, SkillMasteryHistory
 from bkt.model import BKT
 from bkt.parameters import create_bkt_for_concept
 
@@ -40,6 +40,7 @@ async def update_mastery_for_attempt(
     user_id: int,
     concepts: list[str],
     is_correct: bool,
+    attempt_id: int | None = None,
 ) -> dict[str, float]:
     """BKT posterior update za sve koncepte attempta.
 
@@ -49,10 +50,16 @@ async def update_mastery_for_attempt(
         user_id: FK na users.id (mora već postojati).
         concepts: lista concept code-ova iz attempt payloada (D2-čisti).
         is_correct: je li attempt bio točan.
+        attempt_id: FK na attempts.id koji je izazvao update — snapshotira se u
+            skill_mastery_history. None ako nije poznat (lazy paths / testovi).
 
     Returns:
         dict[concept_code, novi_p_l] za sve obrađene koncepte.
         Preskočeni koncepti (nema DB zapisa ili nema Prolog tier) NISU u dictu.
+
+    Side-effect: za SVAKI upsertan koncept dodaje se skill_mastery_history snapshot
+    na ISTU sesiju → ulazi u isti commit (atomarno s mastery upsertom). Preskočeni
+    koncepti (continue) NEMAJU history red.
     """
     code_map = load_concept_code_map(session)
     result: dict[str, float] = {}
@@ -110,6 +117,16 @@ async def update_mastery_for_attempt(
         row.last_updated = datetime.now(timezone.utc)
 
         result[code] = new_p_l
+
+        # Atoman snapshot: ulazi u isti session.commit() kao mastery upsert.
+        session.add(
+            SkillMasteryHistory(
+                user_id=user_id,
+                concept_id=concept_id,
+                p_l=new_p_l,
+                attempt_id=attempt_id,
+            )
+        )
 
     session.commit()
     return result

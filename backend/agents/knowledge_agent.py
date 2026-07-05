@@ -67,6 +67,7 @@ class KnowledgeModelAgent(TutorAgent):
                         user_id,
                         concepts,
                         is_correct,
+                        attempt_id=attempt_id,
                     )
 
                 _log.info(

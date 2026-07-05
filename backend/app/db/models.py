@@ -225,6 +225,29 @@ class SkillMastery(Base):
 
 
 # ============================================================
+# SKILL_MASTERY_HISTORY (BKT snapshot po updateu)
+# ============================================================
+class SkillMasteryHistory(Base):
+    __tablename__ = "skill_mastery_history"
+    __table_args__ = (
+        Index(
+            "idx_smh_user_concept_created", "user_id", "concept_id", "created_at"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    concept_id: Mapped[int] = mapped_column(ForeignKey("concepts.id"), nullable=False)
+    p_l: Mapped[float] = mapped_column(Float, nullable=False)
+    attempt_id: Mapped[int | None] = mapped_column(ForeignKey("attempts.id"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+# ============================================================
 # MISCONCEPTIONS
 # ============================================================
 class Misconception(Base):
@@ -286,6 +309,12 @@ class XpLog(Base):
     __tablename__ = "xp_log"
     __table_args__ = (
         Index("idx_xp_log_user_created", "user_id", "created_at"),
+        Index(
+            "uq_xp_log_attempt_id",
+            "attempt_id",
+            unique=True,
+            postgresql_where="attempt_id IS NOT NULL",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

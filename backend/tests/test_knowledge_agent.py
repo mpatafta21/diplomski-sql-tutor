@@ -31,7 +31,15 @@ from agents.base import TutorAgent
 from agents.knowledge_agent import KnowledgeModelAgent
 from agents.messages import Ontology, Performative, body_to_payload
 from app.core import config
-from app.db.models import Concept, Misconception, SkillMastery, User
+from app.db.models import (
+    Attempt,
+    Concept,
+    Misconception,
+    SkillMastery,
+    SkillMasteryHistory,
+    Task,
+    User,
+)
 from app.db.session import SessionLocal
 
 
@@ -41,6 +49,9 @@ from app.db.session import SessionLocal
 
 _KM_E2E_USERNAME = "km_e2e_user_3b3"
 _KM_E2E_EMAIL = "km_e2e_3b3@test.example"
+# Attempt_id-evi koje payloadi ovih testova koriste — od 4.0a-3.1 KM hook piše
+# skill_mastery_history s FK na attempts.id, pa ovi redovi moraju STVARNO postojati.
+_KM_E2E_ATTEMPT_IDS = [99901, 99902, 99903, 99904, 99905, 99906, 99907]
 
 
 # ---------------------------------------------------------------------------
@@ -66,11 +77,33 @@ def km_test_env():
         sess.commit()
         user_id = user.id
 
+        # Realni attempt redovi s eksplicitnim id-evima koje payloadi koriste —
+        # potrebno jer skill_mastery_history sada ima FK na attempts.id.
+        task_id = sess.scalar(select(Task.id).limit(1))
+        assert task_id is not None, "tasks moraju biti seedani"
+        for n, aid in enumerate(_KM_E2E_ATTEMPT_IDS, start=1):
+            sess.add(
+                Attempt(
+                    id=aid,
+                    user_id=user_id,
+                    task_id=task_id,
+                    submitted_query="SELECT 1;",
+                    is_correct=True,
+                    attempt_number=n,
+                )
+            )
+        sess.commit()
+
     yield {"user_id": user_id}
 
     with SessionLocal() as cleanup:
+        # FK redoslijed: smh (→attempts) → misconception/skill_mastery → attempts → user
+        cleanup.execute(
+            delete(SkillMasteryHistory).where(SkillMasteryHistory.user_id == user_id)
+        )
         cleanup.execute(delete(Misconception).where(Misconception.user_id == user_id))
         cleanup.execute(delete(SkillMastery).where(SkillMastery.user_id == user_id))
+        cleanup.execute(delete(Attempt).where(Attempt.user_id == user_id))
         cleanup.execute(delete(User).where(User.id == user_id))
         cleanup.commit()
 

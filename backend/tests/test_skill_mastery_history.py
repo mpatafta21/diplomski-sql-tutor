@@ -30,6 +30,7 @@ from app.db.models import (
 from app.db.session import SessionLocal
 from app.main import create_app
 from app.prolog.prolog_engine import PrologEngine
+from tests.conftest import auth_header
 
 # Reuse committed-attempt helper (za validan attempt_id FK)
 from tests.test_coordinator import _make_attempt  # noqa: E402
@@ -234,7 +235,7 @@ async def test_endpoint_chronological_and_fields(smh_env):
 
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/mastery-history", params={"user_id": uid})
+        resp = await client.get("/mastery-history", headers=auth_header(uid))
 
     assert resp.status_code == 200, resp.text
     points = resp.json()
@@ -256,7 +257,9 @@ async def test_endpoint_concept_filter(smh_env):
     app = create_app()
     async with _client(app) as client:
         resp = await client.get(
-            "/mastery-history", params={"user_id": uid, "concept": "group_by"}
+            "/mastery-history",
+            params={"concept": "group_by"},
+            headers=auth_header(uid),
         )
 
     assert resp.status_code == 200, resp.text
@@ -267,12 +270,14 @@ async def test_endpoint_concept_filter(smh_env):
 
 
 @pytest.mark.asyncio
-async def test_endpoint_unknown_user_404():
+async def test_endpoint_unknown_user_401():
+    """Semantika 4.0b.2: user iz tokena. Token za nepostojećeg usera → 401
+    invalid_token, NE 404 (helper više ne provjerava postojanje)."""
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/mastery-history", params={"user_id": 999999999})
-    assert resp.status_code == 404
-    assert resp.json()["detail"] == "user_not_found"
+        resp = await client.get("/mastery-history", headers=auth_header(999999999))
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "invalid_token"
 
 
 @pytest.mark.asyncio
@@ -280,7 +285,7 @@ async def test_endpoint_empty_history_is_200(smh_env):
     uid = smh_env
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/mastery-history", params={"user_id": uid})
+        resp = await client.get("/mastery-history", headers=auth_header(uid))
     assert resp.status_code == 200
     assert resp.json() == []
 

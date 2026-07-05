@@ -35,6 +35,7 @@ from app.db.models import (
 )
 from app.db.session import SessionLocal
 from app.main import create_app, start_gateway_stack, stop_gateway_stack
+from tests.conftest import auth_header
 
 # Reuse kontroliranih mock agenata + helpera iz 3E.2b
 from tests.test_coordinator import (  # noqa: E402
@@ -131,7 +132,8 @@ async def test_same_loop_bridge_resolves(api_user):
     async with _stack(app, [ev, km, rec, coord]), _client(app) as client:
         resp = await client.post(
             "/attempt",
-            json={"user_id": user_id, "task_id": task_id, "submitted_query": "SELECT 1;"},
+            json={"task_id": task_id, "submitted_query": "SELECT 1;"},
+            headers=auth_header(user_id),
         )
 
     assert resp.status_code == 200, (
@@ -156,7 +158,8 @@ async def test_post_attempt_happy(api_user):
     async with _stack(app, [ev, km, rec, coord]), _client(app) as client:
         resp = await client.post(
             "/attempt",
-            json={"user_id": user_id, "task_id": task_id, "submitted_query": "SELECT 1;"},
+            json={"task_id": task_id, "submitted_query": "SELECT 1;"},
+            headers=auth_header(user_id),
         )
 
     assert resp.status_code == 200, resp.text
@@ -186,7 +189,8 @@ async def test_post_attempt_mechanical_error(api_user):
     async with _stack(app, [ev, km, rec, coord]), _client(app) as client:
         resp = await client.post(
             "/attempt",
-            json={"user_id": user_id, "task_id": task_id, "submitted_query": "SELEC *;"},
+            json={"task_id": task_id, "submitted_query": "SELEC *;"},
+            headers=auth_header(user_id),
         )
 
     assert resp.status_code == 200, resp.text
@@ -214,7 +218,8 @@ async def test_post_attempt_timeout_returns_504(api_user):
     async with _stack(app, [ev, km, rec, coord]), _client(app) as client:
         resp = await client.post(
             "/attempt",
-            json={"user_id": user_id, "task_id": task_id, "submitted_query": "SELECT 1;"},
+            json={"task_id": task_id, "submitted_query": "SELECT 1;"},
+            headers=auth_header(user_id),
         )
 
     assert resp.status_code == 504, resp.text
@@ -234,7 +239,7 @@ async def test_get_next_task(api_user):
     rec._reply_payload = {"task_id": task_id, "concept": "group_by", "reason": "zpd"}
 
     async with _stack(app, [rec]), _client(app) as client:
-        resp = await client.get("/next-task", params={"user_id": user_id})
+        resp = await client.get("/next-task", headers=auth_header(user_id))
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -264,7 +269,7 @@ async def test_get_profile_pure_db_read(api_user):
 
     app = create_app()  # NE pokrećemo stack — dokaz neovisnosti o agentima
     async with _client(app) as client:
-        resp = await client.get("/profile", params={"user_id": user_id})
+        resp = await client.get("/profile", headers=auth_header(user_id))
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -277,11 +282,15 @@ async def test_get_profile_pure_db_read(api_user):
 
 
 @pytest.mark.asyncio
-async def test_get_profile_unknown_user_404():
+async def test_get_profile_unknown_user_401():
+    """Semantika 4.0b.2: user_id dolazi iz TOKENA. Token za nepostojećeg usera →
+    get_current_user ga odbija (user nije u DB) → 401 invalid_token, NE 404.
+    "Unknown user" je sad AUTH greška, ne resource-not-found."""
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/profile", params={"user_id": 999999999})
-    assert resp.status_code == 404
+        resp = await client.get("/profile", headers=auth_header(999999999))
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "invalid_token"
 
 
 # ---------------------------------------------------------------------------
@@ -290,8 +299,14 @@ async def test_get_profile_unknown_user_404():
 
 
 @pytest.mark.asyncio
-async def test_post_attempt_malformed_body_422():
+async def test_post_attempt_malformed_body_422(api_user):
+    """S VALJANIM tokenom (auth prolazi) malformed body i dalje → 422 (body se
+    validira nakon auth-a)."""
     app = create_app()
     async with _client(app) as client:
-        resp = await client.post("/attempt", json={"user_id": 1})  # fale task_id, submitted_query
+        resp = await client.post(
+            "/attempt",
+            json={},  # fale task_id, submitted_query
+            headers=auth_header(api_user["user_id"]),
+        )
     assert resp.status_code == 422

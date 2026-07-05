@@ -22,6 +22,7 @@ from sqlalchemy import delete, select
 from app.db.models import Attempt, Task, User, XpLog
 from app.db.session import SessionLocal
 from app.main import create_app
+from tests.conftest import auth_header
 
 # Reuse committed-attempt helper (piše Attempt + opc. XpLog, commita)
 from tests.test_coordinator import _make_attempt  # noqa: E402
@@ -103,7 +104,9 @@ async def test_attempts_pagination_and_order(make_user):
 
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/attempts", params={"user_id": uid, "limit": 2})
+        resp = await client.get(
+            "/attempts", params={"limit": 2}, headers=auth_header(uid)
+        )
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -127,9 +130,13 @@ async def test_attempts_offset_and_limit_clamp(make_user):
     app = create_app()
     async with _client(app) as client:
         # offset preskače najnoviji
-        r_off = await client.get("/attempts", params={"user_id": uid, "offset": 1})
+        r_off = await client.get(
+            "/attempts", params={"offset": 1}, headers=auth_header(uid)
+        )
         # limit=500 → clamp na 100
-        r_clamp = await client.get("/attempts", params={"user_id": uid, "limit": 500})
+        r_clamp = await client.get(
+            "/attempts", params={"limit": 500}, headers=auth_header(uid)
+        )
 
     off = r_off.json()
     assert off["offset"] == 1
@@ -145,7 +152,7 @@ async def test_attempts_empty_user_is_200(make_user):
     uid = make_user("att_empty_402a2")
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/attempts", params={"user_id": uid})
+        resp = await client.get("/attempts", headers=auth_header(uid))
     assert resp.status_code == 200
     body = resp.json()
     assert body["items"] == []
@@ -153,12 +160,14 @@ async def test_attempts_empty_user_is_200(make_user):
 
 
 @pytest.mark.asyncio
-async def test_attempts_unknown_user_404():
+async def test_attempts_unknown_user_401():
+    """Semantika 4.0b.2: user iz tokena. Token za nepostojećeg usera → 401
+    invalid_token (get_current_user), NE 404 (helper više ne provjerava postojanje)."""
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/attempts", params={"user_id": 999999999})
-    assert resp.status_code == 404
-    assert resp.json()["detail"] == "user_not_found"
+        resp = await client.get("/attempts", headers=auth_header(999999999))
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "invalid_token"
 
 
 # ===========================================================================
@@ -174,7 +183,11 @@ async def test_leaderboard_global_order_and_rank(make_user):
 
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/leaderboard", params={"scope": "global", "limit": 3})
+        resp = await client.get(
+            "/leaderboard",
+            params={"scope": "global", "limit": 3},
+            headers=auth_header(uid_hi),
+        )
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -193,10 +206,13 @@ async def test_leaderboard_global_order_and_rank(make_user):
 
 
 @pytest.mark.asyncio
-async def test_leaderboard_invalid_scope_422():
+async def test_leaderboard_invalid_scope_422(make_user):
+    uid = make_user("lb_scope_402a2")
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/leaderboard", params={"scope": "banana"})
+        resp = await client.get(
+            "/leaderboard", params={"scope": "banana"}, headers=auth_header(uid)
+        )
     assert resp.status_code == 422
 
 
@@ -217,7 +233,9 @@ async def test_leaderboard_weekly_sum(make_user):
 
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/leaderboard", params={"scope": "weekly"})
+        resp = await client.get(
+            "/leaderboard", params={"scope": "weekly"}, headers=auth_header(uid_a)
+        )
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -240,7 +258,9 @@ async def test_leaderboard_weekly_boundary(make_user):
 
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/leaderboard", params={"scope": "weekly"})
+        resp = await client.get(
+            "/leaderboard", params={"scope": "weekly"}, headers=auth_header(uid)
+        )
 
     body = resp.json()
     mine = [i for i in body["items"] if i["username"] == "lb_wk_bnd_402a2"]
@@ -257,7 +277,9 @@ async def test_leaderboard_weekly_empty(make_user):
 
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/leaderboard", params={"scope": "weekly"})
+        resp = await client.get(
+            "/leaderboard", params={"scope": "weekly"}, headers=auth_header(uid)
+        )
 
     body = resp.json()
     assert all(i["username"] != "lb_wk_none_402a2" for i in body["items"])

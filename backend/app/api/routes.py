@@ -19,8 +19,10 @@ from datetime import datetime, timedelta
 from typing import Literal
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, HTTPException, Path, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import aliased
 
 from agents.coordinator import ERROR_EVALUATION_TIMEOUT, ONTOLOGY_SUBMIT_ATTEMPT
@@ -34,13 +36,23 @@ from app.api.schemas import (
     BadgeCatalogItem,
     LeaderboardItem,
     MasteryHistoryPoint,
+    MeResponse,
     ModuleNode,
     NextTaskResponse,
     Page,
     ProfileResponse,
+    RegisterRequest,
     RunRequest,
     RunResponse,
     TaskDetailResponse,
+    TokenResponse,
+)
+from app.core.security import (
+    create_access_token,
+    get_current_user,
+    hash_password,
+    require_admin,
+    verify_password,
 )
 from app.core import config
 from app.db.models import (
@@ -69,6 +81,75 @@ _LIMIT_DEFAULT = 20
 _log = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# Auth (Faza 4.0b) — /register, /login, /me. ADITIVNO: postojeće rute nedirnute.
+# ---------------------------------------------------------------------------
+
+
+def _create_student(username: str, email: str, password: str) -> int:
+    """Sinkroni insert studenta. Vraća user_id. Baca HTTPException(409) na duplikat.
+
+    role je UVIJEK 'student' — admin se ne registrira (seeda se).
+    """
+    with SessionLocal() as session:
+        user = User(
+            username=username,
+            email=email,
+            password_hash=hash_password(password),
+            role="student",
+        )
+        session.add(user)
+        try:
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+            # username ILI email zauzet — razluči po tome što već postoji
+            taken = session.scalar(
+                select(User.username).where(User.username == username)
+            )
+            detail = "username_taken" if taken else "email_taken"
+            raise HTTPException(status_code=409, detail=detail)
+        return user.id
+
+
+@router.post("/register", response_model=TokenResponse)
+async def post_register(req: RegisterRequest) -> TokenResponse:
+    user_id = await asyncio.to_thread(
+        _create_student, req.username, str(req.email), req.password
+    )
+    token = create_access_token(str(user_id), "student")
+    return TokenResponse(access_token=token)
+
+
+def _authenticate(username: str, password: str) -> tuple[int, str] | None:
+    """Sinkroni login check. Vraća (user_id, role) ili None (nema usera / kriva šifra)."""
+    with SessionLocal() as session:
+        user = session.scalar(select(User).where(User.username == username))
+        if user is None or not verify_password(password, user.password_hash):
+            return None
+        return user.id, user.role
+
+
+@router.post("/login", response_model=TokenResponse)
+async def post_login(
+    form: OAuth2PasswordRequestForm = Depends(),
+) -> TokenResponse:
+    result = await asyncio.to_thread(_authenticate, form.username, form.password)
+    if result is None:
+        # NE otkrivamo je li promašaj username ili password
+        raise HTTPException(status_code=401, detail="invalid_credentials")
+    user_id, role = result
+    token = create_access_token(str(user_id), role)
+    return TokenResponse(access_token=token)
+
+
+@router.get("/me", response_model=MeResponse)
+async def get_me(user: User = Depends(get_current_user)) -> MeResponse:
+    return MeResponse(
+        id=user.id, username=user.username, email=user.email, role=user.role
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -104,15 +185,20 @@ def _to_attempt_response(result: dict) -> AttemptResponse:
 
 
 @router.post("/attempt", response_model=AttemptResponse)
-async def post_attempt(req: AttemptRequest, request: Request) -> AttemptResponse:
+async def post_attempt(
+    req: AttemptRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+) -> AttemptResponse:
     bridge = request.app.state.bridge
     gateway = request.app.state.gateway
 
     cid, _future = bridge.register()
+    # user_id se ubrizgava iz TOKENA (AttemptRequest ga više nema) — klijent ga ne bira.
     gateway.send_fipa(
         to=config.AGENT_COORDINATOR_JID,
         ontology=ONTOLOGY_SUBMIT_ATTEMPT,
-        payload=req.model_dump(),
+        payload={**req.model_dump(), "user_id": user.id},
         cid=cid,
     )
 
@@ -135,7 +221,10 @@ async def post_attempt(req: AttemptRequest, request: Request) -> AttemptResponse
 
 
 @router.get("/next-task", response_model=NextTaskResponse)
-async def get_next_task(request: Request, user_id: int = Query(...)) -> NextTaskResponse:
+async def get_next_task(
+    request: Request,
+    user: User = Depends(get_current_user),
+) -> NextTaskResponse:
     bridge = request.app.state.bridge
     gateway = request.app.state.gateway
 
@@ -143,7 +232,7 @@ async def get_next_task(request: Request, user_id: int = Query(...)) -> NextTask
     gateway.send_fipa(
         to=config.AGENT_RECOMMENDER_JID,
         ontology=Ontology.RECOMMEND_NEXT,
-        payload={"user_id": user_id},
+        payload={"user_id": user.id},
         cid=cid,
     )
 
@@ -196,8 +285,10 @@ def _read_profile(user_id: int) -> dict | None:
 
 
 @router.get("/profile", response_model=ProfileResponse)
-async def get_profile(user_id: int = Query(...)) -> ProfileResponse:
-    data = await asyncio.to_thread(_read_profile, user_id)
+async def get_profile(
+    user: User = Depends(get_current_user),
+) -> ProfileResponse:
+    data = await asyncio.to_thread(_read_profile, user.id)
     if data is None:
         raise HTTPException(status_code=404, detail="user_not_found")
     return ProfileResponse(**data)
@@ -241,7 +332,10 @@ def _read_task_detail(task_id: int) -> dict | None:
 
 
 @router.get("/task/{task_id}", response_model=TaskDetailResponse)
-async def get_task_detail(task_id: int = Path(...)) -> TaskDetailResponse:
+async def get_task_detail(
+    task_id: int = Path(...),
+    _user: User = Depends(get_current_user),
+) -> TaskDetailResponse:
     data = await asyncio.to_thread(_read_task_detail, task_id)
     if data is None:
         raise HTTPException(status_code=404, detail="task_not_found")
@@ -310,7 +404,9 @@ def _read_modules() -> list[dict]:
 
 
 @router.get("/modules", response_model=list[ModuleNode])
-async def get_modules() -> list[ModuleNode]:
+async def get_modules(
+    _user: User = Depends(get_current_user),
+) -> list[ModuleNode]:
     data = await asyncio.to_thread(_read_modules)
     return [ModuleNode(**m) for m in data]
 
@@ -346,7 +442,9 @@ def _read_badges() -> list[dict]:
 
 
 @router.get("/badges", response_model=list[BadgeCatalogItem])
-async def get_badges() -> list[BadgeCatalogItem]:
+async def get_badges(
+    _user: User = Depends(get_current_user),
+) -> list[BadgeCatalogItem]:
     data = await asyncio.to_thread(_read_badges)
     return [BadgeCatalogItem(**b) for b in data]
 
@@ -366,16 +464,14 @@ def _clamp_page(limit: int, offset: int) -> tuple[int, int]:
 # ---------------------------------------------------------------------------
 
 
-def _read_attempts(user_id: int, limit: int, offset: int) -> dict | None:
-    """Sinkroni DB read povijesti pokušaja. None ako user ne postoji.
+def _read_attempts(user_id: int, limit: int, offset: int) -> dict:
+    """Sinkroni DB read povijesti pokušaja usera (iz tokena, pa je zajamčeno postojeći).
 
     task_title kroz JEDAN join attempts→tasks (bez N+1). total je COUNT neovisan
     o limit/offset. Redoslijed created_at DESC, id DESC (deterministički tie-break).
+    Nepostojeći/prazan user → items=[] total=0 (bez 404 — user dolazi iz tokena).
     """
     with SessionLocal() as session:
-        if session.get(User, user_id) is None:
-            return None
-
         total = session.scalar(
             select(func.count()).select_from(Attempt).where(Attempt.user_id == user_id)
         )
@@ -424,14 +520,12 @@ def _read_attempts(user_id: int, limit: int, offset: int) -> dict | None:
 
 @router.get("/attempts", response_model=Page[AttemptItem])
 async def get_attempts(
-    user_id: int = Query(...),
+    user: User = Depends(get_current_user),
     limit: int = Query(_LIMIT_DEFAULT),
     offset: int = Query(0),
 ) -> Page[AttemptItem]:
     limit, offset = _clamp_page(limit, offset)
-    data = await asyncio.to_thread(_read_attempts, user_id, limit, offset)
-    if data is None:
-        raise HTTPException(status_code=404, detail="user_not_found")
+    data = await asyncio.to_thread(_read_attempts, user.id, limit, offset)
     return Page[AttemptItem](
         items=[AttemptItem(**i) for i in data["items"]],
         total=data["total"],
@@ -446,10 +540,17 @@ async def get_attempts(
 
 
 def _read_leaderboard_global(limit: int, offset: int) -> dict:
+    """Global ljestvica — SAMO studenti (admin nije natjecatelj). count i rows dijele
+    isti `role == 'student'` filter da total odgovara prikazanom skupu."""
     with SessionLocal() as session:
-        total = session.scalar(select(func.count()).select_from(User))
+        total = session.scalar(
+            select(func.count())
+            .select_from(User)
+            .where(User.role == "student")
+        )
         rows = session.execute(
             select(User.username, User.xp, User.level)
+            .where(User.role == "student")
             .order_by(User.xp.desc(), User.id.asc())
             .limit(limit)
             .offset(offset)
@@ -474,15 +575,17 @@ def _read_leaderboard_weekly(limit: int, offset: int) -> dict:
     cutoff = datetime.now(_ZAGREB) - timedelta(days=7)
     score = func.sum(XpLog.delta).label("score")
     with SessionLocal() as session:
+        # count MORA joinati User da bi role filter radio → count i rows broje ISTI skup
+        # (distinct studenti s xp_log redom u prozoru).
         total = session.scalar(
-            select(func.count(func.distinct(XpLog.user_id))).where(
-                XpLog.created_at >= cutoff
-            )
+            select(func.count(func.distinct(XpLog.user_id)))
+            .join(User, User.id == XpLog.user_id)
+            .where(XpLog.created_at >= cutoff, User.role == "student")
         )
         rows = session.execute(
             select(User.username, score, User.level)
             .join(XpLog, XpLog.user_id == User.id)
-            .where(XpLog.created_at >= cutoff)
+            .where(XpLog.created_at >= cutoff, User.role == "student")
             .group_by(User.id, User.username, User.level)
             .order_by(score.desc(), User.id.asc())
             .limit(limit)
@@ -505,6 +608,7 @@ async def get_leaderboard(
     scope: Literal["global", "weekly"] = Query("global"),
     limit: int = Query(_LIMIT_DEFAULT),
     offset: int = Query(0),
+    _user: User = Depends(get_current_user),
 ) -> Page[LeaderboardItem]:
     limit, offset = _clamp_page(limit, offset)
     reader = _read_leaderboard_weekly if scope == "weekly" else _read_leaderboard_global
@@ -522,16 +626,13 @@ async def get_leaderboard(
 # ---------------------------------------------------------------------------
 
 
-def _read_mastery_history(user_id: int, concept: str | None) -> list[dict] | None:
-    """Sinkroni DB read povijesti masteryja. None ako user ne postoji.
+def _read_mastery_history(user_id: int, concept: str | None) -> list[dict]:
+    """Sinkroni DB read povijesti masteryja usera (iz tokena, zajamčeno postojeći).
 
     Join skill_mastery_history→concepts za code. Opcionalni filtar po Concept.code.
-    ORDER BY created_at ASC (kronološki — za krivulju).
+    ORDER BY created_at ASC (kronološki — za krivulju). Prazan user → [] (bez 404).
     """
     with SessionLocal() as session:
-        if session.get(User, user_id) is None:
-            return None
-
         stmt = (
             select(
                 Concept.code,
@@ -562,12 +663,10 @@ def _read_mastery_history(user_id: int, concept: str | None) -> list[dict] | Non
 
 @router.get("/mastery-history", response_model=list[MasteryHistoryPoint])
 async def get_mastery_history(
-    user_id: int = Query(...),
+    user: User = Depends(get_current_user),
     concept: str | None = Query(None),
 ) -> list[MasteryHistoryPoint]:
-    data = await asyncio.to_thread(_read_mastery_history, user_id, concept)
-    if data is None:
-        raise HTTPException(status_code=404, detail="user_not_found")
+    data = await asyncio.to_thread(_read_mastery_history, user.id, concept)
     return [MasteryHistoryPoint(**p) for p in data]
 
 
@@ -594,14 +693,16 @@ def _run_query(query: str) -> RunResponse:
 
 
 @router.post("/run", response_model=RunResponse)
-async def post_run(req: RunRequest) -> RunResponse:
+async def post_run(
+    req: RunRequest,
+    _user: User = Depends(get_current_user),
+) -> RunResponse:
     # task_id je samo kontekst — ne mijenja izvršavanje.
     return await asyncio.to_thread(_run_query, req.query)
 
 
 # ---------------------------------------------------------------------------
-# GET /admin/agent-logs — FIPA-ACL log (paginirano) — čisti DB read
-# TODO(4.0b): dodati Depends(admin) role-guard. Do tada ruta radi BEZ guarda.
+# GET /admin/agent-logs — FIPA-ACL log (paginirano) — admin-only DB read
 # ---------------------------------------------------------------------------
 
 _AGENT_LOGS_LIMIT_MAX = 200
@@ -662,6 +763,7 @@ async def get_agent_logs(
     sender: str | None = Query(None),
     limit: int = Query(_AGENT_LOGS_LIMIT_DEFAULT),
     offset: int = Query(0),
+    _admin: User = Depends(require_admin),
 ) -> Page[AgentLogItem]:
     limit = max(1, min(limit, _AGENT_LOGS_LIMIT_MAX))
     offset = max(0, offset)

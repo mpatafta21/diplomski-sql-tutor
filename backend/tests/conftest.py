@@ -37,6 +37,17 @@ def db_session() -> Session:
         session.rollback()
 
 
+def auth_header(user_id: int, role: str = "student") -> dict[str, str]:
+    """Mint JWT DIREKTNO (bez /login) → Authorization header za integ. testove.
+
+    Radi s postojećim dummy-hash test userima (ne ovisi o password_hash-u). Koristi
+    ga 4.0b.2 za migraciju gated testova.
+    """
+    from app.core.security import create_access_token
+
+    return {"Authorization": f"Bearer {create_access_token(str(user_id), role)}"}
+
+
 @pytest.fixture(scope="session")
 def sandbox_connection_string() -> str:
     """SANDBOX_DATABASE_URL iz .env, normaliziran za psycopg3."""

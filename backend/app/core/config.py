@@ -53,3 +53,13 @@ AGENT_GATEWAY_PASSWORD: str = os.getenv("AGENT_GATEWAY_PASSWORD", "gateway_pw")
 # HTTP gateway timeout (s) — MORA biti > Coordinator UPDATE+RECOMMEND timeouta, da
 # gateway ne istekne PRIJE Coordinatorovog definiranog timeout-odgovora.
 GATEWAY_TIMEOUT: float = float(os.getenv("GATEWAY_TIMEOUT", "15"))
+
+# JWT auth (Faza 4.0b) — JWT_SECRET je OBAVEZAN (isti obrazac kao DATABASE_URL).
+JWT_SECRET: str = _required("JWT_SECRET")
+JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+
+# Seed admin (Faza 4.0b) — kredencijali iz env-a; password se NIKAD ne hardkodira.
+ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@sql-tutor.local")
+ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "admin_dev_password")

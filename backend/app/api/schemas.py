@@ -1,7 +1,8 @@
-"""Pydantic v2 request/response sheme za HTTP gateway (Faza 3E.3).
+"""Pydantic v2 request/response sheme za HTTP gateway.
 
-MVP napomena: rute primaju user_id u bodyju/queryju (BEZ auth/session). Produkcija
-treba autentikaciju (Faza 3F+) — user_id se tada izvodi iz tokena, ne iz klijenta.
+Auth (Faza 4.0b): zaštićene rute deriviraju user_id iz JWT tokena
+(get_current_user), NE iz body/query — klijent ga više ne bira. AttemptRequest
+zato više ne nosi user_id.
 """
 
 from __future__ import annotations
@@ -9,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Generic, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
 # ---------------------------------------------------------------------------
@@ -18,9 +19,32 @@ from pydantic import BaseModel
 
 
 class AttemptRequest(BaseModel):
-    user_id: int
+    # user_id NAMJERNO uklonjen (Faza 4.0b.2) — derivira se iz JWT tokena, klijent ga ne bira.
     task_id: int
     submitted_query: str
+
+
+# ---------------------------------------------------------------------------
+# Auth (Faza 4.0b) — /register, /login, /me
+# ---------------------------------------------------------------------------
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class MeResponse(BaseModel):
+    id: int
+    username: str
+    email: str
+    role: str
 
 
 # ---------------------------------------------------------------------------

@@ -15,7 +15,9 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.db.models import Badge, Concept, ConceptPrerequisite, Module
+from app.core import config
+from app.core.security import hash_password
+from app.db.models import Badge, Concept, ConceptPrerequisite, Module, User
 from app.db.seed_data import BADGES, CONCEPTS, MODULES, PREREQUISITES
 from app.db.session import SessionLocal
 
@@ -104,6 +106,21 @@ def seed_badges(session: Session) -> None:
     session.execute(stmt)
 
 
+def seed_admin(session: Session) -> None:
+    """Idempotentan seed admin usera. Kredencijali iz env-a (config.ADMIN_*).
+
+    ON CONFLICT DO NOTHING po username → ponovni seed ne duplicira ni ne mijenja
+    admina (password se ne rehashira svaki put)."""
+    stmt = insert(User).values(
+        username=config.ADMIN_USERNAME,
+        email=config.ADMIN_EMAIL,
+        password_hash=hash_password(config.ADMIN_PASSWORD),
+        role="admin",
+    )
+    stmt = stmt.on_conflict_do_nothing(index_elements=["username"])
+    session.execute(stmt)
+
+
 def run_seed() -> None:
     with SessionLocal() as session:
         module_map = seed_modules(session)
@@ -117,6 +134,9 @@ def run_seed() -> None:
 
         seed_badges(session)
         logger.info("Bedževa u bazi: %d", len(BADGES))
+
+        seed_admin(session)
+        logger.info("Admin user seedan (idempotentno): %s", config.ADMIN_USERNAME)
 
         session.commit()
     logger.info("Seed dovršen.")

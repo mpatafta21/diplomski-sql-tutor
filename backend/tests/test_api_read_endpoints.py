@@ -17,11 +17,12 @@ from contextlib import asynccontextmanager
 
 import httpx
 import pytest
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
-from app.db.models import Concept, TaskConcept
+from app.db.models import Concept, TaskConcept, User
 from app.db.session import SessionLocal
 from app.main import create_app
+from tests.conftest import auth_header
 
 
 @asynccontextmanager
@@ -29,6 +30,24 @@ async def _client(app):
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as c:
         yield c
+
+
+@pytest.fixture
+def student_auth():
+    """Committed student → auth header (rute su sad gated; sadržaj usera nebitan)."""
+    with SessionLocal() as s:
+        u = User(
+            username="read_ep_student_402b2",
+            email="read_ep_student_402b2@test.example",
+            password_hash="dummy_hash_402b2",
+        )
+        s.add(u)
+        s.commit()
+        uid = u.id
+    yield auth_header(uid)
+    with SessionLocal() as s:
+        s.execute(delete(User).where(User.id == uid))
+        s.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -53,13 +72,13 @@ def _find_task_with_concepts() -> tuple[int, list[tuple[str, str, bool]]]:
 
 
 @pytest.mark.asyncio
-async def test_get_task_detail_returns_fields():
+async def test_get_task_detail_returns_fields(student_auth):
     task_id, concepts = _find_task_with_concepts()
     expected_codes = {c for c, _, _ in concepts}
 
     app = create_app()  # bez agenata — čisti DB read
     async with _client(app) as client:
-        resp = await client.get(f"/task/{task_id}")
+        resp = await client.get(f"/task/{task_id}", headers=student_auth)
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -81,13 +100,13 @@ async def test_get_task_detail_returns_fields():
 
 
 @pytest.mark.asyncio
-async def test_get_task_detail_leaks_no_solution():
+async def test_get_task_detail_leaks_no_solution(student_auth):
     """KRITIČNO: /task/{id} NE SMIJE izložiti rješenje ni sandbox schemu."""
     task_id, _ = _find_task_with_concepts()
 
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get(f"/task/{task_id}")
+        resp = await client.get(f"/task/{task_id}", headers=student_auth)
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -98,10 +117,10 @@ async def test_get_task_detail_leaks_no_solution():
 
 
 @pytest.mark.asyncio
-async def test_get_task_detail_404():
+async def test_get_task_detail_404(student_auth):
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/task/999999999")
+        resp = await client.get("/task/999999999", headers=student_auth)
     assert resp.status_code == 404
     assert resp.json()["detail"] == "task_not_found"
 
@@ -112,10 +131,10 @@ async def test_get_task_detail_404():
 
 
 @pytest.mark.asyncio
-async def test_get_modules_structure_and_counts():
+async def test_get_modules_structure_and_counts(student_auth):
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/modules")
+        resp = await client.get("/modules", headers=student_auth)
 
     assert resp.status_code == 200, resp.text
     modules = resp.json()
@@ -157,7 +176,7 @@ async def test_get_modules_structure_and_counts():
 
 
 @pytest.mark.asyncio
-async def test_get_modules_matches_db_counts():
+async def test_get_modules_matches_db_counts(student_auth):
     from app.db.models import Module
 
     with SessionLocal() as s:
@@ -166,7 +185,7 @@ async def test_get_modules_matches_db_counts():
 
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/modules")
+        resp = await client.get("/modules", headers=student_auth)
     modules = resp.json()
 
     assert len(modules) == n_modules_db
@@ -180,7 +199,7 @@ async def test_get_modules_matches_db_counts():
 
 
 @pytest.mark.asyncio
-async def test_get_badges_catalog():
+async def test_get_badges_catalog(student_auth):
     from app.db.models import Badge
 
     with SessionLocal() as s:
@@ -188,7 +207,7 @@ async def test_get_badges_catalog():
 
     app = create_app()
     async with _client(app) as client:
-        resp = await client.get("/badges")
+        resp = await client.get("/badges", headers=student_auth)
 
     assert resp.status_code == 200, resp.text
     badges = resp.json()

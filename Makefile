@@ -13,7 +13,7 @@
 PG_MAIN_SERVICE := postgres-main
 PG_MAIN_USER := tutor
 
-.PHONY: dev infra-up infra-down wait-db db-migrate db-seed backend frontend frontend-install help
+.PHONY: dev infra-up infra-down wait-db db-migrate db-seed backend frontend frontend-install openapi-snapshot help
 
 help:
 	@echo "Targeti:"
@@ -23,8 +23,16 @@ help:
 	@echo "  make db-seed     - seed moduli/koncepti/bedževi + admin (idempotentno)"
 	@echo "  make backend     - uvicorn gateway na :8000 (--reload)"
 	@echo "  make frontend    - Vite dev server na :5173"
-	@echo "  make dev         - sve gore: infra → wait → migrate → seed → backend+frontend"
-	@echo "  make infra-down  - zaustavi docker servise"
+	@echo "  make dev             - sve gore: infra → wait → migrate → seed → backend+frontend"
+	@echo "  make infra-down      - zaustavi docker servise"
+	@echo "  make openapi-snapshot - regeneriraj frontend/openapi.json iz app.openapi() (bez servera)"
+
+# OpenAPI snapshot za typed frontend klijent (openapi-typescript).
+# app.openapi() gradi spec iz app objekta BEZ servera/infra/agenata (KORAK 0 W).
+# Regeneriraj kad se backend ugovor promijeni → frontend/openapi.json je diff-vidljiv u PR-u.
+openapi-snapshot:
+	cd backend && uv run python -c "import json,sys; from app.main import app; json.dump(app.openapi(), sys.stdout)" > ../frontend/openapi.json
+	@echo "frontend/openapi.json regeneriran."
 
 infra-up:
 	docker compose up -d

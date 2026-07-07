@@ -18,6 +18,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from agents.coordinator import CoordinatorAgent
 from agents.evaluator_agent import EvaluatorAgent
@@ -27,6 +28,7 @@ from agents.recommender_agent import RecommenderAgent
 from app.api.routes import router
 from app.bridge.agent_bridge import AgentBridge
 from app.bridge.gateway_agent import GatewayAgent
+from app.core import config
 
 _log = logging.getLogger(__name__)
 
@@ -79,6 +81,16 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="SQL Tutor Gateway", version="3E.3", lifespan=lifespan)
+    # CORS (Faza 4.1a): Vite frontend (:5173) → gateway (:8000) je cross-origin.
+    # Bearer JWT ide u Authorization header (ne cookie) → allow_credentials=False,
+    # što dopušta allow_headers=["*"] (uklj. Authorization) bez wildcard-credentials sukoba.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=config.CORS_ORIGINS,
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.include_router(router)
     return app
 

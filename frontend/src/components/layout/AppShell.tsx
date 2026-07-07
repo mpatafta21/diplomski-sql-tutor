@@ -1,0 +1,155 @@
+/**
+ * AppShell (Faza 4.1c) — sidebar + header ljuska iza auth gatea.
+ * Vuče 4.1b tokene (sidebar-* set), dark-first. Nav je SKICA — sve stavke vode
+ * na "/" placeholder dok 4.2–4.5 ne donesu prave ekrane. Admin stavka role-gated.
+ */
+import { NavLink, Outlet } from "react-router-dom"
+import {
+  BookOpen,
+  Database,
+  LayoutDashboard,
+  LogOut,
+  Moon,
+  ShieldCheck,
+  Sun,
+  Terminal,
+  Trophy,
+  User,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { useAuth } from "@/hooks/useAuth"
+import { useTheme } from "@/hooks/useTheme"
+import { cn } from "@/lib/utils"
+
+// Nav skica (4.1c): put je "/" za sve dok ekrani ne postoje; `end` drži samo
+// Dashboard aktivnim. Prave rute stižu s 4.2 (dashboard/moduli), 4.3 (task)…
+const NAV_ITEMS = [
+  { label: "Dashboard", icon: LayoutDashboard, to: "/" },
+  { label: "Moduli", icon: BookOpen, to: "/" },
+  { label: "Zadatak", icon: Terminal, to: "/" },
+  { label: "Profil", icon: User, to: "/" },
+  { label: "Ljestvica", icon: Trophy, to: "/" },
+] as const
+
+function SidebarNav() {
+  const { user } = useAuth()
+
+  return (
+    <nav
+      aria-label="Glavna navigacija"
+      className="flex flex-1 flex-col gap-1 p-3"
+    >
+      {NAV_ITEMS.map(({ label, icon: Icon, to }) => (
+        <NavLink
+          key={label}
+          to={to}
+          end
+          className={({ isActive }) =>
+            cn(
+              // Invarijanta #3: h-11 = 44px touch target po nav stavci.
+              "flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-fast ease-standard",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+              isActive
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+            )
+          }
+        >
+          <Icon className="size-4 shrink-0" aria-hidden="true" />
+          {label}
+        </NavLink>
+      ))}
+      {user?.role === "admin" && (
+        <NavLink
+          to="/"
+          end
+          className="flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
+          Admin
+        </NavLink>
+      )}
+    </nav>
+  )
+}
+
+export function AppShell() {
+  const { user, logout } = useAuth()
+  const { dark, toggle } = useTheme()
+
+  return (
+    <div className="flex min-h-svh">
+      {/* Sidebar — desktop primaran (plan §4.7); na užem ekranu skrivena, header ostaje. */}
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+        <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-5">
+          <Database
+            className="size-5 text-accent-warm-text"
+            aria-hidden="true"
+          />
+          <span className="text-base font-semibold tracking-tight">
+            SQL Tutor
+          </span>
+        </div>
+        <SidebarNav />
+        <div className="border-t border-sidebar-border p-3 text-xs text-muted-foreground">
+          Faza 4.1c — app shell
+        </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-16 items-center justify-between gap-3 border-b border-border px-4 md:px-6">
+          {/* Mobilni brand (sidebar skrivena) */}
+          <div className="flex items-center gap-2 md:hidden">
+            <Database
+              className="size-5 text-accent-warm-text"
+              aria-hidden="true"
+            />
+            <span className="font-semibold">SQL Tutor</span>
+          </div>
+          <div className="hidden md:block" />
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggle}
+              aria-label={
+                dark ? "Prebaci na light temu" : "Prebaci na dark temu"
+              }
+            >
+              {dark ? <Sun /> : <Moon />}
+            </Button>
+
+            {user && (
+              <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5">
+                <span className="text-sm font-medium">{user.username}</span>
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-xs font-medium",
+                    user.role === "admin"
+                      ? "bg-accent-warm text-accent-warm-foreground"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {user.role}
+                </span>
+              </div>
+            )}
+
+            <Button variant="outline" onClick={logout}>
+              <LogOut data-icon="inline-start" />
+              Odjava
+            </Button>
+          </div>
+        </header>
+
+        <main className="flex-1 p-4 md:p-8">
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
+        </main>
+      </div>
+    </div>
+  )
+}

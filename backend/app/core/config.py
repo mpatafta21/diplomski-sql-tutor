@@ -22,6 +22,14 @@ def _required(name: str) -> str:
     return value
 
 
+def _list(name: str, default: list[str]) -> list[str]:
+    """Comma-separated env varijabla → lista; prazno/odsutno → default."""
+    raw = os.getenv(name)
+    if not raw:
+        return default
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
 DATABASE_URL: str = _required("DATABASE_URL")
 SANDBOX_DATABASE_URL: str | None = os.getenv("SANDBOX_DATABASE_URL")
 
@@ -63,3 +71,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 
 ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@sql-tutor.local")
 ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "admin_dev_password")
+
+# CORS (Faza 4.1a) — dopušteni origini za Vite frontend (cross-origin :5173 → :8000).
+# Comma-separated override kroz env; default pokriva Vite dev server.
+CORS_ORIGINS: list[str] = _list(
+    "CORS_ORIGINS",
+    ["http://localhost:5173", "http://127.0.0.1:5173"],
+)

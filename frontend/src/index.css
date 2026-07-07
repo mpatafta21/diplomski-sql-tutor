@@ -2,12 +2,59 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/jetbrains-mono";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: "Geist Variable", sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+
+  /* ── Semantika verdicta (MASTER.md §2.2) — partial REZERVIRAN, ne koristiti u UI (ERRATA #8) ── */
+  --color-correct: var(--correct);
+  --color-correct-soft: var(--correct-soft);
+  --color-incorrect: var(--incorrect);
+  --color-incorrect-soft: var(--incorrect-soft);
+  --color-partial: var(--partial);
+  --color-partial-soft: var(--partial-soft);
+  --color-neutral: var(--neutral);
+
+  /* ── Topli amber accent — SAMO napredak/gamifikacija (MASTER.md §2.1) ── */
+  --color-accent-warm: var(--accent-warm);
+  --color-accent-warm-foreground: var(--accent-warm-foreground);
+  --color-accent-warm-text: var(--accent-warm-text);
+
+  /* ── Mastery gradient P(L) low→high, CB-safe (MASTER.md §2.3) ── */
+  --color-mastery-0: var(--mastery-0);
+  --color-mastery-25: var(--mastery-25);
+  --color-mastery-50: var(--mastery-50);
+  --color-mastery-75: var(--mastery-75);
+  --color-mastery-100: var(--mastery-100);
+
+  /* ── Concept-tier, 3 koraka — NE miješati s difficulty (MASTER.md §2.4) ── */
+  --color-tier-easy: var(--tier-easy);
+  --color-tier-easy-foreground: var(--tier-easy-foreground);
+  --color-tier-medium: var(--tier-medium);
+  --color-tier-medium-foreground: var(--tier-medium-foreground);
+  --color-tier-hard: var(--tier-hard);
+  --color-tier-hard-foreground: var(--tier-hard-foreground);
+
+  /* ── Module-difficulty, 5 koraka — NE miješati s tier (MASTER.md §2.5) ── */
+  --color-difficulty-beginner: var(--difficulty-beginner);
+  --color-difficulty-beginner-foreground: var(--difficulty-beginner-foreground);
+  --color-difficulty-intermediate: var(--difficulty-intermediate);
+  --color-difficulty-intermediate-foreground: var(
+    --difficulty-intermediate-foreground
+  );
+  --color-difficulty-advanced: var(--difficulty-advanced);
+  --color-difficulty-advanced-foreground: var(--difficulty-advanced-foreground);
+  --color-difficulty-expert: var(--difficulty-expert);
+  --color-difficulty-expert-foreground: var(--difficulty-expert-foreground);
+  --color-difficulty-cross-module: var(--difficulty-cross-module);
+  --color-difficulty-cross-module-foreground: var(
+    --difficulty-cross-module-foreground
+  );
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,6 +95,44 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+@theme {
+  /* ── Modularna tipografska skala 1.250, baza 1rem (MASTER.md §3) ── */
+  --text-xs: 0.64rem;
+  --text-xs--line-height: 1.5;
+  --text-sm: 0.8rem;
+  --text-sm--line-height: 1.5;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.4;
+  --text-xl: 1.5625rem;
+  --text-xl--line-height: 1.3;
+  --text-xl--letter-spacing: -0.02em;
+  --text-2xl: 1.9531rem;
+  --text-2xl--line-height: 1.2;
+  --text-2xl--letter-spacing: -0.02em;
+  --text-3xl: 2.4414rem;
+  --text-3xl--line-height: 1.15;
+  --text-3xl--letter-spacing: -0.02em;
+  --text-4xl: 3.0518rem;
+  --text-4xl--line-height: 1.1;
+  --text-4xl--letter-spacing: -0.02em;
+  --text-5xl: 3.8147rem;
+  --text-5xl--line-height: 1.05;
+  --text-5xl--letter-spacing: -0.02em;
+
+  /* ── Motion tokeni (MASTER.md §5) — vrijednosti, bez motion liba do 4.6 ── */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-reward: cubic-bezier(0.34, 1.25, 0.64, 1);
+  --duration-instant: 100ms;
+  --duration-fast: 160ms;
+  --duration-base: 240ms;
+  --duration-slow: 400ms;
+  --duration-reward: 700ms;
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -67,11 +152,12 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* Data-viz kategorijska (MASTER.md §2.6) — zamjena neutralnih placeholdera */
+  --chart-1: oklch(0.55 0.15 250);
+  --chart-2: oklch(0.55 0.094 185);
+  --chart-3: oklch(0.55 0.16 300);
+  --chart-4: oklch(0.58 0.16 345);
+  --chart-5: oklch(0.6 0.12 75);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -81,6 +167,44 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* ═══ Prošireni tokeni — light (MASTER.md §2, AA-verificirano) ═══ */
+  /* Semantika verdicta — partial REZERVIRAN (ERRATA #8) */
+  --correct: oklch(0.52 0.13 150);
+  --correct-soft: oklch(0.96 0.03 150);
+  --incorrect: oklch(0.53 0.19 25);
+  --incorrect-soft: oklch(0.96 0.02 25);
+  --partial: oklch(0.53 0.11 55);
+  --partial-soft: oklch(0.96 0.02 60);
+  --neutral: oklch(0.5 0.02 260);
+  /* Topli amber accent — samo napredak/gamifikacija */
+  --accent-warm: oklch(0.66 0.13 72);
+  --accent-warm-foreground: oklch(0.25 0.04 75);
+  --accent-warm-text: oklch(0.56 0.12 70);
+  /* Mastery gradient P(L) — CB-safe, monoton po svjetlini */
+  --mastery-0: oklch(0.85 0.05 260);
+  --mastery-25: oklch(0.74 0.08 245);
+  --mastery-50: oklch(0.63 0.11 225);
+  --mastery-75: oklch(0.53 0.086 205);
+  --mastery-100: oklch(0.44 0.072 190);
+  /* Concept-tier (3) — violet 300; foreground = AA-par za tekst na fillu */
+  --tier-easy: oklch(0.72 0.09 300);
+  --tier-easy-foreground: oklch(0.145 0 0);
+  --tier-medium: oklch(0.55 0.14 300);
+  --tier-medium-foreground: oklch(0.985 0 0);
+  --tier-hard: oklch(0.45 0.18 300);
+  --tier-hard-foreground: oklch(0.985 0 0);
+  /* Module-difficulty (5) — magenta 345; cross_module desaturiran (transverzalan) */
+  --difficulty-beginner: oklch(0.78 0.06 345);
+  --difficulty-beginner-foreground: oklch(0.145 0 0);
+  --difficulty-intermediate: oklch(0.68 0.1 345);
+  --difficulty-intermediate-foreground: oklch(0.145 0 0);
+  --difficulty-advanced: oklch(0.57 0.14 345);
+  --difficulty-advanced-foreground: oklch(0.985 0 0);
+  --difficulty-expert: oklch(0.46 0.18 345);
+  --difficulty-expert-foreground: oklch(0.985 0 0);
+  --difficulty-cross-module: oklch(0.55 0.03 345);
+  --difficulty-cross-module-foreground: oklch(0.985 0 0);
 }
 
 .dark {
@@ -102,11 +226,12 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* Data-viz kategorijska (MASTER.md §2.6) — zamjena neutralnih placeholdera */
+  --chart-1: oklch(0.7 0.14 250);
+  --chart-2: oklch(0.75 0.12 185);
+  --chart-3: oklch(0.72 0.13 300);
+  --chart-4: oklch(0.74 0.13 345);
+  --chart-5: oklch(0.8 0.14 80);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -115,6 +240,44 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* ═══ Prošireni tokeni — dark (MASTER.md §2, AA-verificirano) ═══ */
+  /* Semantika verdicta — partial REZERVIRAN (ERRATA #8) */
+  --correct: oklch(0.75 0.15 150);
+  --correct-soft: oklch(0.24 0.04 150);
+  --incorrect: oklch(0.7 0.19 25);
+  --incorrect-soft: oklch(0.24 0.035 25);
+  --partial: oklch(0.78 0.13 60);
+  --partial-soft: oklch(0.24 0.04 60);
+  --neutral: oklch(0.72 0.02 260);
+  /* Topli amber accent — samo napredak/gamifikacija */
+  --accent-warm: oklch(0.8 0.15 80);
+  --accent-warm-foreground: oklch(0.22 0.04 80);
+  --accent-warm-text: oklch(0.8 0.15 80);
+  /* Mastery gradient P(L) — CB-safe, monoton po svjetlini */
+  --mastery-0: oklch(0.42 0.05 260);
+  --mastery-25: oklch(0.53 0.08 245);
+  --mastery-50: oklch(0.64 0.1 225);
+  --mastery-75: oklch(0.75 0.11 205);
+  --mastery-100: oklch(0.86 0.12 190);
+  /* Concept-tier (3) — violet 300; foreground = AA-par za tekst na fillu */
+  --tier-easy: oklch(0.6 0.1 300);
+  --tier-easy-foreground: oklch(0.145 0 0);
+  --tier-medium: oklch(0.7 0.13 300);
+  --tier-medium-foreground: oklch(0.145 0 0);
+  --tier-hard: oklch(0.8 0.11 300);
+  --tier-hard-foreground: oklch(0.145 0 0);
+  /* Module-difficulty (5) — magenta 345; cross_module desaturiran (transverzalan) */
+  --difficulty-beginner: oklch(0.61 0.08 345);
+  --difficulty-beginner-foreground: oklch(0.145 0 0);
+  --difficulty-intermediate: oklch(0.66 0.11 345);
+  --difficulty-intermediate-foreground: oklch(0.145 0 0);
+  --difficulty-advanced: oklch(0.74 0.13 345);
+  --difficulty-advanced-foreground: oklch(0.145 0 0);
+  --difficulty-expert: oklch(0.82 0.105 345);
+  --difficulty-expert-foreground: oklch(0.145 0 0);
+  --difficulty-cross-module: oklch(0.68 0.03 345);
+  --difficulty-cross-module-foreground: oklch(0.145 0 0);
 }
 
 @layer base {
@@ -126,5 +289,18 @@
   }
   html {
     @apply font-sans;
+  }
+
+  /* A11y baseline (MASTER.md §5): reduced motion = gotovo bez pokreta.
+     Komponente u 4.6 mogu opt-in na blaže opacity prijelaze unutar vlastitih media query-ja. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

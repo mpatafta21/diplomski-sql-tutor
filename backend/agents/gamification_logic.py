@@ -8,9 +8,9 @@ Odluka (zaključana): badge-evaluacija se radi u Pythonu (Opcija A), NE u
 Prologu — `badges.pl` ostaje placeholder. Pravila ovdje moraju semantički
 odgovarati seedanim `badges.rule` tekstovima (app/db/seed_data.py BADGES).
 
-Mentor-pending vrijednosti označene su s TODO(mentor F2x) — struktura je takva
-da promjena broja NE lomi testove (testovi asertiraju kompoziciju preko ovih
-konstanti, osim ANCHOR primjera iz §3.4).
+Konstante su FINALIZIRANE (flag #5 zatvoren, mentor potvrdio postojeće
+vrijednosti) — racional po konstanti stoji uz blok KONSTANTE ispod. Testovi
+asertiraju kompoziciju preko konstanti + ANCHOR primjere iz §3.4.
 """
 
 from __future__ import annotations
@@ -20,40 +20,58 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 # ======================================================================
-# KONSTANTE
+# KONSTANTE — FINALNE (flag #5 zatvoren; mentor potvrdio vrijednosti)
 # ======================================================================
+# Racional po konstanti (bivši TODO(mentor F2a-F2d) markeri):
+#
+# F2a XP_BASE_BY_DIFFICULTY — linearna skala u difficulty 1..5 (omjer 1:2:3:4:5).
+#     Skala je tasks.difficulty (razina MODULA, ne concept-tier). [1]=10 je
+#     anchor deriviran iz §3.4 worked examplea (citabilno u tezi).
+#
+# F2b VERDICT_FACTOR — partial=0.5 je REZERVIRAN/dormant: ERRATA #8 (attempts
+#     nema verdict kolonu) znači da se "partial" trenutno NE generira; faktor
+#     postoji da buduća migracija verdicta ne mijenja formulu.
+#
+# F2c FIRST_ATTEMPT_BONUS — 1.pokušaj ×2.0, 2. ×1.5, 3+ floor ×1.0. Bonus opada
+#     NA bazu, ne ispod nje: ustrajnost i dalje nosi punu bazu (poravnato s
+#     "Comeback Kid" duhom §3.4, bez kažnjavanja ponovnih pokušaja).
+#
+# F2d LEVEL_STEP — linearno, 100 XP = +1 level. Rastuća krivulja svjesno
+#     ODBAČENA: na eval-skali (tjedni, deseci zadataka) ne daje ništa osim
+#     kompliciranije formule; usklađeno s master planom (docx §4.3).
+#
+# Nota: streak NAMJERNO ne množi XP — XP ostaje čist proxy za učinak-u-učenju
+# (streak se nagrađuje kroz streak_7 badge). Badge XP (seed_data.py xp_reward)
+# se u persistenceu STAKUJE u isti xp_delta kao attempt XP.
 
-# Bazni XP po difficulty (tasks.difficulty ∈ 1..5).
-# [1]=10 je DERIVIRANO iz §3.4 worked examplea (citabilno, fiksno).
-# [2..5] su placeholderi — čekaju mentora.
+# Bazni XP po difficulty (tasks.difficulty ∈ 1..5); [1]=10 anchor iz §3.4.
 XP_BASE_BY_DIFFICULTY: dict[int, int] = {
     1: 10,
-    2: 20,  # TODO(mentor F2a): potvrdi XP-base za difficulty 2
-    3: 30,  # TODO(mentor F2a): potvrdi XP-base za difficulty 3
-    4: 40,  # TODO(mentor F2a): potvrdi XP-base za difficulty 4
-    5: 50,  # TODO(mentor F2a): potvrdi XP-base za difficulty 5
+    2: 20,
+    3: 30,
+    4: 40,
+    5: 50,
 }
 
 # Faktor točnosti po Evaluatorovom verdiktu (agents/evaluation.py).
-# 0.5 za partial je TODO(mentor F2b).
+# partial=0.5 dormant do verdict migracije (ERRATA #8).
 VERDICT_FACTOR: dict[str, float] = {
     "correct": 1.0,
-    "partial": 0.5,  # TODO(mentor F2b): potvrdi faktor za partial
+    "partial": 0.5,
     "incorrect": 0.0,
 }
 
-# Bonus multiplikator po attempt_number. Prvi pokušaj nosi najviše.
-# Napomena: §3.4 dokument je interno kontradiktoran (formula kaže "prvi pokušaj",
-# primjer linija 442 daje ×1.5 DRUGOM) — ove vrijednosti su TODO(mentor F2c).
+# Bonus multiplikator po attempt_number. Prvi pokušaj nosi najviše;
+# §3.4 primjer (linija 442): ×1.5 ide DRUGOM pokušaju.
 FIRST_ATTEMPT_BONUS: dict[int, float] = {
-    1: 2.0,  # TODO(mentor F2c)
-    2: 1.5,  # TODO(mentor F2c)
+    1: 2.0,
+    2: 1.5,
 }
-# Za attempt_number >= 3 (nema posebnog bonusa).
+# Za attempt_number >= 3 (bonus opada na bazu, ne ispod).
 FIRST_ATTEMPT_BONUS_FLOOR: float = 1.0
 
-# Level prag: linearno, svaki LEVEL_STEP XP = +1 level.
-LEVEL_STEP: int = 100  # TODO(mentor F2d): potvrdi level krivulju (linearno vs rastuće)
+# Level prag: linearno, svaki LEVEL_STEP XP = +1 level (rastuće odbačeno).
+LEVEL_STEP: int = 100
 
 # Prag savladanosti koncepta — MORA biti identičan rules.pl:11 `mastery_threshold(0.85)`.
 MASTERY_THRESHOLD: float = 0.85

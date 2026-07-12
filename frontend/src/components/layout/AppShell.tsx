@@ -22,14 +22,15 @@ import { useAuth } from "@/hooks/useAuth"
 import { useTheme } from "@/hooks/useTheme"
 import { cn } from "@/lib/utils"
 
-// Nav skica (4.1c): put je "/" za sve dok ekrani ne postoje; `end` drži samo
-// Dashboard aktivnim. Prave rute stižu s 4.2 (dashboard/moduli), 4.3 (task)…
+// Nav (4.2): Dashboard i Moduli su prave rute; stub stavke (Zadatak/Profil/
+// Ljestvica) vode na "/" dok 4.3–4.5 ne donesu ekrane — `stub: true` im GASI
+// active stanje (inače bi na "/" četiri stavke bile istovremeno "aktivne").
 const NAV_ITEMS = [
-  { label: "Dashboard", icon: LayoutDashboard, to: "/" },
-  { label: "Moduli", icon: BookOpen, to: "/" },
-  { label: "Zadatak", icon: Terminal, to: "/" },
-  { label: "Profil", icon: User, to: "/" },
-  { label: "Ljestvica", icon: Trophy, to: "/" },
+  { label: "Dashboard", icon: LayoutDashboard, to: "/", stub: false },
+  { label: "Moduli", icon: BookOpen, to: "/modules", stub: false },
+  { label: "Zadatak", icon: Terminal, to: "/", stub: true },
+  { label: "Profil", icon: User, to: "/", stub: true },
+  { label: "Ljestvica", icon: Trophy, to: "/", stub: true },
 ] as const
 
 function SidebarNav() {
@@ -40,7 +41,7 @@ function SidebarNav() {
       aria-label="Glavna navigacija"
       className="flex flex-1 flex-col gap-1 p-3"
     >
-      {NAV_ITEMS.map(({ label, icon: Icon, to }) => (
+      {NAV_ITEMS.map(({ label, icon: Icon, to, stub }) => (
         <NavLink
           key={label}
           to={to}
@@ -50,7 +51,7 @@ function SidebarNav() {
               // Invarijanta #3: h-11 = 44px touch target po nav stavci.
               "flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-fast ease-standard",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-              isActive
+              isActive && !stub
                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
                 : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
             )

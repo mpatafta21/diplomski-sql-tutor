@@ -5,6 +5,13 @@
  */
 import { cn } from "@/lib/utils"
 
+/** Ljudska oznaka tiera — JEDNA mapa za sve potrošače (chip, filteri 4.3+). */
+export const TIER_LABEL: Record<string, string> = {
+  easy: "Lako",
+  medium: "Srednje",
+  hard: "Teško",
+}
+
 const TIER_CLASS: Record<string, string> = {
   easy: "bg-tier-easy text-tier-easy-foreground",
   medium: "bg-tier-medium text-tier-medium-foreground",

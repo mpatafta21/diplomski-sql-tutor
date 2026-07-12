@@ -282,6 +282,34 @@ async def test_get_profile_pure_db_read(api_user):
 
 
 @pytest.mark.asyncio
+async def test_get_profile_level_progress_fields(api_user):
+    """Faza 4.2: /profile izlaže progress-to-next-level + konstante da ih
+    frontend NE hardkodira. Izvor: gamification_logic.progress_to_next_level
+    + LEVEL_STEP + MASTERY_THRESHOLD (mirror rules.pl mastery_threshold)."""
+    user_id = api_user["user_id"]
+    with SessionLocal() as sess:
+        user = sess.get(User, user_id)
+        user.xp = 90
+        user.level = 1
+        sess.commit()
+
+    app = create_app()
+    async with _client(app) as client:
+        resp = await client.get("/profile", headers=auth_header(user_id))
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    # xp=90 → level 1, 90 unutar levela, 10 do idućeg
+    assert body["level"] == 1
+    assert body["xp_in_level"] == 90
+    assert body["xp_to_next"] == 10
+    assert body["level_step"] == 100
+    assert body["mastery_threshold"] == pytest.approx(0.85)
+    # Invarijanta iz progress_to_next_level docstringa
+    assert body["xp_in_level"] + body["xp_to_next"] == body["level_step"]
+
+
+@pytest.mark.asyncio
 async def test_get_profile_unknown_user_401():
     """Semantika 4.0b.2: user_id dolazi iz TOKENA. Token za nepostojećeg usera →
     get_current_user ga odbija (user nije u DB) → 401 invalid_token, NE 404.

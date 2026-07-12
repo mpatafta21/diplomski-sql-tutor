@@ -291,6 +291,13 @@
     @apply font-sans;
   }
 
+  /* MASTER.md §7: cursor-pointer na svemu klikabilnom. Tailwind v4 preflight
+     buttonima daje cursor:default — globalni override, ne per-komponenta. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
   /* A11y baseline (MASTER.md §5): reduced motion = gotovo bez pokreta.
      Komponente u 4.6 mogu opt-in na blaže opacity prijelaze unutar vlastitih media query-ja. */
   @media (prefers-reduced-motion: reduce) {

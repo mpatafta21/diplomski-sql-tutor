@@ -90,8 +90,16 @@ class NextTaskResponse(BaseModel):
 
 
 class ProfileResponse(BaseModel):
+    """Polja level-progresa i konstante (Faza 4.2) su tu da ih frontend NE
+    hardkodira — izvor: gamification_logic (progress_to_next_level, LEVEL_STEP,
+    MASTERY_THRESHOLD = mirror rules.pl mastery_threshold)."""
+
     xp: int
     level: int
+    xp_in_level: int
+    xp_to_next: int
+    level_step: int
+    mastery_threshold: float
     current_streak: int
     longest_streak: int
     mastery: list[MasteryItem]

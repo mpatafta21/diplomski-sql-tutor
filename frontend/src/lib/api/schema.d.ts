@@ -505,12 +505,25 @@ export interface components {
             /** Offset */
             offset: number;
         };
-        /** ProfileResponse */
+        /**
+         * ProfileResponse
+         * @description Polja level-progresa i konstante (Faza 4.2) su tu da ih frontend NE
+         *     hardkodira — izvor: gamification_logic (progress_to_next_level, LEVEL_STEP,
+         *     MASTERY_THRESHOLD = mirror rules.pl mastery_threshold).
+         */
         ProfileResponse: {
             /** Xp */
             xp: number;
             /** Level */
             level: number;
+            /** Xp In Level */
+            xp_in_level: number;
+            /** Xp To Next */
+            xp_to_next: number;
+            /** Level Step */
+            level_step: number;
+            /** Mastery Threshold */
+            mastery_threshold: number;
             /** Current Streak */
             current_streak: number;
             /** Longest Streak */

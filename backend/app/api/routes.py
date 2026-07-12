@@ -27,6 +27,11 @@ from sqlalchemy.orm import aliased
 
 from agents.coordinator import ERROR_EVALUATION_TIMEOUT, ONTOLOGY_SUBMIT_ATTEMPT
 from agents.evaluator_agent import _sandbox_conn_string
+from agents.gamification_logic import (
+    LEVEL_STEP,
+    MASTERY_THRESHOLD,
+    progress_to_next_level,
+)
 from agents.messages import Ontology
 from app.api.schemas import (
     AgentLogItem,
@@ -274,9 +279,17 @@ def _read_profile(user_id: int) -> dict | None:
             .order_by(Badge.code)
         ).scalars()
 
+        # level ostaje user.level (postojeće ponašanje); progres se izvodi iz XP-a
+        # postojećom formulom — NE reimplementira se.
+        _level, xp_in_level, xp_to_next = progress_to_next_level(user.xp)
+
         return {
             "xp": user.xp,
             "level": user.level,
+            "xp_in_level": xp_in_level,
+            "xp_to_next": xp_to_next,
+            "level_step": LEVEL_STEP,
+            "mastery_threshold": MASTERY_THRESHOLD,
             "current_streak": user.current_streak,
             "longest_streak": user.longest_streak,
             "mastery": [{"concept": code, "p_l": p_l} for code, p_l in mastery_rows],

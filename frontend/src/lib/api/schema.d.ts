@@ -282,6 +282,8 @@ export interface components {
             is_correct: boolean;
             /** Error Type */
             error_type: string | null;
+            /** Detail */
+            detail: string | null;
             /** Execution Time Ms */
             execution_time_ms: number | null;
             /** Rows Returned */
@@ -391,12 +393,20 @@ export interface components {
             /** Is Primary */
             is_primary: boolean;
         };
-        /** FeedbackModel */
+        /**
+         * FeedbackModel
+         * @description `detail` (Faza 4.3 Stage 0b) = EvaluationOutcome.detail, persistiran u
+         *     attempts.detail — pedagoški opis greške (imena stupaca / broj redova / PG
+         *     poruka studentovog upita). NIKAD expected_query ni sadržaj očekivanih
+         *     redaka. NULL za correct.
+         */
         FeedbackModel: {
             /** Is Correct */
             is_correct?: boolean | null;
             /** Error Type */
             error_type?: string | null;
+            /** Detail */
+            detail?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {

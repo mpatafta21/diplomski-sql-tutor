@@ -110,6 +110,7 @@ def build_response_payload(user_id: int, attempt_id: int | None) -> dict:
         "attempt_id": attempt_id,
         "is_correct": None,
         "error_type": None,
+        "detail": None,
         "verdict": None,
     }
     gamification: dict = {
@@ -128,6 +129,8 @@ def build_response_payload(user_id: int, attempt_id: int | None) -> dict:
                 created_at = att.created_at
                 feedback["is_correct"] = att.is_correct
                 feedback["error_type"] = att.error_type
+                # Stage 0b: pedagoški detail iz attempts reda (NULL za correct).
+                feedback["detail"] = att.detail
                 # ERRATA #8: partial se NE razlučuje — attempts nema verdict kolonu;
                 # izvodimo correct/incorrect iz is_correct. attempts.verdict migracija
                 # = Faza 4 (tada feedback može vratiti pravi partial).

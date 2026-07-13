@@ -96,6 +96,7 @@ def _make_attempt(
     error_type: str | None,
     attempt_number: int,
     xp_delta: int = 0,
+    detail: str | None = None,
 ) -> int:
     """Insertaj committed Attempt (+opc. XpLog) i vrati attempt_id."""
     with SessionLocal() as sess:
@@ -106,6 +107,7 @@ def _make_attempt(
             is_correct=is_correct,
             error_type=error_type,
             attempt_number=attempt_number,
+            detail=detail,
         )
         sess.add(att)
         sess.commit()

@@ -68,6 +68,9 @@ def persist_attempt(
             submitted_query=submitted_query,
             is_correct=outcome.is_correct,
             error_type=outcome.error_type,
+            # Stage 0b: correct nema detalj (evaluate() tamo stavlja placeholder
+            # "OK" — to nije pedagoški sadržaj pa se NE persistira).
+            detail=None if outcome.is_correct else (outcome.detail or None),
             execution_time_ms=outcome.execution_time_ms,
             rows_returned=outcome.rows_returned,
             attempt_number=attempt_number,

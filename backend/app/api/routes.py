@@ -170,6 +170,7 @@ def _to_attempt_response(result: dict) -> AttemptResponse:
         feedback={
             "is_correct": feedback.get("is_correct"),
             "error_type": feedback.get("error_type"),
+            "detail": feedback.get("detail"),
         },
         xp_delta=int(gam.get("xp_delta") or 0),
         xp=int(gam.get("xp") or 0),
@@ -517,6 +518,7 @@ def _read_attempts(user_id: int, limit: int, offset: int) -> dict:
                 Attempt.submitted_query,
                 Attempt.is_correct,
                 Attempt.error_type,
+                Attempt.detail,
                 Attempt.execution_time_ms,
                 Attempt.rows_returned,
                 Attempt.xp_awarded,
@@ -539,6 +541,7 @@ def _read_attempts(user_id: int, limit: int, offset: int) -> dict:
                 "submitted_query": r.submitted_query,
                 "is_correct": r.is_correct,
                 "error_type": r.error_type,
+                "detail": r.detail,
                 "execution_time_ms": r.execution_time_ms,
                 "rows_returned": r.rows_returned,
                 "xp_awarded": r.xp_awarded,

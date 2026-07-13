@@ -10,22 +10,26 @@
  * task.module_id — on je KRIV za 3/83 taskova (71–73: module_id kaže
  * "DML operacije", a primarni koncept correlated_subquery je u "Podupiti").
  */
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { ChevronRight, Clock, Play, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Kbd } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ConceptChip } from "@/components/ConceptChip"
 import { TaskDifficultyChip } from "@/components/task/TaskDifficultyChip"
 import { SchemaReference } from "@/components/task/SchemaReference"
 import { SqlEditor } from "@/components/task/SqlEditor"
+import { RunResultPanel } from "@/components/task/RunResultPanel"
 import { ErrorState } from "@/components/state/ErrorState"
 import { LoadingState } from "@/components/state/LoadingState"
 import { useModules } from "@/hooks/useModules"
+import { useRun } from "@/hooks/useRun"
 import { useTask } from "@/hooks/useTask"
 import { useTheme } from "@/hooks/useTheme"
-import { buildConceptIndex } from "@/lib/mastery"
+import type { RunResponse, TaskDetailResponse } from "@/lib/api/types"
+import { buildConceptIndex, type ConceptInfo } from "@/lib/mastery"
 
 const INITIAL_QUERY = "-- Napiši svoj SQL upit ovdje\n"
 
@@ -35,19 +39,6 @@ const IS_MAC = /Mac|iP(hone|ad|od)/.test(navigator.platform)
 const RUN_KBD = IS_MAC ? "⌘ ↵" : "Ctrl ↵"
 const RUN_ARIA = IS_MAC ? "Meta+Enter" : "Control+Enter"
 
-function Kbd({ children }: { children: React.ReactNode }) {
-  // aria-hidden: prečac čitačima objavljuje aria-keyshortcuts na gumbu,
-  // vizualni kbd bi inače ušao u accessible name ("Run Ctrl ↵" — šum).
-  return (
-    <kbd
-      aria-hidden="true"
-      className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[0.65rem] text-muted-foreground"
-    >
-      {children}
-    </kbd>
-  )
-}
-
 export function TaskPage() {
   const { taskId } = useParams()
   // Kanonski ID: samo znamenke ("0x2A"/"1e2"/" 5" bi kroz Number() aliasirali
@@ -55,10 +46,8 @@ export function TaskPage() {
   const validId = /^\d+$/.test(taskId ?? "") && Number(taskId) > 0
   const parsed = Number(taskId)
 
-  const { dark } = useTheme()
   const taskQ = useTask(validId ? parsed : null)
   const modulesQ = useModules()
-  const [query, setQuery] = useState(INITIAL_QUERY)
 
   // useMemo PRIJE early returnova (rules of hooks — isti obrazac kao
   // ModulesPage): bez toga se Map rebuilda na svaki keystroke u editoru.
@@ -101,7 +90,51 @@ export function TaskPage() {
     )
   }
 
-  const task = taskQ.data
+  // key={task.id}: promjena :taskId NE remounta TaskPage (isti route element) —
+  // key resetira per-task stanje (SQL u editoru, zadnji Run rezultat) da ne
+  // procuri iz prethodnog zadatka u sljedeći.
+  return (
+    <TaskView
+      key={taskQ.data.id}
+      task={taskQ.data}
+      conceptIndex={conceptIndex}
+    />
+  )
+}
+
+interface TaskViewProps {
+  task: TaskDetailResponse
+  conceptIndex: Map<string, ConceptInfo> | null
+}
+
+function TaskView({ task, conceptIndex }: TaskViewProps) {
+  const { dark } = useTheme()
+  const runM = useRun(task.id)
+  const { mutate } = runM // v5: mutate je referencijski stabilan
+  const [query, setQuery] = useState(INITIAL_QUERY)
+  // Zadnji USPJEŠNI rezultat: mutation.data se briše na svaki mutate() (v5
+  // pending reset) — bez ovoga bi se na svaki re-Run bljesnuo skeleton preko
+  // postojeće tablice (flash-of-skeleton na frekventnoj akciji).
+  const [lastResult, setLastResult] = useState<RunResponse>()
+  // Zadnji POSLANI upit — retry ponavlja NJEGA (ne trenutni sadržaj editora,
+  // koji je u međuvremenu mogao biti obrisan → retry ne smije biti tihi no-op).
+  const lastQueryRef = useRef("")
+
+  // Client-side guard: prazan/whitespace upit se NE šalje (nula requestova).
+  const canRun = query.trim().length > 0 && !runM.isPending
+  const handleRun = () => {
+    // Guard i ovdje (ne samo na gumbu) — Ctrl/Cmd+Enter iz editora ga zaobilazi.
+    if (!canRun) return
+    lastQueryRef.current = query
+    mutate(query, { onSuccess: setLastResult })
+  }
+  // Stabilan identitet (memo na RunResultPanelu se oslanja na ovo — inače bi
+  // se tablica do 200 redaka rekoncilirala na svaki keystroke u editoru).
+  const retryRun = useCallback(() => {
+    const q = lastQueryRef.current
+    if (!q.trim()) return
+    mutate(q, { onSuccess: setLastResult })
+  }, [mutate])
 
   // 🔴 NALAZ #7 — modul IZ PRIMARNOG KONCEPTA, ne iz task.module_id.
   const primary = task.concepts.find((c) => c.is_primary)
@@ -198,26 +231,44 @@ export function TaskPage() {
         <CardContent className="space-y-3 p-4">
           {/* focus-within prsten: Monaco fokus mora biti vidljiv i na kontejneru (MASTER §7). */}
           <div className="h-[420px] overflow-hidden rounded-md border border-border transition-[border-color,box-shadow] duration-fast ease-standard focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40 motion-reduce:transition-none xl:h-[520px]">
-            <SqlEditor value={query} onChange={setQuery} dark={dark} />
+            {/* ⚠️ onRun od PRVOG rendera — monaco akcije se registriraju na mountu. */}
+            <SqlEditor
+              value={query}
+              onChange={setQuery}
+              dark={dark}
+              onRun={handleRun}
+            />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
-              Izvršavanje upita aktivira se u sljedećem koraku.
+              Predaja rješenja (Submit) aktivira se u sljedećem koraku.
             </p>
             <div className="flex items-center gap-2">
-              {/* Run/Submit: prisutni, žice ih 4.3b (/run) i 4.3c (/attempt). */}
-              <Button variant="outline" disabled aria-keyshortcuts={RUN_ARIA}>
+              <Button
+                variant="outline"
+                disabled={!canRun}
+                onClick={handleRun}
+                aria-keyshortcuts={RUN_ARIA}
+              >
                 <Play data-icon="inline-start" aria-hidden="true" />
                 Run
-                <Kbd>{RUN_KBD}</Kbd>
+                <Kbd aria-hidden="true">{RUN_KBD}</Kbd>
               </Button>
+              {/* Submit žice 4.3c (/attempt). */}
               <Button disabled aria-keyshortcuts="Shift+Enter">
                 <Send data-icon="inline-start" aria-hidden="true" />
                 Submit
-                <Kbd>Shift ↵</Kbd>
+                <Kbd aria-hidden="true">Shift ↵</Kbd>
               </Button>
             </div>
           </div>
+          <RunResultPanel
+            result={lastResult}
+            isPending={runM.isPending}
+            infraError={runM.isError}
+            onRetry={retryRun}
+            runKbd={RUN_KBD}
+          />
         </CardContent>
       </Card>
     </div>

@@ -5,15 +5,7 @@
  * ghost/fire) → statična mapa, Award fallback (nikad emoji — MASTER.md §7).
  * Puna galerija locked+unlocked je teren 4.4.
  */
-import {
-  Award,
-  Compass,
-  Flame,
-  Ghost,
-  Link as LinkIcon,
-  Star,
-  type LucideIcon,
-} from "lucide-react"
+import { BADGE_ICON, BADGE_ICON_FALLBACK } from "@/lib/badge-icons"
 import {
   Card,
   CardContent,
@@ -22,14 +14,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import type { BadgeCatalogItem } from "@/lib/api/types"
-
-const BADGE_ICON: Record<string, LucideIcon> = {
-  compass: Compass,
-  star: Star,
-  link: LinkIcon,
-  ghost: Ghost,
-  fire: Flame,
-}
 
 interface BadgeStripProps {
   catalog: BadgeCatalogItem[]
@@ -56,7 +40,7 @@ export function BadgeStrip({ catalog, earnedCodes }: BadgeStripProps) {
         ) : (
           <ul className="flex flex-wrap gap-3">
             {earned.map((badge) => {
-              const Icon = BADGE_ICON[badge.icon ?? ""] ?? Award
+              const Icon = BADGE_ICON[badge.icon ?? ""] ?? BADGE_ICON_FALLBACK
               return (
                 <li
                   key={badge.code}

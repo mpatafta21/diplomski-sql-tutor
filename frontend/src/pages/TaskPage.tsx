@@ -11,6 +11,7 @@
  * "DML operacije", a primarni koncept correlated_subquery je u "Podupiti").
  */
 import { useCallback, useMemo, useRef, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "react-router-dom"
 import { ChevronRight, Clock, Play, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -22,13 +23,22 @@ import { TaskDifficultyChip } from "@/components/task/TaskDifficultyChip"
 import { SchemaReference } from "@/components/task/SchemaReference"
 import { SqlEditor } from "@/components/task/SqlEditor"
 import { RunResultPanel } from "@/components/task/RunResultPanel"
+import { FeedbackPanel } from "@/components/task/FeedbackPanel"
+import { ApiError } from "@/lib/api/query"
 import { ErrorState } from "@/components/state/ErrorState"
 import { LoadingState } from "@/components/state/LoadingState"
+import { useBadges } from "@/hooks/useBadges"
 import { useModules } from "@/hooks/useModules"
 import { useRun } from "@/hooks/useRun"
+import { useSubmitAttempt } from "@/hooks/useSubmitAttempt"
 import { useTask } from "@/hooks/useTask"
 import { useTheme } from "@/hooks/useTheme"
-import type { RunResponse, TaskDetailResponse } from "@/lib/api/types"
+import type {
+  AttemptResponse,
+  ProfileResponse,
+  RunResponse,
+  TaskDetailResponse,
+} from "@/lib/api/types"
 import { buildConceptIndex, type ConceptInfo } from "@/lib/mastery"
 
 const INITIAL_QUERY = "-- Napiši svoj SQL upit ovdje\n"
@@ -136,6 +146,66 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
     mutate(q, { onSuccess: setLastResult })
   }, [mutate])
 
+  // ── Submit (4.3c) — SCORED predaja; feedback je per-task (keyed TaskView). ──
+  const queryClient = useQueryClient()
+  const badgesQ = useBadges()
+  const submitM = useSubmitAttempt(task.id)
+  const [lastAttempt, setLastAttempt] = useState<AttemptResponse>()
+  const [levelUp, setLevelUp] = useState(false)
+  const submittedQueryRef = useRef("")
+
+  const canSubmit = query.trim().length > 0 && !submitM.isPending
+  const submitQuery = (q: string) => {
+    // level_up NEMA flag u odgovoru → prethodni level iz /profile cachea, koji
+    // useSubmitAttempt nakon svakog odgovora patcha autoritativnim snapshotom
+    // (svjež i bez observera na ovoj ruti). Cache-miss (direktan ulazak na
+    // /task bez dashboarda) → bez celebracije (nikad lažni level-up).
+    const prevLevel = queryClient.getQueryData<ProfileResponse>([
+      "profile",
+    ])?.level
+    submitM.mutate(q, {
+      onSuccess: (data) => {
+        setLastAttempt(data)
+        // Level-up SAMO uz bodovani pokušaj: level je best-effort read (Gam
+        // teče paralelno) — bez xp_delta uvjeta bi zakašnjeli snapshot mogao
+        // objesiti "Novi level!" na NETOČAN pokušaj.
+        setLevelUp(
+          prevLevel != null && data.level > prevLevel && data.xp_delta > 0,
+        )
+      },
+    })
+  }
+  const handleSubmit = () => {
+    // Guard i ovdje — Shift+Enter iz editora zaobilazi disabled gumb.
+    if (!canSubmit) return
+    submittedQueryRef.current = query
+    submitQuery(query)
+  }
+  // Retry ponavlja zadnju POSLANU predaju (editor mogao biti obrisan u međuvremenu).
+  const retrySubmit = () => {
+    const q = submittedQueryRef.current
+    if (q.trim()) submitQuery(q)
+  }
+
+  // Točno jedan slot renderira: v5 status je enum (isError ⇒ !isPending).
+  // 504 (agent pipeline ne odgovara) ≠ error_type:"timeout" (200, SQL predug).
+  const submitSlot = submitM.isPending
+    ? ("pending" as const)
+    : submitM.isError
+      ? submitM.error instanceof ApiError && submitM.error.status === 504
+        ? ("gateway" as const)
+        : ("infra" as const)
+      : lastAttempt
+        ? ("feedback" as const)
+        : null
+
+  // code→ime koncepta za CTA (nepoznat code → sirovi code bolji od ničega).
+  const conceptName = useCallback(
+    (code: string | null | undefined) =>
+      code ? (conceptIndex?.get(code)?.name ?? code) : undefined,
+    [conceptIndex],
+  )
+
   // 🔴 NALAZ #7 — modul IZ PRIMARNOG KONCEPTA, ne iz task.module_id.
   const primary = task.concepts.find((c) => c.is_primary)
   const primaryInfo = primary ? conceptIndex?.get(primary.code) : undefined
@@ -231,19 +301,18 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
         <CardContent className="space-y-3 p-4">
           {/* focus-within prsten: Monaco fokus mora biti vidljiv i na kontejneru (MASTER §7). */}
           <div className="h-[420px] overflow-hidden rounded-md border border-border transition-[border-color,box-shadow] duration-fast ease-standard focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40 motion-reduce:transition-none xl:h-[520px]">
-            {/* ⚠️ onRun od PRVOG rendera — monaco akcije se registriraju na mountu. */}
+            {/* ⚠️ onRun/onSubmit od PRVOG rendera — monaco akcije su mount-time. */}
             <SqlEditor
               value={query}
               onChange={setQuery}
               dark={dark}
               onRun={handleRun}
+              onSubmit={handleSubmit}
             />
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              Predaja rješenja (Submit) aktivira se u sljedećem koraku.
-            </p>
+          <div className="flex flex-wrap items-center justify-end gap-3">
             <div className="flex items-center gap-2">
+              {/* Run = proba bez bodovanja; Submit = scored predaja. */}
               <Button
                 variant="outline"
                 disabled={!canRun}
@@ -254,14 +323,46 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
                 Run
                 <Kbd aria-hidden="true">{RUN_KBD}</Kbd>
               </Button>
-              {/* Submit žice 4.3c (/attempt). */}
-              <Button disabled aria-keyshortcuts="Shift+Enter">
+              <Button
+                disabled={!canSubmit}
+                onClick={handleSubmit}
+                aria-keyshortcuts="Shift+Enter"
+              >
                 <Send data-icon="inline-start" aria-hidden="true" />
                 Submit
                 <Kbd aria-hidden="true">Shift ↵</Kbd>
               </Button>
             </div>
           </div>
+          {submitSlot === "pending" && (
+            <LoadingState
+              lines={2}
+              label="Ocjenjivanje rješenja"
+              className="rounded-md border border-border p-3"
+            />
+          )}
+          {submitSlot === "gateway" && (
+            <ErrorState
+              title="Sustav ne odgovara"
+              message="Evaluacija je predugo trajala — pokušaj ponovno predati."
+              onRetry={retrySubmit}
+            />
+          )}
+          {submitSlot === "infra" && (
+            <ErrorState
+              title="Predaja nije uspjela"
+              message="Veza prema poslužitelju nije uspjela — rješenje nije ocijenjeno."
+              onRetry={retrySubmit}
+            />
+          )}
+          {submitSlot === "feedback" && lastAttempt && (
+            <FeedbackPanel
+              attempt={lastAttempt}
+              levelUp={levelUp}
+              badgeCatalog={badgesQ.data}
+              conceptName={conceptName}
+            />
+          )}
           <RunResultPanel
             result={lastResult}
             isPending={runM.isPending}

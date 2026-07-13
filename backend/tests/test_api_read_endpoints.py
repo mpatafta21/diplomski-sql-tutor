@@ -165,6 +165,7 @@ async def test_get_modules_structure_and_counts(student_auth):
                 "tier",
                 "order_index",
                 "prerequisites",
+                "primary_task_count",
             }
 
     # poznati prereq brid: from_clause ima select_basic kao preduvjet (po code-u)
@@ -191,6 +192,56 @@ async def test_get_modules_matches_db_counts(student_auth):
     assert len(modules) == n_modules_db
     n_concepts_api = sum(len(m["concepts"]) for m in modules)
     assert n_concepts_api == n_concepts_db
+
+
+@pytest.mark.asyncio
+async def test_get_modules_primary_task_count(student_auth):
+    """primary_task_count (Faza 4.3 Stage 0, NALAZ #10) — broj AKTIVNIH PRIMARY
+    taskova po konceptu, ista semantika kao recommender_logic._concept_task_stats
+    (UI unlock logika mora moći zrcaliti Recommenderove kategorije: 0 / <2 / >=2)."""
+    from sqlalchemy import func
+
+    from app.db.models import Task
+
+    # Ground truth istim LEFT JOIN-om kao recommender_logic._concept_task_stats.
+    with SessionLocal() as s:
+        rows = s.execute(
+            select(Concept.code, func.count(Task.id))
+            .select_from(Concept)
+            .outerjoin(
+                TaskConcept,
+                (TaskConcept.concept_id == Concept.id)
+                & (TaskConcept.is_primary.is_(True)),
+            )
+            .outerjoin(
+                Task,
+                (Task.id == TaskConcept.task_id) & (Task.is_active.is_(True)),
+            )
+            .group_by(Concept.code)
+        ).all()
+    expected_counts = dict(rows)
+
+    app = create_app()
+    async with _client(app) as client:
+        resp = await client.get("/modules", headers=student_auth)
+
+    assert resp.status_code == 200, resp.text
+    api_counts = {
+        c["code"]: c["primary_task_count"]
+        for m in resp.json()
+        for c in m["concepts"]
+    }
+
+    # Svi koncepti nose count i on odgovara DB ground truthu (non-null int >= 0).
+    assert api_counts == expected_counts
+    for count in api_counts.values():
+        assert isinstance(count, int) and count >= 0
+
+    # Sidra iz živog inventara (KORAK 0): transverzalni glue bez primary taskova
+    # vs null_handling koji JE modul 0 ali IMA primary taskove (nije prozirni).
+    assert api_counts["join_condition"] == 0
+    assert api_counts["column_alias"] == 0
+    assert api_counts["null_handling"] > 0
 
 
 # ---------------------------------------------------------------------------

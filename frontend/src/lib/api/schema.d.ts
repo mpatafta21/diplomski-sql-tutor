@@ -360,7 +360,12 @@ export interface components {
              */
             client_secret?: string | null;
         };
-        /** ConceptNode */
+        /**
+         * ConceptNode
+         * @description `primary_task_count` (Faza 4.3 Stage 0, NALAZ #10) = broj AKTIVNIH PRIMARY
+         *     taskova koncepta — ista semantika kao recommender_logic._concept_task_stats.
+         *     UI iz njega zrcali Recommenderove kategorije (0 = glue · <2 = subfloor · >=2).
+         */
         ConceptNode: {
             /** Id */
             id: number;
@@ -374,6 +379,8 @@ export interface components {
             order_index: number;
             /** Prerequisites */
             prerequisites: string[];
+            /** Primary Task Count */
+            primary_task_count: number;
         };
         /** ConceptRef */
         ConceptRef: {

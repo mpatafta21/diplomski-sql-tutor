@@ -131,12 +131,17 @@ class TaskDetailResponse(BaseModel):
 
 
 class ConceptNode(BaseModel):
+    """`primary_task_count` (Faza 4.3 Stage 0, NALAZ #10) = broj AKTIVNIH PRIMARY
+    taskova koncepta — ista semantika kao recommender_logic._concept_task_stats.
+    UI iz njega zrcali Recommenderove kategorije (0 = glue · <2 = subfloor · >=2)."""
+
     id: int
     code: str
     name: str
     tier: str
     order_index: int
     prerequisites: list[str]
+    primary_task_count: int
 
 
 class ModuleNode(BaseModel):

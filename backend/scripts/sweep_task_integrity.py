@@ -203,6 +203,24 @@ def main() -> None:
     print("\n--- JSON SAŽETAK ---")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
+    # Gate bi na praznoj bazi "prošao" s 0/0 — a prazan task bank znači
+    # neseedanu bazu, ne zdravlje. Actionable poruka umjesto tihog zelenila.
+    if summary["total_active_tasks"] == 0:
+        print(
+            "\n🔴 GATE PAO: nula AKTIVNIH taskova u bazi. Pokreni prvi-boot korake:\n"
+            "   make db-tasks && make sandbox-seed"
+        )
+        raise SystemExit(1)
+
+    # Gate: nijedan referentni upit ne smije pasti.
+    if summary["failing_genuine"]:
+        print(
+            f"\n🔴 GATE PAO: {summary['failing_genuine']} referentni upit(a) ne "
+            f"reproducira expected_result: {summary['genuine_task_ids']}. "
+            "Vidi tablicu iznad; regeneracija: scripts.regenerate_expected_result."
+        )
+        raise SystemExit(1)
+
     # Tvrdnja (4.4-0d KORAK 6c): nula perzistiranih unsupported_eval attempta.
     polluted = summary["unsupported_eval_attempts"]
     if polluted:

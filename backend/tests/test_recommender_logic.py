@@ -32,6 +32,7 @@ import pytest
 from sqlalchemy import delete, select
 
 from agents.db_helpers import load_concept_code_map
+from agents.evaluation import UNSUPPORTED_CONCEPTS
 from agents.recommender_logic import (
     build_mastery_snapshot,
     recommend,
@@ -409,3 +410,88 @@ def test_recommend_clears_mastery_after(recommender_env, prolog_engine):
             recommend(sess, prolog_engine, user_id)
 
     spy.assert_called_with(str(user_id))
+
+
+# ---------------------------------------------------------------------------
+# T-4.4-0d — NEEVALUABILNI koncepti (Kat. C) se NE preporučuju
+#
+# 🔴 Ćorsokak prije fixa: Prolog je vraćao ('explain_plan', 'weak_with_prereqs_met'),
+# recommender je servirao task 90, evaluator ga NE zna ocijeniti (unsupported_eval)
+# → nikad is_correct → nikad "riješen" → isti task zauvijek, uz 0 XP i BKT kaznu.
+# ---------------------------------------------------------------------------
+
+
+def test_unsupported_concepts_yield_no_task(recommender_env):
+    """select_task_for_concept vraća None za neevaluabilne — iako taskovi POSTOJE."""
+    user_id = recommender_env["user_id"]
+    with SessionLocal() as sess:
+        for code in UNSUPPORTED_CONCEPTS:
+            assert _primary_task_ids(code), f"preduvjet: {code} ima aktivne taskove"
+            assert select_task_for_concept(sess, user_id, code) is None, (
+                f"{code} je neevaluabilan — NE smije dati task (trajni ćorsokak)"
+            )
+
+
+def test_evaluable_concepts_still_yield_tasks(recommender_env):
+    """Regresija: ostali koncepti su NEDIRNUTI (uklj. DML koje sada znamo ocijeniti)."""
+    user_id = recommender_env["user_id"]
+    with SessionLocal() as sess:
+        for code in ("select_basic", "group_by", "insert", "update", "delete"):
+            assert select_task_for_concept(sess, user_id, code) is not None, (
+                f"{code} je evaluabilan i mora davati task"
+            )
+
+
+def test_unsupported_concepts_masked_in_snapshot(recommender_env, prolog_engine):
+    """Maska je na razini KONCEPTA (0.99) — Prolog ih preskače kroz vlastite klauzule."""
+    user_id = recommender_env["user_id"]
+    with SessionLocal() as sess:
+        masked = subfloor_concepts(sess) | UNSUPPORTED_CONCEPTS
+        snap = build_mastery_snapshot(
+            sess, prolog_engine, user_id, transversal_concepts(sess), masked
+        )
+    for code in UNSUPPORTED_CONCEPTS:
+        assert snap[code] >= 0.99, f"{code} mora biti maskiran kao mastered"
+
+
+def test_unmasked_prolog_would_recommend_unevaluable(prolog_engine):
+    """Preduvjet ćorsokaka: kad su SAMO neevaluabilni koncepti slabi, Prolog ih nudi.
+
+    Deterministički jer su oni JEDINI slabi kandidati (ne ovisi o redoslijedu
+    Prologovih rješenja).
+    """
+    snap = {c: 0.99 for c in ALL_30}
+    for code in UNSUPPORTED_CONCEPTS:
+        snap[code] = 0.10
+
+    prolog_engine.inject_mastery("t_unmasked", snap)
+    try:
+        rec = prolog_engine.recommend_next("t_unmasked")
+    finally:
+        prolog_engine.clear_mastery("t_unmasked")
+
+    assert rec is not None and rec[0] in UNSUPPORTED_CONCEPTS, (
+        f"bez maske Prolog nudi neevaluabilan koncept (= ćorsokak), dobiveno {rec}"
+    )
+
+
+def test_masked_skips_to_evaluable_concept(prolog_engine):
+    """🔴 S maskom: preskoči neevaluabilno i ponudi STVARAN zadatak — ne šutnju.
+
+    Ovo je dokaz da fix ne stvara TIŠI ćorsokak (task_id=None / no_recommendation):
+    self_join je jedini evaluabilan slab koncept pa je očekivanje jednoznačno.
+    """
+    snap = {c: 0.99 for c in ALL_30}
+    snap["self_join"] = 0.10
+    for code in UNSUPPORTED_CONCEPTS:
+        snap[code] = 0.99  # maska koju recommend() primjenjuje
+
+    prolog_engine.inject_mastery("t_masked", snap)
+    try:
+        rec = prolog_engine.recommend_next("t_masked")
+    finally:
+        prolog_engine.clear_mastery("t_masked")
+
+    assert rec is not None, "maska je ušutkala preporuku — tiši ćorsokak"
+    assert rec[0] not in UNSUPPORTED_CONCEPTS
+    assert rec[0] == "self_join", f"mora ponuditi evaluabilan koncept, dobiveno {rec}"

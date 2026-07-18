@@ -1,0 +1,20 @@
+-- ==========================================================
+-- docker/postgres-sandbox/zz-role-timeouts.sql
+-- Konfiguracija sandbox ROLA (Faza 4.4-0e, KORAK 2). Bez sheme, bez podataka.
+-- ==========================================================
+--
+-- ZAŠTO ODVOJENA DATOTEKA (a ne dopuna init.sql-a):
+--   init.sql je ZAMRZNUTA shema čiji je SHA-256 zapisan u
+--   frontend/src/lib/sandbox-schema.ts. Dodavanje i jedne linije razvalilo bi
+--   taj guard iako shema nije dirana. Prefiks `zz-` jamči izvršavanje NAKON
+--   init.sql (docker-entrypoint-initdb.d ide abecedno), kad role već postoje.
+--
+-- ZAŠTO lock_timeout:
+--   Od 4.4-0d DML evaluacija ide kroz `sandbox_readwrite` nad JEDNOM DIJELJENOM
+--   shemom (15-20 studenata istovremeno). Server ima statement_timeout=5s i
+--   lock_timeout=0 (isključen) → transakcija koja čeka red-lock visi do 5 s.
+--   1 s = fail-fast: student dobije brzu grešku umjesto "zamrznute" evaluacije.
+--   statement_timeout se NE dira (ostaje 5 s, postavljen u docker-compose.yml).
+--
+-- Vrijedi samo za readwrite put; readonly (SELECT) ne uzima konfliktne lockove.
+ALTER ROLE sandbox_readwrite SET lock_timeout = '1s';

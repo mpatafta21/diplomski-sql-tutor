@@ -24,6 +24,9 @@ services:
     volumes:
       - pg_sandbox_data:/var/lib/postgresql/data
       - ./docker/postgres-sandbox/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      # `zz-` prefiks → izvršava se NAKON init.sql (abecedni redoslijed), kad
+      # role postoje. Odvojeno od init.sql da SHA guard sheme ostane valjan.
+      - ./docker/postgres-sandbox/zz-role-timeouts.sql:/docker-entrypoint-initdb.d/zz-role-timeouts.sql:ro
     command: postgres -c statement_timeout=5000 -c idle_in_transaction_session_timeout=10000
 
   prosody:

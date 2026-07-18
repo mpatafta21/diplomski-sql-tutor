@@ -29,8 +29,13 @@ Diplomski rad — FOI, smjer Baze podataka i baze znanja.
 ```bash
 make dev
 ```
-Diže: Postgres×2 + Prosody → čeka DB → `alembic upgrade head` → seed (moduli/koncepti/bedževi + admin)
-→ **`make sweep` (gate)** → backend (uvicorn `:8000`) + frontend (Vite `:5173`) zajedno.
+Diže: Postgres×2 + Prosody → čeka DB → `alembic upgrade head` → seed (moduli/koncepti/bedževi
++ admin) → **import taskova** → **seed sandboxa (samo ako je prazan)** → **registracija SPADE
+agenata u Prosody** → **`make sweep` (gate)** → backend (uvicorn `:8000`) + frontend (Vite `:5173`).
+
+**Od Faze 4.4-0g `make dev` radi FROM SCRATCH** — nakon `docker compose down -v` ne treba
+nijedna ručna komanda. (Prije toga su nedostajali import taskova, seed sandboxa i registracija
+agenata, pa je backend pucao na svježem Prosody volumenu.)
 
 > **🔴 Task bank je VERZIONIRAN ARTEFAKT RADA.** `data/generated_tasks/final_dataset.json`
 > (83 zadatka, `version: 2b-3`) jedini je izvor koji `scripts/import_dataset.py` čita i
@@ -40,20 +45,15 @@ Diže: Postgres×2 + Prosody → čeka DB → `alembic upgrade head` → seed (m
 > **Ne regenerirati dataset kroz LLM bez izričite odluke** — zadaci su ručno validirani
 > i njihovi `expected_result` zapisi vezani su uz deterministički sandbox seed (NALAZ #20).
 
-**Prvi boot** (jednokratno, prije prvog `make dev` — puni task bank i sandbox podatke):
-```bash
-make db-tasks      # import 83 taska iz data/generated_tasks/final_dataset.json
-make sandbox-seed  # deterministički Faker seed sandbox podataka
-```
-
 ### Ručno (isti redoslijed)
 ```bash
 make infra-up      # docker compose up -d  (postgres-main, postgres-sandbox, prosody)
 make wait-db       # čeka pg_isready (compose nema healthcheck → izbjegava race)
 make db-migrate    # cd backend && uv run alembic upgrade head
 make db-seed       # cd backend && uv run python -m app.db.seed
-make db-tasks      # (prvi boot) import taskova iz final_dataset.json
-make sandbox-seed  # (prvi boot) deterministički seed sandbox podataka
+make db-tasks      # import taskova iz final_dataset.json (idempotentan upsert)
+make sandbox-seed-if-empty  # deterministički seed sandboxa ako je prazan
+make register-agents        # SPADE računi u Prosody (idempotentno)
 make sweep         # GATE — vidi dolje
 make backend       # uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 make frontend      # (u drugom terminalu) cd frontend && npm run dev
@@ -82,7 +82,20 @@ Izlazi s **ne-nul kodom** ako:
 
 **Zašto gate:** Faza 4.4-0c otkrila je **11 od 83** neocjenjivih taskova koje nitko nije
 primijetio jer ih ništa nije provjeravalo (9 DML + 2 datumski zastarjela). Sweep je ugrađen
-u `make dev` da se to ne može ponoviti tiho. **Ne pokreći evaluacijsku sesiju dok sweep nije zelen.**
+u `make dev` da se to ne može ponoviti tiho.
+
+### 🔴 `make preflight` — pokreni PRIJE evaluacijske sesije
+
+```bash
+make preflight    # = make sweep + make smoke   (backend mora vrtjeti)
+```
+
+`make sweep` zove evaluacijsku jezgru **izravno** i time zaobilazi HTTP gateway, AgentBridge,
+XMPP/Prosody, Coordinator FSM i agente — pa ostaje **zelen i kad `/attempt` pada** (npr.
+neregistrirani XMPP računi). `make smoke` pokriva točno tu rupu: jedan pravi `POST /attempt`
+kroz cijeli lanac mora dati `is_correct=true`. Smoke sam čisti svog `demo44_smoke` usera.
+
+**Ne pokreći evaluacijsku sesiju dok `make preflight` nije zelen.**
 
 ## Struktura
 

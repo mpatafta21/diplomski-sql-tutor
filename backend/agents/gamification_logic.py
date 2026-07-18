@@ -78,9 +78,14 @@ MASTERY_THRESHOLD: float = 0.85
 
 # Badge skupovi (semantika seedanih badges.rule tekstova).
 JOIN_CONCEPTS: frozenset[str] = frozenset({"inner_join", "left_join", "right_join"})
-# explorer: seed rule koristi between(1,6,M) → moduli 1..6 (modul 0 "Transverzalni"
-# NIJE uključen seed-pravilom; vidi 3D pre-flight nalaz #6).
-EXPLORER_MODULES: frozenset[int] = frozenset({1, 2, 3, 4, 5, 6})
+# explorer: kriterij je DINAMIČAN (NALAZ #22, Faza 4.4-0f) — skup modula koji
+# STVARNO imaju aktivne zadatke, a ne hardkodiranih {1..6}. Razlog: modul 6 je
+# od 4.4-0e izvan opsega (NALAZ #19, taskovi is_active=False), pa je fiksni
+# kriterij "svih 6 modula" učinio bedž NEDOSTIŽNIM svakom studentu — a galerija
+# bedževa (4.4a) i dalje ga je prikazivala s kriterijem koji se ne može ispuniti.
+# Skup se injektira kroz BadgeFacts.evaluable_modules (eval_badges ostaje čist),
+# pa se automatski proširi ako M6 ikad postane evaluabilan.
+# Modul 0 ("Transverzalni") i dalje NIJE dio kriterija — vidi 3D nalaz #6.
 
 
 # ======================================================================
@@ -213,6 +218,9 @@ class BadgeFacts:
     mastered: frozenset[str]
     current_streak: int
     attempted_modules: frozenset[int]
+    #: Brojevi modula (bez 0) koji imaju BAREM JEDAN aktivan zadatak — kriterij
+    #: za `explorer`. Prazan skup → bedž se ne dodjeljuje (fail-closed).
+    evaluable_modules: frozenset[int]
 
 
 def eval_badges(facts: BadgeFacts) -> frozenset[str]:
@@ -231,7 +239,9 @@ def eval_badges(facts: BadgeFacts) -> frozenset[str]:
         earned.add("null_ninja")
     if facts.current_streak >= 7:
         earned.add("streak_7")
-    if EXPLORER_MODULES <= facts.attempted_modules:
+    # Fail-closed: prazan skup evaluabilnih modula NE dodjeljuje bedž
+    # (inače bi prazan podskup trivijalno zadovoljio <=).
+    if facts.evaluable_modules and facts.evaluable_modules <= facts.attempted_modules:
         earned.add("explorer")
 
     return frozenset(earned)

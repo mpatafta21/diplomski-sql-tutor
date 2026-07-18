@@ -17,7 +17,6 @@ from datetime import date, timedelta
 import pytest
 
 from agents.gamification_logic import (
-    EXPLORER_MODULES,
     FIRST_ATTEMPT_BONUS,
     FIRST_ATTEMPT_BONUS_FLOOR,
     JOIN_CONCEPTS,
@@ -198,6 +197,10 @@ def _facts(**kw) -> BadgeFacts:
         mastered=frozenset(),
         current_streak=0,
         attempted_modules=frozenset(),
+        # NALAZ #22: kriterij za explorer je DINAMIČAN (moduli s aktivnim
+        # zadacima). U trenutnoj konfiguraciji to je {1..5} (M6 izvan opsega,
+        # NALAZ #19); testovi ga zato injektiraju eksplicitno.
+        evaluable_modules=frozenset({1, 2, 3, 4, 5}),
     )
     base.update(kw)
     return BadgeFacts(**base)
@@ -229,9 +232,39 @@ def test_badge_streak_7():
 
 
 def test_badge_explorer_boundary():
-    assert "explorer" not in eval_badges(_facts(attempted_modules=frozenset({1, 2, 3, 4, 5})))
-    assert eval_badges(_facts(attempted_modules=EXPLORER_MODULES)) == frozenset(
-        {"explorer"}
+    """Explorer traži pokušaj u SVAKOM evaluabilnom modulu — ni jedan manje."""
+    evaluable = frozenset({1, 2, 3, 4, 5})
+    # 4/5 → još ne
+    assert "explorer" not in eval_badges(
+        _facts(attempted_modules=frozenset({1, 2, 3, 4}), evaluable_modules=evaluable)
+    )
+    # svih 5 → da
+    assert eval_badges(
+        _facts(attempted_modules=evaluable, evaluable_modules=evaluable)
+    ) == frozenset({"explorer"})
+
+
+def test_badge_explorer_is_dynamic_not_hardcoded_six():
+    """🔴 NALAZ #22: kriterij prati PODATKE, ne fiksnu šesticu.
+
+    Da je hardkodiran na {1..6}, ovo bi palo — a upravo je to učinilo bedž
+    nedostižnim kad je M6 otišao izvan opsega (NALAZ #19).
+    """
+    evaluable = frozenset({1, 2, 3, 4, 5})
+    assert "explorer" in eval_badges(
+        _facts(attempted_modules=evaluable, evaluable_modules=evaluable)
+    )
+    # Ako M6 ikad postane evaluabilan, kriterij se sam proširi:
+    with_m6 = evaluable | {6}
+    assert "explorer" not in eval_badges(
+        _facts(attempted_modules=evaluable, evaluable_modules=with_m6)
+    )
+
+
+def test_badge_explorer_fail_closed_on_empty():
+    """Prazan skup evaluabilnih modula NE smije trivijalno dodijeliti bedž."""
+    assert "explorer" not in eval_badges(
+        _facts(attempted_modules=frozenset({1, 2}), evaluable_modules=frozenset())
     )
 
 
@@ -244,7 +277,7 @@ def test_badge_multiple_simultaneous():
         has_correct=True,
         mastered=JOIN_CONCEPTS | {"null_handling"},
         current_streak=7,
-        attempted_modules=EXPLORER_MODULES,
+        attempted_modules=frozenset({1, 2, 3, 4, 5}),
     )
     assert eval_badges(facts) == frozenset(
         {"first_correct", "join_master", "null_ninja", "streak_7", "explorer"}

@@ -25,5 +25,9 @@ user_badge(UserID, streak_7) :-
 user_badge(UserID, null_ninja) :-
     mastered(UserID, null_handling).
 
+% NALAZ #22 (4.4-0f): kriterij više NIJE fiksnih 1..6 nego moduli koji STVARNO
+% imaju aktivne zadatke — modul 6 je izvan opsega (NALAZ #19) pa bi fiksna
+% šestica činila bedž nedostižnim. evaluable_module/1 = modul (≠0) s barem
+% jednim aktivnim zadatkom; u Pythonu: BadgeFacts.evaluable_modules.
 user_badge(UserID, explorer) :-
-    forall(between(1, 6, M), attempted_in_module(UserID, M)).
+    forall(evaluable_module(M), attempted_in_module(UserID, M)).

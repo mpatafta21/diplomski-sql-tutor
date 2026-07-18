@@ -365,29 +365,37 @@ def test_zagreb_day_boundary(gam_env):
 
 
 def test_explorer_module_zero_excluded(gam_env):
-    """Moduli 1-5 + modul 0 → NE dobiva explorer (modul 0 izvan between(1,6)).
-    Tek modul 6 kompletira → explorer. Dokazuje task.module_id→number put."""
+    """Modul 0 (transverzalni) NE ulazi u explorer kriterij.
+
+    4.4-0f / NALAZ #22: kriterij više nije fiksnih {1..6} nego moduli koji
+    STVARNO imaju aktivne zadatke (trenutno {1..5}, jer je M6 izvan opsega —
+    NALAZ #19). Invarijanta koju ovaj test i dalje čuva: pokušaj u modulu 0
+    NE nadomješta modul koji nedostaje.
+    """
     uid = gam_env["user_id"]
 
-    # pokušaji u modulima 1,2,3,4,5 i 0 (modul 0 = transverzalni, ne broji se)
-    for mod in [1, 2, 3, 4, 5, 0]:
+    # pokušaji u modulima 1,2,3,4 i 0 — modul 5 NEDOSTAJE
+    for mod in [1, 2, 3, 4, 0]:
         tid = gam_env["make_task"](module_number=mod)
         aid = gam_env["make_attempt"](tid, is_correct=False, created_at=_DAY)
         with SessionLocal() as s:
             persist_gamification(s, _payload(aid, "incorrect"))
 
     earned_codes = _earned_codes(uid)
-    assert "explorer" not in earned_codes  # modul 6 fali, modul 0 ne nadomješta
+    assert "explorer" not in earned_codes, (
+        "modul 0 NE smije nadomjestiti modul 5 koji nedostaje"
+    )
 
-    # dodaj modul 6 → explorer kompletiran
-    tid = gam_env["make_task"](module_number=6)
+    # dodaj modul 5 → kriterij (evaluabilni moduli) je kompletiran
+    tid = gam_env["make_task"](module_number=5)
     aid = gam_env["make_attempt"](tid, is_correct=False, created_at=_DAY)
     with SessionLocal() as s:
-        summary = persist_gamification(s, _payload(aid, "incorrect"))
+        persist_gamification(s, _payload(aid, "incorrect"))
 
-    assert "explorer" in summary["new_badges"]
-    assert "explorer" in _earned_codes(uid)
-
+    assert "explorer" in _earned_codes(uid), (
+        "svi evaluabilni moduli pokušani → explorer se MORA dodijeliti "
+        "(dokaz da kriterij prati podatke, ne hardkodiranu šesticu)"
+    )
 
 def _earned_codes(user_id: int) -> set[str]:
     with SessionLocal() as s:

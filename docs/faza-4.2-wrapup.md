@@ -2,7 +2,7 @@
 
 **Status:** ✅ KOMPLETNA (Stage 0 + 4.2a + 4.2b na grani `faza-4-2-dashboard`; PR "Faza 4.2" → `main` čeka push/potvrdu). Student vidi svoj napredak (XP/level/streak, mastery, bedževi), ima jasan CTA na sljedeći zadatak i pregled svih modula s locked/unlocked stanjima — sve s pravih endpointa, nula mocka.
 **Obuhvat:** **Stage 0** (aditivni backend contract dodatak `/profile`), **4.2a** (Dashboard ekran + data sloj), **4.2b** (Module overview).
-**Rezultat:** backend suite **467 passed / 1 skipped** (Stage 0 dodao 1 test; 0 regresija); frontend **`tsc -b` + build + oxlint + prettier zeleni**; e2e Playwright dokazi (svjež + populated user, obje teme) za oba ekrana; 2× `/code-review` (19 nalaza ukupno: 18 popravljeno, po 1 preskočen s razlogom po ekranu).
+**Rezultat:** backend suite **467 passed / 1 skipped** (Stage 0 dodao 1 test; 0 regresija); frontend **`tsc -b` + build + oxlint + prettier zeleni**; **ručni** e2e dokazi kroz headless Chrome (CDP; svjež + populated user, obje teme) za oba ekrana — *nije* committed automatizirani suite (NALAZ #17); 2× `/code-review` (19 nalaza ukupno: 18 popravljeno, po 1 preskočen s razlogom po ekranu).
 **Grane/PR/tagovi:** `faza-4-2-dashboard` · tagovi `faza-4-2a-dashboard` → `faza-4-2b-modules` · commitovi `73223b8` (Stage 0) → `89b974f` (4.2a) → `528e482` (4.2b).
 
 Cilj cijele 4.2: prva dva **data ekrana** nad zaključanim ugovorom — uz podatkovni sloj (TanStack Query hookovi + domenske lib-ove) koji 4.3–4.5 nasljeđuju bez retrofita.

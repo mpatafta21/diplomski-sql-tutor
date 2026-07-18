@@ -2,7 +2,7 @@
 
 **Status:** ✅ KOMPLETNA (4.1a + 4.1b + 4.1c, mergeano u `main` kroz PR #18). Postoji "lijepa i spojena" ljuska: design sistem + typed klijent + auth flow + protected shell — sve buduće faze (4.2–4.7) grade na ovome bez retrofita.
 **Obuhvat:** pod-faze **4.1a** (tooling & scaffold), **4.1b** (design system & tokeni), **4.1c** (app shell & infra).
-**Rezultat:** backend suite **466 passed / 1 skipped** (netaknut — 0 izmjena backenda u 4.1b/c); frontend **`tsc -b` + build + oxlint + prettier zeleni**; **e2e 12/12** (Playwright, živi backend).
+**Rezultat:** backend suite **466 passed / 1 skipped** (netaknut — 0 izmjena backenda u 4.1b/c); frontend **`tsc -b` + build + oxlint + prettier zeleni**; **ručna** e2e verifikacija kroz headless Chrome (CDP, živi backend): **12 scenarija** — *nije* committed automatizirani suite (NALAZ #17).
 **Grane/PR/tagovi:** `faza-4-1-frontend` (PR #18, mergean) · tagovi `faza-4-1a-scaffold` → `faza-4-1b-design-system` → `faza-4-1c-app-shell`.
 
 Cilj cijele 4.1: frontend temelj koji je **contract-safe od prvog dana** (tipovi generirani iz backend OpenAPI-ja) i **vizualno namjeran** (token-sistem prije ijedne ekranske komponente), s auth gate-om koji radi e2e protiv živog backenda.
@@ -65,7 +65,7 @@ Sve vrijednosti **numerički AA-verificirane** (skripta: oklch→sRGB gamut + WC
 - `LoadingState` (**skeleton, ne spinner**) + `FullPageLoading` · `EmptyState` (ikona+poruka+CTA) · `ErrorState` (oporavljiv, retry) · `ErrorBoundary` (class, hvata render greške; mrežne idu kroz TanStack Query).
 - Login/Register stranice: RHF + zod v4, inline greške po polju, 401/409/422 poruke, loading na submitu.
 
-### 3.5 E2E dokaz (Playwright headless-shell, živi backend) — 12/12
+### 3.5 E2E dokaz (RUČNA verifikacija kroz headless Chrome/CDP, živi backend) — 12 scenarija
 anon→/login redirect · register→shell · login→shell · logout→token clear · krivi kredencijali→inline poruka · **401 (pokvaren token)→redirect+clear** · 409 duplikat poruka · **admin role-gate (student ne vidi / admin vidi)** · nula pageerror-a.
 
 ---

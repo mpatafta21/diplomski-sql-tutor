@@ -2,7 +2,7 @@
 
 **Status:** ✅ KOMPLETNA (Stage 0 + Stage 0b + 4.3a + 4.3b + 4.3c na grani `faza-4-3-task-screen`; PR "Faza 4.3" → `main` čeka push/potvrdu — sandbox ne može push). **Nakon ove faze sustav je EVAL-UPOTREBLJIV**: student odrađuje pun ciklus dohvati → piši SQL → Run → Submit → feedback → sljedeći zadatak, sve protiv živog agentskog backenda.
 **Obuhvat:** **Stage 0** (aditivni contract dodatak `primary_task_count`), **Stage 0b** (migracija `attempts.detail` + `feedback.detail` — ZADNJA backend izmjena, ugovor zaključan do eval-a), **4.3a** (statika + Monaco), **4.3b** (Run petlja), **4.3c** (Submit petlja + feedback).
-**Rezultat:** backend suite **471 passed / 1 skipped** (467 ulaz + 4 nova testa; 0 regresija); frontend **`tsc -b` + build + oxlint + prettier zeleni**; e2e Playwright: 4.3a **21/21** · 4.3b **27/27** · 4.3c pun ciklus **28/28**; 3× `/code-review` (26 nalaza ukupno: 25 primijenjeno, 1 potvrđen kao ugovorni limit → NALAZ #12), `/review-animations` gate (2 Block nalaza, oba popravljena), `accessibility-review` (0 kritičnih; partial-vs-accent numerički dokaz).
+**Rezultat:** backend suite **471 passed / 1 skipped** (467 ulaz + 4 nova testa; 0 regresija); frontend **`tsc -b` + build + oxlint + prettier zeleni**; **ručna** e2e verifikacija kroz headless Chrome (CDP, živi backend): 4.3a **21 scenarij** · 4.3b **27 scenarija** · 4.3c pun ciklus **28 scenarija** — *nije* committed automatizirani suite (NALAZ #17); 3× `/code-review` (26 nalaza ukupno: 25 primijenjeno, 1 potvrđen kao ugovorni limit → NALAZ #12), `/review-animations` gate (2 Block nalaza, oba popravljena), `accessibility-review` (0 kritičnih; partial-vs-accent numerički dokaz).
 **Grane/PR/tagovi:** `faza-4-3-task-screen` · tagovi `faza-4-3a-task-static` → `faza-4-3b-run` → `faza-4-3c-submit` · commitovi `1418a9f` (Stage 0) → `dcbef43` (Stage 0b) → `36a1a9d` (4.3a) → `43d3632` (4.3b) → `6d33946` (4.3c).
 
 Cilj cijele 4.3: srce eval-a — kompletna petlja rješavanja zadatka nad zaključanim ugovorom, s feedbackom koji je **tutor, ne semafor** (pedagoški detail, tri stanja, hrvatske poruke po značenju greške).
@@ -89,11 +89,12 @@ Pop-in panel (`zoom-in-95`, 240 ms, entrance ease), XP/badge čipovi `ease-rewar
 | ERRATA #8 | `attempts` nema `verdict` | ✅ **REVIDIRAN** — partial AKTIVAN (deriviran iz `error_type=row_mismatch`); kolona i dalje ne postoji (nije ni potrebna) |
 | flag #3 | `new_badges` best-effort | Riješeno po dizajnu — kozmetika u FeedbackPanelu, autoritativno `/profile`; ostaje trajna karakteristika |
 | NALAZ #7 | `task.module_id` kriv (3/83) | **Mitigiran u UI** (breadcrumb iz primarnog koncepta, dokazano task 71); data cleanup i dalje Faza 6 |
-| NALAZ #9 | test/dev useri ruše asserte | Disciplina držana (svi e2e useri obrisani, users=1/attempts=0); trajni fix (test-DB izolacija) = 4.5/6 |
+| NALAZ #9 | test/dev useri ruše asserte | ✅ **ZATVOREN u 4.4-0b** — leaderboard testovi kohortno skopirani (tvrdnje na useru koje test sam kreira: relativni redoslijed + monotoni rankovi + `total >= len(kohorta)`), bez diranja `routes.py`. `pytest` 471/1 zelen DOK `demo44_student` postoji u bazi |
 | NALAZ #10 | UI unlock ≠ Recommender | ✅ **ZATVOREN** — `primary_task_count` u `/modules`; `lib/progress.ts` može zrcaliti kategorije (dovršiti spajanje u 4.4+ ako zatreba) |
 | NALAZ #11 | `NextTaskResponse` bez naslova | ✅ **ZATVOREN kao odbijen** — dvostruki hop prihvaćen (cachiran) |
 | **NOVO #12** | `/run` rows dict kolabira duplikat stupce s RAZLIČITIM vrijednostima (`SELECT o.id, c.id`) | UI caveat ugrađen (upozorenje + preporuka AS aliasa); pravi fix = contract promjena (rows kao arrayevi) — kandidat Faza 6 |
 | **NOVO #13** | partial hue 55–60 preblizu accent-warm 70–85 | Ikona+tekst kanal obavezan (ugrađeno, MASTER §2.2); trajna korekcija hue→45 = kandidat 4.7 |
+| **NOVO #17** | frontend NEMA committed e2e suite | Brojke „N/N" u 4.1–4.3 wrapupima bile su **ručne** verifikacije kroz headless Chrome (CDP, živi backend), **ne** reproducibilan runner — `@playwright/test`/`vitest` nisu u `package.json` (samo `oxlint` + `prettier`). Formulacije ispravljene u 4.4-0b (ne izmišljamo suite da brojke postanu istinite). **Smoke suite = ulazni gate za eval (4.7)** |
 | pre-existing lint | oxlint fast-refresh warninzi (4) | Ista tolerirana klasa kao na mainu; lint-hardening zaseban |
 
 ---

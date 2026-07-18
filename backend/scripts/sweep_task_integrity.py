@@ -27,17 +27,18 @@ import json
 from collections import Counter
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from agents.evaluation import evaluate
+from agents.evaluation import UNSUPPORTED_CONCEPTS, evaluate
 from agents.evaluator_agent import _sandbox_conn_string
-from app.db.models import Concept, Module, Task, TaskConcept
+from app.db.models import Attempt, Concept, Module, Task, TaskConcept
 from app.db.session import SessionLocal
 from scripts.lib.sandbox_runner import SandboxRunner
 
-# Vraćaju unsupported_eval po dizajnu (agents/evaluation.py::_UNSUPPORTED_CONCEPTS).
-_BY_DESIGN_UNSUPPORTED = frozenset({"explain_plan", "index_usage"})
+# Vraćaju unsupported_eval PO DIZAJNU — dijeljena konstanta iz evaluacijske
+# jezgre (NE kopija popisa; jedan izvor istine).
+_BY_DESIGN_UNSUPPORTED = UNSUPPORTED_CONCEPTS
 
 
 @dataclass
@@ -117,6 +118,26 @@ def deep_compare(task_id: int) -> dict:
         }
 
 
+def count_unsupported_attempts() -> int:
+    """Broj perzistiranih attempta s error_type='unsupported_eval'.
+
+    MORA biti 0: takav attempt daje 0 XP i BKT KAZNU (uz redak u
+    skill_mastery_history) za zadatak koji sustav ne zna ocijeniti — a zna
+    procuriti i na evaluabilne sekundarne koncepte (4.4-0d KORAK 6: jedan takav
+    attempt zagadio je `where_filter`). Ako ih ima, recommender ih je opet
+    ponudio → maska Kat. C je probijena.
+    """
+    with SessionLocal() as session:
+        return int(
+            session.scalar(
+                select(func.count())
+                .select_from(Attempt)
+                .where(Attempt.error_type == "unsupported_eval")
+            )
+            or 0
+        )
+
+
 def _summarize(rows: list[TaskRow]) -> dict:
     failures = [r for r in rows if not r.is_correct]
     by_design = [
@@ -167,6 +188,7 @@ def main() -> None:
 
     rows = run_sweep()
     summary = _summarize(rows)
+    summary["unsupported_eval_attempts"] = count_unsupported_attempts()
 
     if not args.json:
         _print_table(rows)
@@ -180,6 +202,16 @@ def main() -> None:
 
     print("\n--- JSON SAŽETAK ---")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+
+    # Tvrdnja (4.4-0d KORAK 6c): nula perzistiranih unsupported_eval attempta.
+    polluted = summary["unsupported_eval_attempts"]
+    if polluted:
+        print(
+            f"\n🔴 TVRDNJA PALA: {polluted} attempt(a) s error_type='unsupported_eval' "
+            "u bazi — BKT je zagađen (0 XP + kazna). Provjeri Kat. C masku u "
+            "recommender_logic i očisti retke (attempts + skill_mastery_history + xp_log)."
+        )
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

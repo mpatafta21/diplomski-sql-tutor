@@ -18,6 +18,12 @@ const TaskPage = lazy(() =>
   import("@/pages/TaskPage").then((m) => ({ default: m.TaskPage })),
 )
 
+// Lazy (4.4a): ProfilePage se code-splita po ruti — priprema za 4.4b chunk
+// (BKT krivulje / chart lib) koji ne smije teretiti glavni bundle.
+const ProfilePage = lazy(() =>
+  import("@/pages/ProfilePage").then((m) => ({ default: m.ProfilePage })),
+)
+
 export const router = createBrowserRouter([
   {
     element: <PublicOnlyRoute />,
@@ -41,6 +47,14 @@ export const router = createBrowserRouter([
             element: (
               <Suspense fallback={<LoadingState label="Učitavanje zadatka" />}>
                 <TaskPage />
+              </Suspense>
+            ),
+          },
+          {
+            path: "/profile",
+            element: (
+              <Suspense fallback={<LoadingState label="Učitavanje profila" />}>
+                <ProfilePage />
               </Suspense>
             ),
           },

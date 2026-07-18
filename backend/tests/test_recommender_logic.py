@@ -168,11 +168,13 @@ def test_category_sets_are_db_derived():
     assert "null_handling" not in transversal, (
         "null_handling ima taskove → NIJE transverzalan"
     )
-    # 4.4-0e / NALAZ #19: M6 taskovi su is_active=False (evaluacijska jezgra ih
-    # ne zna ocijeniti), pa explain_plan i index_usage padaju na 0 aktivnih
-    # primary taskova i LEGITIMNO ulaze u subfloor (<2). Očekivanje je izraženo
-    # kroz UNSUPPORTED_CONCEPTS da ostane točno ako se M6 ikad vrati u igru.
-    assert subfloor == {"insert", "right_join"} | UNSUPPORTED_CONCEPTS, (
+    # 4.4-0h / NALAZ #27: `insert` i `right_join` imali su TOČNO 1 primarni task,
+    # pa ih je subfloor pravilo (<2) tiho maskiralo kao savladane → recommender ih
+    # NIKAD nije nudio (empirijski: p_l je ostajao na tier prioru). Svakom je
+    # dodan po jedan ručno autorski zadatak → 2 taska → izlaze iz subfloora.
+    # Preostaju SAMO M6 koncepti (0 aktivnih taskova, NALAZ #19) — očekivanje je
+    # izraženo kroz UNSUPPORTED_CONCEPTS da ostane točno ako se M6 vrati u igru.
+    assert subfloor == set(UNSUPPORTED_CONCEPTS), (
         f"Subfloor (modul != 0, < 2 taska) krivi: {subfloor}"
     )
     assert transversal.isdisjoint(subfloor), "Kategorije se ne smiju preklapati"
@@ -203,9 +205,21 @@ def test_snapshot_uses_tier_priors_not_flat(recommender_env, prolog_engine):
     assert snapshot["left_join"] == pytest.approx(_PRIOR_HARD), "hard p_l0 = 0.05, NE 0.1"
     assert snapshot["select_basic"] == pytest.approx(_PRIOR_EASY), "easy p_l0 = 0.30"
     assert snapshot["agg_count"] == pytest.approx(_PRIOR_MEDIUM), "medium p_l0 = 0.15"
-    # Subfloor maska
-    assert snapshot["insert"] == pytest.approx(0.99)
-    assert snapshot["right_join"] == pytest.approx(0.99)
+    # Subfloor maska — od 4.4-0h (NALAZ #27) `insert` i `right_join` VIŠE NISU
+    # subfloor (svaki je dobio 2. primarni task), pa nose svoj pravi tier prior.
+    # Maska ostaje samo na konceptima s 0 aktivnih taskova (M6, NALAZ #19).
+    for code in UNSUPPORTED_CONCEPTS:
+        assert snapshot[code] == pytest.approx(0.99), (
+            f"{code} ima 0 aktivnih taskova → mora biti maskiran"
+        )
+    assert snapshot["right_join"] == pytest.approx(_PRIOR_HARD), (
+        "right_join je od 4.4-0h normalan koncept — ne smije biti maskiran"
+    )
+    # NAPOMENA: prior dolazi iz PROLOG tiera (autoritativan), koji se za `insert`
+    # razlikuje od DB stupca concepts.tier (Prolog easy vs DB medium) — vidi NALAZ #28.
+    assert snapshot["insert"] == pytest.approx(_PRIOR_EASY), (
+        "insert je od 4.4-0h normalan koncept — ne smije biti maskiran"
+    )
     # Transverzalni za novaka → 0.0 (prereqs nisu mastered)
     assert snapshot["join_condition"] == pytest.approx(0.0)
     assert snapshot["column_alias"] == pytest.approx(0.0)

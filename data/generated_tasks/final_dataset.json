@@ -1,6 +1,6 @@
 {
-  "version": "2b-3",
-  "total": 83,
+  "version": "2b-3+4.4-0h",
+  "total": 85,
   "missing_json": [
     "select_basic_d1_2fd7fa43",
     "select_basic_d1_89fe430e"
@@ -2952,6 +2952,81 @@
         "order_by"
       ],
       "estimated_time_sec": 480
+    },
+    {
+      "task_id": "right_join_d2_manual_b87adfc6",
+      "module": 3,
+      "primary_concept": "right_join",
+      "difficulty": 2,
+      "approved_by_human": false,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Kupci bez ijedne narudžbe (RIGHT JOIN)",
+      "description": "Pronađi kupce koji još nisu napravili nijednu narudžbu. Kreni od tablice orders i spoji je s customers koristeći RIGHT JOIN, tako da customers bude DESNA tablica — time u rezultatu ostaju i kupci za koje nema nijednog retka u orders. Takvi redci imaju NULL u stupcima iz orders, pa ih izdvoji uvjetom WHERE o.id IS NULL. Ispiši customer_id, first_name i last_name, sortiraj po customer_id uzlazno i ograniči ispis na prvih 5 redaka.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT c.id AS customer_id,\n       c.first_name,\n       c.last_name\nFROM orders o\nRIGHT JOIN customers c ON o.customer_id = c.id\nWHERE o.id IS NULL\nORDER BY c.id\nLIMIT 5;",
+      "expected_result": [
+        {
+          "customer_id": 176,
+          "first_name": "Marta",
+          "last_name": "Mraović"
+        },
+        {
+          "customer_id": 177,
+          "first_name": "Ruža",
+          "last_name": "Barbieri"
+        },
+        {
+          "customer_id": 178,
+          "first_name": "Christopher",
+          "last_name": "Walker"
+        },
+        {
+          "customer_id": 179,
+          "first_name": "Dominic",
+          "last_name": "Thornton"
+        },
+        {
+          "customer_id": 180,
+          "first_name": "Chelsea",
+          "last_name": "Henderson"
+        }
+      ],
+      "secondary_concepts": [
+        "null_handling",
+        "order_by"
+      ],
+      "estimated_time_sec": 120
+    },
+    {
+      "task_id": "insert_d3_manual_d034def1",
+      "module": 4,
+      "primary_concept": "insert",
+      "difficulty": 3,
+      "approved_by_human": false,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Unos dvaju dobavljača jednom naredbom (multi-row VALUES)",
+      "description": "Jednom INSERT naredbom dodaj DVA nova dobavljača u tablicu suppliers. Prvi je 'Adriatic Supply' iz države 'Croatia', kontakt 'kontakt@adriatic-supply.test', ocjena 4.50; drugi je 'Nordic Parts' iz države 'Sweden', kontakt 'info@nordic-parts.test', ocjena 3.80. Umjesto dvije odvojene naredbe, navedi obje n-torke u istoj VALUES klauzuli odvojene zarezom — tako baza oba retka umeće u jednoj transakciji. Koristi RETURNING name, country, rating za provjeru unesenih redaka.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "INSERT INTO suppliers (name, country, contact_email, rating)\nVALUES ('Adriatic Supply', 'Croatia', 'kontakt@adriatic-supply.test', 4.50),\n       ('Nordic Parts', 'Sweden', 'info@nordic-parts.test', 3.80)\nRETURNING name, country, rating;",
+      "expected_result": [
+        {
+          "name": "Adriatic Supply",
+          "country": "Croatia",
+          "rating": "4.50"
+        },
+        {
+          "name": "Nordic Parts",
+          "country": "Sweden",
+          "rating": "3.80"
+        }
+      ],
+      "secondary_concepts": [],
+      "estimated_time_sec": 180
     }
+  ],
+  "changelog": [
+    "4.4-0h: +2 ručno autorska zadatka (right_join d2, insert d3) — oživljavanje 'slučajno mrtvih' koncepata koje subfloor pravilo (<2 primarna taska) tiho je isključivalo iz preporuka (NALAZ #27). approved_by_human=false do ljudskog pregleda."
   ]
 }

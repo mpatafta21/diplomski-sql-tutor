@@ -25,8 +25,12 @@ import { cn } from "@/lib/utils"
 
 export function ModuleCard({ progress }: { progress: ModuleProgress }) {
   const [open, setOpen] = useState(false)
-  const { module, concepts, masteredCount, totalCount } = progress
+  const { module, concepts, masteredCount, totalCount, availableCount } =
+    progress
   const fraction = totalCount > 0 ? masteredCount / totalCount : 0
+  // NALAZ #19: modul bez ijednog koncepta s aktivnim zadacima je IZVAN OPSEGA.
+  // "0 / N savladano" + bar bi implicirali dostižnost koje nema.
+  const outOfScope = availableCount === 0
 
   return (
     <Card>
@@ -41,23 +45,29 @@ export function ModuleCard({ progress }: { progress: ModuleProgress }) {
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-1.5">
-          <div className="flex items-baseline justify-between">
-            <span className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground tabular-nums">
-                {masteredCount}
+        {outOfScope ? (
+          <p className="text-sm text-muted-foreground">
+            Nema dostupnih zadataka — modul je izvan opsega ove verzije.
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground tabular-nums">
+                  {masteredCount}
+                </span>
+                {" / "}
+                <span className="tabular-nums">{totalCount}</span> koncepata
+                savladano
               </span>
-              {" / "}
-              <span className="tabular-nums">{totalCount}</span> koncepata
-              savladano
-            </span>
+            </div>
+            <MasteryBar
+              value={fraction}
+              fillClass={masteryFillClass(fraction)}
+              label={`${module.name}: savladano ${masteredCount} od ${totalCount} koncepata`}
+            />
           </div>
-          <MasteryBar
-            value={fraction}
-            fillClass={masteryFillClass(fraction)}
-            label={`${module.name}: savladano ${masteredCount} od ${totalCount} koncepata`}
-          />
-        </div>
+        )}
 
         <Collapsible.Root open={open} onOpenChange={setOpen}>
           <Collapsible.Trigger asChild>

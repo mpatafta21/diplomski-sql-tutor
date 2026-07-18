@@ -84,6 +84,10 @@ Pop-in panel (`zoom-in-95`, 240 ms, entrance ease), XP/badge čipovi `ease-rewar
 - **E2e useri:** jedinstveni sufiks po runu + brisanje SVIH ovisnih tablica (Submit stvara attempts/xp_log/mastery/streaks!) — NALAZ #9 disciplina.
 
 ### Errata-trail (ažurirano stanje nakon 4.3)
+
+> 📌 **Kanonski popis je od Faze 4.4-0g u [`docs/errata.md`](errata.md)** — ondje su svi
+> nalazi sa statusom (uklj. #14, #15, #24, #25, #26 kojih ovdje nema). Tablica ispod je
+> povijesni zapis stanja nakon 4.3 + zatvaranja iz 4.4-0b…0f.
 | # | Stavka | Stanje |
 |---|---|---|
 | ERRATA #8 | `attempts` nema `verdict` | ✅ **REVIDIRAN** — partial AKTIVAN (deriviran iz `error_type=row_mismatch`); kolona i dalje ne postoji (nije ni potrebna) |

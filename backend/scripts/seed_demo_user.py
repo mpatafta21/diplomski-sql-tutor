@@ -134,6 +134,11 @@ def build_plan(session: Session) -> list[tuple[int, str, str]]:
     m4 = _tasks_for_module(session, 4, limit=1, rows_bounded=False)
     m6 = _tasks_for_module(session, 6, limit=1, rows_bounded=False)
 
+    # 🔴 Modul 6 je NAMJERNO izvan opsega od 4.4-0e (NALAZ #19): njegovi taskovi
+    # su is_active=False jer ih evaluacijska jezgra ne zna ocijeniti. Zato NIJE
+    # u obaveznom popisu — ako nema aktivnih taskova, preskače se.
+    # POSLJEDICA: bedž `explorer` (traži pokušaj u SVIH 6 modula) je NEDOSTIŽAN
+    # dok je M6 izvan opsega; demo user zato osvaja samo `first_correct`.
     missing = [
         name
         for name, sel, need in [
@@ -142,7 +147,6 @@ def build_plan(session: Session) -> list[tuple[int, str, str]]:
             ("modul3", m3, 2),
             ("modul5", m5, 2),
             ("modul4", m4, 1),
-            ("modul6", m6, 1),
         ]
         if len(sel) < need
     ]
@@ -183,9 +187,11 @@ def build_plan(session: Session) -> list[tuple[int, str, str]]:
         (m5b_id, "correct", m5b_q), (m5b_id, "error", m5b_q),
     ]
 
-    # Moduli 4 i 6: po 1 attempt (error) — samo za explorer pokrivenost.
+    # Modul 4: 1 attempt (error) — širina pokrivenosti.
     plan.append((m4[0][0], "error", m4[0][1]))
-    plan.append((m6[0][0], "error", m6[0][1]))
+    # Modul 6 samo AKO ima aktivnih taskova (vidi napomenu o NALAZ #19 gore).
+    if m6:
+        plan.append((m6[0][0], "error", m6[0][1]))
 
     return plan
 

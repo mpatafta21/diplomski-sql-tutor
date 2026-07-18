@@ -20,6 +20,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from agents.evaluation import UNSUPPORTED_CONCEPTS
 from app.db.models import Concept, Module, Task, TaskConcept
 from app.db.session import SessionLocal
 
@@ -91,7 +92,13 @@ def import_tasks(session: Session, tasks: list[dict]) -> ImportResult:
             expected_result=task_data["expected_result"],
             difficulty=int(task_data["difficulty"]),
             estimated_time_sec=task_data.get("estimated_time_sec"),
-            is_active=True,
+            # 🔴 NALAZ #19 (4.4-0e): taskovi neevaluabilnih koncepata ulaze NEAKTIVNI.
+            # Evaluacijska jezgra ih ne zna ocijeniti (unsupported_eval) → aktivni bi
+            # značili: recommender ih nudi, student dobiva 0 XP + BKT kaznu, a modul
+            # izgleda "otključiv" iako nije. Izvedeno iz UNSUPPORTED_CONCEPTS (jedan
+            # izvor istine) pa PREŽIVLJAVA re-import; kad plan-presence evaluacija
+            # bude gotova, brisanje koncepta iz seta ih automatski vraća u igru.
+            is_active=task_data["primary_concept"] not in UNSUPPORTED_CONCEPTS,
         )
         stmt = ins.on_conflict_do_update(
             constraint="uq_tasks_source_id",

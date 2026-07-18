@@ -155,7 +155,8 @@ def _all_mastered_profile() -> dict[str, float]:
 
 
 def test_category_sets_are_db_derived():
-    """transversal = {column_alias, join_condition}; subfloor = {insert, right_join};
+    """transversal = {column_alias, join_condition};
+    subfloor = {insert, right_join} + neevaluabilni (vidi dolje);
     null_handling (modul 0 ALI ima taskove) NE smije biti transverzalan."""
     with SessionLocal() as sess:
         transversal = transversal_concepts(sess)
@@ -167,7 +168,11 @@ def test_category_sets_are_db_derived():
     assert "null_handling" not in transversal, (
         "null_handling ima taskove → NIJE transverzalan"
     )
-    assert subfloor == {"insert", "right_join"}, (
+    # 4.4-0e / NALAZ #19: M6 taskovi su is_active=False (evaluacijska jezgra ih
+    # ne zna ocijeniti), pa explain_plan i index_usage padaju na 0 aktivnih
+    # primary taskova i LEGITIMNO ulaze u subfloor (<2). Očekivanje je izraženo
+    # kroz UNSUPPORTED_CONCEPTS da ostane točno ako se M6 ikad vrati u igru.
+    assert subfloor == {"insert", "right_join"} | UNSUPPORTED_CONCEPTS, (
         f"Subfloor (modul != 0, < 2 taska) krivi: {subfloor}"
     )
     assert transversal.isdisjoint(subfloor), "Kategorije se ne smiju preklapati"
@@ -422,11 +427,20 @@ def test_recommend_clears_mastery_after(recommender_env, prolog_engine):
 
 
 def test_unsupported_concepts_yield_no_task(recommender_env):
-    """select_task_for_concept vraća None za neevaluabilne — iako taskovi POSTOJE."""
+    """select_task_for_concept vraća None za neevaluabilne koncepte.
+
+    DVA neovisna sloja obrane (oba se ovdje tvrde):
+      1. kod: guard u select_task_for_concept (4.4-0d),
+      2. podaci: M6 taskovi su is_active=False (4.4-0e, NALAZ #19) pa ih ni
+         upit ne bi našao.
+    Sloj 1 je bitan jer bi se sloj 2 mogao vratiti (plan-presence evaluacija).
+    """
     user_id = recommender_env["user_id"]
     with SessionLocal() as sess:
         for code in UNSUPPORTED_CONCEPTS:
-            assert _primary_task_ids(code), f"preduvjet: {code} ima aktivne taskove"
+            assert not _primary_task_ids(code), (
+                f"{code}: očekujem NULA aktivnih taskova (NALAZ #19)"
+            )
             assert select_task_for_concept(sess, user_id, code) is None, (
                 f"{code} je neevaluabilan — NE smije dati task (trajni ćorsokak)"
             )

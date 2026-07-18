@@ -38,7 +38,7 @@ nijedna ručna komanda. (Prije toga su nedostajali import taskova, seed sandboxa
 agenata, pa je backend pucao na svježem Prosody volumenu.)
 
 > **🔴 Task bank je VERZIONIRAN ARTEFAKT RADA.** `data/generated_tasks/final_dataset.json`
-> (83 zadatka, `version: 2b-3`) jedini je izvor koji `scripts/import_dataset.py` čita i
+> (**85 zadataka**, `version: 2b-3+4.4-0h`) jedini je izvor koji `scripts/import_dataset.py` čita i
 > **nalazi se pod verzijom** — repo sam po sebi rekonstruira eval-spreman sustav.
 > LLM međukoraci (`pilot/`, `failed/`, `validated/`, `raw/`, batch reporti) ostaju
 > gitignorirani jer su velike, nereproducibilne sirovine.

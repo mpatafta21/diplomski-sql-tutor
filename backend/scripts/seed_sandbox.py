@@ -4,13 +4,20 @@ Pokretanje:
     cd backend && uv run python -m scripts.seed_sandbox
 
 Veličine i invariante prema §7.4 dokumenta `faza-1-domenski-model.md`.
-Seedovi: Faker.seed(42), random.seed(42) — svaki run daje iste podatke.
+
+DETERMINIZAM (ispravljeno u 4.4-0e — prije je ova tvrdnja bila NETOČNA):
+Faker.seed(42) + random.seed(42) fiksiraju REDOSLIJED vrijednosti, ali su se
+datumi generirali RELATIVNO na wall-clock (`date_time_between(start_date="-2y")`)
+pa je svaki reseed pomicao apsolutne datume — isti mikrosekundni uzorak, druga
+baza. Zbog toga su `tasks.expected_result` zapisi s datumima zastarijevali
+(NALAZ 4.4-0b: taskovi 36 i 40). Od 4.4-0e SVI datumski rasponi računaju se od
+fiksne konstante `SEED_BASE_DATE`, pa su dva reseeda bit-identična.
 """
 
 from __future__ import annotations
 
 import random
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from itertools import count
 
@@ -18,6 +25,23 @@ import psycopg
 from faker import Faker
 
 from app.core.config import SANDBOX_DATABASE_URL
+
+# --- Fiksna vremenska baza (4.4-0e) ---
+# 🔴 IZBOR NIJE PROIZVOLJAN:
+#  - Nijedan task ne koristi NOW()/CURRENT_DATE/CURRENT_TIMESTAMP/INTERVAL
+#    (provjereno nad svih 83) → nijedan "zadnjih N dana" upit ne može ostati
+#    prazan zbog fiksne baze.
+#  - JEDINI task s tvrdo upisanom godinom je 40 ("Mjesečni prihod po kategoriji
+#    u 2025"). Narudžbe se generiraju u rasponu [BASE-1y, BASE], pa BASE na
+#    2026-01-01 daje PUNU kalendarsku 2025 — svih 12 mjeseci. (Wall-clock seed
+#    davao je samo drugu polovicu 2025.) Pomicanje baze skratilo bi to pokriće.
+SEED_BASE_DATE = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+
+def _base_minus_years(years: int) -> datetime:
+    """Apsolutna granica `years` godina prije SEED_BASE_DATE (365 d/god, sintetički podaci)."""
+    return SEED_BASE_DATE - timedelta(days=365 * years)
+
 
 # --- Konfiguracija veličina (§7.4) ---
 N_CATEGORIES = 15
@@ -108,7 +132,11 @@ def _seed_products(cur, fake: Faker) -> None:
             round(random.uniform(5.0, 999.0), 2),
             random.randint(0, 500),
             random.random() < 0.05,
-            fake.date_time_between(start_date="-2y", tzinfo=timezone.utc),
+            fake.date_time_between_dates(
+                datetime_start=_base_minus_years(2),
+                datetime_end=SEED_BASE_DATE,
+                tzinfo=timezone.utc,
+            ),
         ))
     cur.executemany(
         """INSERT INTO products
@@ -139,7 +167,11 @@ def _seed_customers(cur) -> None:
             first, last, email,
             f.country() if f is fake_us else "Croatia",
             f.city(),
-            f.date_time_between(start_date="-3y", tzinfo=timezone.utc),
+            f.date_time_between_dates(
+                datetime_start=_base_minus_years(3),
+                datetime_end=SEED_BASE_DATE,
+                tzinfo=timezone.utc,
+            ),
         ))
     cur.executemany(
         """INSERT INTO customers
@@ -156,28 +188,40 @@ def _seed_employees(cur, fake: Faker) -> None:
         fake.first_name(), fake.last_name(), "ceo@tutor.example",
         None, "Executive",
         round(random.uniform(15000, 25000), 2),
-        fake.date_between(start_date="-15y", end_date="-10y"),
+        fake.date_between_dates(
+            date_start=_base_minus_years(15).date(),
+            date_end=_base_minus_years(10).date(),
+        ),
     ))
     for i in range(4):
         rows.append((
             fake.first_name(), fake.last_name(), f"vp{i}@tutor.example",
             1, random.choice(DEPARTMENTS),
             round(random.uniform(8000, 14000), 2),
-            fake.date_between(start_date="-10y", end_date="-7y"),
+            fake.date_between_dates(
+            date_start=_base_minus_years(10).date(),
+            date_end=_base_minus_years(7).date(),
+        ),
         ))
     for i in range(10):
         rows.append((
             fake.first_name(), fake.last_name(), f"mgr{i}@tutor.example",
             random.randint(2, 5), random.choice(DEPARTMENTS),
             round(random.uniform(4000, 7500), 2),
-            fake.date_between(start_date="-7y", end_date="-3y"),
+            fake.date_between_dates(
+            date_start=_base_minus_years(7).date(),
+            date_end=_base_minus_years(3).date(),
+        ),
         ))
     for i in range(N_EMPLOYEES - 15):
         rows.append((
             fake.first_name(), fake.last_name(), f"rep{i}@tutor.example",
             random.randint(6, 15), random.choice(DEPARTMENTS),
             round(random.uniform(1500, 3500), 2),
-            fake.date_between(start_date="-5y", end_date="-1y"),
+            fake.date_between_dates(
+            date_start=_base_minus_years(5).date(),
+            date_end=_base_minus_years(1).date(),
+        ),
         ))
     cur.executemany(
         """INSERT INTO employees
@@ -208,7 +252,11 @@ def _seed_orders(cur, fake: Faker) -> list[int]:
         )
         rows.append((
             customer_id, employee_id,
-            fake.date_time_between(start_date="-1y", tzinfo=timezone.utc),
+            fake.date_time_between_dates(
+                datetime_start=_base_minus_years(1),
+                datetime_end=SEED_BASE_DATE,
+                tzinfo=timezone.utc,
+            ),
             _pick_status(),
             Decimal("0"),
         ))
@@ -270,7 +318,11 @@ def _seed_reviews(cur, fake: Faker) -> None:
         rows.append((
             pid, cid, random.randint(1, 5),
             fake.sentence(nb_words=12),
-            fake.date_time_between(start_date="-1y", tzinfo=timezone.utc),
+            fake.date_time_between_dates(
+                datetime_start=_base_minus_years(1),
+                datetime_end=SEED_BASE_DATE,
+                tzinfo=timezone.utc,
+            ),
         ))
     cur.executemany(
         """INSERT INTO reviews

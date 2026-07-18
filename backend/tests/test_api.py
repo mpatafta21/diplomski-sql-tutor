@@ -166,8 +166,47 @@ async def test_post_attempt_happy(api_user):
     body = resp.json()
     assert body["feedback"]["is_correct"] is True
     assert body["feedback"]["error_type"] is None
+    assert body["feedback"]["detail"] is None  # correct attempt nema detalj (Stage 0b)
     assert body["xp_delta"] == 10
     assert body["recommendation"]["task_id"] == task_id
+
+
+# ---------------------------------------------------------------------------
+# T2b — POST /attempt: feedback.detail (Faza 4.3 Stage 0b)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_post_attempt_feedback_detail_exposed(api_user):
+    """detail iz attempts reda prolazi kroz build_response_payload do klijenta —
+    POSTOJEĆI EvaluationOutcome.detail tekst, bez transformacije."""
+    user_id, task_id = api_user["user_id"], api_user["task_id"]
+    detail_text = (
+        "Stupci se razlikuju — dobiveni: ['name'], očekivani: ['country', 'id', 'name']"
+    )
+    attempt_id = _make_attempt(
+        user_id, task_id,
+        is_correct=False, error_type="wrong_columns", attempt_number=1,
+        detail=detail_text,
+    )
+    app = create_app()
+    ev = _MockEvaluator("evaluator"); ev._attempt_id = attempt_id
+    km = _MockKnowledge("knowledge"); km._updated_concepts = []
+    rec = _MockRecommender("recommender")
+    rec._reply_payload = {"task_id": task_id, "concept": "x", "reason": "review"}
+    coord = CoordinatorAgent("coordinator")
+
+    async with _stack(app, [ev, km, rec, coord]), _client(app) as client:
+        resp = await client.post(
+            "/attempt",
+            json={"task_id": task_id, "submitted_query": "SELECT name FROM suppliers;"},
+            headers=auth_header(user_id),
+        )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["feedback"]["error_type"] == "wrong_columns"
+    assert body["feedback"]["detail"] == detail_text
 
 
 # ---------------------------------------------------------------------------

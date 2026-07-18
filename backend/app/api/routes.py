@@ -170,6 +170,7 @@ def _to_attempt_response(result: dict) -> AttemptResponse:
         feedback={
             "is_correct": feedback.get("is_correct"),
             "error_type": feedback.get("error_type"),
+            "detail": feedback.get("detail"),
         },
         xp_delta=int(gam.get("xp_delta") or 0),
         xp=int(gam.get("xp") or 0),
@@ -383,6 +384,25 @@ def _read_modules() -> list[dict]:
             )
         ).all()
 
+        # primary_task_count (Faza 4.3 Stage 0, NALAZ #10): ISTA semantika kao
+        # recommender_logic._concept_task_stats (uvjeti u ON-klauzuli da koncepti
+        # bez taskova daju 0) — helper je privatan pa se JOIN zrcali, ne importa.
+        count_rows = session.execute(
+            select(Concept.id, func.count(Task.id))
+            .select_from(Concept)
+            .outerjoin(
+                TaskConcept,
+                (TaskConcept.concept_id == Concept.id)
+                & (TaskConcept.is_primary.is_(True)),
+            )
+            .outerjoin(
+                Task,
+                (Task.id == TaskConcept.task_id) & (Task.is_active.is_(True)),
+            )
+            .group_by(Concept.id)
+        ).all()
+        primary_counts: dict[int, int] = dict(count_rows)
+
     prereqs_by_concept: dict[int, list[str]] = {}
     for concept_id, prereq_code in edge_rows:
         prereqs_by_concept.setdefault(concept_id, []).append(prereq_code)
@@ -399,6 +419,7 @@ def _read_modules() -> list[dict]:
                 "tier": c.tier,
                 "order_index": c.order_index,
                 "prerequisites": prereqs_by_concept.get(c.id, []),
+                "primary_task_count": primary_counts.get(c.id, 0),
             }
         )
 
@@ -497,6 +518,7 @@ def _read_attempts(user_id: int, limit: int, offset: int) -> dict:
                 Attempt.submitted_query,
                 Attempt.is_correct,
                 Attempt.error_type,
+                Attempt.detail,
                 Attempt.execution_time_ms,
                 Attempt.rows_returned,
                 Attempt.xp_awarded,
@@ -519,6 +541,7 @@ def _read_attempts(user_id: int, limit: int, offset: int) -> dict:
                 "submitted_query": r.submitted_query,
                 "is_correct": r.is_correct,
                 "error_type": r.error_type,
+                "detail": r.detail,
                 "execution_time_ms": r.execution_time_ms,
                 "rows_returned": r.rows_returned,
                 "xp_awarded": r.xp_awarded,

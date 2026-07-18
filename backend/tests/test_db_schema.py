@@ -32,6 +32,14 @@ def test_all_16_tables_exist(db_inspector: Inspector) -> None:
     assert not missing, f"Nedostaju tablice: {missing}"
 
 
+def test_attempts_has_nullable_detail_column(db_inspector: Inspector) -> None:
+    """attempts.detail (Faza 4.3 Stage 0b) — TEXT NULL; correct attempt nema detalj,
+    stari redovi ostaju NULL (bez backfilla)."""
+    cols = {c["name"]: c for c in db_inspector.get_columns("attempts")}
+    assert "detail" in cols, "attempts.detail kolona nedostaje (migracija nije primijenjena?)"
+    assert cols["detail"]["nullable"] is True
+
+
 def test_users_has_unique_username_and_email(db_inspector: Inspector) -> None:
     unique_constraints = db_inspector.get_unique_constraints("users")
     indexes = db_inspector.get_indexes("users")

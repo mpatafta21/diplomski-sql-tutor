@@ -59,9 +59,14 @@ Ne koristi se za dekoraciju, navigaciju ni neutralne akcije.
 
 Svaki ima `-soft` varijantu (suptilna pozadina feedback banera; tekst-token preko nje ostaje AA).
 
-**⚠️ PARTIAL JE REZERVIRAN, NE KORISTI SE U UI-u.** ERRATA #8: `attempts` nema `verdict` kolonu —
-UI razlučuje samo correct/incorrect (4.3). Token postoji za buduću migraciju. (Poznata blizina:
-partial hue 55–60 vs accent 70–80 — prihvatljivo dok je partial neaktivan; kod aktivacije revidirati.)
+**PARTIAL JE AKTIVAN od 4.3c** (revizija ERRATA #8: `verdict` kolona i dalje ne postoji, ali je
+partial DETERMINISTIČKI izvediv — backend `row_mismatch` ⇔ interni verdict "partial",
+evaluation.py:186; derivacija u `lib/feedback.ts`). **Obavezno pravilo uz aktivaciju:** partial
+verdikt NIKAD ne nosi samo boja — ikona (TriangleAlert) + tekstualna oznaka ("Djelomično") su
+primarni kanal. Razlog (izmjereno 4.3c, `a11y-partial.py`): blizina partial hue 55–60 vs
+accent-warm 70–85 → ΔE(OKLab) 0.044–0.056, pod protan/deutan simulacijom RGB dist 31–61/441 —
+boja sama NIJE pouzdano razlučiva, posebno uz XP čip u istom panelu. Kandidat trajne korekcije:
+pomak partial hue prema 45 (zahtijeva rekalibraciju kontrasta).
 
 ### 2.3 Mastery gradient (P(L) low→high) — sekvencijalan, CB-safe
 
@@ -206,7 +211,7 @@ brojevi = chart-2 teal, komentari = muted, funkcije = chart-3 violet.
 
 - ❌ Playful/vibrant/kids estetika, konfeti-spam, veliki dekorativni hero blokovi, video pozadine
 - ❌ Boje mimo token sustava; miješanje skala (tier boja na difficulty i obratno)
-- ❌ `partial` token u UI-u (rezerviran — ERRATA #8)
+- ❌ `partial` verdikt prenesen SAMO bojom (aktivan od 4.3c — ikona+tekst obavezni; vidi §2.2)
 - ❌ Emoji kao ikone; nevidljivi fokus; instant state-change bez tranzicije; layout-shift hover
 - ❌ Sjene kao elevacija u dark temi; `shadow-xl+` bilo gdje
 - ❌ Google Fonts CDN import (sve self-hosted)

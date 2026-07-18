@@ -133,6 +133,22 @@ def test_happy_path_returns_positive_id(persist_env):
         assert row.hint_requested is False
 
 
+def test_detail_persisted(persist_env):
+    """detail (Faza 4.3 Stage 0b) se upisuje u attempts.detail — postojeći
+    EvaluationOutcome.detail tekst, bez ikakve transformacije."""
+    user_id = persist_env["user_id"]
+    task_id = persist_env["task_id"]
+
+    with SessionLocal() as sess:
+        attempt_id = persist_attempt(
+            sess, user_id, task_id, "SELECT 2", _outcome(is_correct=False, error_type="wrong_columns")
+        )
+
+    with SessionLocal() as verify:
+        row = verify.get(Attempt, attempt_id)
+        assert row.detail == "ok"  # _outcome factory postavlja detail="ok"
+
+
 # ---------------------------------------------------------------------------
 # Monotono rastuce attempt_number
 # ---------------------------------------------------------------------------

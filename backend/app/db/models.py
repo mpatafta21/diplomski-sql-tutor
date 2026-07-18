@@ -187,6 +187,9 @@ class Attempt(Base):
     submitted_query: Mapped[str] = mapped_column(Text, nullable=False)
     is_correct: Mapped[bool] = mapped_column(Boolean, nullable=False)
     error_type: Mapped[str | None] = mapped_column(String(100))
+    # Faza 4.3 Stage 0b: EvaluationOutcome.detail — pedagoški opis greške za UI.
+    # NIKAD ne smije sadržavati expected_query ni sadržaj očekivanih redaka.
+    detail: Mapped[str | None] = mapped_column(Text)
     execution_time_ms: Mapped[int | None] = mapped_column(Integer)
     rows_returned: Mapped[int | None] = mapped_column(Integer)
     xp_awarded: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")

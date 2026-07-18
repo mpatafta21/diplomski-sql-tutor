@@ -5,7 +5,8 @@
  */
 import { cn } from "@/lib/utils"
 
-const DIFFICULTY_CLASS: Record<string, string> = {
+/** JEDNA mapa difficulty tokena za sve potrošače (modul chip + task chip 4.3a). */
+export const DIFFICULTY_CLASS: Record<string, string> = {
   beginner: "bg-difficulty-beginner text-difficulty-beginner-foreground",
   intermediate:
     "bg-difficulty-intermediate text-difficulty-intermediate-foreground",

@@ -53,8 +53,14 @@ class MeResponse(BaseModel):
 
 
 class FeedbackModel(BaseModel):
+    """`detail` (Faza 4.3 Stage 0b) = EvaluationOutcome.detail, persistiran u
+    attempts.detail — pedagoški opis greške (imena stupaca / broj redova / PG
+    poruka studentovog upita). NIKAD expected_query ni sadržaj očekivanih
+    redaka. NULL za correct."""
+
     is_correct: bool | None = None
     error_type: str | None = None
+    detail: str | None = None
 
 
 class RecommendationModel(BaseModel):
@@ -131,12 +137,17 @@ class TaskDetailResponse(BaseModel):
 
 
 class ConceptNode(BaseModel):
+    """`primary_task_count` (Faza 4.3 Stage 0, NALAZ #10) = broj AKTIVNIH PRIMARY
+    taskova koncepta — ista semantika kao recommender_logic._concept_task_stats.
+    UI iz njega zrcali Recommenderove kategorije (0 = glue · <2 = subfloor · >=2)."""
+
     id: int
     code: str
     name: str
     tier: str
     order_index: int
     prerequisites: list[str]
+    primary_task_count: int
 
 
 class ModuleNode(BaseModel):
@@ -186,6 +197,7 @@ class AttemptItem(BaseModel):
     submitted_query: str
     is_correct: bool
     error_type: str | None
+    detail: str | None
     execution_time_ms: int | None
     rows_returned: int | None
     xp_awarded: int

@@ -19,7 +19,7 @@ import httpx
 import pytest
 from sqlalchemy import delete, select
 
-from app.db.models import Concept, TaskConcept, User
+from app.db.models import Concept, Task, TaskConcept, User
 from app.db.session import SessionLocal
 from app.main import create_app
 from tests.conftest import auth_header
@@ -58,10 +58,18 @@ def student_auth():
 def _find_task_with_concepts() -> tuple[int, list[tuple[str, str, bool]]]:
     """Vrati (task_id, [(code, name, is_primary), ...]) za neki seedani task s konceptima.
 
-    Ne hardkodiramo id — biramo dinamički prvi task koji ima bar jedan task_concepts red.
+    Ne hardkodiramo id — biramo dinamički prvi AKTIVAN task s bar jednim
+    task_concepts redom. `is_active` filtar je OBAVEZAN od 4.4-0f: neaktivni
+    (M6) taskovi sada vraćaju 404, pa bi slučajan odabir takvog taska srušio
+    testove detalja.
     """
     with SessionLocal() as s:
-        task_id = s.scalar(select(TaskConcept.task_id).limit(1))
+        task_id = s.scalar(
+            select(TaskConcept.task_id)
+            .join(Task, Task.id == TaskConcept.task_id)
+            .where(Task.is_active.is_(True))
+            .limit(1)
+        )
         assert task_id is not None, "task_concepts mora biti popunjen (faza 3.0 import)"
         concepts = s.execute(
             select(Concept.code, Concept.name, TaskConcept.is_primary)
@@ -280,3 +288,52 @@ async def test_get_badges_catalog(student_auth):
     assert fc is not None
     assert fc["name"] == "Prvi uspjeh"
     assert fc["icon"] == "star"
+
+
+# ---------------------------------------------------------------------------
+# NEAKTIVAN task → 404 (NALAZ #19 dopuna, Faza 4.4-0f)
+#
+# Recommender neevaluabilne koncepte više ne nudi (Kat. C maska, 4.4-0d), ali je
+# izravan URL ostao zadnji put do M6 taska: student je mogao otvoriti zadatak,
+# predati rješenje i dobiti unsupported_eval → 0 XP + BKT kaznu koja curi i na
+# evaluabilne sekundarne koncepte. Ključ je source_id, ne numerički id
+# (NALAZ #21: SERIAL se mijenja pri svakom reseedu).
+# ---------------------------------------------------------------------------
+
+_INACTIVE_SOURCE_ID = "explain_plan_d3_60b9eaee"  # M6, is_active=False od 4.4-0e
+
+
+@pytest.mark.asyncio
+async def test_get_task_detail_inactive_returns_404(student_auth):
+    """Neaktivan (M6) task se tretira kao nepostojeći."""
+    with SessionLocal() as s:
+        row = s.execute(
+            select(Task.id, Task.is_active).where(
+                Task.source_id == _INACTIVE_SOURCE_ID
+            )
+        ).first()
+    assert row is not None, f"{_INACTIVE_SOURCE_ID} mora postojati u datasetu"
+    task_id, is_active = row
+    assert is_active is False, (
+        f"preduvjet: {_INACTIVE_SOURCE_ID} mora biti neaktivan (NALAZ #19)"
+    )
+
+    app = create_app()
+    async with _client(app) as client:
+        resp = await client.get(f"/task/{task_id}", headers=student_auth)
+
+    assert resp.status_code == 404, (
+        "neaktivan task MORA biti 404 — inače je izravan URL zaobilaznica do "
+        "neevaluabilnog zadatka"
+    )
+    assert resp.json()["detail"] == "task_not_found"
+
+
+@pytest.mark.asyncio
+async def test_get_task_detail_active_still_200(student_auth):
+    """Regresija: aktivan task i dalje vraća 200 (guard ne lovi previše)."""
+    task_id, _ = _find_task_with_concepts()
+    app = create_app()
+    async with _client(app) as client:
+        resp = await client.get(f"/task/{task_id}", headers=student_auth)
+    assert resp.status_code == 200, resp.text

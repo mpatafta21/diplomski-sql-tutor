@@ -318,10 +318,18 @@ def _read_task_detail(task_id: int) -> dict | None:
 
     NAMJERNO gradi dict eksplicitno po poljima: expected_query / expected_result /
     sandbox_schema se NIKAD ne uključuju (rješenje se ne izlaže).
+
+    🔴 NEAKTIVAN task = 404, isto kao nepostojeći (NALAZ #19 dopuna, Faza 4.4-0f).
+    Bez ovoga je izravan URL `/task/{id}` bio ZADNJI put do neevaluabilnog
+    zadatka: recommender ga više ne nudi (Kat. C maska), ali student je mogao
+    otvoriti M6 task ručno, predati rješenje i dobiti `unsupported_eval` —
+    0 XP + BKT kaznu koja curi i na evaluabilne sekundarne koncepte.
+    Oblik odgovora se NE mijenja (schemas.py nedirnut) — samo se neaktivan
+    zadatak tretira kao nepostojeći.
     """
     with SessionLocal() as session:
         task = session.get(Task, task_id)
-        if task is None:
+        if task is None or not task.is_active:
             return None
 
         concept_rows = session.execute(

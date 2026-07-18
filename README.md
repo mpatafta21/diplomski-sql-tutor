@@ -32,6 +32,14 @@ make dev
 Diže: Postgres×2 + Prosody → čeka DB → `alembic upgrade head` → seed (moduli/koncepti/bedževi + admin)
 → **`make sweep` (gate)** → backend (uvicorn `:8000`) + frontend (Vite `:5173`) zajedno.
 
+> **🔴 Task bank je VERZIONIRAN ARTEFAKT RADA.** `data/generated_tasks/final_dataset.json`
+> (83 zadatka, `version: 2b-3`) jedini je izvor koji `scripts/import_dataset.py` čita i
+> **nalazi se pod verzijom** — repo sam po sebi rekonstruira eval-spreman sustav.
+> LLM međukoraci (`pilot/`, `failed/`, `validated/`, `raw/`, batch reporti) ostaju
+> gitignorirani jer su velike, nereproducibilne sirovine.
+> **Ne regenerirati dataset kroz LLM bez izričite odluke** — zadaci su ručno validirani
+> i njihovi `expected_result` zapisi vezani su uz deterministički sandbox seed (NALAZ #20).
+
 **Prvi boot** (jednokratno, prije prvog `make dev` — puni task bank i sandbox podatke):
 ```bash
 make db-tasks      # import 83 taska iz data/generated_tasks/final_dataset.json

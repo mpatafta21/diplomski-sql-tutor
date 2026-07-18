@@ -1,2 +1,5 @@
 *.json
 !.gitkeep
+# Kanonski dataset JE pod verzijom (NALAZ #20) — nested pravila imaju
+# prednost nad root .gitignore, pa negacija mora stajati i ovdje.
+!final_dataset.json

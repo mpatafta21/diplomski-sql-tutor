@@ -32,7 +32,13 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
-data/generated_tasks/
+# LLM MEĐUKORACI se ne verzioniraju (pilot/, failed/, validated/, raw/, batch
+# reporti, manual_review.sqlite) — velike, nereproducibilne sirovine.
+# IZNIMKA: `final_dataset.json` je KANONSKI artefakt rada (jedini izvor koji
+# `scripts/import_dataset.py` čita) i MORA biti pod verzijom — bez njega repo
+# ne može rekonstruirati eval-spreman sustav (NALAZ #20, Faza 4.4-0f).
+data/generated_tasks/*
+!data/generated_tasks/final_dataset.json
 data/generated_tasks.*backup*/
 
 # Docker

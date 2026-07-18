@@ -177,30 +177,45 @@ async def test_attempts_unknown_user_401():
 
 @pytest.mark.asyncio
 async def test_leaderboard_global_order_and_rank(make_user):
+    """KOHORTNO skopirano (NALAZ #9 — zatvoren u 4.4-0b).
+
+    Tvrdnje se vežu na usere koje test SAM kreira, NE na apsolutni globalni
+    `total` ni na fiksne rankove 1/2/3: dev baza smije sadržavati druge trajne
+    studente (npr. `demo44_` seed) a da test i dalje mjeri ono što treba —
+    relativni redoslijed po XP-u, monotonost rankova i konzistentnost rank↔XP.
+    """
     uid_hi = make_user("lb_hi_402a2", xp=30000, level=9)
     uid_mid = make_user("lb_mid_402a2", xp=20000, level=6)
     uid_lo = make_user("lb_lo_402a2", xp=10000, level=3)
+    cohort = ["lb_hi_402a2", "lb_mid_402a2", "lb_lo_402a2"]  # očekivani XP-desc red
 
     app = create_app()
     async with _client(app) as client:
         resp = await client.get(
             "/leaderboard",
-            params={"scope": "global", "limit": 3},
+            # limit=100 (_LIMIT_MAX): kohorta mora stati u odgovor i kad u bazi
+            # postoje drugi studenti.
+            params={"scope": "global", "limit": 100},
             headers=auth_header(uid_hi),
         )
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["total"] == 3
-    items = body["items"]
-    assert [i["username"] for i in items] == [
-        "lb_hi_402a2",
-        "lb_mid_402a2",
-        "lb_lo_402a2",
-    ]
-    assert [i["rank"] for i in items] == [1, 2, 3]
-    assert items[0]["xp"] == 30000
-    assert items[0]["level"] == 9
+    mine = [i for i in body["items"] if i["username"] in cohort]
+
+    # (a) svi članovi kohorte prisutni, u ispravnom RELATIVNOM redoslijedu (XP desc)
+    assert [i["username"] for i in mine] == cohort
+    # (b) rankovi strogo rastu, jedinstveni su i konzistentni s XP-om
+    ranks = [i["rank"] for i in mine]
+    assert ranks == sorted(ranks)
+    assert len(set(ranks)) == len(ranks)
+    xps = [i["xp"] for i in mine]
+    assert xps == sorted(xps, reverse=True)
+    # (c) total pokriva barem kohortu (ne tvrdimo točan globalni broj)
+    assert body["total"] >= len(cohort)
+    # xp/level dolaze iz User zapisa (ne deriviraju se)
+    assert mine[0]["xp"] == 30000
+    assert mine[0]["level"] == 9
     # sanity: nema unused var upozorenja
     assert {uid_hi, uid_mid, uid_lo}
 
@@ -231,22 +246,34 @@ async def test_leaderboard_weekly_sum(make_user):
     _insert_xplog(uid_a, 5, inside)
     _insert_xplog(uid_b, 20, inside)
 
+    cohort = ["lb_wk_b_402a2", "lb_wk_a_402a2"]  # B (20) ispred A (10+5=15)
+
     app = create_app()
     async with _client(app) as client:
         resp = await client.get(
-            "/leaderboard", params={"scope": "weekly"}, headers=auth_header(uid_a)
+            "/leaderboard",
+            params={"scope": "weekly", "limit": 100},
+            headers=auth_header(uid_a),
         )
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["total"] == 2
-    items = body["items"]
-    # B (20) ispred A (15); xp = weekly score, ne User.xp
-    assert [i["username"] for i in items] == ["lb_wk_b_402a2", "lb_wk_a_402a2"]
-    assert [i["xp"] for i in items] == [20, 15]
-    assert [i["rank"] for i in items] == [1, 2]
-    # level je TRENUTNI User.level, ne izveden
-    assert items[0]["level"] == 5
+    # KOHORTNO skopirano (NALAZ #9) — drugi studenti s deltama u prozoru
+    # (npr. demo44_ seed) smiju postojati i ne smiju rušiti test.
+    mine = [i for i in body["items"] if i["username"] in cohort]
+
+    # (a) relativni redoslijed: B (20) ispred A (15)
+    assert [i["username"] for i in mine] == cohort
+    # xp je TJEDNI ZBROJ delti (ne User.xp): A ima 10+5, B ima 20
+    assert [i["xp"] for i in mine] == [20, 15]
+    # (b) rankovi strogo rastu i jedinstveni su
+    ranks = [i["rank"] for i in mine]
+    assert ranks == sorted(ranks)
+    assert len(set(ranks)) == len(ranks)
+    # (c) total pokriva barem kohortu
+    assert body["total"] >= len(cohort)
+    # level je TRENUTNI User.level, ne izveden iz tjednog zbroja
+    assert mine[0]["level"] == 5
 
 
 @pytest.mark.asyncio

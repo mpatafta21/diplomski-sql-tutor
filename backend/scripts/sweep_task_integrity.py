@@ -44,6 +44,9 @@ _BY_DESIGN_UNSUPPORTED = UNSUPPORTED_CONCEPTS
 @dataclass
 class TaskRow:
     task_id: int
+    #: STABILNI ključ (NALAZ #21) — task_id je runtime detalj koji se mijenja
+    #: pri svakom reseedu (SERIAL), source_id ne. Izvještaji citiraju source_id.
+    source_id: str
     title: str
     difficulty: int
     module_number: int
@@ -81,6 +84,7 @@ def run_sweep() -> list[TaskRow]:
             out.append(
                 TaskRow(
                     task_id=task.id,
+                    source_id=task.source_id or "",
                     title=task.title,
                     difficulty=task.difficulty,
                     module_number=module_number,
@@ -155,6 +159,8 @@ def _summarize(rows: list[TaskRow]) -> dict:
         "genuine_by_difficulty": dict(Counter(r.difficulty for r in genuine)),
         "genuine_difficulty_4_5": sum(1 for r in genuine if r.difficulty >= 4),
         "genuine_by_module": dict(Counter(r.module_number for r in genuine)),
+        # STABILNI ključevi (NALAZ #21); task_id je uz njih samo informativan.
+        "genuine_source_ids": [r.source_id for r in genuine],
         "genuine_task_ids": [r.task_id for r in genuine],
     }
 
@@ -168,16 +174,19 @@ def _print_table(rows: list[TaskRow]) -> None:
     if not failures:
         print("\nSvi referentni upiti reproduciraju expected_result. ✓")
         return
-    print(f"\n{'id':>4}  {'mod':>3}  {'dif':>3}  {'error_type':<18}  {'primary_concept':<22}  title")
-    print("-" * 100)
+    print(
+        f"\n{'id':>4}  {'mod':>3}  {'dif':>3}  {'error_type':<18}  "
+        f"{'source_id (STABILNI ključ)':<34}  title"
+    )
+    print("-" * 116)
     for r in sorted(failures, key=lambda x: (x.error_type or "", x.task_id)):
         print(
             f"{r.task_id:>4}  {r.module_number:>3}  {r.difficulty:>3}  "
-            f"{(r.error_type or '?'):<18}  {(r.primary_concept or '-'):<22}  {r.title[:40]}"
+            f"{(r.error_type or '?'):<18}  {r.source_id:<34}  {r.title[:34]}"
         )
     print("\nDETALJI padova:")
     for r in sorted(failures, key=lambda x: (x.error_type or "", x.task_id)):
-        print(f"  [{r.task_id}] {r.error_type}: {r.detail[:160]}")
+        print(f"  [{r.source_id}] {r.error_type}: {r.detail[:150]}")
 
 
 def main() -> None:
@@ -216,7 +225,7 @@ def main() -> None:
     if summary["failing_genuine"]:
         print(
             f"\n🔴 GATE PAO: {summary['failing_genuine']} referentni upit(a) ne "
-            f"reproducira expected_result: {summary['genuine_task_ids']}. "
+            f"reproducira expected_result: {summary['genuine_source_ids']}. "
             "Vidi tablicu iznad; regeneracija: scripts.regenerate_expected_result."
         )
         raise SystemExit(1)

@@ -10,7 +10,9 @@ Faker.seed(42) + random.seed(42) fiksiraju REDOSLIJED vrijednosti, ali su se
 datumi generirali RELATIVNO na wall-clock (`date_time_between(start_date="-2y")`)
 pa je svaki reseed pomicao apsolutne datume — isti mikrosekundni uzorak, druga
 baza. Zbog toga su `tasks.expected_result` zapisi s datumima zastarijevali
-(NALAZ 4.4-0b: taskovi 36 i 40). Od 4.4-0e SVI datumski rasponi računaju se od
+(NALAZ 4.4-0b: `agg_min_max_d2_manual_8d1131b7` i `agg_sum_avg_d4_manual_b571f4e3`
+— source_id, jer se numerički id mijenja pri reseedu, NALAZ #21).
+Od 4.4-0e SVI datumski rasponi računaju se od
 fiksne konstante `SEED_BASE_DATE`, pa su dva reseeda bit-identična.
 """
 

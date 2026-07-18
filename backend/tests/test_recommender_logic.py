@@ -421,7 +421,8 @@ def test_recommend_clears_mastery_after(recommender_env, prolog_engine):
 # T-4.4-0d — NEEVALUABILNI koncepti (Kat. C) se NE preporučuju
 #
 # 🔴 Ćorsokak prije fixa: Prolog je vraćao ('explain_plan', 'weak_with_prereqs_met'),
-# recommender je servirao task 90, evaluator ga NE zna ocijeniti (unsupported_eval)
+# recommender je servirao task `explain_plan_d3_60b9eaee` (source_id — NALAZ #21:
+# numerički id se mijenja pri svakom reseedu), evaluator ga NE zna ocijeniti
 # → nikad is_correct → nikad "riješen" → isti task zauvijek, uz 0 XP i BKT kaznu.
 # ---------------------------------------------------------------------------
 

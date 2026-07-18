@@ -30,7 +30,13 @@ Diplomski rad — FOI, smjer Baze podataka i baze znanja.
 make dev
 ```
 Diže: Postgres×2 + Prosody → čeka DB → `alembic upgrade head` → seed (moduli/koncepti/bedževi + admin)
-→ backend (uvicorn `:8000`) + frontend (Vite `:5173`) zajedno.
+→ **`make sweep` (gate)** → backend (uvicorn `:8000`) + frontend (Vite `:5173`) zajedno.
+
+**Prvi boot** (jednokratno, prije prvog `make dev` — puni task bank i sandbox podatke):
+```bash
+make db-tasks      # import 83 taska iz data/generated_tasks/final_dataset.json
+make sandbox-seed  # deterministički Faker seed sandbox podataka
+```
 
 ### Ručno (isti redoslijed)
 ```bash
@@ -38,6 +44,9 @@ make infra-up      # docker compose up -d  (postgres-main, postgres-sandbox, pro
 make wait-db       # čeka pg_isready (compose nema healthcheck → izbjegava race)
 make db-migrate    # cd backend && uv run alembic upgrade head
 make db-seed       # cd backend && uv run python -m app.db.seed
+make db-tasks      # (prvi boot) import taskova iz final_dataset.json
+make sandbox-seed  # (prvi boot) deterministički seed sandbox podataka
+make sweep         # GATE — vidi dolje
 make backend       # uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 make frontend      # (u drugom terminalu) cd frontend && npm run dev
 ```
@@ -47,6 +56,25 @@ make frontend      # (u drugom terminalu) cd frontend && npm run dev
 > ga diže zajedno s bazama.
 
 Backend API: `http://localhost:8000` (`/openapi.json`, `/docs`). Frontend: `http://localhost:5173`.
+
+### 🔴 `make sweep` — OBAVEZAN gate prije evaluacijske sesije
+
+```bash
+make sweep    # cd backend && uv run python -m scripts.sweep_task_integrity
+```
+
+Pušta `expected_query` **svakog aktivnog taska** kroz **istu evaluacijsku jezgru** kojom ide
+studentov upit i tvrdi da referentni upit reproducira vlastiti `expected_result`.
+Izlazi s **ne-nul kodom** ako:
+
+- ijedan referentni upit ne reproducira `expected_result` (pokvaren/zastario task),
+- postoji ijedan perzistiran attempt s `error_type='unsupported_eval'` (BKT zagađenje —
+  0 XP + kazna, curi i na evaluabilne sekundarne koncepte),
+- task bank nije seedan (0 aktivnih taskova).
+
+**Zašto gate:** Faza 4.4-0c otkrila je **11 od 83** neocjenjivih taskova koje nitko nije
+primijetio jer ih ništa nije provjeravalo (9 DML + 2 datumski zastarjela). Sweep je ugrađen
+u `make dev` da se to ne može ponoviti tiho. **Ne pokreći evaluacijsku sesiju dok sweep nije zelen.**
 
 ## Struktura
 

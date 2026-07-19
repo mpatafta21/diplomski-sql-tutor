@@ -25,7 +25,7 @@
  *     "zaključano" dulje nego u Recommenderu.
  */
 import type { MasteryItem, ModuleNode } from "@/lib/api/types"
-import { buildConceptIndex, type ConceptInfo } from "@/lib/mastery"
+import { buildConceptIndex, hasOwnTasks, type ConceptInfo } from "@/lib/mastery"
 
 export type ConceptState =
   | "not_started"
@@ -34,11 +34,14 @@ export type ConceptState =
   | "mastered"
   /**
    * 🔴 NALAZ #10b / #19 — koncept BEZ ijednog aktivnog primary taska
-   * (`primary_task_count === 0`) izvan modula 0. Ovo je JEDINO mjesto u
-   * frontendu gdje se `primary_task_count` konzumira: polje je izloženo u 4.3
-   * Stage 0 (NALAZ #10) i do 4.4-0e stajalo NEISKORIŠTENO, zbog čega je M6
-   * izgledao kao otključiv modul iako nijedan njegov zadatak nije evaluabilan.
-   * NE brisati kao "mrtvo polje".
+   * (`hasOwnTasks === false`) izvan modula 0. Polje `primary_task_count` je
+   * izloženo u 4.3 Stage 0 (NALAZ #10) i do 4.4-0e stajalo NEISKORIŠTENO, zbog
+   * čega je M6 izgledao kao otključiv modul iako nijedan njegov zadatak nije
+   * evaluabilan. NE brisati kao "mrtvo polje".
+   *
+   * Od 4.4b polje ima DVA potrošača — ovaj i `categorizeConcept`
+   * (lib/mastery-history.ts, skupine (B)/(C) na Profilu). Zajednički predikat
+   * je `hasOwnTasks` u lib/mastery.ts; prag se mijenja SAMO ondje.
    */
   | "unavailable"
 
@@ -148,7 +151,7 @@ export function deriveProgress(
       // kao da ga se otključava (bez prereq teksta, bara i postotka — ConceptRow).
       // Modul 0 je iznimka: transverzalni po dizajnu nemaju vlastite zadatke i
       // već imaju vlastito objašnjenje u UI-ju (4.2b), pa ostaju nepromijenjeni.
-      if (mod.number !== 0 && c.primary_task_count === 0) {
+      if (mod.number !== 0 && !hasOwnTasks(c)) {
         return {
           code: c.code,
           name: c.name,

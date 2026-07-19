@@ -4,7 +4,10 @@
  *
  * 🔴 Za razliku od /run: attempt SE persistira (attempts, XP, BKT, streak) →
  * nakon SVAKOG 200 odgovora (i netočnog! BKT/streak/attempt-count se mijenjaju)
- * invalidiraju se ["profile"], ["next-task"], ["attempts"].
+ * invalidiraju se ["profile"], ["next-task"], ["attempts"], ["mastery-history"].
+ * `mastery-history` (4.4b): KM upisuje snapshot po SVAKOM BKT updateu, dakle i
+ * na netočnom pokušaju → bez ove invalidacije krivulje na Profilu zaostaju za
+ * mastery barovima koji čitaju iz /profile.
  * `/next-task` je skup (XMPP→Prolog) — invalidacija, NE poll (4.2a odluka).
  *
  * Greške: HTTP 504 = AGENT PIPELINE ne odgovara (orchestration/evaluation
@@ -46,6 +49,7 @@ export function useSubmitAttempt(taskId: number) {
       void queryClient.invalidateQueries({ queryKey: ["profile"] })
       void queryClient.invalidateQueries({ queryKey: ["next-task"] })
       void queryClient.invalidateQueries({ queryKey: ["attempts"] })
+      void queryClient.invalidateQueries({ queryKey: ["mastery-history"] })
     },
   })
 }

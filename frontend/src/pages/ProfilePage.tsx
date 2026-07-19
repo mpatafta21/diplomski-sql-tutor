@@ -1,7 +1,8 @@
 /**
- * ProfilePage (Faza 4.4a) — profil: XP/level hero, statistika, galerija bedževa,
- * povijest pokušaja. Bez grafova (to je 4.4b). Lazy-loadan (router) → priprema
- * za 4.4b chunk. Svi podaci sa živih ruta (nula mocka).
+ * ProfilePage (Faza 4.4a + 4.4b) — profil: XP/level hero, statistika, galerija
+ * bedževa, BKT krivulje znanja, povijest pokušaja.
+ * Lazy-loadan (router) → recharts (4.4b) živi u OVOM chunku, ne u glavnom
+ * bundleu (dokazano vite build outputom). Svi podaci sa živih ruta (nula mocka).
  *
  * XP JE JEDNOZNAČAN: hero (ProgressHero) je JEDINO mjesto s XP-om, iz /profile
  * (autoritativno). StatsSummary NE prikazuje XP (vidi njegov docstring).
@@ -13,6 +14,7 @@ import { ProgressHero } from "@/components/dashboard/ProgressHero"
 import { StatsSummary } from "@/components/profile/StatsSummary"
 import { BadgeGallery } from "@/components/profile/BadgeGallery"
 import { AttemptHistory } from "@/components/profile/AttemptHistory"
+import { MasteryCurves } from "@/components/profile/MasteryCurves"
 import { useAuth } from "@/hooks/useAuth"
 import { useProfile } from "@/hooks/useProfile"
 import { useBadges } from "@/hooks/useBadges"
@@ -80,7 +82,14 @@ export function ProfilePage() {
         />
       )}
 
-      <AttemptHistory />
+      {/* mastery_threshold putuje iz /profile — komponenta ga NE hardkodira. */}
+      <MasteryCurves masteryThreshold={profile.data.mastery_threshold} />
+
+      {/* Anchor cilj za linkove na pokušaj iz tooltipa/tablice krivulje.
+          scroll-mt drži naslov ispod sticky headera nakon skoka. */}
+      <div id="povijest" className="scroll-mt-20">
+        <AttemptHistory />
+      </div>
     </div>
   )
 }

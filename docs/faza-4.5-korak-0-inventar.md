@@ -168,7 +168,18 @@ const NAV_ITEMS = [
   { label: "Ljestvica", icon: Trophy,          to: "/",        stub: true  },
 ] as const
 ```
-→ **„Ljestvica" stub već postoji** (samo se prebaci `to: "/leaderboard"`, `stub: false`). **Admin stavke NEMA** — treba je dodati uvjetno po roli. Invarijanta #3: `h-11` = 44px touch target po stavci.
+→ **„Ljestvica" stub već postoji** (samo se prebaci `to: "/leaderboard"`, `stub: false`). Invarijanta #3: `h-11` = 44px touch target po stavci.
+
+> ⚠️ **ISPRAVAK (4.5a):** ranija verzija ovog dokumenta tvrdila je „Admin stavke NEMA".
+> **Netočno** — `SidebarNav` već ima role-gated Admin stavku:
+> ```tsx
+> {user?.role === "admin" && (
+>   <NavLink to="/" end …><ShieldCheck …/>Admin</NavLink>
+> )}
+> ```
+> Stavka je **stub** (`to="/"`), ali uvjetovanje po roli **postoji i radi**. Za 4.5b
+> preostaje samo prebaciti `to` na `/admin` — ne graditi role-gating ispočetka.
+> (Poučak iz #33: tvrdnja u dokumentaciji nosi citat ili se ne piše.)
 
 ### Role-guard — 🔴 **NE POSTOJI**
 `routes/guards.tsx` ima **samo** `ProtectedRoute` (auth status) i `PublicOnlyRoute`. Nema `AdminRoute`, nema provjere role nigdje u routeru. `MeResponse` **ima** `role: string` (`schema.d.ts:463`) i `useAuth().user` ga nosi → materijal postoji, guard treba **napisati** u 4.5.

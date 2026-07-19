@@ -24,6 +24,13 @@ const ProfilePage = lazy(() =>
   import("@/pages/ProfilePage").then((m) => ({ default: m.ProfilePage })),
 )
 
+// Lazy (4.5a): ljestvica je sekundarni ekran — ne tereti glavni bundle.
+const LeaderboardPage = lazy(() =>
+  import("@/pages/LeaderboardPage").then((m) => ({
+    default: m.LeaderboardPage,
+  })),
+)
+
 export const router = createBrowserRouter([
   {
     element: <PublicOnlyRoute />,
@@ -55,6 +62,16 @@ export const router = createBrowserRouter([
             element: (
               <Suspense fallback={<LoadingState label="Učitavanje profila" />}>
                 <ProfilePage />
+              </Suspense>
+            ),
+          },
+          {
+            path: "/leaderboard",
+            element: (
+              <Suspense
+                fallback={<LoadingState label="Učitavanje ljestvice" />}
+              >
+                <LeaderboardPage />
               </Suspense>
             ),
           },

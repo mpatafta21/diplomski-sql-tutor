@@ -2958,7 +2958,7 @@
       "module": 3,
       "primary_concept": "right_join",
       "difficulty": 2,
-      "approved_by_human": false,
+      "approved_by_human": true,
       "generation_method": "manual",
       "recovery_applied": false,
       "title": "Kupci bez ijedne narudžbe (RIGHT JOIN)",
@@ -2993,7 +2993,7 @@
         }
       ],
       "secondary_concepts": [
-        "null_handling",
+        "column_alias",
         "order_by"
       ],
       "estimated_time_sec": 120
@@ -3003,11 +3003,11 @@
       "module": 4,
       "primary_concept": "insert",
       "difficulty": 3,
-      "approved_by_human": false,
+      "approved_by_human": true,
       "generation_method": "manual",
       "recovery_applied": false,
       "title": "Unos dvaju dobavljača jednom naredbom (multi-row VALUES)",
-      "description": "Jednom INSERT naredbom dodaj DVA nova dobavljača u tablicu suppliers. Prvi je 'Adriatic Supply' iz države 'Croatia', kontakt 'kontakt@adriatic-supply.test', ocjena 4.50; drugi je 'Nordic Parts' iz države 'Sweden', kontakt 'info@nordic-parts.test', ocjena 3.80. Umjesto dvije odvojene naredbe, navedi obje n-torke u istoj VALUES klauzuli odvojene zarezom — tako baza oba retka umeće u jednoj transakciji. Koristi RETURNING name, country, rating za provjeru unesenih redaka.",
+      "description": "Jednom INSERT naredbom dodaj DVA nova dobavljača u tablicu suppliers. Umjesto dvije odvojene naredbe, navedi obje n-torke u ISTOJ VALUES klauzuli odvojene zarezom - tako baza oba retka umeće u jednoj naredbi.\n\nPodaci koje treba unijeti, tim redoslijedom:\n\n```\n1. name = 'Adriatic Supply'  |  country = 'Croatia'  |  contact_email = 'kontakt@adriatic-supply.test'  |  rating = 4.50\n2. name = 'Nordic Parts'     |  country = 'Sweden'   |  contact_email = 'info@nordic-parts.test'        |  rating = 3.80\n```\n\nVrijednosti se uspoređuju EGZAKTNO (uključujući decimalna mjesta ocjene), pa ih prepiši doslovno. Za provjeru unesenih redaka koristi RETURNING name, country, rating.",
       "sandbox_schema": "ecommerce_v1",
       "expected_query": "INSERT INTO suppliers (name, country, contact_email, rating)\nVALUES ('Adriatic Supply', 'Croatia', 'kontakt@adriatic-supply.test', 4.50),\n       ('Nordic Parts', 'Sweden', 'info@nordic-parts.test', 3.80)\nRETURNING name, country, rating;",
       "expected_result": [
@@ -3027,6 +3027,8 @@
     }
   ],
   "changelog": [
-    "4.4-0h: +2 ručno autorska zadatka (right_join d2, insert d3) — oživljavanje 'slučajno mrtvih' koncepata koje subfloor pravilo (<2 primarna taska) tiho je isključivalo iz preporuka (NALAZ #27). approved_by_human=false do ljudskog pregleda."
+    "4.4-0h: +2 ručno autorska zadatka (right_join d2, insert d3) — oživljavanje 'slučajno mrtvih' koncepata koje subfloor pravilo (<2 primarna taska) tiho je isključivalo iz preporuka (NALAZ #27). approved_by_human=false do ljudskog pregleda.",
+    "4.4-0h-final: zadatak right_join_d2_manual_b87adfc6 — sekundarni koncepti null_handling -> column_alias (IS NULL je anti-join idiom, ne NULL semantika; AS customer_id je stvarni alias). Zadatak insert_d3_manual_d034def1 — opis prepisan tako da sve 4 vrijednosti oba retka stoje u kod-bloku (evaluacija je egzaktna). Oba zadatka: approved_by_human -> true nakon ljudskog pregleda.",
+    "4.4-0h-final: approved_by_human=true za oba ručno autorska zadatka nakon ljudskog pregleda (sekundarni koncepti zadatka A ispravljeni, opis zadatka B prepisan s egzaktnim podacima u kod-bloku)."
   ]
 }

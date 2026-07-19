@@ -62,9 +62,10 @@ function SidebarNav() {
           {label}
         </NavLink>
       ))}
+      {/* Role-gating skriva stavku; ZAŠTITU rute radi AdminRoute (4.5b DIO 1). */}
       {user?.role === "admin" && (
         <NavLink
-          to="/"
+          to="/admin"
           end
           className="flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >

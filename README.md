@@ -97,6 +97,32 @@ kroz cijeli lanac mora dati `is_correct=true`. Smoke sam čisti svog `demo44_smo
 
 **Ne pokreći evaluacijsku sesiju dok `make preflight` nije zelen.**
 
+## 🔴 Osobni podaci u agentskim logovima (prije evaluacije pročitati)
+
+Administratorski pregled (`/admin`, samo `role=admin`) prikazuje tablicu
+`agent_messages_log` — FIPA promet između agenata. **Ti zapisi sadrže
+`submitted_query`: doslovan SQL koji je student napisao**, povezan s
+`user_id`-em, a ljestvica i profil povezuju `user_id` s `username`-om.
+
+Što je provjereno (sken **svih 552 zapisa**, Faza 4.5 KORAK 0):
+
+- ❌ **NEMA** `expected_query` ni očekivanih redaka → rješenja zadataka nisu izložena
+- ❌ **NEMA** lozinki, hasheva (`$2b$`), tokena ni e-mail adresa
+- ✅ jedini osjetljiv sadržaj je **studentov vlastiti upit**
+
+**To nije sigurnosni propust, ali JEST obrada osobnih podataka.** Studentovi
+pokušaji (uključujući pogrešne) vidljivi su administratoru i vežu se uz
+korisničko ime. Prije evaluacije:
+
+1. sudionici moraju biti obaviješteni da se njihovi upiti bilježe i pregledavaju,
+2. to mora biti pokriveno **suglasnošću sudionika**,
+3. u radu se podaci prikazuju **agregirano ili anonimizirano**, ne s
+   korisničkim imenima.
+
+Napomena o količini: **12 zapisa po predanom zadatku**, a `limit` je server-side
+capiran na **200** (NALAZ #36) — cjelovit pregled ide isključivo filtriranjem po
+`correlation_id`.
+
 ## Struktura
 
 Vidi `docs/` za detalje.

@@ -92,7 +92,7 @@ def load_attempted_modules(session: Session, user_id: int) -> frozenset[int]:
 
     AUTORITATIVAN put (3D.2 odluka): task.module_id → modules.number.
     NE primary-concept put, NE unija svih koncepata. Vraća modules.number
-    (NE module_id/PK) jer eval_badges uspoređuje s EXPLORER_MODULES={1..6}.
+    (NE module_id/PK) jer eval_badges uspoređuje s brojevima modula.
     """
     rows = session.execute(
         select(Module.number)
@@ -100,6 +100,23 @@ def load_attempted_modules(session: Session, user_id: int) -> frozenset[int]:
         .join(Task, Task.id == Attempt.task_id)
         .join(Module, Module.id == Task.module_id)
         .where(Attempt.user_id == user_id)
+        .distinct()
+    ).scalars()
+    return frozenset(rows)
+
+
+def load_evaluable_modules(session: Session) -> frozenset[int]:
+    """Brojevi modula (BEZ 0) koji imaju barem jedan AKTIVAN zadatak.
+
+    Kriterij za `explorer` (NALAZ #22): izvodi se iz PODATAKA, ne iz hardkodirane
+    šestice. Modul 6 je od 4.4-0e neaktivan (NALAZ #19) pa ispada iz kriterija;
+    ako ikad postane evaluabilan, bedž se automatski proširi bez izmjene koda.
+    Modul 0 (transverzalni) je izuzet — nikad nije bio dio kriterija (3D nalaz #6).
+    """
+    rows = session.execute(
+        select(Module.number)
+        .join(Task, Task.module_id == Module.id)
+        .where(Task.is_active.is_(True), Module.number != 0)
         .distinct()
     ).scalars()
     return frozenset(rows)
@@ -210,6 +227,7 @@ def persist_gamification(session: Session, payload: dict) -> dict:
         mastered=mastered_concepts(load_mastery_snapshot(session, user_id)),
         current_streak=current_streak,
         attempted_modules=load_attempted_modules(session, user_id),
+        evaluable_modules=load_evaluable_modules(session),
     )
     candidate_codes = eval_badges(facts)
 

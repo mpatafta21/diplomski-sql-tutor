@@ -25,9 +25,25 @@
  *     "zaključano" dulje nego u Recommenderu.
  */
 import type { MasteryItem, ModuleNode } from "@/lib/api/types"
-import { buildConceptIndex, type ConceptInfo } from "@/lib/mastery"
+import { buildConceptIndex, hasOwnTasks, type ConceptInfo } from "@/lib/mastery"
 
-export type ConceptState = "not_started" | "locked" | "in_progress" | "mastered"
+export type ConceptState =
+  | "not_started"
+  | "locked"
+  | "in_progress"
+  | "mastered"
+  /**
+   * 🔴 NALAZ #10b / #19 — koncept BEZ ijednog aktivnog primary taska
+   * (`hasOwnTasks === false`) izvan modula 0. Polje `primary_task_count` je
+   * izloženo u 4.3 Stage 0 (NALAZ #10) i do 4.4-0e stajalo NEISKORIŠTENO, zbog
+   * čega je M6 izgledao kao otključiv modul iako nijedan njegov zadatak nije
+   * evaluabilan. NE brisati kao "mrtvo polje".
+   *
+   * Od 4.4b polje ima DVA potrošača — ovaj i `categorizeConcept`
+   * (lib/mastery-history.ts, skupine (B)/(C) na Profilu). Zajednički predikat
+   * je `hasOwnTasks` u lib/mastery.ts; prag se mijenja SAMO ondje.
+   */
+  | "unavailable"
 
 export interface ConceptProgress {
   code: string
@@ -45,6 +61,8 @@ export interface ModuleProgress {
   concepts: ConceptProgress[]
   masteredCount: number
   totalCount: number
+  /** Koncepti koji IMAJU aktivne zadatke. 0 → modul je izvan opsega (M6). */
+  availableCount: number
 }
 
 export interface ProgressOverview {
@@ -129,6 +147,21 @@ export function deriveProgress(
         }
       }
 
+      // Nema aktivnih zadataka → koncept se NE može vježbati; ne smije izgledati
+      // kao da ga se otključava (bez prereq teksta, bara i postotka — ConceptRow).
+      // Modul 0 je iznimka: transverzalni po dizajnu nemaju vlastite zadatke i
+      // već imaju vlastito objašnjenje u UI-ju (4.2b), pa ostaju nepromijenjeni.
+      if (mod.number !== 0 && !hasOwnTasks(c)) {
+        return {
+          code: c.code,
+          name: c.name,
+          tier: c.tier,
+          state: "unavailable",
+          pL,
+          missingPrereqs: [],
+        }
+      }
+
       const missing = c.prerequisites.filter((p) => !satisfied(p))
       const state: ConceptState =
         missing.length > 0
@@ -152,6 +185,7 @@ export function deriveProgress(
       concepts,
       masteredCount: concepts.filter((c) => c.state === "mastered").length,
       totalCount: concepts.length,
+      availableCount: concepts.filter((c) => c.state !== "unavailable").length,
     }
   }
 

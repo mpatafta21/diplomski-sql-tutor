@@ -22,14 +22,14 @@ import { useAuth } from "@/hooks/useAuth"
 import { useTheme } from "@/hooks/useTheme"
 import { cn } from "@/lib/utils"
 
-// Nav (4.2): Dashboard i Moduli su prave rute; stub stavke (Zadatak/Profil/
-// Ljestvica) vode na "/" dok 4.3–4.5 ne donesu ekrane — `stub: true` im GASI
-// active stanje (inače bi na "/" četiri stavke bile istovremeno "aktivne").
+// Nav (4.2): Dashboard/Moduli/Profil su prave rute; preostale stub stavke
+// (Zadatak/Ljestvica) vode na "/" dok 4.5 ne donese ekrane — `stub: true` im
+// GASI active stanje (inače bi na "/" bile istovremeno "aktivne").
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, to: "/", stub: false },
   { label: "Moduli", icon: BookOpen, to: "/modules", stub: false },
   { label: "Zadatak", icon: Terminal, to: "/", stub: true },
-  { label: "Profil", icon: User, to: "/", stub: true },
+  { label: "Profil", icon: User, to: "/profile", stub: false },
   { label: "Ljestvica", icon: Trophy, to: "/", stub: true },
 ] as const
 

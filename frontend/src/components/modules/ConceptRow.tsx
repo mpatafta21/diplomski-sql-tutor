@@ -5,7 +5,13 @@
  * ako je koncept diran (netaknut ≠ prior) — uključujući i zaključan-a-diran
  * (regresija preduvjeta ne smije sakriti zabilježeni napredak).
  */
-import { CheckCircle2, CircleDashed, CircleDot, Lock } from "lucide-react"
+import {
+  CheckCircle2,
+  CircleDashed,
+  CircleDot,
+  CircleSlash,
+  Lock,
+} from "lucide-react"
 import { ConceptChip, TIER_LABEL } from "@/components/ConceptChip"
 import { MasteryBar } from "@/components/MasteryBar"
 import { masteryFillClass } from "@/lib/mastery"
@@ -36,11 +42,20 @@ const STATE_META: Record<
     icon: CheckCircle2,
     iconClass: "text-correct",
   },
+  // NALAZ #10b/#19: nema aktivnih zadataka → NIJE "zaključano" (ne otključava se).
+  unavailable: {
+    label: "Nema zadataka",
+    icon: CircleSlash,
+    iconClass: "text-muted-foreground",
+  },
 }
 
 export function ConceptRow({ concept }: { concept: ConceptProgress }) {
   const { label, icon: Icon, iconClass } = STATE_META[concept.state]
-  const pL = concept.pL
+  // "unavailable": NIŠTA što sugerira dostižnost — bez postotka, bez bara, bez
+  // "Traži: …". Koncept nema zadataka, pa napredak nije ni definiran.
+  const unavailable = concept.state === "unavailable"
+  const pL = unavailable ? null : concept.pL
   // floor, ne round: 0.849 se NE smije prikazati kao prag-postotak dok je
   // stanje još "U tijeku" (prikaz mora biti konzistentan sa stanjem).
   const pct = pL !== null ? Math.floor(pL * 100) : null

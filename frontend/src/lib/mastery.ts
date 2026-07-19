@@ -56,15 +56,64 @@ export function enrichMastery(
 }
 
 /**
- * P(L) → token klasa mastery skale (MASTER.md §2.3, 5 stopova).
+ * P(L) → stopa mastery skale (MASTER.md §2.3, 5 stopova).
  * Bucket granice su VIZUALNA kvantizacija kontinuirane skale (design-system
  * odluka), ne backend semantika — backend prag savladanosti je
  * mastery_threshold iz /profile.
+ *
+ * JEDAN izvor granica za SVE potrošače skale: Tailwind klase (barovi) i CSS
+ * varijable (SVG stroke krivulja, 4.4b). Bez ovog helpera dvije bi kopije
+ * granica tiho divergirale — bar i krivulja istog koncepta u različitim bojama.
  */
+/**
+ * Ima li koncept ijedan AKTIVAN primarni zadatak (`primary_task_count > 0`).
+ *
+ * 🔴 JEDAN izvor ovog predikata za cijeli frontend. Konzumenti:
+ *  - `deriveProgress` (lib/progress.ts) — stanje `unavailable` na Module overviewu
+ *  - `categorizeConcept` (lib/mastery-history.ts) — skupine (B)/(C) na Profilu
+ * Prije 4.4b pravilo je bilo prepisano na oba mjesta; promjena praga na jednom
+ * (npr. subfloor `<2` iz errate #27) tiho bi razišla klasifikaciju istog
+ * koncepta na dva ekrana. Mijenjati SAMO ovdje.
+ */
+export function hasOwnTasks(
+  concept: Pick<ConceptNode, "primary_task_count">,
+): boolean {
+  return concept.primary_task_count > 0
+}
+
+export type MasteryStep = 0 | 25 | 50 | 75 | 100
+
+export function masteryStep(pL: number): MasteryStep {
+  if (pL >= 0.875) return 100
+  if (pL >= 0.625) return 75
+  if (pL >= 0.375) return 50
+  if (pL >= 0.125) return 25
+  return 0
+}
+
+/**
+ * Tailwind fill klasa mastery skale (mastery barovi).
+ * 🔴 Klase su LITERALI, nikad `bg-mastery-${step}` — Tailwind v4 skenira izvor
+ * staticki, pa interpolirano ime klase nikad ne bi bilo generirano (bar bi
+ * ostao neobojen, tiho).
+ */
+const MASTERY_FILL: Record<MasteryStep, string> = {
+  0: "bg-mastery-0",
+  25: "bg-mastery-25",
+  50: "bg-mastery-50",
+  75: "bg-mastery-75",
+  100: "bg-mastery-100",
+}
+
 export function masteryFillClass(pL: number): string {
-  if (pL >= 0.875) return "bg-mastery-100"
-  if (pL >= 0.625) return "bg-mastery-75"
-  if (pL >= 0.375) return "bg-mastery-50"
-  if (pL >= 0.125) return "bg-mastery-25"
-  return "bg-mastery-0"
+  return MASTERY_FILL[masteryStep(pL)]
+}
+
+/**
+ * CSS varijabla mastery skale — za SVG atribute (`stroke`/`fill`) gdje Tailwind
+ * klasa ne dopire. Vraća `var(--mastery-N)`: theme-reaktivno bez getComputedStyle
+ * (varijablu razrješava preglednik pri promjeni teme, bez remounta grafa).
+ */
+export function masteryStrokeVar(pL: number): string {
+  return `var(--mastery-${masteryStep(pL)})`
 }

@@ -24,6 +24,14 @@ Sub-floor strategija — DVIJE kategorije s RAZLIČITIM tretmanom:
     (0.99) da ih Prolog preskoči kroz vlastite klauzule i ne preporuči ih (premalo
     zadataka za vježbu). Sigurno jer nisu kritični prereqs (provjereno testom).
 
+  Kat. C — NEEVALUABILNI (agents.evaluation.UNSUPPORTED_CONCEPTS: explain_plan,
+    index_usage). Evaluacijska jezgra ih ne zna ocijeniti (plan-presence put nije
+    implementiran) → task tog koncepta NIKAD ne može postati is_correct → nikad
+    "riješen" → recommender bi ga vraćao zauvijek, uz 0 XP i BKT kaznu po pokušaju
+    (trajni ćorsokak, nalaz 4.4-0c B4). Tretman: ISTA maska kao Kat. B (0.99).
+    NAPOMENA: subfloor ih NE hvata — explain_plan ima 2, index_usage 3 aktivna
+    primary taska, a subfloor prag je < 2. Zato je potreban eksplicitan popis.
+
 Redoslijed je bitan: prior → skill_mastery → subfloor → transverzalni (zadnji,
 jer ovisi o mastery ostalih koncepata u snapshotu).
 
@@ -42,6 +50,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from agents.db_helpers import load_concept_code_map, load_concept_id_map
+from agents.evaluation import UNSUPPORTED_CONCEPTS
 from app.db.models import Attempt, Concept, Module, SkillMastery, Task, TaskConcept
 from bkt.parameters import create_bkt_for_concept
 
@@ -183,6 +192,12 @@ def select_task_for_concept(
 
     Vraća None ako koncept nema (nerješenih) aktivnih primary taskova.
     """
+    # Obrana u dubinu (Kat. C): neevaluabilan koncept NIKAD ne smije dati task —
+    # ni ako ga netko zatraži izravno, zaobilazeći masku u recommend(). Takav
+    # task ne može postati is_correct → nikad "riješen" → trajna petlja.
+    if concept_code in UNSUPPORTED_CONCEPTS:
+        return None
+
     concept_id = load_concept_code_map(session).get(concept_code)
     if concept_id is None:
         return None
@@ -217,8 +232,12 @@ def recommend(session: Session, engine: "PrologEngine", user_id: int) -> dict:
     u asyncio.to_thread + asyncio.Lock (pyswip je jedan globalni sync VM).
     """
     transversal = transversal_concepts(session)
-    subfloor = subfloor_concepts(session)
-    snapshot = build_mastery_snapshot(session, engine, user_id, transversal, subfloor)
+    # Kat. B (subfloor) + Kat. C (NEEVALUABILNI) dijele ISTI tretman: maska 0.99
+    # → Prolog ih ne preporučuje. Maskiranje je na razini KONCEPTA, ne taska:
+    # filtriranje tek u select_task_for_concept dalo bi reason="exhausted"
+    # (task_id=None) = tiši ćorsokak umjesto rješenja (4.4-0d KORAK 4).
+    masked = subfloor_concepts(session) | UNSUPPORTED_CONCEPTS
+    snapshot = build_mastery_snapshot(session, engine, user_id, transversal, masked)
 
     uid = str(user_id)
     engine.inject_mastery(uid, snapshot)

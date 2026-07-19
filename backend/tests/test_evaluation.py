@@ -228,3 +228,101 @@ def test_metrics_populated_on_correct(db_session, sandbox_runner):
     assert outcome.execution_time_ms > 0
     assert outcome.rows_returned == len(task.expected_result)
     assert isinstance(outcome.detail, str)
+
+
+# ---------------------------------------------------------------------------
+# DML put (M4) — Faza 4.4-0d
+#
+# 🔴 Ova klasa NIKAD prije nije bila pokrivena (nalaz 4.4-0c A4): evaluacijska
+# jezgra je hardkodirala dml=False pa je SVAKI INSERT/UPDATE/DELETE task padao
+# na "permission denied" (execution_error) — 9/83 taskova bilo je neocjenjivo,
+# a student bi vidio lažno "Greška u SQL-u".
+# ---------------------------------------------------------------------------
+
+
+def test_dml_insert_task_is_correct(db_session, sandbox_runner):
+    """INSERT task s primary_concept='insert' → readwrite rola → is_correct."""
+    task = _task(db_session, "insert_d2_bc637919")
+    outcome = evaluate(
+        task, task.expected_query, sandbox_runner, primary_concept_code="insert"
+    )
+
+    assert outcome.is_correct is True, f"INSERT nije ocijenjen točnim: {outcome.detail}"
+    assert outcome.verdict == "correct"
+    assert outcome.error_type is None
+
+
+def test_dml_update_task_is_correct(db_session, sandbox_runner):
+    """UPDATE task s primary_concept='update' → readwrite rola → is_correct."""
+    task = _task(db_session, "update_d2_b0b659e4")
+    outcome = evaluate(
+        task, task.expected_query, sandbox_runner, primary_concept_code="update"
+    )
+
+    assert outcome.is_correct is True, f"UPDATE nije ocijenjen točnim: {outcome.detail}"
+    assert outcome.verdict == "correct"
+    assert outcome.error_type is None
+
+
+def test_dml_delete_task_is_correct(db_session, sandbox_runner):
+    """DELETE task s primary_concept='delete' → readwrite rola → is_correct."""
+    task = _task(db_session, "delete_d2_9b0f6b74")
+    outcome = evaluate(
+        task, task.expected_query, sandbox_runner, primary_concept_code="delete"
+    )
+
+    assert outcome.is_correct is True, f"DELETE nije ocijenjen točnim: {outcome.detail}"
+    assert outcome.verdict == "correct"
+    assert outcome.error_type is None
+
+
+def test_dml_evaluation_rolls_back_sandbox(db_session, sandbox_runner):
+    """🔴 ROLLBACK INVARIJANTA: nakon evaluacije DELETE taska sandbox je NEPROMIJENJEN.
+
+    Task `delete_d2_9b0f6b74` je `DELETE FROM orders WHERE id = 2 RETURNING ...`.
+    Da rollback ne radi, sandbox bi se TRAJNO zagadio za sve studente — zato se
+    tvrde konkretne brojke, ne samo "nema greške".
+    """
+
+    def _count(sql: str) -> int:
+        res = sandbox_runner.execute(sql)
+        assert res.success, f"kontrolni upit pao: {res.error}"
+        return res.rows[0]["c"]
+
+    before_total = _count("SELECT COUNT(*) AS c FROM orders;")
+    before_row = _count("SELECT COUNT(*) AS c FROM orders WHERE id = 2;")
+    assert before_row == 1, "preduvjet: order id=2 mora postojati prije testa"
+
+    task = _task(db_session, "delete_d2_9b0f6b74")
+    outcome = evaluate(
+        task, task.expected_query, sandbox_runner, primary_concept_code="delete"
+    )
+    assert outcome.is_correct is True
+
+    assert _count("SELECT COUNT(*) AS c FROM orders;") == before_total, (
+        "broj redaka u orders se promijenio — DML NIJE rollbackan"
+    )
+    assert _count("SELECT COUNT(*) AS c FROM orders WHERE id = 2;") == 1, (
+        "order id=2 je nestao — DML NIJE rollbackan, sandbox je trajno zagađen"
+    )
+
+
+def test_non_dml_concept_still_runs_readonly(db_session, sandbox_runner):
+    """Regresija: koncept koji NIJE u DML_CONCEPTS ostaje na readonly roli.
+
+    Dokaz je jak: DML upit poslan na SELECT-task mora pasti na 'permission
+    denied' — da je rola readwrite, upit bi prošao.
+    """
+    task = _task(db_session, "agg_sum_avg_d3_manual_f239bc99")
+    outcome = evaluate(
+        task,
+        "DELETE FROM orders WHERE id = 999999;",
+        sandbox_runner,
+        primary_concept_code="agg_sum_avg",
+    )
+
+    assert outcome.is_correct is False
+    assert outcome.error_type == "execution_error"
+    assert "permission denied" in (outcome.detail or "").lower(), (
+        f"očekivan permission denied pod readonly rolom, dobiveno: {outcome.detail}"
+    )

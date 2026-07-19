@@ -27,7 +27,23 @@ import sqlparse
 from app.db.models import Task
 from scripts.lib.sandbox_runner import SandboxRunner
 
-_UNSUPPORTED_CONCEPTS = frozenset({"explain_plan", "index_usage"})
+# ---------------------------------------------------------------------------
+# Domenske konstante — JEDAN izvor istine (dijele ih evaluator, recommender i
+# dijagnostičke skripte; NE kopirati popise).
+# ---------------------------------------------------------------------------
+
+#: Koncepti koje evaluacijska jezgra NE zna ocijeniti (plan-presence put nije
+#: implementiran). Recommender ih MORA preskočiti (inače trajni ćorsokak:
+#: neevaluabilan task nikad ne postane `is_correct` → nikad "riješen").
+UNSUPPORTED_CONCEPTS = frozenset({"explain_plan", "index_usage"})
+
+#: Koncepti čiji `expected_query` je DML (INSERT/UPDATE/DELETE) → moraju se
+#: izvršiti kroz `sandbox_readwrite` rolu u transakciji koja se UVIJEK rollbacka
+#: (SandboxRunner.execute(dml=True)). Pod readonly rolom padali bi na
+#: "permission denied" i student bi vidio lažno "Greška u SQL-u" (4.4-0c nalaz).
+#: Derivacija iz PRIMARNOG koncepta — provjereno na svih 83 taska: identična
+#: derivaciji iz SVIH koncepata i 100 % poklapanje sa sqlparse ground truthom.
+DML_CONCEPTS = frozenset({"insert", "update", "delete"})
 
 
 @dataclass
@@ -77,7 +93,7 @@ def evaluate(
     # 2. Unsupported eval (explain_plan / index_usage)
     #    TODO: Implementirati plan-presence put (3A ili 3C)
     # ------------------------------------------------------------------
-    if primary_concept_code in _UNSUPPORTED_CONCEPTS:
+    if primary_concept_code in UNSUPPORTED_CONCEPTS:
         return EvaluationOutcome(
             is_correct=False,
             verdict="incorrect",
@@ -93,7 +109,13 @@ def evaluate(
     # ------------------------------------------------------------------
     # 3. Izvršavanje u sandboxu
     # ------------------------------------------------------------------
-    result = runner.execute(submitted_query, schema=task.sandbox_schema, dml=False)
+    # DML taskovi (M4) MORAJU ići kroz readwrite rolu + transakciju s ROLLBACK-om;
+    # SELECT ostaje readonly. Bez ovoga svaki INSERT/UPDATE/DELETE pada na
+    # "permission denied" (execution_error) — 9/83 taskova bilo je neocjenjivo.
+    is_dml = primary_concept_code in DML_CONCEPTS
+    result = runner.execute(
+        submitted_query, schema=task.sandbox_schema, dml=is_dml
+    )
 
     if not result.success:
         if "Statement timeout" in (result.error or ""):

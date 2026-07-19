@@ -32,6 +32,7 @@ import pytest
 from sqlalchemy import delete, select
 
 from agents.db_helpers import load_concept_code_map
+from agents.evaluation import UNSUPPORTED_CONCEPTS
 from agents.recommender_logic import (
     build_mastery_snapshot,
     recommend,
@@ -154,7 +155,8 @@ def _all_mastered_profile() -> dict[str, float]:
 
 
 def test_category_sets_are_db_derived():
-    """transversal = {column_alias, join_condition}; subfloor = {insert, right_join};
+    """transversal = {column_alias, join_condition};
+    subfloor = {insert, right_join} + neevaluabilni (vidi dolje);
     null_handling (modul 0 ALI ima taskove) NE smije biti transverzalan."""
     with SessionLocal() as sess:
         transversal = transversal_concepts(sess)
@@ -166,7 +168,13 @@ def test_category_sets_are_db_derived():
     assert "null_handling" not in transversal, (
         "null_handling ima taskove → NIJE transverzalan"
     )
-    assert subfloor == {"insert", "right_join"}, (
+    # 4.4-0h / NALAZ #27: `insert` i `right_join` imali su TOČNO 1 primarni task,
+    # pa ih je subfloor pravilo (<2) tiho maskiralo kao savladane → recommender ih
+    # NIKAD nije nudio (empirijski: p_l je ostajao na tier prioru). Svakom je
+    # dodan po jedan ručno autorski zadatak → 2 taska → izlaze iz subfloora.
+    # Preostaju SAMO M6 koncepti (0 aktivnih taskova, NALAZ #19) — očekivanje je
+    # izraženo kroz UNSUPPORTED_CONCEPTS da ostane točno ako se M6 vrati u igru.
+    assert subfloor == set(UNSUPPORTED_CONCEPTS), (
         f"Subfloor (modul != 0, < 2 taska) krivi: {subfloor}"
     )
     assert transversal.isdisjoint(subfloor), "Kategorije se ne smiju preklapati"
@@ -197,9 +205,21 @@ def test_snapshot_uses_tier_priors_not_flat(recommender_env, prolog_engine):
     assert snapshot["left_join"] == pytest.approx(_PRIOR_HARD), "hard p_l0 = 0.05, NE 0.1"
     assert snapshot["select_basic"] == pytest.approx(_PRIOR_EASY), "easy p_l0 = 0.30"
     assert snapshot["agg_count"] == pytest.approx(_PRIOR_MEDIUM), "medium p_l0 = 0.15"
-    # Subfloor maska
-    assert snapshot["insert"] == pytest.approx(0.99)
-    assert snapshot["right_join"] == pytest.approx(0.99)
+    # Subfloor maska — od 4.4-0h (NALAZ #27) `insert` i `right_join` VIŠE NISU
+    # subfloor (svaki je dobio 2. primarni task), pa nose svoj pravi tier prior.
+    # Maska ostaje samo na konceptima s 0 aktivnih taskova (M6, NALAZ #19).
+    for code in UNSUPPORTED_CONCEPTS:
+        assert snapshot[code] == pytest.approx(0.99), (
+            f"{code} ima 0 aktivnih taskova → mora biti maskiran"
+        )
+    assert snapshot["right_join"] == pytest.approx(_PRIOR_HARD), (
+        "right_join je od 4.4-0h normalan koncept — ne smije biti maskiran"
+    )
+    # NAPOMENA: prior dolazi iz PROLOG tiera (autoritativan), koji se za `insert`
+    # razlikuje od DB stupca concepts.tier (Prolog easy vs DB medium) — vidi NALAZ #28.
+    assert snapshot["insert"] == pytest.approx(_PRIOR_EASY), (
+        "insert je od 4.4-0h normalan koncept — ne smije biti maskiran"
+    )
     # Transverzalni za novaka → 0.0 (prereqs nisu mastered)
     assert snapshot["join_condition"] == pytest.approx(0.0)
     assert snapshot["column_alias"] == pytest.approx(0.0)
@@ -409,3 +429,98 @@ def test_recommend_clears_mastery_after(recommender_env, prolog_engine):
             recommend(sess, prolog_engine, user_id)
 
     spy.assert_called_with(str(user_id))
+
+
+# ---------------------------------------------------------------------------
+# T-4.4-0d — NEEVALUABILNI koncepti (Kat. C) se NE preporučuju
+#
+# 🔴 Ćorsokak prije fixa: Prolog je vraćao ('explain_plan', 'weak_with_prereqs_met'),
+# recommender je servirao task `explain_plan_d3_60b9eaee` (source_id — NALAZ #21:
+# numerički id se mijenja pri svakom reseedu), evaluator ga NE zna ocijeniti
+# → nikad is_correct → nikad "riješen" → isti task zauvijek, uz 0 XP i BKT kaznu.
+# ---------------------------------------------------------------------------
+
+
+def test_unsupported_concepts_yield_no_task(recommender_env):
+    """select_task_for_concept vraća None za neevaluabilne koncepte.
+
+    DVA neovisna sloja obrane (oba se ovdje tvrde):
+      1. kod: guard u select_task_for_concept (4.4-0d),
+      2. podaci: M6 taskovi su is_active=False (4.4-0e, NALAZ #19) pa ih ni
+         upit ne bi našao.
+    Sloj 1 je bitan jer bi se sloj 2 mogao vratiti (plan-presence evaluacija).
+    """
+    user_id = recommender_env["user_id"]
+    with SessionLocal() as sess:
+        for code in UNSUPPORTED_CONCEPTS:
+            assert not _primary_task_ids(code), (
+                f"{code}: očekujem NULA aktivnih taskova (NALAZ #19)"
+            )
+            assert select_task_for_concept(sess, user_id, code) is None, (
+                f"{code} je neevaluabilan — NE smije dati task (trajni ćorsokak)"
+            )
+
+
+def test_evaluable_concepts_still_yield_tasks(recommender_env):
+    """Regresija: ostali koncepti su NEDIRNUTI (uklj. DML koje sada znamo ocijeniti)."""
+    user_id = recommender_env["user_id"]
+    with SessionLocal() as sess:
+        for code in ("select_basic", "group_by", "insert", "update", "delete"):
+            assert select_task_for_concept(sess, user_id, code) is not None, (
+                f"{code} je evaluabilan i mora davati task"
+            )
+
+
+def test_unsupported_concepts_masked_in_snapshot(recommender_env, prolog_engine):
+    """Maska je na razini KONCEPTA (0.99) — Prolog ih preskače kroz vlastite klauzule."""
+    user_id = recommender_env["user_id"]
+    with SessionLocal() as sess:
+        masked = subfloor_concepts(sess) | UNSUPPORTED_CONCEPTS
+        snap = build_mastery_snapshot(
+            sess, prolog_engine, user_id, transversal_concepts(sess), masked
+        )
+    for code in UNSUPPORTED_CONCEPTS:
+        assert snap[code] >= 0.99, f"{code} mora biti maskiran kao mastered"
+
+
+def test_unmasked_prolog_would_recommend_unevaluable(prolog_engine):
+    """Preduvjet ćorsokaka: kad su SAMO neevaluabilni koncepti slabi, Prolog ih nudi.
+
+    Deterministički jer su oni JEDINI slabi kandidati (ne ovisi o redoslijedu
+    Prologovih rješenja).
+    """
+    snap = {c: 0.99 for c in ALL_30}
+    for code in UNSUPPORTED_CONCEPTS:
+        snap[code] = 0.10
+
+    prolog_engine.inject_mastery("t_unmasked", snap)
+    try:
+        rec = prolog_engine.recommend_next("t_unmasked")
+    finally:
+        prolog_engine.clear_mastery("t_unmasked")
+
+    assert rec is not None and rec[0] in UNSUPPORTED_CONCEPTS, (
+        f"bez maske Prolog nudi neevaluabilan koncept (= ćorsokak), dobiveno {rec}"
+    )
+
+
+def test_masked_skips_to_evaluable_concept(prolog_engine):
+    """🔴 S maskom: preskoči neevaluabilno i ponudi STVARAN zadatak — ne šutnju.
+
+    Ovo je dokaz da fix ne stvara TIŠI ćorsokak (task_id=None / no_recommendation):
+    self_join je jedini evaluabilan slab koncept pa je očekivanje jednoznačno.
+    """
+    snap = {c: 0.99 for c in ALL_30}
+    snap["self_join"] = 0.10
+    for code in UNSUPPORTED_CONCEPTS:
+        snap[code] = 0.99  # maska koju recommend() primjenjuje
+
+    prolog_engine.inject_mastery("t_masked", snap)
+    try:
+        rec = prolog_engine.recommend_next("t_masked")
+    finally:
+        prolog_engine.clear_mastery("t_masked")
+
+    assert rec is not None, "maska je ušutkala preporuku — tiši ćorsokak"
+    assert rec[0] not in UNSUPPORTED_CONCEPTS
+    assert rec[0] == "self_join", f"mora ponuditi evaluabilan koncept, dobiveno {rec}"

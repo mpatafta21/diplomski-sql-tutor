@@ -1,9 +1,24 @@
 /**
  * MasteryBar (Faza 4.2) — jedini dopušteni način renderiranja mastery/XP
- * progresa. INVARIJANTA #1: mastery-0/25 fillovi su <3:1 kontrast prema
- * pozadini → fill se SMIJE renderirati samo unutar vidljivog border-anog
- * tracka (border-border ≥3:1 u obje teme). Track je nosač informacije, fill
- * je vrijednost.
+ * progresa.
+ *
+ * INVARIJANTA #1 (ISPRAVLJENA u 4.4c — vidi NALAZ #33): mastery-0/25 fillovi
+ * su ispod 3:1 prema pozadini (izmjereno na `card` oklch(0.205)/oklch(1)):
+ * mastery-0 = 2.13:1 dark / 1.58:1 light, mastery-25 = 3.41:1 dark / 2.28:1
+ * light. To je SVOJSTVO sekvencijalne skale — niski P(L) namjerno recedira.
+ *
+ * 🔴 RANIJA FORMULACIJA OVOG KOMENTARA BILA JE NETOČNA: tvrdila je da je
+ * mitigacija „border-border ≥3:1 u obje teme". Izmjereno (uz ispravno alpha
+ * kompozitiranje preko kartice): border je **1.32:1 dark / 1.26:1 light** —
+ * dakle NIJE nosač od 3:1 i nikad nije bio.
+ *
+ * STVARNA mitigacija (i ona koja se NE smije ukloniti):
+ *   1. `role="progressbar"` + `aria-valuenow` + `aria-label` — vrijednost je
+ *      dostupna asistivnoj tehnologiji neovisno o boji;
+ *   2. svaki potrošač ispisuje postotak kao TEKST uz bar (ConceptRow „· NN %",
+ *      MasteryHighlights „NN %").
+ * Boja je time redundantan kanal, pa 1.4.11 ne grize (grafika nije JEDINI
+ * nosilac informacije). Border ostaje jer omeđuje track na 0 %, ne zbog kontrasta.
  */
 import { cn } from "@/lib/utils"
 

@@ -1,0 +1,3034 @@
+{
+  "version": "2b-3+4.4-0h",
+  "total": 85,
+  "missing_json": [
+    "select_basic_d1_2fd7fa43",
+    "select_basic_d1_89fe430e"
+  ],
+  "tasks": [
+    {
+      "task_id": "null_handling_d1_1e8ed204",
+      "module": 0,
+      "primary_concept": "null_handling",
+      "difficulty": 1,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "COUNT(*) vs COUNT(kolone) — narudžbe bez zaposlenika",
+      "description": "Izračunaj ukupan broj svih narudžbi (COUNT(*)) i broj narudžbi kojima je dodijeljen zaposlenik (COUNT(employee_id)). Ispiši rezultate kao ukupno_narudzbi i narudzbe_sa_zaposlenikom. Zadatak demonstrira da COUNT(*) broji sve retke, dok COUNT(kolona) ignorira NULL vrijednosti.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS ukupno_narudzbi,\n       COUNT(employee_id) AS narudzbe_sa_zaposlenikom\nFROM orders;",
+      "expected_result": [
+        {
+          "ukupno_narudzbi": 1000,
+          "narudzbe_sa_zaposlenikom": 707
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions",
+        "select_basic"
+      ],
+      "estimated_time_sec": 60
+    },
+    {
+      "task_id": "null_handling_d3_659d88d4",
+      "module": 0,
+      "primary_concept": "null_handling",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Prikaz zaposlenika i njihovog nadređenog s fallback vrijednošću",
+      "description": "Za svakog zaposlenika ispiši id, puno ime zaposlenika i puno ime njegovog nadređenog (manager). Ako zaposlenik nema nadređenog (manager_id je NULL — npr. CEO razina), prikaži tekst 'Top Management' umjesto NULL. Koristi COALESCE i LEFT JOIN na istoj tablici (self-join). Sortiraj po id zaposlenika, prikaži prve 3 retka.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT e.id,\n       e.first_name || ' ' || e.last_name AS employee_name,\n       COALESCE(m.first_name || ' ' || m.last_name, 'Top Management') AS manager_name\nFROM employees e\nLEFT JOIN employees m ON e.manager_id = m.id\nORDER BY e.id\nLIMIT 3;",
+      "expected_result": [
+        {
+          "id": 1,
+          "employee_name": "Laura Young",
+          "manager_name": "Top Management"
+        },
+        {
+          "id": 2,
+          "employee_name": "Michael Armstrong",
+          "manager_name": "Laura Young"
+        },
+        {
+          "id": 3,
+          "employee_name": "Tonya Anderson",
+          "manager_name": "Laura Young"
+        }
+      ],
+      "secondary_concepts": [
+        "left_join",
+        "select_basic"
+      ],
+      "estimated_time_sec": 240
+    },
+    {
+      "task_id": "null_handling_d3_afe497a0",
+      "module": 0,
+      "primary_concept": "null_handling",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Prikaz narudžbi s oznakom samousluge pomoću COALESCE",
+      "description": "Za svaku narudžbu ispiši id, customer_id i oznaku tko je obradio narudžbu. Ako je employee_id NULL (samousluga), prikaži string 'Samousluga'; inače prikaži employee_id pretvorenog u tekst. Koristi COALESCE s ispravnim redoslijedom argumenata. Sortiraj po id uzlazno i prikaži prva 3 reda.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id,\n       customer_id,\n       COALESCE(employee_id::text, 'Samousluga') AS handled_by\nFROM orders\nORDER BY id\nLIMIT 3;",
+      "expected_result": [
+        {
+          "id": 1,
+          "customer_id": 108,
+          "handled_by": "Samousluga"
+        },
+        {
+          "id": 2,
+          "customer_id": 5,
+          "handled_by": "4"
+        },
+        {
+          "id": 3,
+          "customer_id": 90,
+          "handled_by": "Samousluga"
+        }
+      ],
+      "secondary_concepts": [
+        "order_by",
+        "select_basic"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "null_handling_d4_f8859917",
+      "module": 0,
+      "primary_concept": "null_handling",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "COUNT(*) vs COUNT(employee_id) — NULL zamka u agregaciji narudžbi",
+      "description": "Izračunaj tri vrijednosti iz tablice orders: ukupan broj narudžbi (COUNT(*)), broj narudžbi kojima je dodijeljen zaposlenik (COUNT(employee_id)) i broj narudžbi bez dodjeljenog zaposlenika (gdje je employee_id NULL). Imenuj stupce total_orders, assigned_orders i self_service_orders. Ovaj zadatak demonstrira da COUNT(*) i COUNT(nullable_col) daju različite rezultate jer COUNT ignorira NULL vrijednosti, a eksplicitno brojanje NULL redova zahtijeva poseban uvjet.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT\n    COUNT(*) AS total_orders,\n    COUNT(employee_id) AS assigned_orders,\n    COUNT(*) - COUNT(employee_id) AS self_service_orders\nFROM orders;",
+      "expected_result": [
+        {
+          "total_orders": 1000,
+          "assigned_orders": 707,
+          "self_service_orders": 293
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions",
+        "select_basic"
+      ],
+      "estimated_time_sec": 300
+    },
+    {
+      "task_id": "distinct_d1_966e0447",
+      "module": 1,
+      "primary_concept": "distinct",
+      "difficulty": 1,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Različiti statusi narudžbi bez GROUP BY",
+      "description": "Ispiši sve različite vrijednosti statusa (status) koje postoje u tablici orders — bez korištenja GROUP BY. Svaki status smije se pojaviti točno jednom u rezultatu. Koristi SELECT DISTINCT i sortiraj abecedno uzlazno. Napomena: GROUP BY ovdje nije potreban — DISTINCT je ispravan i čitljiviji odabir kad ne agregiraš podatke.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT DISTINCT status\nFROM orders\nORDER BY status ASC;",
+      "expected_result": [
+        {
+          "status": "cancelled"
+        },
+        {
+          "status": "delivered"
+        },
+        {
+          "status": "pending"
+        },
+        {
+          "status": "processing"
+        },
+        {
+          "status": "shipped"
+        }
+      ],
+      "secondary_concepts": [
+        "select_basic",
+        "order_by"
+      ],
+      "estimated_time_sec": 60
+    },
+    {
+      "task_id": "distinct_d3_ac54ea37",
+      "module": 1,
+      "primary_concept": "distinct",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "DISTINCT na kombinaciji status–self_service u narudžbama",
+      "description": "Ispiši sve različite kombinacije statusa narudžbe (status) i zastavice je li narudžba bila samoposluživanje (employee_id IS NULL AS self_service) iz tablice orders. Zapamti: DISTINCT djeluje na CIJELU kombinaciju svih navedenih stupaca — ne samo na prvi stupac status. Sortiraj uzlazno po statusu pa po self_service, prikaži prvih 5 redova.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT DISTINCT status, (employee_id IS NULL) AS self_service\nFROM orders\nORDER BY status ASC, self_service ASC\nLIMIT 5;",
+      "expected_result": [
+        {
+          "status": "cancelled",
+          "self_service": false
+        },
+        {
+          "status": "cancelled",
+          "self_service": true
+        },
+        {
+          "status": "delivered",
+          "self_service": false
+        },
+        {
+          "status": "delivered",
+          "self_service": true
+        },
+        {
+          "status": "pending",
+          "self_service": false
+        }
+      ],
+      "secondary_concepts": [
+        "where_filter",
+        "order_by"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "from_clause_d1_3848b942",
+      "module": 1,
+      "primary_concept": "from_clause",
+      "difficulty": 1,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Dohvati zaposlenike — ime, prezime i odjel",
+      "description": "Ispiši stupce id, first_name, last_name i department iz tablice employees. Nemoj koristiti SELECT *. Sortiraj rezultat uzlazno po id i ograniči ispis na prva 3 retka.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, first_name, last_name, department\nFROM employees\nORDER BY id\nLIMIT 3;",
+      "expected_result": [
+        {
+          "id": 1,
+          "first_name": "Laura",
+          "last_name": "Young",
+          "department": "Executive"
+        },
+        {
+          "id": 2,
+          "first_name": "Michael",
+          "last_name": "Armstrong",
+          "department": "Operations"
+        },
+        {
+          "id": 3,
+          "first_name": "Tonya",
+          "last_name": "Anderson",
+          "department": "Marketing"
+        }
+      ],
+      "secondary_concepts": [
+        "select_basic"
+      ],
+      "estimated_time_sec": 60
+    },
+    {
+      "task_id": "from_clause_d1_a50dc143",
+      "module": 1,
+      "primary_concept": "from_clause",
+      "difficulty": 1,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Dohvati podatke o dobavljačima",
+      "description": "Ispiši stupce id, name i country iz tablice suppliers za prva 3 dobavljača poredana po id-u uzlazno. Ne koristi SELECT *. Tablica se zove suppliers — ne supplier ni dobavljaci.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, name, country\nFROM suppliers\nORDER BY id\nLIMIT 3;",
+      "expected_result": [
+        {
+          "id": 1,
+          "name": "Keller PLC",
+          "country": "Croatia"
+        },
+        {
+          "id": 2,
+          "name": "Collins, Carney and Santos",
+          "country": "Germany"
+        },
+        {
+          "id": 3,
+          "name": "Chapman and Sons",
+          "country": "Italy"
+        }
+      ],
+      "secondary_concepts": [
+        "select_basic"
+      ],
+      "estimated_time_sec": 60
+    },
+    {
+      "task_id": "from_clause_d2_850b8d94",
+      "module": 1,
+      "primary_concept": "from_clause",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Dohvati naziv, zemlju i ocjenu dobavljača",
+      "description": "Ispiši stupce name, country i rating iz tablice suppliers. Važno: tablica se zove suppliers — nemoj je zamijeniti s nazivima stupaca kao što su name ili country. Sortiraj rezultat uzlazno po id-u i ograniči ispis na prva 3 retka.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT name, country, rating\nFROM suppliers\nORDER BY id\nLIMIT 3;",
+      "expected_result": [
+        {
+          "name": "Keller PLC",
+          "country": "Croatia",
+          "rating": "4.10"
+        },
+        {
+          "name": "Collins, Carney and Santos",
+          "country": "Germany",
+          "rating": "2.56"
+        },
+        {
+          "name": "Chapman and Sons",
+          "country": "Italy",
+          "rating": "3.19"
+        }
+      ],
+      "secondary_concepts": [
+        "select_basic",
+        "order_by"
+      ],
+      "estimated_time_sec": 90
+    },
+    {
+      "task_id": "limit_offset_d1_b56136e6",
+      "module": 1,
+      "primary_concept": "limit_offset",
+      "difficulty": 1,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Prvih 3 kupca sortirano po ID-u",
+      "description": "Ispiši first_name i last_name prvih 3 kupca iz tablice customers. Sortiraj uzlazno po koloni id kako bi redoslijed bio potpuno predvidljiv. Koristi ORDER BY zajedno s LIMIT — bez ORDER BY rezultat bi bio nedeterministički i mogao bi se mijenjati pri svakom pozivu upita.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT first_name, last_name\nFROM customers\nORDER BY id ASC\nLIMIT 3;",
+      "expected_result": [
+        {
+          "first_name": "Leon",
+          "last_name": "Car"
+        },
+        {
+          "first_name": "Matej",
+          "last_name": "Škara"
+        },
+        {
+          "first_name": "David",
+          "last_name": "Sokić"
+        }
+      ],
+      "secondary_concepts": [
+        "select_basic",
+        "order_by"
+      ],
+      "estimated_time_sec": 60
+    },
+    {
+      "task_id": "limit_offset_d2_228724a0",
+      "module": 1,
+      "primary_concept": "limit_offset",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Kategorije — druga stranica po 2 retka",
+      "description": "Ispiši id i name iz tablice categories, sortirano po id uzlazno. Prikaži drugu stranicu uz 2 kategorije po stranici (preskači prvih 2 retka, prikaži sljedeća 2). Napiši LIMIT i OFFSET vrijednosti. Napomena: OFFSET nije broj stranice — OFFSET 2 znači 'preskoči 2 retka', a ne 'idi na stranicu broj 2'!",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, name\nFROM categories\nORDER BY id ASC\nLIMIT 2 OFFSET 2;",
+      "expected_result": [
+        {
+          "id": 3,
+          "name": "Sports"
+        },
+        {
+          "id": 4,
+          "name": "Home"
+        }
+      ],
+      "secondary_concepts": [
+        "select_basic",
+        "order_by"
+      ],
+      "estimated_time_sec": 90
+    },
+    {
+      "task_id": "limit_offset_d3_9ca56e61",
+      "module": 1,
+      "primary_concept": "limit_offset",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Dobavljači — prva stranica paginacije s ispravnim OFFSET-om",
+      "description": "Prikaži id, name, country i rating iz tablice suppliers. Sortiraj po id uzlazno. Prikaži prvu stranicu uz 3 reda po stranici koristeći LIMIT i OFFSET. Pazi: za prvu stranicu formula je OFFSET = (1 - 1) × 3 = 0, a ne OFFSET 1 — OFFSET označava broj preskočenih redova, ne broj stranice!",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, name, country, rating\nFROM suppliers\nORDER BY id ASC\nLIMIT 3 OFFSET 0;",
+      "expected_result": [
+        {
+          "id": 1,
+          "name": "Keller PLC",
+          "country": "Croatia",
+          "rating": "4.10"
+        },
+        {
+          "id": 2,
+          "name": "Collins, Carney and Santos",
+          "country": "Germany",
+          "rating": "2.56"
+        },
+        {
+          "id": 3,
+          "name": "Chapman and Sons",
+          "country": "Italy",
+          "rating": "3.19"
+        }
+      ],
+      "secondary_concepts": [
+        "order_by",
+        "select_basic"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "order_by_d2_0a0c13de",
+      "module": 1,
+      "primary_concept": "order_by",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "Dostupni proizvodi sortirani po ID-u — WHERE prije ORDER BY",
+      "description": "Ispiši id, name i price svih proizvoda koji imaju zalihu veću od 0 (stock > 0). Sortiraj rezultate po id uzlazno i prikaži prva 3 reda. Obrati pažnju na ispravan redoslijed klauza u SQL-u: WHERE mora doći PRIJE ORDER BY — zamjena redoslijeda uzrokuje syntax error.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, name, price\nFROM products\nWHERE stock > 0\nORDER BY id ASC\nLIMIT 3;",
+      "expected_result": [
+        {
+          "id": 1,
+          "name": "Digitized solution-oriented solution",
+          "price": "730.35"
+        },
+        {
+          "id": 2,
+          "name": "Versatile zero administration benchmark",
+          "price": "83.33"
+        },
+        {
+          "id": 3,
+          "name": "Face-to-face context-sensitive website",
+          "price": "861.54"
+        }
+      ],
+      "secondary_concepts": [
+        "where_filter",
+        "select_basic"
+      ],
+      "estimated_time_sec": 90
+    },
+    {
+      "task_id": "order_by_d3_db446412",
+      "module": 1,
+      "primary_concept": "order_by",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Proizvodi na zalihi — WHERE dolazi prije ORDER BY",
+      "description": "Ispiši stupce name i stock iz tablice products, ali samo za proizvode koji nisu povučeni iz prodaje (is_discontinued = FALSE). Sortiraj rezultate po id-u uzlazno i prikaži prva 3 reda. Pazi na ispravan sintaksni redoslijed klauza: SELECT → FROM → WHERE → ORDER BY → LIMIT — ORDER BY nikad ne smije doći ispred WHERE!",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT name, stock\nFROM products\nWHERE is_discontinued = FALSE\nORDER BY id ASC\nLIMIT 3;",
+      "expected_result": [
+        {
+          "name": "Digitized solution-oriented solution",
+          "stock": 274
+        },
+        {
+          "name": "Versatile zero administration benchmark",
+          "stock": 150
+        },
+        {
+          "name": "Face-to-face context-sensitive website",
+          "stock": 295
+        }
+      ],
+      "secondary_concepts": [
+        "where_filter",
+        "select_basic"
+      ],
+      "estimated_time_sec": 120
+    },
+    {
+      "task_id": "select_basic_d1_526db098",
+      "module": 1,
+      "primary_concept": "select_basic",
+      "difficulty": 1,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Naziv i zemlja porijekla dobavljača",
+      "description": "Ispiši stupce id, name i country iz tablice suppliers za prva tri zapisa. Zadatak vježba eksplicitno navođenje naziva stupaca umjesto korištenja SELECT *, što je loša praksa jer dohvaća nepotrebne podatke i smanjuje čitljivost upita.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, name, country FROM suppliers ORDER BY id LIMIT 3;",
+      "expected_result": [
+        {
+          "id": 1,
+          "name": "Keller PLC",
+          "country": "Croatia"
+        },
+        {
+          "id": 2,
+          "name": "Collins, Carney and Santos",
+          "country": "Germany"
+        },
+        {
+          "id": 3,
+          "name": "Chapman and Sons",
+          "country": "Italy"
+        }
+      ],
+      "secondary_concepts": [
+        "from_clause"
+      ],
+      "estimated_time_sec": 60
+    },
+    {
+      "task_id": "select_basic_d3_7cb74957",
+      "module": 1,
+      "primary_concept": "select_basic",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Prikaz identifikatora, naziva i ocjene dobavljača",
+      "description": "Iz tablice suppliers potrebno je dohvatiti samo stupce id, name i rating — bez ostalih stupaca. Zadatak naglašava važnost eksplicitnog navođenja stupaca umjesto korištenja SELECT *. Koristi ORDER BY id LIMIT 3 kako bi rezultat bio determinističan.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, name, rating FROM suppliers ORDER BY id LIMIT 3;",
+      "expected_result": [
+        {
+          "id": 1,
+          "name": "Keller PLC",
+          "rating": "4.10"
+        },
+        {
+          "id": 2,
+          "name": "Collins, Carney and Santos",
+          "rating": "2.56"
+        },
+        {
+          "id": 3,
+          "name": "Chapman and Sons",
+          "rating": "3.19"
+        }
+      ],
+      "secondary_concepts": [
+        "from_clause"
+      ],
+      "estimated_time_sec": 90
+    },
+    {
+      "task_id": "where_filter_d1_a0a9f432",
+      "module": 1,
+      "primary_concept": "where_filter",
+      "difficulty": 1,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Kupci iz Hrvatske",
+      "description": "Ispiši id, first_name, last_name i city svih kupaca koji dolaze iz države 'Croatia'. Koristi WHERE klauzu za filtriranje po koloni country. Sortiraj po id uzlazno i ograniči na 3 rezultata.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, first_name, last_name, city\nFROM customers\nWHERE country = 'Croatia'\nORDER BY id\nLIMIT 3;",
+      "expected_result": [
+        {
+          "id": 1,
+          "first_name": "Leon",
+          "last_name": "Car",
+          "city": "Drniš"
+        },
+        {
+          "id": 2,
+          "first_name": "Matej",
+          "last_name": "Škara",
+          "city": "Čakovec"
+        },
+        {
+          "id": 3,
+          "first_name": "David",
+          "last_name": "Sokić",
+          "city": "Hvar"
+        }
+      ],
+      "secondary_concepts": [
+        "select_basic",
+        "from_clause"
+      ],
+      "estimated_time_sec": 60
+    },
+    {
+      "task_id": "where_filter_d2_c51c7330",
+      "module": 1,
+      "primary_concept": "where_filter",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "Narudžbe u obradi s visokim iznosom",
+      "description": "Pronađi sve narudžbe čiji je status jednak 'processing' I čiji je ukupni iznos (total_amount) veći od 1000. Ispiši id, status i total_amount. Pazi: trebaju biti ispunjeni OBA uvjeta istovremeno — koristi AND, a ne OR operator u WHERE klauzi.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, status, total_amount\nFROM orders\nWHERE status = 'processing'\n  AND total_amount > 1000\nORDER BY id\nLIMIT 5;",
+      "expected_result": [
+        {
+          "id": 13,
+          "status": "processing",
+          "total_amount": "2185.25"
+        },
+        {
+          "id": 17,
+          "status": "processing",
+          "total_amount": "4803.06"
+        },
+        {
+          "id": 19,
+          "status": "processing",
+          "total_amount": "1548.66"
+        },
+        {
+          "id": 36,
+          "status": "processing",
+          "total_amount": "1447.96"
+        },
+        {
+          "id": 47,
+          "status": "processing",
+          "total_amount": "9276.82"
+        }
+      ],
+      "secondary_concepts": [
+        "select_basic",
+        "order_by"
+      ],
+      "estimated_time_sec": 90
+    },
+    {
+      "task_id": "where_filter_d3_226b7a80",
+      "module": 1,
+      "primary_concept": "where_filter",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Dostavljene narudžbe s visokim iznosom — WHERE ili HAVING?",
+      "description": "Pronađi narudžbe čiji je status točno 'delivered' I čiji je ukupni iznos (total_amount) veći od 3000. Ispiši id, status i total_amount, sortirano po id uzlazno. Koristi WHERE klauzu — zapamti: WHERE filtrira pojedinačne redove PRIJE grupiranja, dok HAVING filtrira grupirane rezultate i ovdje nije primjenjivo.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, status, total_amount\nFROM orders\nWHERE status = 'delivered'\n  AND total_amount > 3000\nORDER BY id\nLIMIT 2;",
+      "expected_result": [
+        {
+          "id": 1,
+          "status": "delivered",
+          "total_amount": "3832.15"
+        },
+        {
+          "id": 3,
+          "status": "delivered",
+          "total_amount": "3160.68"
+        }
+      ],
+      "secondary_concepts": [
+        "select_basic",
+        "order_by"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "agg_count_d1_manual_681b0f5c",
+      "module": 2,
+      "primary_concept": "agg_count",
+      "difficulty": 1,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Ukupan broj recenzija u sustavu",
+      "description": "Ispiši ukupan broj recenzija u tablici reviews. Koristi COUNT(*) agregatnu funkciju. Ispis ima jedan red s jednim stupcem ukupno.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS ukupno FROM reviews;",
+      "expected_result": [
+        {
+          "ukupno": 500
+        }
+      ],
+      "secondary_concepts": [],
+      "estimated_time_sec": 90
+    },
+    {
+      "task_id": "agg_count_d2_manual_5f4b7e31",
+      "module": 2,
+      "primary_concept": "agg_count",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Broj kupaca bez ikoje narudžbe",
+      "description": "Koliko kupaca u tablici customers nije izvršilo NITI jednu narudžbu? Koristi LEFT JOIN između customers i orders, pa COUNT na kupcima kojima je orders.id NULL. Ispiši jedan red s brojem kupaca_bez_narudzbi.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS kupaca_bez_narudzbi FROM customers c LEFT JOIN orders o ON c.id = o.customer_id WHERE o.id IS NULL;",
+      "expected_result": [
+        {
+          "kupaca_bez_narudzbi": 25
+        }
+      ],
+      "secondary_concepts": [
+        "left_join",
+        "null_handling"
+      ],
+      "estimated_time_sec": 120
+    },
+    {
+      "task_id": "agg_count_d3_manual_9cbaf74e",
+      "module": 2,
+      "primary_concept": "agg_count",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Broj narudžbi po statusu — uključujući 0 za neaktivne statuse",
+      "description": "Za svaki status narudžbe iz orders ispiši status i broj narudžbi s tim statusom. Sortiraj abecedno po statusu. Koristi GROUP BY + COUNT(*).",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT status, COUNT(*) AS broj_narudzbi FROM orders GROUP BY status ORDER BY status ASC;",
+      "expected_result": [
+        {
+          "status": "cancelled",
+          "broj_narudzbi": 57
+        },
+        {
+          "status": "delivered",
+          "broj_narudzbi": 484
+        },
+        {
+          "status": "pending",
+          "broj_narudzbi": 95
+        },
+        {
+          "status": "processing",
+          "broj_narudzbi": 167
+        },
+        {
+          "status": "shipped",
+          "broj_narudzbi": 197
+        }
+      ],
+      "secondary_concepts": [
+        "group_by",
+        "order_by"
+      ],
+      "estimated_time_sec": 150
+    },
+    {
+      "task_id": "agg_count_d4_manual_f80482ad",
+      "module": 2,
+      "primary_concept": "agg_count",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Broj distinct kupaca koji su naručivali u svakoj kategoriji",
+      "description": "Za svaku kategoriju proizvoda izračunaj broj RAZLIČITIH kupaca koji su naručili barem jedan proizvod iz te kategorije. Koristi JOIN između order_items, products i orders, pa COUNT(DISTINCT customer_id) po category_id. Ispiši category_id i broj_distinct_kupaca. Sortiraj silazno po broju.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT p.category_id, COUNT(DISTINCT o.customer_id) AS broj_distinct_kupaca FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id GROUP BY p.category_id ORDER BY broj_distinct_kupaca DESC, p.category_id ASC;",
+      "expected_result": [
+        {
+          "category_id": 2,
+          "broj_distinct_kupaca": 133
+        },
+        {
+          "category_id": 3,
+          "broj_distinct_kupaca": 128
+        },
+        {
+          "category_id": 12,
+          "broj_distinct_kupaca": 125
+        },
+        {
+          "category_id": 5,
+          "broj_distinct_kupaca": 120
+        },
+        {
+          "category_id": 15,
+          "broj_distinct_kupaca": 120
+        },
+        {
+          "category_id": 11,
+          "broj_distinct_kupaca": 118
+        },
+        {
+          "category_id": 13,
+          "broj_distinct_kupaca": 112
+        },
+        {
+          "category_id": 4,
+          "broj_distinct_kupaca": 111
+        },
+        {
+          "category_id": 10,
+          "broj_distinct_kupaca": 110
+        },
+        {
+          "category_id": 14,
+          "broj_distinct_kupaca": 110
+        },
+        {
+          "category_id": 1,
+          "broj_distinct_kupaca": 109
+        },
+        {
+          "category_id": 9,
+          "broj_distinct_kupaca": 106
+        },
+        {
+          "category_id": 6,
+          "broj_distinct_kupaca": 102
+        },
+        {
+          "category_id": 7,
+          "broj_distinct_kupaca": 94
+        },
+        {
+          "category_id": 8,
+          "broj_distinct_kupaca": 67
+        }
+      ],
+      "secondary_concepts": [
+        "multi_table_join",
+        "group_by",
+        "distinct"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "agg_min_max_d1_manual_1040aa11",
+      "module": 2,
+      "primary_concept": "agg_min_max",
+      "difficulty": 1,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Najjeftiniji i najskuplji proizvod",
+      "description": "Pronađi cijenu najjeftinijeg i najskupljeg proizvoda u tablici products. Ispiši dvije vrijednosti — min_cijena i max_cijena.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT MIN(price) AS min_cijena, MAX(price) AS max_cijena FROM products;",
+      "expected_result": [
+        {
+          "min_cijena": 8.23,
+          "max_cijena": 970.25
+        }
+      ],
+      "secondary_concepts": [],
+      "estimated_time_sec": 90
+    },
+    {
+      "task_id": "agg_min_max_d2_manual_8d1131b7",
+      "module": 2,
+      "primary_concept": "agg_min_max",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": true,
+      "title": "Najraniji i najkasniji datum narudžbe po statusu",
+      "description": "Za svaki status narudžbe iz tablice orders pronađi najraniji (MIN order_date) i najkasniji (MAX order_date) datum narudžbe. Ispiši status, najranija_narudzba i najkasnija_narudzba. Sortiraj abecedno po statusu.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT status, MIN(order_date) AS najranija_narudzba, MAX(order_date) AS najkasnija_narudzba FROM orders GROUP BY status ORDER BY status ASC;",
+      "expected_result": [
+        {
+          "status": "cancelled",
+          "najranija_narudzba": "2025-01-02T02:24:55.912097+00:00",
+          "najkasnija_narudzba": "2025-12-29T14:54:53.803041+00:00"
+        },
+        {
+          "status": "delivered",
+          "najranija_narudzba": "2025-01-03T11:16:55.762202+00:00",
+          "najkasnija_narudzba": "2025-12-31T07:33:22.778035+00:00"
+        },
+        {
+          "status": "pending",
+          "najranija_narudzba": "2025-01-12T22:24:32.259156+00:00",
+          "najkasnija_narudzba": "2025-12-28T23:04:13.505820+00:00"
+        },
+        {
+          "status": "processing",
+          "najranija_narudzba": "2025-01-03T11:49:54.681335+00:00",
+          "najkasnija_narudzba": "2025-12-31T03:52:33.148676+00:00"
+        },
+        {
+          "status": "shipped",
+          "najranija_narudzba": "2025-01-03T07:55:20.287565+00:00",
+          "najkasnija_narudzba": "2025-12-26T22:33:44.255523+00:00"
+        }
+      ],
+      "secondary_concepts": [
+        "group_by",
+        "order_by"
+      ],
+      "estimated_time_sec": 120
+    },
+    {
+      "task_id": "agg_min_max_d3_manual_be815fe0",
+      "module": 2,
+      "primary_concept": "agg_min_max",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Najveća pojedinačna stavka narudžbe po kategoriji proizvoda",
+      "description": "Za svaku kategoriju proizvoda pronađi najveću pojedinačnu stavku narudžbe po vrijednosti (quantity × unit_price) iz tablice order_items. Ispiši category_id i max_vrijednost_stavke (zaokruženo na 2 decimale). Sortiraj silazno po vrijednosti.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT p.category_id, ROUND(MAX(oi.quantity * oi.unit_price), 2) AS max_vrijednost_stavke FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY p.category_id ORDER BY max_vrijednost_stavke DESC, p.category_id ASC;",
+      "expected_result": [
+        {
+          "category_id": 14,
+          "max_vrijednost_stavke": 4984.15
+        },
+        {
+          "category_id": 6,
+          "max_vrijednost_stavke": 4956.65
+        },
+        {
+          "category_id": 13,
+          "max_vrijednost_stavke": 4938.1
+        },
+        {
+          "category_id": 11,
+          "max_vrijednost_stavke": 4931.35
+        },
+        {
+          "category_id": 15,
+          "max_vrijednost_stavke": 4913.4
+        },
+        {
+          "category_id": 7,
+          "max_vrijednost_stavke": 4883.55
+        },
+        {
+          "category_id": 1,
+          "max_vrijednost_stavke": 4873.75
+        },
+        {
+          "category_id": 4,
+          "max_vrijednost_stavke": 4871.4
+        },
+        {
+          "category_id": 10,
+          "max_vrijednost_stavke": 4859.15
+        },
+        {
+          "category_id": 2,
+          "max_vrijednost_stavke": 4850.25
+        },
+        {
+          "category_id": 8,
+          "max_vrijednost_stavke": 4813.45
+        },
+        {
+          "category_id": 9,
+          "max_vrijednost_stavke": 4794.9
+        },
+        {
+          "category_id": 12,
+          "max_vrijednost_stavke": 4779.85
+        },
+        {
+          "category_id": 3,
+          "max_vrijednost_stavke": 4745.3
+        },
+        {
+          "category_id": 5,
+          "max_vrijednost_stavke": 4592.3
+        }
+      ],
+      "secondary_concepts": [
+        "inner_join",
+        "group_by"
+      ],
+      "estimated_time_sec": 150
+    },
+    {
+      "task_id": "agg_sum_avg_d2_manual_da19dbcd",
+      "module": 2,
+      "primary_concept": "agg_sum_avg",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Prosječna cijena proizvoda",
+      "description": "Izračunaj prosječnu cijenu (AVG) i ukupnu vrijednost (SUM) svih proizvoda u tablici products. Ispiši dvije vrijednosti — prosjecna_cijena (zaokruženo na 2 decimale) i ukupna_vrijednost (zaokruženo na 2 decimale).",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT ROUND(AVG(price), 2) AS prosjecna_cijena, ROUND(SUM(price), 2) AS ukupna_vrijednost FROM products;",
+      "expected_result": [
+        {
+          "prosjecna_cijena": 487.14,
+          "ukupna_vrijednost": 48713.85
+        }
+      ],
+      "secondary_concepts": [],
+      "estimated_time_sec": 120
+    },
+    {
+      "task_id": "agg_sum_avg_d3_manual_f239bc99",
+      "module": 2,
+      "primary_concept": "agg_sum_avg",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Ukupna potrošnja po kupcu — TOP 5 najvećih spenders",
+      "description": "Za svakog kupca izračunaj ukupan iznos svih njegovih narudžbi (SUM od total_amount). Ispiši customer_id i ukupna_potrosnja (zaokruženo na 2 decimale). Prikaži TOP 5 kupaca po ukupnoj potrošnji (silazno).",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT customer_id, ROUND(SUM(total_amount), 2) AS ukupna_potrosnja FROM orders GROUP BY customer_id ORDER BY ukupna_potrosnja DESC, customer_id ASC LIMIT 5;",
+      "expected_result": [
+        {
+          "customer_id": 21,
+          "ukupna_potrosnja": 72755.21
+        },
+        {
+          "customer_id": 13,
+          "ukupna_potrosnja": 67527.47
+        },
+        {
+          "customer_id": 45,
+          "ukupna_potrosnja": 66467.67
+        },
+        {
+          "customer_id": 34,
+          "ukupna_potrosnja": 61970.56
+        },
+        {
+          "customer_id": 116,
+          "ukupna_potrosnja": 59101.45
+        }
+      ],
+      "secondary_concepts": [
+        "group_by",
+        "limit_offset"
+      ],
+      "estimated_time_sec": 150
+    },
+    {
+      "task_id": "agg_sum_avg_d4_manual_b571f4e3",
+      "module": 2,
+      "primary_concept": "agg_sum_avg",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Mjesečni prihod po kategoriji proizvoda u 2025",
+      "description": "Za svaki mjesec u 2025. godini i svaku kategoriju proizvoda izračunaj ukupan prihod kao SUM(quantity × unit_price) iz order_items, uzimajući u obzir samo narudžbe statusom 'delivered'. Ispiši mjesec (EXTRACT(MONTH FROM order_date)), category_id i ukupni_prihod (zaokruženo na 2 decimale). Sortiraj uzlazno po mjesecu pa silazno po prihodu. Prikaži prvih 10 redova.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT EXTRACT(MONTH FROM o.order_date)::int AS mjesec, p.category_id, ROUND(SUM(oi.quantity * oi.unit_price), 2) AS ukupni_prihod FROM orders o JOIN order_items oi ON o.id = oi.order_id JOIN products p ON oi.product_id = p.id WHERE o.status = 'delivered' AND EXTRACT(YEAR FROM o.order_date) = 2025 GROUP BY mjesec, p.category_id ORDER BY mjesec ASC, ukupni_prihod DESC LIMIT 10;",
+      "expected_result": [
+        {
+          "mjesec": 1,
+          "category_id": 1,
+          "ukupni_prihod": "23136.05"
+        },
+        {
+          "mjesec": 1,
+          "category_id": 11,
+          "ukupni_prihod": "18361.14"
+        },
+        {
+          "mjesec": 1,
+          "category_id": 6,
+          "ukupni_prihod": "17041.59"
+        },
+        {
+          "mjesec": 1,
+          "category_id": 12,
+          "ukupni_prihod": "16212.18"
+        },
+        {
+          "mjesec": 1,
+          "category_id": 3,
+          "ukupni_prihod": "8791.70"
+        },
+        {
+          "mjesec": 1,
+          "category_id": 9,
+          "ukupni_prihod": "7488.02"
+        },
+        {
+          "mjesec": 1,
+          "category_id": 7,
+          "ukupni_prihod": "7301.36"
+        },
+        {
+          "mjesec": 1,
+          "category_id": 10,
+          "ukupni_prihod": "6803.68"
+        },
+        {
+          "mjesec": 1,
+          "category_id": 14,
+          "ukupni_prihod": "6607.92"
+        },
+        {
+          "mjesec": 1,
+          "category_id": 13,
+          "ukupni_prihod": "5239.08"
+        }
+      ],
+      "secondary_concepts": [
+        "multi_table_join",
+        "group_by",
+        "where_filter",
+        "limit_offset"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "group_by_d1_manual_5b9821c0",
+      "module": 2,
+      "primary_concept": "group_by",
+      "difficulty": 1,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Broj proizvoda po kategoriji",
+      "description": "Za svaki category_id u tablici products ispiši broj proizvoda u toj kategoriji. Koristi GROUP BY na coloni category_id i COUNT(*) agregat. Sortiraj uzlazno po category_id.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT category_id, COUNT(*) AS broj_proizvoda FROM products GROUP BY category_id ORDER BY category_id ASC;",
+      "expected_result": [
+        {
+          "category_id": 1,
+          "broj_proizvoda": 6
+        },
+        {
+          "category_id": 2,
+          "broj_proizvoda": 10
+        },
+        {
+          "category_id": 3,
+          "broj_proizvoda": 8
+        },
+        {
+          "category_id": 4,
+          "broj_proizvoda": 7
+        },
+        {
+          "category_id": 5,
+          "broj_proizvoda": 7
+        },
+        {
+          "category_id": 6,
+          "broj_proizvoda": 5
+        },
+        {
+          "category_id": 7,
+          "broj_proizvoda": 6
+        },
+        {
+          "category_id": 8,
+          "broj_proizvoda": 3
+        },
+        {
+          "category_id": 9,
+          "broj_proizvoda": 5
+        },
+        {
+          "category_id": 10,
+          "broj_proizvoda": 7
+        },
+        {
+          "category_id": 11,
+          "broj_proizvoda": 7
+        },
+        {
+          "category_id": 12,
+          "broj_proizvoda": 9
+        },
+        {
+          "category_id": 13,
+          "broj_proizvoda": 7
+        },
+        {
+          "category_id": 14,
+          "broj_proizvoda": 6
+        },
+        {
+          "category_id": 15,
+          "broj_proizvoda": 7
+        }
+      ],
+      "secondary_concepts": [
+        "agg_count",
+        "order_by"
+      ],
+      "estimated_time_sec": 90
+    },
+    {
+      "task_id": "group_by_d2_manual_f782ced8",
+      "module": 2,
+      "primary_concept": "group_by",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Broj kupaca po zemlji — TOP 5",
+      "description": "Pronađi prvih 5 zemalja s najvećim brojem kupaca. Za svaku zemlju ispiši country i broj kupaca. GROUP BY na country, COUNT(*), sortiraj silazno po broju kupaca pa LIMIT 5.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT country, COUNT(*) AS broj_kupaca FROM customers GROUP BY country ORDER BY broj_kupaca DESC, country ASC LIMIT 5;",
+      "expected_result": [
+        {
+          "country": "Croatia",
+          "broj_kupaca": 140
+        },
+        {
+          "country": "Andorra",
+          "broj_kupaca": 2
+        },
+        {
+          "country": "Brazil",
+          "broj_kupaca": 2
+        },
+        {
+          "country": "El Salvador",
+          "broj_kupaca": 2
+        },
+        {
+          "country": "Georgia",
+          "broj_kupaca": 2
+        }
+      ],
+      "secondary_concepts": [
+        "agg_count",
+        "limit_offset"
+      ],
+      "estimated_time_sec": 120
+    },
+    {
+      "task_id": "group_by_d3_manual_79123f58",
+      "module": 2,
+      "primary_concept": "group_by",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Ukupna količina prodanih proizvoda po proizvodu — TOP 10",
+      "description": "Za svaki proizvod (product_id) u tablici order_items izračunaj ukupnu količinu (SUM od quantity) i ukupan broj stavki narudžbe (COUNT(*)). Ispiši product_id, ukupna_kolicina i broj_stavki. Prikaži TOP 10 proizvoda po ukupnoj količini (silazno).",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT product_id, SUM(quantity) AS ukupna_kolicina, COUNT(*) AS broj_stavki FROM order_items GROUP BY product_id ORDER BY ukupna_kolicina DESC, product_id ASC LIMIT 10;",
+      "expected_result": [
+        {
+          "product_id": 23,
+          "ukupna_kolicina": 142,
+          "broj_stavki": 41
+        },
+        {
+          "product_id": 42,
+          "ukupna_kolicina": 136,
+          "broj_stavki": 39
+        },
+        {
+          "product_id": 81,
+          "ukupna_kolicina": 130,
+          "broj_stavki": 40
+        },
+        {
+          "product_id": 11,
+          "ukupna_kolicina": 129,
+          "broj_stavki": 41
+        },
+        {
+          "product_id": 57,
+          "ukupna_kolicina": 121,
+          "broj_stavki": 41
+        },
+        {
+          "product_id": 78,
+          "ukupna_kolicina": 120,
+          "broj_stavki": 40
+        },
+        {
+          "product_id": 27,
+          "ukupna_kolicina": 118,
+          "broj_stavki": 38
+        },
+        {
+          "product_id": 72,
+          "ukupna_kolicina": 116,
+          "broj_stavki": 38
+        },
+        {
+          "product_id": 16,
+          "ukupna_kolicina": 114,
+          "broj_stavki": 40
+        },
+        {
+          "product_id": 55,
+          "ukupna_kolicina": 113,
+          "broj_stavki": 33
+        }
+      ],
+      "secondary_concepts": [
+        "agg_sum_avg",
+        "agg_count",
+        "limit_offset"
+      ],
+      "estimated_time_sec": 150
+    },
+    {
+      "task_id": "group_by_d3_manual_af12e048",
+      "module": 2,
+      "primary_concept": "group_by",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Prosječna ocjena recenzija po proizvodu — sortiranje silazno",
+      "description": "Za svaki product_id u tablici reviews izračunaj prosječnu ocjenu (AVG od rating, zaokruženo na 2 decimale) i broj recenzija (COUNT(*)). Ispiši product_id, prosjecna_ocjena i broj_recenzija. Sortiraj od najveće prosječne ocjene prema najmanjoj. Prikaži samo prvih 5 zapisa.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT product_id, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena, COUNT(*) AS broj_recenzija FROM reviews GROUP BY product_id ORDER BY prosjecna_ocjena DESC, product_id ASC LIMIT 5;",
+      "expected_result": [
+        {
+          "product_id": 55,
+          "prosjecna_ocjena": 4,
+          "broj_recenzija": 2
+        },
+        {
+          "product_id": 59,
+          "prosjecna_ocjena": 4,
+          "broj_recenzija": 3
+        },
+        {
+          "product_id": 64,
+          "prosjecna_ocjena": 4,
+          "broj_recenzija": 9
+        },
+        {
+          "product_id": 75,
+          "prosjecna_ocjena": 4,
+          "broj_recenzija": 1
+        },
+        {
+          "product_id": 77,
+          "prosjecna_ocjena": 3.83,
+          "broj_recenzija": 6
+        }
+      ],
+      "secondary_concepts": [
+        "agg_sum_avg",
+        "agg_count",
+        "limit_offset"
+      ],
+      "estimated_time_sec": 150
+    },
+    {
+      "task_id": "group_by_d4_manual_9ba27463",
+      "module": 2,
+      "primary_concept": "group_by",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Ukupni iznos narudžbi po kupcu i statusu — multi-column GROUP BY",
+      "description": "Za svaku kombinaciju kupca (customer_id) i statusa narudžbe izračunaj ukupan iznos (SUM od total_amount). Ispiši customer_id, status i ukupni_iznos. Sortiraj po customer_id uzlazno, a unutar istog kupca po ukupnom iznosu silazno. Prikaži prvih 10 zapisa.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT customer_id, status, SUM(total_amount) AS ukupni_iznos FROM orders GROUP BY customer_id, status ORDER BY customer_id ASC, ukupni_iznos DESC LIMIT 10;",
+      "expected_result": [
+        {
+          "customer_id": 1,
+          "status": "delivered",
+          "ukupni_iznos": 24334.41
+        },
+        {
+          "customer_id": 1,
+          "status": "cancelled",
+          "ukupni_iznos": 6776.65
+        },
+        {
+          "customer_id": 1,
+          "status": "processing",
+          "ukupni_iznos": 879.35
+        },
+        {
+          "customer_id": 2,
+          "status": "delivered",
+          "ukupni_iznos": 18284.5
+        },
+        {
+          "customer_id": 3,
+          "status": "delivered",
+          "ukupni_iznos": 5552.36
+        },
+        {
+          "customer_id": 3,
+          "status": "processing",
+          "ukupni_iznos": 4478.62
+        },
+        {
+          "customer_id": 4,
+          "status": "delivered",
+          "ukupni_iznos": 26081.89
+        },
+        {
+          "customer_id": 4,
+          "status": "processing",
+          "ukupni_iznos": 8241.21
+        },
+        {
+          "customer_id": 5,
+          "status": "delivered",
+          "ukupni_iznos": 16661.67
+        },
+        {
+          "customer_id": 5,
+          "status": "cancelled",
+          "ukupni_iznos": 4806.92
+        }
+      ],
+      "secondary_concepts": [
+        "agg_sum_avg",
+        "order_by",
+        "limit_offset"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "having_filter_d2_manual_9b2e56e0",
+      "module": 2,
+      "primary_concept": "having_filter",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Kategorije s više od 6 proizvoda — HAVING",
+      "description": "Pronađi kategorije (category_id) koje sadrže više od 6 proizvoda. Ispiši category_id i broj_proizvoda. Sortiraj silazno po broju. Filter na agregiranoj vrijednosti (COUNT(*) > 6) mora koristiti HAVING — WHERE ne podržava agregate.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT category_id, COUNT(*) AS broj_proizvoda FROM products GROUP BY category_id HAVING COUNT(*) > 6 ORDER BY broj_proizvoda DESC, category_id ASC;",
+      "expected_result": [
+        {
+          "category_id": 2,
+          "broj_proizvoda": 10
+        },
+        {
+          "category_id": 12,
+          "broj_proizvoda": 9
+        },
+        {
+          "category_id": 3,
+          "broj_proizvoda": 8
+        },
+        {
+          "category_id": 4,
+          "broj_proizvoda": 7
+        },
+        {
+          "category_id": 5,
+          "broj_proizvoda": 7
+        },
+        {
+          "category_id": 10,
+          "broj_proizvoda": 7
+        },
+        {
+          "category_id": 11,
+          "broj_proizvoda": 7
+        },
+        {
+          "category_id": 13,
+          "broj_proizvoda": 7
+        },
+        {
+          "category_id": 15,
+          "broj_proizvoda": 7
+        }
+      ],
+      "secondary_concepts": [
+        "group_by",
+        "agg_count"
+      ],
+      "estimated_time_sec": 120
+    },
+    {
+      "task_id": "having_filter_d3_manual_208ae0eb",
+      "module": 2,
+      "primary_concept": "having_filter",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Kupci s ukupno više od 10 narudžbi — WHERE + HAVING",
+      "description": "Pronađi sve kupce (customer_id) koji su izvršili više od 10 narudžbi koje NISU u statusu 'cancelled'. Ispiši customer_id i broj_narudzbi. Sortiraj silazno po broju narudžbi. Koristi WHERE za filtriranje statusa (prije grupiranja) i HAVING za uvjet na broju (nakon grupiranja).",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT customer_id, COUNT(*) AS broj_narudzbi FROM orders WHERE status != 'cancelled' GROUP BY customer_id HAVING COUNT(*) > 10 ORDER BY broj_narudzbi DESC, customer_id ASC;",
+      "expected_result": [
+        {
+          "customer_id": 13,
+          "broj_narudzbi": 12
+        },
+        {
+          "customer_id": 45,
+          "broj_narudzbi": 11
+        },
+        {
+          "customer_id": 121,
+          "broj_narudzbi": 11
+        },
+        {
+          "customer_id": 142,
+          "broj_narudzbi": 11
+        }
+      ],
+      "secondary_concepts": [
+        "where_filter",
+        "group_by",
+        "agg_count"
+      ],
+      "estimated_time_sec": 150
+    },
+    {
+      "task_id": "having_filter_d3_manual_f0671433",
+      "module": 2,
+      "primary_concept": "having_filter",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Zemlje s prosječnim ratingom dobavljača iznad 3.5",
+      "description": "Iz tablice suppliers pronađi sve zemlje (country) gdje je prosječna ocjena dobavljača (AVG od rating) veća od 3.5. Ispiši country i prosjecna_ocjena (zaokruženo na 2 decimale). Sortiraj silazno po prosječnoj ocjeni. Koristi HAVING za uvjet na agregatu.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT country, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena FROM suppliers GROUP BY country HAVING AVG(rating) > 3.5 ORDER BY prosjecna_ocjena DESC, country ASC;",
+      "expected_result": [
+        {
+          "country": "Croatia",
+          "prosjecna_ocjena": 3.95
+        },
+        {
+          "country": "Italy",
+          "prosjecna_ocjena": 3.67
+        }
+      ],
+      "secondary_concepts": [
+        "group_by",
+        "agg_sum_avg"
+      ],
+      "estimated_time_sec": 150
+    },
+    {
+      "task_id": "having_filter_d4_manual_6da34957",
+      "module": 2,
+      "primary_concept": "having_filter",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Top kategorije s visokim prosječnim prihodom — WHERE + GROUP BY + HAVING + ORDER",
+      "description": "Pronađi kategorije proizvoda gdje je prosječna cijena artikla (price iz tablice products) veća od 200, i broj proizvoda u toj kategoriji je barem 3. Ispiši category_id, broj_proizvoda i prosjecna_cijena (zaokružena na 2 decimale). Sortiraj silazno po prosječnoj cijeni. Koristi WHERE samo ako ti treba pre-filter, ali ne za agregirani uvjet (oba uvjeta su na agregatima — HAVING).",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT category_id, COUNT(*) AS broj_proizvoda, ROUND(AVG(price), 2) AS prosjecna_cijena FROM products GROUP BY category_id HAVING AVG(price) > 200 AND COUNT(*) >= 3 ORDER BY prosjecna_cijena DESC, category_id ASC;",
+      "expected_result": [
+        {
+          "category_id": 13,
+          "broj_proizvoda": 7,
+          "prosjecna_cijena": 726.7
+        },
+        {
+          "category_id": 1,
+          "broj_proizvoda": 6,
+          "prosjecna_cijena": 643.97
+        },
+        {
+          "category_id": 6,
+          "broj_proizvoda": 5,
+          "prosjecna_cijena": 599.11
+        },
+        {
+          "category_id": 7,
+          "broj_proizvoda": 6,
+          "prosjecna_cijena": 597.56
+        },
+        {
+          "category_id": 3,
+          "broj_proizvoda": 8,
+          "prosjecna_cijena": 594.14
+        },
+        {
+          "category_id": 5,
+          "broj_proizvoda": 7,
+          "prosjecna_cijena": 576.07
+        },
+        {
+          "category_id": 8,
+          "broj_proizvoda": 3,
+          "prosjecna_cijena": 489.93
+        },
+        {
+          "category_id": 4,
+          "broj_proizvoda": 7,
+          "prosjecna_cijena": 448.24
+        },
+        {
+          "category_id": 12,
+          "broj_proizvoda": 9,
+          "prosjecna_cijena": 437.89
+        },
+        {
+          "category_id": 2,
+          "broj_proizvoda": 10,
+          "prosjecna_cijena": 408.52
+        },
+        {
+          "category_id": 11,
+          "broj_proizvoda": 7,
+          "prosjecna_cijena": 403.59
+        },
+        {
+          "category_id": 9,
+          "broj_proizvoda": 5,
+          "prosjecna_cijena": 401.09
+        },
+        {
+          "category_id": 10,
+          "broj_proizvoda": 7,
+          "prosjecna_cijena": 370.02
+        },
+        {
+          "category_id": 15,
+          "broj_proizvoda": 7,
+          "prosjecna_cijena": 340.39
+        },
+        {
+          "category_id": 14,
+          "broj_proizvoda": 6,
+          "prosjecna_cijena": 326.6
+        }
+      ],
+      "secondary_concepts": [
+        "group_by",
+        "agg_count",
+        "agg_sum_avg"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "cross_join_d2_68ce2014",
+      "module": 3,
+      "primary_concept": "cross_join",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "Generiraj sve kombinacije kategorija i statusa narudžbi (CROSS JOIN)",
+      "description": "Napiši upit koji vraća sve moguće kombinacije naziva kategorija iz tablice `categories` i svih različitih statusa narudžbi koji postoje u tablici `orders`. Ispiši stupce `category_name` i `order_status`. Sortiraj rezultat po `category_name` uzlazno, zatim po `order_status` uzlazno, i ograniči prikaz na prvih 5 redova. Upit mora koristiti eksplicitni CROSS JOIN bez ON klauze.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT c.name AS category_name,\n       s.status AS order_status\nFROM categories c\nCROSS JOIN (SELECT DISTINCT status FROM orders) s\nORDER BY c.name, s.status\nLIMIT 5;",
+      "expected_result": [
+        {
+          "category_name": "Automotive",
+          "order_status": "cancelled"
+        },
+        {
+          "category_name": "Automotive",
+          "order_status": "delivered"
+        },
+        {
+          "category_name": "Automotive",
+          "order_status": "pending"
+        },
+        {
+          "category_name": "Automotive",
+          "order_status": "processing"
+        },
+        {
+          "category_name": "Automotive",
+          "order_status": "shipped"
+        }
+      ],
+      "secondary_concepts": [
+        "order_by",
+        "limit_offset"
+      ],
+      "estimated_time_sec": 120
+    },
+    {
+      "task_id": "cross_join_d3_94f313ec",
+      "module": 3,
+      "primary_concept": "cross_join",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Provjera kardinalnosti: CROSS JOIN kategorija i statusa narudžbi",
+      "description": "Napiši upit koji broji ukupan broj kombinacija koje nastaju spajanjem svih kategorija (categories) s listom svih mogućih statusa narudžbi (DISTINCT status iz tablice orders). Ispiši total_combinations, category_count i status_count kako bi eksplicitno potvrdio N × M formulu kardinalnosti. Ovaj zadatak vježba razumijevanje da CROSS JOIN vraća točno N × M redova — bez ikakve ON klauze.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT\n    COUNT(*)                AS total_combinations,\n    COUNT(DISTINCT c.id)    AS category_count,\n    COUNT(DISTINCT s.status) AS status_count\nFROM categories c\nCROSS JOIN (SELECT DISTINCT status FROM orders) s;",
+      "expected_result": [
+        {
+          "total_combinations": 75,
+          "category_count": 15,
+          "status_count": 5
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions",
+        "select_basic"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "full_outer_join_d3_863b1f08",
+      "module": 3,
+      "primary_concept": "full_outer_join",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Prebrojavanje nepovezanih redova s FULL OUTER JOIN-om",
+      "description": "Koristeći FULL OUTER JOIN između tablica customers i orders, pronađi sve retke koji nemaju poklapanja ni s jedne strane. Za svaku kategoriju nepovezanosti ('Kupac bez narudžbe' ili 'Narudžba bez kupca') ispiši naziv kategorije i broj takvih redova. Koristi IS NULL provjere u WHERE klauzuli kako bi izolirao samo nepovezane retke, a CASE izraz za kategorizaciju. Sortiraj po kategoriji.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT\n    CASE\n        WHEN c.id IS NULL THEN 'Narudžba bez kupca'\n        WHEN o.id IS NULL THEN 'Kupac bez narudžbe'\n    END AS kategorija,\n    COUNT(*) AS broj\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nWHERE c.id IS NULL OR o.id IS NULL\nGROUP BY kategorija\nORDER BY kategorija;",
+      "expected_result": [
+        {
+          "kategorija": "Kupac bez narudžbe",
+          "broj": 25
+        }
+      ],
+      "secondary_concepts": [
+        "null_handling",
+        "case_expression"
+      ],
+      "estimated_time_sec": 240
+    },
+    {
+      "task_id": "full_outer_join_d4_b87b4a08",
+      "module": 3,
+      "primary_concept": "full_outer_join",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Dvostruki anti-join: kupci bez narudžbi i narudžbe bez kupca",
+      "description": "Koristeći FULL OUTER JOIN između customers i orders, pronađi sve retke koji nemaju poklapanja ni s jedne strane. Grupiraj rezultate po kategoriji ('Kupac bez narudžbe' ili 'Narudžba bez kupca') i za svaku kategoriju ispiši broj takvih redova. Ovaj zadatak pokazuje temeljnu razliku FULL OUTER JOIN-a od LEFT JOIN-a — pokriva oba smjera nedostajućih veza istovremeno u jednom prolazu.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT\n    CASE\n        WHEN o.id IS NULL THEN 'Kupac bez narudžbe'\n        WHEN c.id IS NULL THEN 'Narudžba bez kupca'\n    END AS kategorija,\n    COUNT(*) AS broj\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL OR c.id IS NULL\nGROUP BY kategorija\nORDER BY kategorija;",
+      "expected_result": [
+        {
+          "kategorija": "Kupac bez narudžbe",
+          "broj": 25
+        }
+      ],
+      "secondary_concepts": [
+        "null_handling",
+        "group_by"
+      ],
+      "estimated_time_sec": 360
+    },
+    {
+      "task_id": "full_outer_join_d5_bd1f8ac5",
+      "module": 3,
+      "primary_concept": "full_outer_join",
+      "difficulty": 5,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "FULL OUTER JOIN analiza: kategorizacija kupaca i narudžbi s agregatima",
+      "description": "Koristeći FULL OUTER JOIN između tablica customers i orders (na osi customers.id = orders.customer_id), kategoriziraj sve retke u tri grupe: 'Kupci bez narudžbi' (c.id postoji, o.id je NULL), 'Narudžbe bez kupca' (o.id postoji, c.id je NULL) i 'Kupci s narudžbama' (oba postoje). Za svaku kategoriju ispiši naziv kategorije, ukupan broj redova (COUNT(*)), broj distinktnih kupaca (COUNT(DISTINCT c.id)) i broj distinktnih narudžbi (COUNT(DISTINCT o.id)). Sortiraj po nazivu kategorije uzlazno. Ovaj zadatak demonstrira kako FULL OUTER JOIN u jednom prolazu pokriva oba smjera — za razliku od LEFT JOIN koji bi izgubio retke s desne strane bez poklapanja.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT\n    CASE\n        WHEN c.id IS NULL THEN 'Narudžbe bez kupca'\n        WHEN o.id IS NULL THEN 'Kupci bez narudžbi'\n        ELSE 'Kupci s narudžbama'\n    END AS kategorija,\n    COUNT(*) AS broj_redova,\n    COUNT(DISTINCT c.id) AS broj_kupaca,\n    COUNT(DISTINCT o.id) AS broj_narudžbi\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nGROUP BY 1\nORDER BY kategorija;",
+      "expected_result": [
+        {
+          "kategorija": "Kupci bez narudžbi",
+          "broj_redova": 25,
+          "broj_kupaca": 25,
+          "broj_narudžbi": 0
+        },
+        {
+          "kategorija": "Kupci s narudžbama",
+          "broj_redova": 1000,
+          "broj_kupaca": 175,
+          "broj_narudžbi": 1000
+        }
+      ],
+      "secondary_concepts": [
+        "group_by",
+        "case_expression"
+      ],
+      "estimated_time_sec": 480
+    },
+    {
+      "task_id": "inner_join_d1_263a8030",
+      "module": 3,
+      "primary_concept": "inner_join",
+      "difficulty": 1,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Ukupan broj proizvoda s dodijeljenom kategorijom",
+      "description": "Koristeći INNER JOIN, spoji tablice `products` i `categories` preko odgovarajućeg ključa te izbroji koliko proizvoda ima dodijeljenu kategoriju. Zadatak uvježbava pravilno pisanje ON klauze kako bi se izbjegao Kartezijanski produkt.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS total_products\nFROM products p\nINNER JOIN categories c ON p.category_id = c.id;",
+      "expected_result": [
+        {
+          "total_products": 100
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions"
+      ],
+      "estimated_time_sec": 60
+    },
+    {
+      "task_id": "inner_join_d2_b39dec5d",
+      "module": 3,
+      "primary_concept": "inner_join",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Ukupan broj narudžbi spojenih s kupcima",
+      "description": "Spoji tablice `orders` i `customers` koristeći INNER JOIN na odgovarajućoj stranoj ključnoj koloni i izbroji ukupan broj narudžbi koje imaju pridruženog kupca. Pazi da ON klauzu napišeš ispravno — česta greška je pisanje `ON orders.id = customers.id` umjesto spajanja stvarnog stranog ključa `customer_id` s primarnim ključem kupca.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS broj_narudzbi\nFROM orders o\nINNER JOIN customers c ON o.customer_id = c.id;",
+      "expected_result": [
+        {
+          "broj_narudzbi": 1000
+        }
+      ],
+      "secondary_concepts": [
+        "count_aggregate",
+        "column_alias"
+      ],
+      "estimated_time_sec": 90
+    },
+    {
+      "task_id": "inner_join_d3_d75e51ac",
+      "module": 3,
+      "primary_concept": "inner_join",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Ukupan broj stavki narudžbi s valjanim proizvodom i kategorijom",
+      "description": "Koristeći lanac INNER JOIN-ova, povežite tablice `order_items`, `products` i `categories` kako biste prebrojali koliko ukupno stavki narudžbi ima valjano pridružen proizvod i kategoriju. Pazite na ispravne ključeve u ON klauzama — pogreška u jednom spajanju (npr. `oi.order_id = p.id` umjesto `oi.product_id = p.id`) rezultira krivim brojem ili greškom.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS total_order_items\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN categories c ON p.category_id = c.id;",
+      "expected_result": [
+        {
+          "total_order_items": 3000
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions",
+        "from_clause"
+      ],
+      "estimated_time_sec": 240
+    },
+    {
+      "task_id": "inner_join_d4_17bb7fc0",
+      "module": 3,
+      "primary_concept": "inner_join",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "Ukupna prodana količina po kategoriji proizvoda",
+      "description": "Spoji tablice order_items, products i categories koristeći INNER JOIN kako bi izračunao ukupno prodanu količinu (SUM of quantity) po svakoj kategoriji. Prikaži naziv kategorije i ukupnu količinu, sortirano po category_id uzlazno, ograničeno na prvih 5 kategorija. Zadatak testira ispravno spajanje triju tablica lancem JOIN-ova uz agregaciju.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT c.id AS category_id, c.name AS category_name, SUM(oi.quantity) AS total_quantity_sold\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN categories c ON p.category_id = c.id\nGROUP BY c.id, c.name\nORDER BY c.id\nLIMIT 5;",
+      "expected_result": [
+        {
+          "category_id": 1,
+          "category_name": "Electronics",
+          "total_quantity_sold": 589
+        },
+        {
+          "category_id": 2,
+          "category_name": "Books",
+          "total_quantity_sold": 866
+        },
+        {
+          "category_id": 3,
+          "category_name": "Sports",
+          "total_quantity_sold": 777
+        },
+        {
+          "category_id": 4,
+          "category_name": "Home",
+          "total_quantity_sold": 598
+        },
+        {
+          "category_id": 5,
+          "category_name": "Garden",
+          "total_quantity_sold": 596
+        }
+      ],
+      "secondary_concepts": [
+        "group_by_having",
+        "column_alias"
+      ],
+      "estimated_time_sec": 360
+    },
+    {
+      "task_id": "left_join_d2_518ad629",
+      "module": 3,
+      "primary_concept": "left_join",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Broj kupaca bez ijedne narudžbe",
+      "description": "Izbroji ukupan broj kupaca koji nikada nisu napravili niti jednu narudžbu. Koristi LEFT JOIN između tablica customers i orders te filtriraj redove koji ne sadrže odgovarajuću narudžbu. Rezultat ispiši kao jedan broj u stupcu customers_without_orders.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS customers_without_orders\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL;",
+      "expected_result": [
+        {
+          "customers_without_orders": 25
+        }
+      ],
+      "secondary_concepts": [
+        "null_handling",
+        "aggregate_functions"
+      ],
+      "estimated_time_sec": 90
+    },
+    {
+      "task_id": "left_join_d3_8e49c863",
+      "module": 3,
+      "primary_concept": "left_join",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Kupci bez ijedne narudžbe — Anti-join uzorak",
+      "description": "Koristeći LEFT JOIN i IS NULL obrazac, pronađi ukupan broj kupaca koji nikada nisu napravili nijednu narudžbu. Ispiši rezultat kao jednu vrijednost s aliasom `customers_without_orders`. Obrati pozornost: INNER JOIN ne može dati isti rezultat jer eliminira redove bez podudaranja.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS customers_without_orders\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL;",
+      "expected_result": [
+        {
+          "customers_without_orders": 25
+        }
+      ],
+      "secondary_concepts": [
+        "null_handling",
+        "aggregation_basics"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "left_join_d4_7c42ee66",
+      "module": 3,
+      "primary_concept": "left_join",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "Broj narudžbi 'delivered' statusa po kupcu — ON vs WHERE filter",
+      "description": "Za svakog kupca ispiši ukupan broj narudžbi sa statusom 'delivered'. Kupci koji nemaju niti jednu takvu narudžbu moraju se pojaviti u rezultatu s brojem 0. Filtriraj status ISKLJUČIVO u ON klauzuli LEFT JOIN-a (ne u WHERE), inače ćeš izgubiti kupce bez takvih narudžbi. Ispiši id, first_name, last_name i delivered_count, sortiraj po id ASC, prikaži prvih 5 redova.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT c.id, c.first_name, c.last_name, COUNT(o.id) AS delivered_count\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id AND o.status = 'delivered'\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY c.id\nLIMIT 5;",
+      "expected_result": [
+        {
+          "id": 1,
+          "first_name": "Leon",
+          "last_name": "Car",
+          "delivered_count": 7
+        },
+        {
+          "id": 2,
+          "first_name": "Matej",
+          "last_name": "Škara",
+          "delivered_count": 3
+        },
+        {
+          "id": 3,
+          "first_name": "David",
+          "last_name": "Sokić",
+          "delivered_count": 1
+        },
+        {
+          "id": 4,
+          "first_name": "Matea",
+          "last_name": "Amidžić",
+          "delivered_count": 5
+        },
+        {
+          "id": 5,
+          "first_name": "Romano",
+          "last_name": "Ladavac",
+          "delivered_count": 3
+        }
+      ],
+      "secondary_concepts": [
+        "aggregation",
+        "null_handling"
+      ],
+      "estimated_time_sec": 420
+    },
+    {
+      "task_id": "multi_table_join_d3_1b312b3e",
+      "module": 3,
+      "primary_concept": "multi_table_join",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Ukupan broj stavki narudžbi kroz tri JOIN-ana tablica",
+      "description": "Spoji tablice `order_items`, `products` i `suppliers` koristeći INNER JOIN i izračunaj ukupan broj stavki narudžbi (`COUNT(*)`) koje imaju valjano pridružen proizvod i dobavljača. Zadatak demonstrira zašto JOIN bez GROUP BY ili agregacije može eksponencijalno povećati broj redova — rezultat mora biti jedan agregiran broj, ne desetke tisuća nestrukturiranih redova.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS total_items\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN suppliers s ON p.supplier_id = s.id;",
+      "expected_result": [
+        {
+          "total_items": 3000
+        }
+      ],
+      "secondary_concepts": [
+        "inner_join",
+        "aggregate_functions"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "multi_table_join_d3_d351708f",
+      "module": 3,
+      "primary_concept": "multi_table_join",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Prebroji kupce, narudžbe i stavke spajanjem triju tablica",
+      "description": "Spoji tablice customers, orders i order_items koristeći INNER JOIN i u jednom retku ispiši: ukupan broj stavki narudžbi (total_order_items), broj različitih narudžbi (distinct_orders) i broj različitih kupaca koji su ikad nešto naručili (distinct_customers). Razmisli zašto sirovi JOIN bez agregacije vraća tisuće redova — upravo to je zamka kardinalnog eksplozije koju ovaj zadatak vježba.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS total_order_items,\n       COUNT(DISTINCT o.id) AS distinct_orders,\n       COUNT(DISTINCT c.id) AS distinct_customers\nFROM customers c\nINNER JOIN orders o ON c.id = o.customer_id\nINNER JOIN order_items oi ON o.id = oi.order_id;",
+      "expected_result": [
+        {
+          "total_order_items": 3000,
+          "distinct_orders": 1000,
+          "distinct_customers": 175
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions",
+        "inner_join"
+      ],
+      "estimated_time_sec": 210
+    },
+    {
+      "task_id": "multi_table_join_d4_075d127a",
+      "module": 3,
+      "primary_concept": "multi_table_join",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "Prihod i broj naručenih proizvoda po kategoriji (JOIN 4 tablice)",
+      "description": "Spoji tablice categories, products, order_items i orders kako bi izračunao ukupni prihod (SUM od quantity * unit_price) i broj različitih naručenih proizvoda (COUNT DISTINCT) po svakoj kategoriji. Ispiši category, product_count i total_revenue, sortirano od najvećeg prihoda. Bez GROUP BY dobit ćeš višestruke duplikate redova — to je tzv. cardinality explosion.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT cat.name AS category,\n       COUNT(DISTINCT p.id) AS product_count,\n       SUM(oi.quantity * oi.unit_price) AS total_revenue\nFROM categories cat\nINNER JOIN products p ON p.category_id = cat.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON oi.order_id = o.id\nGROUP BY cat.id, cat.name\nORDER BY total_revenue DESC\nLIMIT 5;",
+      "expected_result": [
+        {
+          "category": "Books",
+          "product_count": 10,
+          "total_revenue": "438078.57"
+        },
+        {
+          "category": "Sports",
+          "product_count": 8,
+          "total_revenue": "399740.42"
+        },
+        {
+          "category": "Office",
+          "product_count": 9,
+          "total_revenue": "349288.21"
+        },
+        {
+          "category": "Health",
+          "product_count": 7,
+          "total_revenue": "343613.12"
+        },
+        {
+          "category": "Movies",
+          "product_count": 7,
+          "total_revenue": "335443.59"
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions",
+        "group_by"
+      ],
+      "estimated_time_sec": 360
+    },
+    {
+      "task_id": "multi_table_join_d4_92f5abcc",
+      "module": 3,
+      "primary_concept": "multi_table_join",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "Ukupni prihod i broj narudžbi po dobavljaču (JOIN 4 tablice)",
+      "description": "Za svakog dobavljača izračunaj ukupni prihod ostvaren kroz stavke narudžbi (SUM od quantity * unit_price) i broj različitih narudžbi u kojima se pojavio barem jedan njihov proizvod. Koristi JOIN na tablice suppliers, products, order_items i orders. Ispiši supplier name, total_revenue i order_count, sortirano po total_revenue silazno. Prikaži samo prvih 5 dobavljača.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT s.name AS supplier_name,\n       SUM(oi.quantity * oi.unit_price) AS total_revenue,\n       COUNT(DISTINCT o.id) AS order_count\nFROM suppliers s\nINNER JOIN products p ON p.supplier_id = s.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON o.id = oi.order_id\nGROUP BY s.id, s.name\nORDER BY total_revenue DESC\nLIMIT 5;",
+      "expected_result": [
+        {
+          "supplier_name": "Carlson LLC",
+          "total_revenue": "298344.57",
+          "order_count": 171
+        },
+        {
+          "supplier_name": "Davis-Crane",
+          "total_revenue": "291250.45",
+          "order_count": 181
+        },
+        {
+          "supplier_name": "Carr-Mack",
+          "total_revenue": "279073.77",
+          "order_count": 184
+        },
+        {
+          "supplier_name": "Baker-Bowers",
+          "total_revenue": "262071.78",
+          "order_count": 161
+        },
+        {
+          "supplier_name": "Contreras PLC",
+          "total_revenue": "214129.21",
+          "order_count": 115
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions",
+        "group_by"
+      ],
+      "estimated_time_sec": 420
+    },
+    {
+      "task_id": "multi_table_join_d5_480aec3f",
+      "module": 3,
+      "primary_concept": "multi_table_join",
+      "difficulty": 5,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "Prihod i prosječna ocjena po dobavljaču — 4-stolični JOIN",
+      "description": "Za svakog dobavljača izračunaj ukupnu količinu prodanih komada (SUM quantity iz order_items), broj distinktnih prodanih proizvoda i prosječnu ocjenu recenzija (AVG reviews.rating). Koristi INNER JOIN za suppliers → products → order_items, a LEFT JOIN za reviews (jer ne moraju svi proizvodi imati recenzije). Ispiši supplier_name, distinct_products_sold, total_quantity i avg_review_rating zaokružen na 2 decimale. Sortiraj silazno po total_quantity i prikaži prvih 5 rezultata.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT s.name AS supplier_name,\n       COUNT(DISTINCT p.id) AS distinct_products_sold,\n       SUM(oi.quantity) AS total_quantity,\n       ROUND(AVG(r.rating), 2) AS avg_review_rating\nFROM suppliers s\nINNER JOIN products p ON s.id = p.supplier_id\nINNER JOIN order_items oi ON p.id = oi.product_id\nLEFT JOIN reviews r ON p.id = r.product_id\nGROUP BY s.id, s.name\nORDER BY total_quantity DESC\nLIMIT 5;",
+      "expected_result": [
+        {
+          "supplier_name": "Davis-Crane",
+          "distinct_products_sold": 6,
+          "total_quantity": 3238,
+          "avg_review_rating": "2.95"
+        },
+        {
+          "supplier_name": "Baker-Bowers",
+          "distinct_products_sold": 6,
+          "total_quantity": 2831,
+          "avg_review_rating": "2.81"
+        },
+        {
+          "supplier_name": "Moore-Haynes",
+          "distinct_products_sold": 5,
+          "total_quantity": 2793,
+          "avg_review_rating": "2.48"
+        },
+        {
+          "supplier_name": "Carlson LLC",
+          "distinct_products_sold": 6,
+          "total_quantity": 2712,
+          "avg_review_rating": "2.93"
+        },
+        {
+          "supplier_name": "Carr-Mack",
+          "distinct_products_sold": 6,
+          "total_quantity": 2681,
+          "avg_review_rating": "2.80"
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions",
+        "group_by"
+      ],
+      "estimated_time_sec": 480
+    },
+    {
+      "task_id": "right_join_d3_633a1cc6",
+      "module": 3,
+      "primary_concept": "right_join",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "Dobavljači i broj proizvoda koje isporučuju (RIGHT JOIN)",
+      "description": "Prikaži sve dobavljače i broj proizvoda koje svaki isporučuje, koristeći RIGHT JOIN s tablicom suppliers kao desnom tablicom kako bi bili vidljivi i dobavljači bez ijednog proizvoda. Ispiši supplier_id, supplier_name i product_count. Sortiraj po supplier_id uzlazno i ograniči na prvih 3 retka.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT s.id AS supplier_id,\n       s.name AS supplier_name,\n       COUNT(p.id) AS product_count\nFROM products p\nRIGHT JOIN suppliers s ON p.supplier_id = s.id\nGROUP BY s.id, s.name\nORDER BY s.id\nLIMIT 3;",
+      "expected_result": [
+        {
+          "supplier_id": 1,
+          "supplier_name": "Keller PLC",
+          "product_count": 3
+        },
+        {
+          "supplier_id": 2,
+          "supplier_name": "Collins, Carney and Santos",
+          "product_count": 5
+        },
+        {
+          "supplier_id": 3,
+          "supplier_name": "Chapman and Sons",
+          "product_count": 4
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions",
+        "group_by"
+      ],
+      "estimated_time_sec": 240
+    },
+    {
+      "task_id": "self_join_d3_40dd4149",
+      "module": 3,
+      "primary_concept": "self_join",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Broj zaposlenika s neposrednim managerom (SELF JOIN)",
+      "description": "Korištenjem SELF JOIN-a na tablici `employees`, izračunaj koliko zaposlenika ima neposrednog managera. Spoji tablicu sa samom sobom koristeći aliase `e` (zaposlenik) i `m` (manager) te primijeni agregatnu funkciju za brojanje. CEO (jedini zaposlenik bez manager_id) ne smije biti ubrojen u rezultat.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS total_with_manager\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id;",
+      "expected_result": [
+        {
+          "total_with_manager": 49
+        }
+      ],
+      "secondary_concepts": [
+        "inner_join",
+        "aggregate_functions"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "self_join_d4_d5d8b981",
+      "module": 3,
+      "primary_concept": "self_join",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Zaposlenici u drugom odjelu od svog managera",
+      "description": "Pronađi sve zaposlenike (isključi CEO-a koji nema managera) čiji odjel (department) se razlikuje od odjela njihovog neposrednog managera. Ispiši puno ime zaposlenika, odjel zaposlenika, puno ime managera i odjel managera. Sortiraj prema ID-u zaposlenika i prikaži prva 2 reda.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT e.first_name || ' ' || e.last_name AS employee_name,\n       e.department AS employee_department,\n       m.first_name || ' ' || m.last_name AS manager_name,\n       m.department AS manager_department\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id\nWHERE e.department <> m.department\nORDER BY e.id\nLIMIT 2;",
+      "expected_result": [
+        {
+          "employee_name": "Michael Armstrong",
+          "employee_department": "Operations",
+          "manager_name": "Laura Young",
+          "manager_department": "Executive"
+        },
+        {
+          "employee_name": "Tonya Anderson",
+          "employee_department": "Marketing",
+          "manager_name": "Laura Young",
+          "manager_department": "Executive"
+        }
+      ],
+      "secondary_concepts": [
+        "inner_join",
+        "where_filter"
+      ],
+      "estimated_time_sec": 300
+    },
+    {
+      "task_id": "self_join_d5_423a2f2a",
+      "module": 3,
+      "primary_concept": "self_join",
+      "difficulty": 5,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Dvostruki SELF JOIN: zaposlenici s dva nivoa nadređenih",
+      "description": "Pronađi ukupan broj zaposlenika koji imaju i neposrednog managera I 'grand-managera' (managera svog managera). Koristi dva SELF JOIN-a s tri različita aliasa (e, m, gm) — alias e za zaposlenika, m za neposrednog managera, gm za managera managera. Rezultat vrati kao jedan broj u stupcu total.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS total\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id\nINNER JOIN employees gm ON m.manager_id = gm.id;",
+      "expected_result": [
+        {
+          "total": 45
+        }
+      ],
+      "secondary_concepts": [
+        "inner_join",
+        "column_alias"
+      ],
+      "estimated_time_sec": 480
+    },
+    {
+      "task_id": "correlated_subquery_d3_d9c8f988",
+      "module": 4,
+      "primary_concept": "correlated_subquery",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Kupci bez ijedne narudžbe pomoću koreliranog podupita",
+      "description": "Prebrojite koliko kupaca nije nikada naručilo ništa koristeći korelirani podupit u WHERE klauzuli. Inner upit mora referencirati alias outer tablice (c.id) — bez te korelacije inner SELECT broji sve narudžbe globalno umjesto narudžbi konkretnog kupca.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS count_customers_no_orders\nFROM customers c\nWHERE (\n    SELECT COUNT(*)\n    FROM orders o\n    WHERE o.customer_id = c.id\n) = 0;",
+      "expected_result": [
+        {
+          "count_customers_no_orders": 25
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions",
+        "where_filter"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "correlated_subquery_d4_7101bea2",
+      "module": 4,
+      "primary_concept": "correlated_subquery",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Broj kupaca bez ijedne narudžbe koristeći korelirani NOT EXISTS",
+      "description": "Korištenjem koreliranog podupita s NOT EXISTS operatorom, pronađi ukupan broj kupaca koji nisu napravili niti jednu narudžbu. Korelirani podupit unutar NOT EXISTS mora eksplicitno referencirati alias vanjske tablice customers u WHERE uvjetu unutarnjeg upita. Obrati posebnu pažnju na to što se dogodi ako izostaneš referencu na vanjski alias — semantička greška bez SQL pogreške.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS kupci_bez_narudzbi\nFROM customers c\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM orders o\n    WHERE o.customer_id = c.id\n);",
+      "expected_result": [
+        {
+          "kupci_bez_narudzbi": 25
+        }
+      ],
+      "secondary_concepts": [
+        "where_filter",
+        "aggregate_functions"
+      ],
+      "estimated_time_sec": 300
+    },
+    {
+      "task_id": "correlated_subquery_d5_7948781f",
+      "module": 4,
+      "primary_concept": "correlated_subquery",
+      "difficulty": 5,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "Kupci kod kojih svaka narudžba premašuje prosjek ostalih njihovih narudžbi",
+      "description": "Pronađi sve kupce koji imaju barem dvije narudžbe, i kod kojih postoji barem jedna narudžba čiji je total_amount veći od prosječnog total_amount svih *ostalih* narudžbi tog istog kupca (isključujući samu tu narudžbu). Ispiši customer_id, first_name, last_name i broj takvih 'outlier' narudžbi. Zadatak zahtijeva korelirani podupit koji istovremeno referencira i vanjsku tablicu kupaca i vanjsku tablicu narudžbi.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT\n    c.id AS customer_id,\n    c.first_name,\n    c.last_name,\n    COUNT(o.id) AS outlier_order_count\nFROM customers c\nJOIN orders o ON o.customer_id = c.id\nWHERE (\n    SELECT COUNT(*)\n    FROM orders o_all\n    WHERE o_all.customer_id = c.id\n) >= 2\nAND o.total_amount > (\n    SELECT AVG(o2.total_amount)\n    FROM orders o2\n    WHERE o2.customer_id = c.id\n      AND o2.id <> o.id\n)\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY c.id\nLIMIT 5;",
+      "expected_result": [
+        {
+          "customer_id": 1,
+          "first_name": "Leon",
+          "last_name": "Car",
+          "outlier_order_count": 4
+        },
+        {
+          "customer_id": 2,
+          "first_name": "Matej",
+          "last_name": "Škara",
+          "outlier_order_count": 1
+        },
+        {
+          "customer_id": 3,
+          "first_name": "David",
+          "last_name": "Sokić",
+          "outlier_order_count": 1
+        },
+        {
+          "customer_id": 4,
+          "first_name": "Matea",
+          "last_name": "Amidžić",
+          "outlier_order_count": 4
+        },
+        {
+          "customer_id": 5,
+          "first_name": "Romano",
+          "last_name": "Ladavac",
+          "outlier_order_count": 3
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions",
+        "where_filter"
+      ],
+      "estimated_time_sec": 480
+    },
+    {
+      "task_id": "delete_d2_9b0f6b74",
+      "module": 4,
+      "primary_concept": "delete",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Brisanje jedne otkazane narudžbe po ID-u",
+      "description": "Obriši narudžbu s id = 2 iz tablice orders koristeći precizni WHERE uvjet koji targetira samo taj jedan red. Vrati stupce id i status obrisanog reda putem RETURNING klauze kako bi potvrdio da je obrisana ispravna narudžba. Napomena: u sandboxu se sve promjene automatski rollback-aju.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "DELETE FROM orders\nWHERE id = 2\nRETURNING id, status;\n",
+      "expected_result": [
+        {
+          "id": 2,
+          "status": "cancelled"
+        }
+      ],
+      "secondary_concepts": [
+        "where_filter",
+        "returning_clause"
+      ],
+      "estimated_time_sec": 90
+    },
+    {
+      "task_id": "delete_d3_28f1d2bd",
+      "module": 4,
+      "primary_concept": "delete",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Brisanje recenzije po ID-u s RETURNING provjerom",
+      "description": "Obriši recenziju s id = 1 iz tablice reviews koristeći precizni WHERE uvjet. Vrati stupce id, product_id i rating obrisanog retka pomoću RETURNING klauze kako bi potvrdio što je točno obrisano. Napomena: u sandboxu se sve promjene automatski rollback-aju — sigurno je testirati.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "DELETE FROM reviews\nWHERE id = 1\nRETURNING id, product_id, rating;",
+      "expected_result": [
+        {
+          "id": 1,
+          "product_id": 38,
+          "rating": 5
+        }
+      ],
+      "secondary_concepts": [
+        "where_filter"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "delete_d3_a575a4a9",
+      "module": 4,
+      "primary_concept": "delete",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Brisanje specifične recenzije kupca za određeni proizvod",
+      "description": "Obriši recenziju kupca s id=158 za proizvod s id=38 iz tablice reviews. Koristi WHERE uvjet koji precizno targetira taj jedan red upotrebom OBAJU stupaca (customer_id i product_id) — korištenje samo jednog uvjeta može obrisati previše ili premalo redova. Vrati id i rating obrisanog reda koristeći RETURNING klauzulu. Napomena: u sandboxu se sve promjene automatski rollback-aju.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "DELETE FROM reviews\nWHERE customer_id = 158\n  AND product_id = 38\nRETURNING id, rating;\n",
+      "expected_result": [
+        {
+          "id": 1,
+          "rating": 5
+        }
+      ],
+      "secondary_concepts": [
+        "where_filter",
+        "returning_clause"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "delete_d4_3843aae7",
+      "module": 4,
+      "primary_concept": "delete",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "Kaskadno brisanje stavki i narudžbi otkazanog kupca (subquery)",
+      "description": "Kupac s id = 5 ima otkazane narudžbe koje treba ukloniti iz sustava. Budući da tablica order_items ima FK na orders, prvo moraš obrisati sve stavke (order_items) čiji order_id pripada otkazanim narudžbama tog kupca — koristeći subquery u WHERE klauzi. Zatim obriši same narudžbe. Za oba koraka koristi RETURNING id kako bi potvrdio što je obrisano. Napomena: u sandboxu se sve promjene automatski rollback-aju.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "DELETE FROM order_items\nWHERE order_id IN (\n    SELECT id\n    FROM orders\n    WHERE customer_id = 5\n      AND status = 'cancelled'\n)\nRETURNING id;\n\nDELETE FROM orders\nWHERE customer_id = 5\n  AND status = 'cancelled'\nRETURNING id;",
+      "expected_result": [
+        {
+          "id": 2
+        },
+        {
+          "id": 1684
+        }
+      ],
+      "secondary_concepts": [
+        "subquery",
+        "fk_constraints"
+      ],
+      "estimated_time_sec": 420
+    },
+    {
+      "task_id": "insert_d2_bc637919",
+      "module": 4,
+      "primary_concept": "insert",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Unos novog kupca s eksplicitnom listom stupaca",
+      "description": "Dodaj novog kupca u tablicu customers koristeći sljedeće podatke — ime: 'Petra', prezime: 'Novak', email: 'petra.novak.test@example.com', država: 'Croatia', grad: 'Zagreb'. Pazi da vrijednosti u VALUES klauzuli budu u **istom redoslijedu** kao stupci navedeni u INSERT INTO listi — zamjena redoslijeda može prouzročiti krivu pohranu podataka ili type error. Koristi RETURNING first_name, last_name, email za provjeru unesenog retka.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "INSERT INTO customers (first_name, last_name, email, country, city)\nVALUES ('Petra', 'Novak', 'petra.novak.test@example.com', 'Croatia', 'Zagreb')\nRETURNING first_name, last_name, email;",
+      "expected_result": [
+        {
+          "first_name": "Petra",
+          "last_name": "Novak",
+          "email": "petra.novak.test@example.com"
+        }
+      ],
+      "secondary_concepts": [
+        "not_null_constraint",
+        "returning_clause"
+      ],
+      "estimated_time_sec": 120
+    },
+    {
+      "task_id": "update_d2_b0b659e4",
+      "module": 4,
+      "primary_concept": "update",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Ažuriranje email adrese kupca s id = 1",
+      "description": "Kupac Leon Car (id = 1) promijenio je svoju email adresu na 'leon.car@example.com'. Ažuriraj njegov zapis u tablici customers. Koristi RETURNING id, first_name, last_name, email kako bi potvrdio izmjenu. Napomena: sandbox automatski rollback-a sve promjene na kraju sesije.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "UPDATE customers\nSET email = 'leon.car@example.com'\nWHERE id = 1\nRETURNING id, first_name, last_name, email;",
+      "expected_result": [
+        {
+          "id": 1,
+          "first_name": "Leon",
+          "last_name": "Car",
+          "email": "leon.car@example.com"
+        }
+      ],
+      "secondary_concepts": [
+        "where_filter"
+      ],
+      "estimated_time_sec": 90
+    },
+    {
+      "task_id": "update_d3_1bb5156e",
+      "module": 4,
+      "primary_concept": "update",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Sniženje cijene i povećanje zalihe za proizvod id=1",
+      "description": "Proizvod s id = 1 ulazi u rasprodaju: smanji mu cijenu (price) za 10% i povećaj zalihu (stock) za 100 komada. Ažuriraj obje kolone u jednom UPDATE iskazu koristeći SET col1 = ..., col2 = ... sintaksu. Koristi RETURNING id, name, price, stock za verifikaciju. Napomena: sandbox automatski rollback-a sve promjene na kraju sesije.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "UPDATE products\nSET price = ROUND(price * 0.90, 2),\n    stock = stock + 100\nWHERE id = 1\nRETURNING id, name, price, stock;",
+      "expected_result": [
+        {
+          "id": 1,
+          "name": "Digitized solution-oriented solution",
+          "price": "657.32",
+          "stock": 374
+        }
+      ],
+      "secondary_concepts": [
+        "where_filter",
+        "arithmetic_expressions"
+      ],
+      "estimated_time_sec": 210
+    },
+    {
+      "task_id": "update_d3_f46b8590",
+      "module": 4,
+      "primary_concept": "update",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Unapređenje zaposlenika: ažuriranje odjela i plaće u jednom iskazu",
+      "description": "Zaposlenik s id = 2 (Michael Armstrong) dobio je unapređenje: premjestiti ga u odjel 'Management' i povećati mu plaću za 20% — sve u jednom UPDATE iskazu. Koristi RETURNING id, first_name, last_name, department, salary kako bi potvrdio izmjene. Napomena: sandbox automatski rollback-a sve promjene na kraju sesije.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "UPDATE employees\nSET salary = salary * 1.20,\n    department = 'Management'\nWHERE id = 2\nRETURNING id, first_name, last_name, department, salary;",
+      "expected_result": [
+        {
+          "id": 2,
+          "first_name": "Michael",
+          "last_name": "Armstrong",
+          "department": "Management",
+          "salary": "13697.56"
+        }
+      ],
+      "secondary_concepts": [
+        "where_filter",
+        "arithmetic_expressions"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "update_d4_07152845",
+      "module": 4,
+      "primary_concept": "update",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "Ažuriranje cijene i zalihe proizvoda koristeći subquery u SET klauzuli",
+      "description": "Proizvod s id = 1 treba dobiti novu cijenu izračunatu kao trenutna cijena pomnožena s ocjenom (rating) njegova dobavljača podijeljenom s 5 — tj. cijena se skalira prema kvaliteti dobavljača. Istovremeno, smanji zalihu (stock) za 10 jedinica. Obje kolone ažuriraj u jednom UPDATE iskazu koristeći koreliran subquery u SET klauzuli za dohvat ratinga dobavljača iz tablice suppliers. Koristi RETURNING id, name, price, stock za verifikaciju. Napomena: sandbox automatski rollback-a sve promjene.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "UPDATE products\nSET price = price * (SELECT rating FROM suppliers WHERE id = products.supplier_id) / 5,\n    stock = stock - 10\nWHERE id = 1\nRETURNING id, name, price, stock;",
+      "expected_result": [
+        {
+          "id": 1,
+          "name": "Digitized solution-oriented solution",
+          "price": "373.94",
+          "stock": 264
+        }
+      ],
+      "secondary_concepts": [
+        "subquery",
+        "where_filter"
+      ],
+      "estimated_time_sec": 420
+    },
+    {
+      "task_id": "exists_subquery_d2_c4cbbac5",
+      "module": 5,
+      "primary_concept": "exists_subquery",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Dobavljači koji imaju barem jedan proizvod — EXISTS (SELECT 1)",
+      "description": "Pronađi sve dobavljače koji imaju barem jedan proizvod u tablici products koristeći EXISTS. Ispiši id, name i country iz tablice suppliers. Koristi EXISTS (SELECT 1 FROM ...) — ne koristi EXISTS (SELECT name FROM ...) niti JOIN. Sortiraj po id, prikaži prvih 3 reda.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT s.id, s.name, s.country\nFROM suppliers s\nWHERE EXISTS (\n    SELECT 1\n    FROM products p\n    WHERE p.supplier_id = s.id\n)\nORDER BY s.id\nLIMIT 3;",
+      "expected_result": [
+        {
+          "id": 1,
+          "name": "Keller PLC",
+          "country": "Croatia"
+        },
+        {
+          "id": 2,
+          "name": "Collins, Carney and Santos",
+          "country": "Germany"
+        },
+        {
+          "id": 3,
+          "name": "Chapman and Sons",
+          "country": "Italy"
+        }
+      ],
+      "secondary_concepts": [
+        "correlated_subquery",
+        "where_filter"
+      ],
+      "estimated_time_sec": 120
+    },
+    {
+      "task_id": "exists_subquery_d4_bd8f189c",
+      "module": 5,
+      "primary_concept": "exists_subquery",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Kupci koji nemaju ni jednu narudžbu — NOT EXISTS vs NOT IN NULL zamka",
+      "description": "Pronađi sve kupce koji nikada nisu napravili ni jednu narudžbu koristeći NOT EXISTS s koreliranim podupiom. Ispiši ukupan broj takvih kupaca kao `broj_kupaca`. Napomena: ne koristiti NOT IN — ako orders.customer_id u podupitu sadrži NULL vrijednost, NOT IN vraća prazan skup umjesto ispravnog rezultata, dok NOT EXISTS ispravno radi s NULL vrijednostima.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS broj_kupaca\nFROM customers c\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM orders o\n    WHERE o.customer_id = c.id\n);",
+      "expected_result": [
+        {
+          "broj_kupaca": 25
+        }
+      ],
+      "secondary_concepts": [
+        "correlated_subquery",
+        "null_handling"
+      ],
+      "estimated_time_sec": 360
+    },
+    {
+      "task_id": "in_subquery_d2_4476e5d3",
+      "module": 5,
+      "primary_concept": "in_subquery",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Broj kupaca koji su napravili barem jednu narudžbu (IN s podupitom)",
+      "description": "Pronađi ukupan broj kupaca koji su napravili barem jednu narudžbu koristeći IN s podupitom na tablici orders. Vrati jednu vrijednost s nazivom stupca `total_customers`. Napomena: podupit unutar IN klauze mora vraćati točno jedan stupac — česta greška je pisanje SELECT * ili SELECT id, name.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS total_customers\nFROM customers c\nWHERE c.id IN (\n    SELECT o.customer_id\n    FROM orders o\n);",
+      "expected_result": [
+        {
+          "total_customers": 175
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions",
+        "where_filter"
+      ],
+      "estimated_time_sec": 120
+    },
+    {
+      "task_id": "in_subquery_d3_f058dd63",
+      "module": 5,
+      "primary_concept": "in_subquery",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Broj kupaca bez narudžbi — NOT IN s IS NOT NULL zaštitom",
+      "description": "Prebroji koliko kupaca nikad nije napravilo narudžbu koristeći NOT IN s podupitom na tablici orders. Jer je orders.customer_id stupac definiran kao NOT NULL, dodaj zaštitni uvjet WHERE customer_id IS NOT NULL u podupit — ovo je nužno u praksi kada podupit može sadržavati NULL vrijednosti, jer bi NOT IN s ijednim NULL-om vratio 0 redova. Rezultat ispiši kao customers_without_orders.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS customers_without_orders\nFROM customers c\nWHERE c.id NOT IN (\n    SELECT o.customer_id\n    FROM orders o\n    WHERE o.customer_id IS NOT NULL\n);",
+      "expected_result": [
+        {
+          "customers_without_orders": 25
+        }
+      ],
+      "secondary_concepts": [
+        "null_handling",
+        "aggregate_functions"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "in_subquery_d4_01fd2955",
+      "module": 5,
+      "primary_concept": "in_subquery",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": true,
+      "title": "Kategorije s nadprosječnim brojem proizvoda (IN + GROUP BY + ugniježđeni podupit)",
+      "description": "Pronađi sve kategorije čiji id se nalazi u skupu category_id-ova koji imaju VIŠE od prosječnog broja proizvoda po kategoriji. Koristi IN s podupitom koji sadrži GROUP BY i HAVING, a HAVING uspoređuje s ugniježđenim skalarnim podupitom (AVG). Dodaj WHERE p.category_id IS NOT NULL u unutarnji upit kako bi izbjegao NULL zamku. Ispiši id i name kategorije, sortiraj po id.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT cat.id, cat.name\nFROM categories cat\nWHERE cat.id IN (\n    SELECT p.category_id\n    FROM products p\n    WHERE p.category_id IS NOT NULL\n    GROUP BY p.category_id\n    HAVING COUNT(*) > (\n        SELECT AVG(sub.cnt)\n        FROM (\n            SELECT COUNT(*) AS cnt\n            FROM products p2\n            WHERE p2.category_id IS NOT NULL\n            GROUP BY p2.category_id\n        ) sub\n    )\n)\nORDER BY cat.id;",
+      "expected_result": [
+        {
+          "id": 2,
+          "name": "Books"
+        },
+        {
+          "id": 3,
+          "name": "Sports"
+        },
+        {
+          "id": 4,
+          "name": "Home"
+        },
+        {
+          "id": 5,
+          "name": "Garden"
+        },
+        {
+          "id": 10,
+          "name": "Music"
+        },
+        {
+          "id": 11,
+          "name": "Movies"
+        },
+        {
+          "id": 12,
+          "name": "Office"
+        },
+        {
+          "id": 13,
+          "name": "Pet Supplies"
+        },
+        {
+          "id": 15,
+          "name": "Health"
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions",
+        "scalar_subquery"
+      ],
+      "estimated_time_sec": 420
+    },
+    {
+      "task_id": "scalar_subquery_d2_c4c8572c",
+      "module": 5,
+      "primary_concept": "scalar_subquery",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Broj narudžbi ispod maksimalnog iznosa",
+      "description": "Izbroji koliko narudžbi ima total_amount manji od maksimalnog iznosa ikad zabilježene narudžbe. Ispiši rezultat kao jedan broj u stupcu orders_below_max. Koristi skalarni podupit u WHERE klauzi koji vraća MAX(total_amount) iz tablice orders.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT COUNT(*) AS orders_below_max\nFROM orders\nWHERE total_amount < (SELECT MAX(total_amount) FROM orders);",
+      "expected_result": [
+        {
+          "orders_below_max": 999
+        }
+      ],
+      "secondary_concepts": [
+        "aggregate_functions",
+        "where_filter"
+      ],
+      "estimated_time_sec": 120
+    },
+    {
+      "task_id": "scalar_subquery_d3_63bcf0bf",
+      "module": 5,
+      "primary_concept": "scalar_subquery",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Broj narudžbi kao referentni stupac u SELECT klauzi",
+      "description": "Za svaku od prvih 3 narudžbe (sortirano po id uzlazno) ispiši id, status, total_amount i ukupan broj svih narudžbi u sustavu kao dodatni stupac ukupno_narudzbi. Koristi skalarni podupit u SELECT klauzi koji vraća COUNT(*) svih narudžbi. Cilj je vizualno prikazati kako skalarni podupit vraća isti rezultat za svaki red glavnog upita.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT\n    o.id,\n    o.status,\n    o.total_amount,\n    (SELECT COUNT(*) FROM orders) AS ukupno_narudzbi\nFROM orders o\nORDER BY o.id\nLIMIT 3;",
+      "expected_result": [
+        {
+          "id": 1,
+          "status": "delivered",
+          "total_amount": 3832.15,
+          "ukupno_narudzbi": 1000
+        },
+        {
+          "id": 2,
+          "status": "cancelled",
+          "total_amount": 4806.92,
+          "ukupno_narudzbi": 1000
+        },
+        {
+          "id": 3,
+          "status": "delivered",
+          "total_amount": 3160.68,
+          "ukupno_narudzbi": 1000
+        }
+      ],
+      "secondary_concepts": [
+        "select_basic",
+        "order_by"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "explain_plan_d3_60b9eaee",
+      "module": 6,
+      "primary_concept": "explain_plan",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Index Scan vs Seq Scan — lookup kupca po e-mailu",
+      "description": "Napiši SELECT upit koji dohvaća podatke kupca prema točnoj e-mail adresi. Postoje dvije verzije: Verzija A (index-friendly) koristi direktni equality uvjet WHERE email = '...' — PostgreSQL može koristiti UNIQUE indeks na koloni email i izvesti Index Scan (jedan red od ~200). Verzija B (anti-pattern) koristi WHERE LOWER(email) = LOWER('...') — wrapping u LOWER() funkciju onemogućava B-tree indeks jer planer ne može transformirati indeksiranu vrijednost, pa mora raditi Seq Scan kroz svih 200 redova. Napiši samo Verziju A. Ispiši id, first_name, last_name, email, country i city.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, first_name, last_name, email, country, city\nFROM customers\nWHERE email = 'skodamartina@example.org'\nORDER BY id;",
+      "expected_result": [
+        {
+          "id": 1,
+          "first_name": "Leon",
+          "last_name": "Car",
+          "email": "skodamartina@example.org",
+          "country": "Croatia",
+          "city": "Drniš"
+        }
+      ],
+      "secondary_concepts": [
+        "index_usage",
+        "where_filter"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "explain_plan_d4_54c05243",
+      "module": 6,
+      "primary_concept": "explain_plan",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Index Scan vs Seq Scan — lookup po email adresi kupca",
+      "description": "Napiši SELECT upit koji dohvaća podatke o kupcu čiji je email 'skodamartina@example.org'. Postoje dva oblika WHERE uvjeta — index-friendly i index-hostile:\n\nVerzija A (index-friendly): WHERE email = 'skodamartina@example.org' — direktna jednakost na email koloni; PostgreSQL može koristiti unique index koji prati UNIQUE ograničenje na email stupcu → planer bira Index Scan (visoko selektivan uvjet: 1 od 200 redova).\n\nVerzija B (index-hostile, anti-pattern): WHERE LOWER(email) = LOWER('skodamartina@example.org') — wrapping u funkciju LOWER() transformira vrijednost stupca; planer ne može koristiti B-tree indeks na originalnoj koloni, mora čitati cijelu tablicu → Seq Scan. Isti problem nastaje s UPPER(), TRIM() ili bilo kojom drugom funkcijom nad indeksiranom kolonom.\n\nNapiši samo Verziju A kao rješenje. Ispiši id, first_name, last_name, email, country i city.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, first_name, last_name, email, country, city\nFROM customers\nWHERE email = 'skodamartina@example.org';",
+      "expected_result": [
+        {
+          "id": 1,
+          "first_name": "Leon",
+          "last_name": "Car",
+          "email": "skodamartina@example.org",
+          "country": "Croatia",
+          "city": "Drniš"
+        }
+      ],
+      "secondary_concepts": [
+        "index_usage",
+        "where_filter"
+      ],
+      "estimated_time_sec": 300
+    },
+    {
+      "task_id": "index_usage_d3_41c8280e",
+      "module": 6,
+      "primary_concept": "index_usage",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Narudžbe kupca — index-friendly lookup vs. function wrapper anti-pattern",
+      "description": "Napiši upit koji dohvaća narudžbu za kupca čiji je customer_id = 108, koristeći direktan uvjet u WHERE klauzuli. Direktan uvjet `WHERE customer_id = 108` može koristiti indeks `idx_orders_customer`, dok anti-pattern `WHERE CAST(customer_id AS TEXT) = '108'` ili `WHERE customer_id + 0 = 108` onemogućava korištenje indeksa jer wrappanje indeksirane kolone u funkciju ili operator prisiljava bazu na full table scan. Ispiši stupce id, customer_id, status i total_amount, sortiraj po id ASC i ograniči na 1 red.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, customer_id, status, total_amount\nFROM orders\nWHERE customer_id = 108\nORDER BY id ASC\nLIMIT 1;",
+      "expected_result": [
+        {
+          "id": 1,
+          "customer_id": 108,
+          "status": "delivered",
+          "total_amount": 3832.15
+        }
+      ],
+      "secondary_concepts": [
+        "where_filter",
+        "order_by"
+      ],
+      "estimated_time_sec": 180
+    },
+    {
+      "task_id": "index_usage_d4_68049f11",
+      "module": 6,
+      "primary_concept": "index_usage",
+      "difficulty": 4,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Pretraga kupca po emailu — direktan lookup vs. LOWER() anti-pattern",
+      "description": "Napiši SELECT upit koji pronalazi kupca čiji je email 'skodamartina@example.org' koristeći direktnu usporedbu u WHERE klauzuli. PostgreSQL automatski kreira B-tree indeks na UNIQUE koloni customers.email — direktna usporedba (=) koristi taj indeks (index seek), dok anti-pattern WHERE LOWER(email) = 'skodamartina@example.org' omota indeksiranu kolonu u funkciju i prisiljava full table scan po svim 200 redaka. Napiši index-friendly verziju kao expected_query i u pedagogical_notes objasni zašto LOWER() poništava indeks.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, first_name, last_name, email\nFROM customers\nWHERE email = 'skodamartina@example.org'\nORDER BY id\nLIMIT 1;",
+      "expected_result": [
+        {
+          "id": 1,
+          "first_name": "Leon",
+          "last_name": "Car",
+          "email": "skodamartina@example.org"
+        }
+      ],
+      "secondary_concepts": [
+        "where_filter",
+        "order_by"
+      ],
+      "estimated_time_sec": 300
+    },
+    {
+      "task_id": "index_usage_d5_258d461b",
+      "module": 6,
+      "primary_concept": "index_usage",
+      "difficulty": 5,
+      "approved_by_human": true,
+      "generation_method": "llm",
+      "recovery_applied": false,
+      "title": "Indeks na customer_id — direktni lookup vs. CAST anti-pattern",
+      "description": "Napiši upit koji dohvaća narudžbe kupca s customer_id = 5 koristeći index-friendly WHERE uvjet koji može iskoristiti idx_orders_customer. Anti-pattern koji PONIŠTAVA indeks je: WHERE CAST(customer_id AS TEXT) = '5' — PostgreSQL mora izračunati CAST za svaki red (full table scan), čak i uz postojeći B-tree indeks na customer_id. Ispiši samo index-friendly verziju kao expected_query, poredanu po id ASC, LIMIT 1.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, customer_id, status, total_amount\nFROM orders\nWHERE customer_id = 5\nORDER BY id ASC\nLIMIT 1;",
+      "expected_result": [
+        {
+          "id": 2,
+          "customer_id": 5,
+          "status": "cancelled",
+          "total_amount": "4806.92"
+        }
+      ],
+      "secondary_concepts": [
+        "where_filter",
+        "order_by"
+      ],
+      "estimated_time_sec": 480
+    },
+    {
+      "task_id": "right_join_d2_manual_b87adfc6",
+      "module": 3,
+      "primary_concept": "right_join",
+      "difficulty": 2,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Kupci bez ijedne narudžbe (RIGHT JOIN)",
+      "description": "Pronađi kupce koji još nisu napravili nijednu narudžbu. Kreni od tablice orders i spoji je s customers koristeći RIGHT JOIN, tako da customers bude DESNA tablica — time u rezultatu ostaju i kupci za koje nema nijednog retka u orders. Takvi redci imaju NULL u stupcima iz orders, pa ih izdvoji uvjetom WHERE o.id IS NULL. Ispiši customer_id, first_name i last_name, sortiraj po customer_id uzlazno i ograniči ispis na prvih 5 redaka.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT c.id AS customer_id,\n       c.first_name,\n       c.last_name\nFROM orders o\nRIGHT JOIN customers c ON o.customer_id = c.id\nWHERE o.id IS NULL\nORDER BY c.id\nLIMIT 5;",
+      "expected_result": [
+        {
+          "customer_id": 176,
+          "first_name": "Marta",
+          "last_name": "Mraović"
+        },
+        {
+          "customer_id": 177,
+          "first_name": "Ruža",
+          "last_name": "Barbieri"
+        },
+        {
+          "customer_id": 178,
+          "first_name": "Christopher",
+          "last_name": "Walker"
+        },
+        {
+          "customer_id": 179,
+          "first_name": "Dominic",
+          "last_name": "Thornton"
+        },
+        {
+          "customer_id": 180,
+          "first_name": "Chelsea",
+          "last_name": "Henderson"
+        }
+      ],
+      "secondary_concepts": [
+        "column_alias",
+        "order_by"
+      ],
+      "estimated_time_sec": 120
+    },
+    {
+      "task_id": "insert_d3_manual_d034def1",
+      "module": 4,
+      "primary_concept": "insert",
+      "difficulty": 3,
+      "approved_by_human": true,
+      "generation_method": "manual",
+      "recovery_applied": false,
+      "title": "Unos dvaju dobavljača jednom naredbom (multi-row VALUES)",
+      "description": "Jednom INSERT naredbom dodaj DVA nova dobavljača u tablicu suppliers. Umjesto dvije odvojene naredbe, navedi obje n-torke u ISTOJ VALUES klauzuli odvojene zarezom - tako baza oba retka umeće u jednoj naredbi.\n\nPodaci koje treba unijeti, tim redoslijedom:\n\n```\n1. name = 'Adriatic Supply'  |  country = 'Croatia'  |  contact_email = 'kontakt@adriatic-supply.test'  |  rating = 4.50\n2. name = 'Nordic Parts'     |  country = 'Sweden'   |  contact_email = 'info@nordic-parts.test'        |  rating = 3.80\n```\n\nVrijednosti se uspoređuju EGZAKTNO (uključujući decimalna mjesta ocjene), pa ih prepiši doslovno. Za provjeru unesenih redaka koristi RETURNING name, country, rating.",
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "INSERT INTO suppliers (name, country, contact_email, rating)\nVALUES ('Adriatic Supply', 'Croatia', 'kontakt@adriatic-supply.test', 4.50),\n       ('Nordic Parts', 'Sweden', 'info@nordic-parts.test', 3.80)\nRETURNING name, country, rating;",
+      "expected_result": [
+        {
+          "name": "Adriatic Supply",
+          "country": "Croatia",
+          "rating": "4.50"
+        },
+        {
+          "name": "Nordic Parts",
+          "country": "Sweden",
+          "rating": "3.80"
+        }
+      ],
+      "secondary_concepts": [],
+      "estimated_time_sec": 180
+    }
+  ],
+  "changelog": [
+    "4.4-0h: +2 ručno autorska zadatka (right_join d2, insert d3) — oživljavanje 'slučajno mrtvih' koncepata koje subfloor pravilo (<2 primarna taska) tiho je isključivalo iz preporuka (NALAZ #27). approved_by_human=false do ljudskog pregleda.",
+    "4.4-0h-final: zadatak right_join_d2_manual_b87adfc6 — sekundarni koncepti null_handling -> column_alias (IS NULL je anti-join idiom, ne NULL semantika; AS customer_id je stvarni alias). Zadatak insert_d3_manual_d034def1 — opis prepisan tako da sve 4 vrijednosti oba retka stoje u kod-bloku (evaluacija je egzaktna). Oba zadatka: approved_by_human -> true nakon ljudskog pregleda.",
+    "4.4-0h-final: approved_by_human=true za oba ručno autorska zadatka nakon ljudskog pregleda (sekundarni koncepti zadatka A ispravljeni, opis zadatka B prepisan s egzaktnim podacima u kod-bloku)."
+  ]
+}

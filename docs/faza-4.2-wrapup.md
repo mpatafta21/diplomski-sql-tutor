@@ -2,7 +2,7 @@
 
 **Status:** ✅ KOMPLETNA (Stage 0 + 4.2a + 4.2b na grani `faza-4-2-dashboard`; PR "Faza 4.2" → `main` čeka push/potvrdu). Student vidi svoj napredak (XP/level/streak, mastery, bedževi), ima jasan CTA na sljedeći zadatak i pregled svih modula s locked/unlocked stanjima — sve s pravih endpointa, nula mocka.
 **Obuhvat:** **Stage 0** (aditivni backend contract dodatak `/profile`), **4.2a** (Dashboard ekran + data sloj), **4.2b** (Module overview).
-**Rezultat:** backend suite **467 passed / 1 skipped** (Stage 0 dodao 1 test; 0 regresija); frontend **`tsc -b` + build + oxlint + prettier zeleni**; e2e Playwright dokazi (svjež + populated user, obje teme) za oba ekrana; 2× `/code-review` (19 nalaza ukupno: 18 popravljeno, po 1 preskočen s razlogom po ekranu).
+**Rezultat:** backend suite **467 passed / 1 skipped** (Stage 0 dodao 1 test; 0 regresija); frontend **`tsc -b` + build + oxlint + prettier zeleni**; **ručni** e2e dokazi kroz headless Chrome (CDP; svjež + populated user, obje teme) za oba ekrana — *nije* committed automatizirani suite (NALAZ #17); 2× `/code-review` (19 nalaza ukupno: 18 popravljeno, po 1 preskočen s razlogom po ekranu).
 **Grane/PR/tagovi:** `faza-4-2-dashboard` · tagovi `faza-4-2a-dashboard` → `faza-4-2b-modules` · commitovi `73223b8` (Stage 0) → `89b974f` (4.2a) → `528e482` (4.2b).
 
 Cilj cijele 4.2: prva dva **data ekrana** nad zaključanim ugovorom — uz podatkovni sloj (TanStack Query hookovi + domenske lib-ove) koji 4.3–4.5 nasljeđuju bez retrofita.
@@ -96,7 +96,7 @@ Naivno "svi direktni prereq-i sirovo ≥ prag" dalo bi **kontradikciju na ekranu
 |---|---|---|
 | ERRATA #8 | `attempts` nema `verdict` | Otvoreno — `partial` token i dalje neaktivan (4.3 prikazuje correct/incorrect) |
 | flag #3 | `new_badges` best-effort | Otvoreno — Dashboard bedževe čita iz `/profile` (autoritativno), `new_badges` ostaje kozmetika za 4.3 |
-| NALAZ #7 | `task.module_id ≠ primary_concept.module` (3/83: taskovi 71–73, correlated_subquery u "DML operacije") | **Ne materijalizira se u 4.2** — Module overview računa iz koncepata, ne iz task.module_id. Rizik ostaje za 4.3 ako Task screen prikaže modul iz `task.module_id`. Cleanup Faza 6 |
+| NALAZ #7 | `task.module_id ≠ primary_concept.module` (3/83: `correlated_subquery_d3_d9c8f988`, `correlated_subquery_d4_7101bea2`, `correlated_subquery_d5_7948781f` — correlated_subquery u "DML operacije"; numerički id-evi su tada bili 71–73, danas 60–62 → NALAZ #21) | **Ne materijalizira se u 4.2** — Module overview računa iz koncepata, ne iz task.module_id. Rizik ostaje za 4.3 ako Task screen prikaže modul iz `task.module_id`. Cleanup Faza 6 |
 | NALAZ #9 | Leaderboard testovi nisu izolirani od dev usera | **Ponovljeno u 4.2a** (inventar-user srušio 2 testa) — sanirano brisanjem; svi e2e useri se od sada brišu prije pytest-a. Trajni fix = 4.5/6 |
 | **NOVO #10** | UI unlock ≠ Recommender unlock za `null_handling` + subfloor | Djelomično zrcaljeno (modul-0 prozirnost); reziduali dokumentirani u `progress.ts`. Pravi fix: contract dodatak `has_tasks` (kandidat 4.3 KORAK 0 / Faza 6) |
 | **NOVO #11** | `NextTaskResponse` bez naslova | Dashboard CTA plaća drugi hop (`/task/{id}`) za jedan string; 4.3 solve-petlja isto. Kandidat: aditivno `title` polje (uz #10 u istom contract dodatku) |

@@ -85,6 +85,15 @@ salijentnost.
 
 (Light 75/100 chroma spuštena na sRGB gamut-max za teal pojas — verificirano skriptom.)
 
+> **Kontrast — izmjereno u 4.4c (NALAZ #33), vrijednosti NISU mijenjane.** Prema `card`
+> pozadini: `mastery-0` **2.13:1** dark / **1.58:1** light i `mastery-25` **2.28:1** light su
+> ispod 3:1 (WCAG 1.4.11). Rekalibracija je **odbačena**: u light temi `mastery-0` i
+> `mastery-25` trebali bi L ≤ 0.665, a `mastery-50` je već na L = 0.63 — tri donja stopa
+> stisnula bi se u raspon L 0.63–0.665 i skala bi prestala biti percepcijski kontinuirana.
+> Gradijent je **skala salijentnosti, ne nosilac informacije**: svaki potrošač uz njega
+> ispisuje brojčanu vrijednost (bar → `role="progressbar"` + tekst %; krivulja → tekstualni
+> P(L) + tablica točaka). Ne „popravljati" bez redizajna cijele skale.
+
 ### 2.4 Concept-tier skala — 3 koraka (ODVOJENA od difficulty!)
 
 Backend istina: `concepts.tier ∈ {easy, medium, hard}` (`models.py:90`). **Violet, hue 300**,

@@ -19,3 +19,10 @@ export type TaskDetailResponse = components["schemas"]["TaskDetailResponse"]
 export type BadgeCatalogItem = components["schemas"]["BadgeCatalogItem"]
 export type RunResponse = components["schemas"]["RunResponse"]
 export type AttemptResponse = components["schemas"]["AttemptResponse"]
+
+// Povijest pokušaja (Faza 4.4a) — read površina za /attempts (paginirano).
+export type AttemptItem = components["schemas"]["AttemptItem"]
+export type PageAttemptItem = components["schemas"]["Page_AttemptItem_"]
+
+// BKT krivulje (Faza 4.4b) — /mastery-history je NEPAGINIRAN niz snapshotova.
+export type MasteryHistoryPoint = components["schemas"]["MasteryHistoryPoint"]

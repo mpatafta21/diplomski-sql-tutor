@@ -210,9 +210,9 @@ BADGES: list[BadgeSeed] = [
     {
         "code": "explorer",
         "name": "Istraživač",
-        "description": "Pokušao zadatke iz svih 6 modula.",
+        "description": "Pokušao zadatke iz svakog modula koji ima dostupne zadatke.",
         "icon": "compass",
-        "rule": "user_badge(UserID, explorer) :- forall(between(1, 6, M), attempted_in_module(UserID, M)).",
+        "rule": "user_badge(UserID, explorer) :- forall(evaluable_module(M), attempted_in_module(UserID, M)).",
         "xp_reward": 40,
     },
 ]

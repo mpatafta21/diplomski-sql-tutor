@@ -10,7 +10,7 @@ import { DashboardPage } from "@/pages/DashboardPage"
 import { LoginPage } from "@/pages/LoginPage"
 import { ModulesPage } from "@/pages/ModulesPage"
 import { RegisterPage } from "@/pages/RegisterPage"
-import { ProtectedRoute, PublicOnlyRoute } from "./guards"
+import { AdminRoute, ProtectedRoute, PublicOnlyRoute } from "./guards"
 
 // Lazy (4.3a): TaskPage vuče monaco-editor (velik chunk) — code-split po ruti,
 // glavni bundle ostaje bez monaca.
@@ -29,6 +29,11 @@ const LeaderboardPage = lazy(() =>
   import("@/pages/LeaderboardPage").then((m) => ({
     default: m.LeaderboardPage,
   })),
+)
+
+// Lazy (4.5b): admin ekran vidi SAMO admin — nema ga u bundleu studentskog puta.
+const AdminPage = lazy(() =>
+  import("@/pages/AdminPage").then((m) => ({ default: m.AdminPage })),
 )
 
 export const router = createBrowserRouter([
@@ -74,6 +79,24 @@ export const router = createBrowserRouter([
                 <LeaderboardPage />
               </Suspense>
             ),
+          },
+          {
+            // AdminRoute je UNUTAR ProtectedRoute/AppShell → anon korisnik
+            // nikad ne dođe dovde, a student dobije 403 ekran U ljusci
+            // (nav i odjava ostaju dostupni — nije slijepa ulica).
+            element: <AdminRoute />,
+            children: [
+              {
+                path: "/admin",
+                element: (
+                  <Suspense
+                    fallback={<LoadingState label="Učitavanje pregleda" />}
+                  >
+                    <AdminPage />
+                  </Suspense>
+                ),
+              },
+            ],
           },
         ],
       },

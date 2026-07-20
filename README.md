@@ -97,6 +97,39 @@ kroz cijeli lanac mora dati `is_correct=true`. Smoke sam čisti svog `demo44_smo
 
 **Ne pokreći evaluacijsku sesiju dok `make preflight` nije zelen.**
 
+### 🔴 `make backup` — poslije SVAKE evaluacijske sesije
+
+```bash
+make backup    # pg_dump tutor_main IZVAN docker volumena + provjera restore-a
+```
+
+Evaluacijski podaci (pokušaji, BKT povijest, XP) nastaju **jednom** i
+**nenadoknadivi su** — bez backupa žive isključivo u docker volumenu
+`pg_main_data` (NALAZ #37).
+
+Skripta ne staje na dumpu: vrati ga u **privremenu bazu**, usporedi broj redaka
+po tablici i agregat pokušaja s izvorom, pa je obriše. **Backup koji nije
+testiran nije backup** — ako se brojke ne poklope, izlazi s greškom.
+
+🔴 **Dump se MORA kopirati na DRUGI MEDIJ** (cloud/vanjski disk) nakon svake
+sesije:
+
+```bash
+cp backups/tutor_main_*.sql.gz /mnt/c/Users/<ti>/OneDrive/diplomski-backups/
+```
+
+`backups/` je u `.gitignore` (dumpovi sadrže e-mailove i hasheve lozinki), dakle
+**git ih ne čuva**. Laptop je jedna točka kvara.
+
+### 🔴 `docker compose down -v` je ZABRANJEN tijekom evaluacije
+
+`-v` briše volumene = sve pokušaje, BKT povijest i XP sudionika. Nijedan
+`make` target ne poziva `down -v` implicitno (`make infra-down` je bez `-v`);
+jedini koji ga poziva je **`make dev-reset`**, i to tek nakon što ispiše što se
+gubi i traži da doslovno upišeš `OBRISI SVE`.
+
+Cjelovit postupak za dan evaluacije: **`docs/eval-runbook.md`**.
+
 ## 🔴 Osobni podaci u agentskim logovima (prije evaluacije pročitati)
 
 Administratorski pregled (`/admin`, samo `role=admin`) prikazuje tablicu

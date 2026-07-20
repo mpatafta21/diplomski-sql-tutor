@@ -16,7 +16,7 @@ PG_SANDBOX_SERVICE := postgres-sandbox
 PG_SANDBOX_USER := sandbox_admin
 PG_SANDBOX_PASS := sandbox_dev_password
 
-.PHONY: dev infra-up infra-down wait-db db-migrate db-seed db-tasks sandbox-seed sandbox-seed-if-empty register-agents sweep smoke preflight backend frontend frontend-install openapi-snapshot help
+.PHONY: dev infra-up infra-down wait-db db-migrate db-seed db-tasks sandbox-seed sandbox-seed-if-empty register-agents sweep smoke preflight backend frontend frontend-install openapi-snapshot backup dev-reset help
 
 help:
 	@echo "Targeti:"
@@ -33,8 +33,12 @@ help:
 	@echo "  make backend     - uvicorn gateway na :8000 (--reload)"
 	@echo "  make frontend    - Vite dev server na :5173"
 	@echo "  make dev             - sve gore: infra → wait → migrate → seed → SWEEP → backend+frontend"
-	@echo "  make infra-down      - zaustavi docker servise"
+	@echo "  make infra-down      - zaustavi docker servise (volumeni OSTAJU)"
 	@echo "  make openapi-snapshot - regeneriraj frontend/openapi.json iz app.openapi() (bez servera)"
+	@echo ""
+	@echo "  🔴 EVAL:"
+	@echo "  make backup      - pg_dump tutor_main IZVAN volumena + VERIFIKACIJA restore-a"
+	@echo "  make dev-reset   - ⚠️  BRIŠE SVE PODATKE (down -v). Traži upisanu potvrdu. ZABRANJEN tijekom evala"
 
 # OpenAPI snapshot za typed frontend klijent (openapi-typescript).
 # app.openapi() gradi spec iz app objekta BEZ servera/infra/agenata (KORAK 0 W).
@@ -92,8 +96,59 @@ preflight: sweep smoke
 infra-up:
 	docker compose up -d
 
+# 🔴 BEZ `-v`. Volumeni (pg_main_data) preživljavaju — u njima su evaluacijski
+# podaci. Jedini target koji smije dirati volumene je `dev-reset` (vidi dolje).
 infra-down:
 	docker compose down
+
+# ══════════════════════════════════════════════════════════════════════════
+# 🔴 BACKUP / RESET — NALAZ #37
+# ══════════════════════════════════════════════════════════════════════════
+
+# Dump `tutor_main` izvan docker volumena + dokaz da je restore-abilan.
+# Pokreni POSLIJE SVAKE evaluacijske sesije, pa kopiraj na drugi medij.
+backup:
+	@./scripts/backup_eval_data.sh
+
+# ⚠️  JEDINI target koji poziva `docker compose down -v` — briše SVE volumene
+# (obje baze + Prosody registracije agenata). Nepovratno.
+#
+# Zašto uopće postoji: `down -v` će netko prije ili poslije htjeti pokrenuti
+# (npr. za čist from-scratch test). Bolje da postoji JEDAN target koji prije
+# brisanja ispiše što se gubi i traži upisanu potvrdu, nego da se komanda
+# kuca ručno iz memorije — u kojem slučaju nema nikakve zaštite.
+#
+# 🔴 TIJEKOM EVALUACIJE JE ZABRANJEN. Vidi docs/eval-runbook.md.
+dev-reset:
+	@echo "═══════════════════════════════════════════════════════════"
+	@echo " ⚠️  DESTRUKTIVNO: docker compose down -v"
+	@echo "═══════════════════════════════════════════════════════════"
+	@echo ""
+	@echo " Trenutno u bazi tutor_main:"
+	@docker compose exec -T $(PG_MAIN_SERVICE) psql -U $(PG_MAIN_USER) -d tutor_main -tAF' ' \
+		-c "SELECT '   users:      '||count(*) FROM users UNION ALL \
+		    SELECT '   attempts:   '||count(*) FROM attempts UNION ALL \
+		    SELECT '   BKT točaka: '||count(*) FROM skill_mastery_history UNION ALL \
+		    SELECT '   XP zapisa:  '||count(*) FROM xp_log" 2>/dev/null </dev/null \
+		|| echo "   (baza ne vrti — ne mogu pročitati stanje)"
+	@echo ""
+	@echo " Zadnji backup:"
+	@ls -1t backups/*.sql.gz 2>/dev/null </dev/null | head -1 | sed 's|^|   |' \
+		|| echo "   🔴 NEMA NIJEDNOG BACKUPA — pokreni 'make backup' PRIJE ovoga!"
+	@echo ""
+	@echo " Ovo NEPOVRATNO briše: obje baze, sve attempte, BKT povijest, XP,"
+	@echo " bedževe i Prosody registracije agenata."
+	@echo ""
+	@printf " Za potvrdu upiši točno  OBRISI SVE  (bilo što drugo prekida): "
+	@read -r ans; \
+	if [ "$$ans" = "OBRISI SVE" ]; then \
+		echo ""; echo "▸ Brišem..."; \
+		docker compose down -v; \
+		echo "✓ Volumeni obrisani. Za ponovni boot: make dev"; \
+	else \
+		echo ""; echo "✅ PREKINUTO — ništa nije obrisano."; \
+		exit 1; \
+	fi
 
 # docker-compose NEMA healthcheck → čekamo pg_isready prije migracija (izbjegava race).
 wait-db:

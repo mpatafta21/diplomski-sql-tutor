@@ -44,6 +44,16 @@ data/generated_tasks.*backup*/
 # Docker
 docker-volumes/
 
+# 🔴 EVAL PODACI — NIKAD U GIT (NALAZ #37)
+# Dumpovi sadrže e-mailove, username-e i password hasheve sudionika evaluacije.
+# Exporti su pseudonimizirani, ali `*_pseudonym_map.csv` NIJE — on je jedina
+# datoteka koja povezuje pseudonim (P01) sa stvarnim identitetom.
+#
+# 🔴 Backup se MORA kopirati na DRUGI MEDIJ nakon svake eval sesije —
+#    `.gitignore` znači da ga git NE čuva. Vidi docs/eval-runbook.md.
+backups/
+exports/
+
 # Logs
 logs/
 *.log

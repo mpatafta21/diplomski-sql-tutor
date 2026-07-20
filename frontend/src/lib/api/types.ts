@@ -26,3 +26,9 @@ export type PageAttemptItem = components["schemas"]["Page_AttemptItem_"]
 
 // BKT krivulje (Faza 4.4b) — /mastery-history je NEPAGINIRAN niz snapshotova.
 export type MasteryHistoryPoint = components["schemas"]["MasteryHistoryPoint"]
+
+// Ljestvica (Faza 4.5a) — `username`, NIKAD email (email nije u odgovoru).
+export type LeaderboardItem = components["schemas"]["LeaderboardItem"]
+
+// FIPA promet agenata (Faza 4.5b) — admin-only; `content` je pravi JSON objekt.
+export type AgentLogItem = components["schemas"]["AgentLogItem"]

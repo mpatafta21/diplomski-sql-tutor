@@ -7,10 +7,11 @@
  * da filtrira cijelu povijest (NALAZ #15). Prazan user → EmptyState s CTA.
  */
 import { useState } from "react"
-import { ChevronLeft, ChevronRight, ClipboardList } from "lucide-react"
+import { ClipboardList } from "lucide-react"
 import { Link } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Pagination } from "@/components/ui/pagination"
 import { EmptyState } from "@/components/state/EmptyState"
 import { ErrorState } from "@/components/state/ErrorState"
 import { LoadingState } from "@/components/state/LoadingState"
@@ -78,11 +79,6 @@ export function AttemptHistory() {
     )
   }
 
-  const start = offset + 1
-  const end = Math.min(offset + PAGE_SIZE, total)
-  const hasPrev = offset > 0
-  const hasNext = offset + PAGE_SIZE < total
-
   return (
     <Card>
       <CardHeader>
@@ -102,30 +98,13 @@ export function AttemptHistory() {
           ))}
         </ul>
 
-        <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-3">
-          <p className="text-xs text-muted-foreground tabular-nums">
-            Prikaz {start}–{end} od {total}
-          </p>
-          {/* default size = h-11 (44px touch target, invarijanta #3) */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setOffset((o) => Math.max(0, o - PAGE_SIZE))}
-              disabled={!hasPrev}
-            >
-              <ChevronLeft data-icon="inline-start" aria-hidden="true" />
-              Prethodna
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setOffset((o) => o + PAGE_SIZE)}
-              disabled={!hasNext}
-            >
-              Sljedeća
-              <ChevronRight data-icon="inline-end" aria-hidden="true" />
-            </Button>
-          </div>
-        </div>
+        <Pagination
+          total={total}
+          limit={PAGE_SIZE}
+          offset={offset}
+          onOffsetChange={setOffset}
+          label="povijest pokušaja"
+        />
       </CardContent>
     </Card>
   )

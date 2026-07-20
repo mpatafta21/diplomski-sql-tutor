@@ -84,10 +84,73 @@ Puni `down -v` → spreman sustav, **2026-07-20, topli docker imageovi**:
 `prosody/prosody` na sporoj mreži traje višestruko dulje — ne oslanjaj se na
 ovu brojku ako je stroj svjež.
 
+### 🔴 Očekivano stanje `agent_messages_log` na početku sesije
+
+Baseline isprazni tablicu (`TRUNCATE`), ali `make preflight` **poslije njega** napravi
+jedan pravi attempt kroz živi lanac i ostavi njegov trag. **Izmjereno 2026-07-21**, nakon
+punog slijeda `pytest` → `baseline --confirm` → `preflight`:
+
+```
+redaka: 12 · korelacijskih tokova: 1 · bez correlation_id: 0 · attempts: 0
+```
+
+**`agent_messages_log` sadrži ~12 redaka iz preflight smoke testa; u analizi se
+filtriraju kao orphan `correlation_id` (nema pripadajući attempt).**
+
+Provjereno da je taj tok stvarno orphan — smoke obriše svog usera i attempt, a log ostaje:
+
+| correlation_id | redaka | s `attempt_id` | attempt_id | postoji u `attempts` | status |
+|---|---|---|---|---|---|
+| `de134da2-…` | 12 | 5 | 111 | **ne** | **ORPHAN** |
+
+⚠️ **Orphan se mora računati po TOKU, ne po retku.** Samo **5 od 12** poruka uopće nosi
+`attempt_id` (`evaluator→knowledge` i `evaluator→gamification`); `gateway→coordinator` i
+`coordinator→evaluator` prethode stvaranju attempta pa ga nemaju. Filtriranje redak-po-redak
+ostavilo bi 7 poruka neklasificiranih.
+
+```sql
+-- Orphan tokovi: nijedna poruka toka ne pokazuje na postojeći attempt
+WITH tok AS (
+  SELECT correlation_id, count(*) AS redaka,
+         min((content->>'attempt_id')::int) AS attempt_id
+  FROM agent_messages_log GROUP BY correlation_id
+)
+SELECT t.*, (a.id IS NOT NULL) AS vezan
+FROM tok t LEFT JOIN attempts a ON a.id = t.attempt_id;
+```
+
+### 🔴 Zamka: recikliranje `attempts.id` nakon `dev-reset`
+
+Orphan test se oslanja na `attempt_id`, a smoke ostavlja trag koji pokazuje na **obrisani**
+attempt. Unutar iste instalacije to je sigurno: baseline briše attempte s `DELETE` (ne
+`TRUNCATE`), pa se `attempts_id_seq` **nikad ne resetira** — provjereno, stoji na 111 uz 0
+redaka. Jedina tablica koja se resetira je `agent_messages_log` (`RESTART IDENTITY`).
+
+**Ali nakon `make dev-reset` baza nastaje iznova i sekvenca kreće od 1.** Tada smoke dobije
+`attempt_id = 1`, obriše ga, a **prvi stvarni studentski attempt također dobije `id = 1`** →
+orphan smoke tok bi se lažno prikazao kao „vezan" uz podatke stvarnog sudionika.
+
+**Zato: odmah nakon `preflight`, a PRIJE dolaska sudionika, zabilježi smoke `correlation_id`:**
+
+```bash
+docker compose exec -T postgres-main psql -U tutor -d tutor_main -tAc \
+  "SELECT DISTINCT correlation_id FROM agent_messages_log;" | tee docs/eval-smoke-cid.txt
+```
+
+U analizi taj `correlation_id` isključi **imenom**, ne heuristikom:
+
+```sql
+SELECT * FROM agent_messages_log WHERE correlation_id <> '<zabilježeni-cid>';
+```
+
+Provjereno: isključenje po zabilježenom cid-u daje **0 preostalih redaka** na čistom
+baselineu. Ovaj je postupak imun na recikliranje ID-a; `attempt_id` heuristika nije.
+
 ### Zadnja provjera prije dolaska sudionika
 
 - [ ] `make preflight` **ZELEN** (80/80 sweep + živi smoke)
 - [ ] baseline čist (attempti = 0)
+- [ ] smoke `correlation_id` zabilježen u `docs/eval-smoke-cid.txt` (vidi gore)
 - [ ] `make backup` napravljen i **kopiran na drugi medij**
 - [ ] frontend dostupan na `http://localhost:5173`, prijava admina radi
 - [ ] admin sučelje `/admin` se otvara i prikazuje promet

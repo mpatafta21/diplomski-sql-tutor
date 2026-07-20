@@ -54,6 +54,12 @@ docker-volumes/
 backups/
 exports/
 
+# Smoke correlation_id zabilježen na dan evala (vidi docs/eval-runbook.md).
+# NE commitati: vrijednost je specifična za jedno podizanje sustava, a stara
+# vrijednost aktivno zavarava — isključila bi nepostojeći tok i ostavila dojam
+# da je promet filtriran kad nije.
+docs/eval-smoke-cid.txt
+
 # Logs
 logs/
 *.log

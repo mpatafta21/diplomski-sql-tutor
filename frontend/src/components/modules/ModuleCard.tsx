@@ -23,8 +23,14 @@ import { masteryFillClass } from "@/lib/mastery"
 import type { ModuleProgress } from "@/lib/progress"
 import { cn } from "@/lib/utils"
 
-export function ModuleCard({ progress }: { progress: ModuleProgress }) {
-  const [open, setOpen] = useState(false)
+interface ModuleCardProps {
+  progress: ModuleProgress
+  /** Deep-link iz breadcrumba (task screen): kartica se otvara i skrola u fokus. */
+  defaultOpen?: boolean
+}
+
+export function ModuleCard({ progress, defaultOpen = false }: ModuleCardProps) {
+  const [open, setOpen] = useState(defaultOpen)
   const { module, concepts, masteredCount, totalCount, availableCount } =
     progress
   const fraction = totalCount > 0 ? masteredCount / totalCount : 0
@@ -33,7 +39,13 @@ export function ModuleCard({ progress }: { progress: ModuleProgress }) {
   const outOfScope = availableCount === 0
 
   return (
-    <Card>
+    <Card
+      // Anker za breadcrumb deep-link (`/modules#module-<number>`). scroll-mt
+      // drži karticu ispod headera pri skrolu; data-deeplinked flash (2 s, ModulesPage
+      // ga postavlja) suptilnim prstenom naznači na koju je karticu korisnik došao.
+      id={`module-${module.number}`}
+      className="scroll-mt-24 transition-shadow duration-base ease-standard data-[deeplinked=true]:ring-2 data-[deeplinked=true]:ring-accent-warm/50 motion-reduce:transition-none"
+    >
       <CardHeader>
         <CardTitle className="text-base">{module.name}</CardTitle>
         <CardAction>

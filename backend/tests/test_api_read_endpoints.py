@@ -19,7 +19,7 @@ import httpx
 import pytest
 from sqlalchemy import delete, select
 
-from app.db.models import Concept, Task, TaskConcept, User
+from app.db.models import Attempt, Concept, Task, TaskConcept, User
 from app.db.session import SessionLocal
 from app.main import create_app
 from tests.conftest import auth_header
@@ -96,6 +96,8 @@ async def test_get_task_detail_returns_fields(student_auth):
     assert isinstance(body["difficulty"], int)
     assert "estimated_time_sec" in body  # smije biti null
     assert isinstance(body["module_id"], int)
+    # Svjež student bez pokušaja → task nije riješen.
+    assert body["solved"] is False
 
     returned_codes = {c["code"] for c in body["concepts"]}
     assert returned_codes == expected_codes
@@ -105,6 +107,47 @@ async def test_get_task_detail_returns_fields(student_auth):
     # sortiranje: primarni prvi, pa po code
     flags_then_codes = [(not c["is_primary"], c["code"]) for c in body["concepts"]]
     assert flags_then_codes == sorted(flags_then_codes)
+
+
+@pytest.mark.asyncio
+async def test_get_task_detail_solved_flag_true_after_correct():
+    """`solved` je True kad korisnik ima raniji točan pokušaj ovog taska
+    (indikator „Riješeno"). Izvedeno iz attempts, per-korisnik."""
+    task_id, _ = _find_task_with_concepts()
+    with SessionLocal() as s:
+        u = User(
+            username="solved_flag_user",
+            email="solved_flag_user@test.example",
+            password_hash="dummy_solved",
+        )
+        s.add(u)
+        s.commit()
+        uid = u.id
+        s.add(
+            Attempt(
+                user_id=uid,
+                task_id=task_id,
+                submitted_query="SELECT 1",
+                is_correct=True,
+                error_type=None,
+                execution_time_ms=5,
+                rows_returned=1,
+                attempt_number=1,
+            )
+        )
+        s.commit()
+
+    try:
+        app = create_app()
+        async with _client(app) as client:
+            resp = await client.get(f"/task/{task_id}", headers=auth_header(uid))
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["solved"] is True
+    finally:
+        with SessionLocal() as s:
+            s.execute(delete(Attempt).where(Attempt.user_id == uid))
+            s.execute(delete(User).where(User.id == uid))
+            s.commit()
 
 
 @pytest.mark.asyncio

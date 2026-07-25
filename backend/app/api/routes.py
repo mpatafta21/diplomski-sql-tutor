@@ -182,6 +182,7 @@ def _to_attempt_response(result: dict) -> AttemptResponse:
             "concept": rec.get("concept"),
             "reason": rec.get("reason"),
         },
+        already_solved=bool(gam.get("already_solved")),
     )
 
 
@@ -313,11 +314,14 @@ async def get_profile(
 # ---------------------------------------------------------------------------
 
 
-def _read_task_detail(task_id: int) -> dict | None:
+def _read_task_detail(task_id: int, user_id: int) -> dict | None:
     """Sinkroni DB read detalja zadatka — pozvan kroz to_thread.
 
     NAMJERNO gradi dict eksplicitno po poljima: expected_query / expected_result /
     sandbox_schema se NIKAD ne uključuju (rješenje se ne izlaže).
+
+    `solved` = ima li `user_id` barem jedan točan pokušaj ovog taska (indikator
+    „Riješeno" + da ponovni Submit ne nosi XP). Izvedeno iz `attempts`.
 
     🔴 NEAKTIVAN task = 404, isto kao nepostojeći (NALAZ #19 dopuna, Faza 4.4-0f).
     Bez ovoga je izravan URL `/task/{id}` bio ZADNJI put do neevaluabilnog
@@ -339,6 +343,19 @@ def _read_task_detail(task_id: int) -> dict | None:
             .order_by(TaskConcept.is_primary.desc(), Concept.code)
         ).all()
 
+        solved = (
+            session.scalar(
+                select(Attempt.id)
+                .where(
+                    Attempt.user_id == user_id,
+                    Attempt.task_id == task_id,
+                    Attempt.is_correct.is_(True),
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
         return {
             "id": task.id,
             "title": task.title,
@@ -350,15 +367,16 @@ def _read_task_detail(task_id: int) -> dict | None:
                 {"code": code, "name": name, "is_primary": is_primary}
                 for code, name, is_primary in concept_rows
             ],
+            "solved": solved,
         }
 
 
 @router.get("/task/{task_id}", response_model=TaskDetailResponse)
 async def get_task_detail(
     task_id: int = Path(...),
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ) -> TaskDetailResponse:
-    data = await asyncio.to_thread(_read_task_detail, task_id)
+    data = await asyncio.to_thread(_read_task_detail, task_id, user.id)
     if data is None:
         raise HTTPException(status_code=404, detail="task_not_found")
     return TaskDetailResponse(**data)

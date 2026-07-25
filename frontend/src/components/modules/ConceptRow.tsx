@@ -61,7 +61,12 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
   const pct = pL !== null ? Math.floor(pL * 100) : null
 
   return (
-    <li className="space-y-1.5 py-3">
+    <li
+      // Anker za breadcrumb deep-link (`/modules#concept-<code>`). data-deeplinked
+      // flash (2 s, postavlja ga ModulesPage) istakne redak prstenom + blagim tonom.
+      id={`concept-${concept.code}`}
+      className="scroll-mt-24 space-y-1.5 rounded-md py-3 transition-colors duration-base ease-standard data-[deeplinked=true]:bg-accent-warm/5 data-[deeplinked=true]:ring-2 data-[deeplinked=true]:ring-accent-warm/40 data-[deeplinked=true]:ring-inset motion-reduce:transition-none"
+    >
       <div className="flex flex-wrap items-center gap-2">
         <Icon className={cn("size-4 shrink-0", iconClass)} aria-hidden="true" />
         <span className="text-sm font-medium">{concept.name}</span>

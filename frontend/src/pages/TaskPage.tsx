@@ -13,7 +13,7 @@
 import { useCallback, useMemo, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "react-router-dom"
-import { ChevronRight, Clock, Play, Send } from "lucide-react"
+import { CheckCircle2, ChevronRight, Clock, Play, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Kbd } from "@/components/ui/kbd"
@@ -226,8 +226,12 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
             {primaryInfo && (
               <>
                 <li>
+                  {/* Deep-link: /modules skrola na modul i otvori mu koncepte. */}
                   <Link
-                    to="/modules"
+                    to={{
+                      pathname: "/modules",
+                      hash: `#module-${primaryInfo.moduleNumber}`,
+                    }}
                     className="rounded-sm underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                   >
                     {primaryInfo.moduleName}
@@ -240,7 +244,18 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
             )}
             {primary && (
               <>
-                <li>{primary.name}</li>
+                <li>
+                  {/* Deep-link: /modules otvori modul i istakne redak koncepta. */}
+                  <Link
+                    to={{
+                      pathname: "/modules",
+                      hash: `#concept-${primary.code}`,
+                    }}
+                    className="rounded-sm underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    {primary.name}
+                  </Link>
+                </li>
                 <li aria-hidden="true">
                   <ChevronRight className="size-3" />
                 </li>
@@ -264,6 +279,15 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
             {estMin !== null && (
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock aria-hidden="true" className="size-3.5" />~{estMin} min
+              </span>
+            )}
+            {/* Indikator „Riješeno" — task.solved (bilo koji raniji točan pokušaj).
+                Ponovni Submit se i dalje smije predati (vježba), ali NE nosi XP;
+                to poručuje i FeedbackPanel nakon predaje. */}
+            {task.solved && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-correct/40 bg-correct-soft px-2 py-0.5 text-xs font-medium text-correct">
+                <CheckCircle2 aria-hidden="true" className="size-3.5" />
+                Riješeno
               </span>
             )}
           </div>

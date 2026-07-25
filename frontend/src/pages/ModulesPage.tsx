@@ -4,7 +4,7 @@
  * Sve iz /modules × /profile joina; prag iz mastery_threshold (invarijanta #2).
  */
 import { useEffect, useMemo } from "react"
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 import { ArrowRight, BookOpen, Waypoints } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,7 @@ import { deriveProgress } from "@/lib/progress"
 export function ModulesPage() {
   const profile = useProfile()
   const modules = useModules()
+  const location = useLocation()
 
   // useMemo PRIJE early returnova (rules-of-hooks); derive je jeftin, ali warn
   // ispod ne smije okidati na svaki render/refetch.
@@ -36,6 +37,26 @@ export function ModulesPage() {
     [modules.data, profile.data],
   )
 
+  // Breadcrumb deep-link (task screen → `/modules#module-<n>` | `#concept-<code>`):
+  // koji modul otvoriti da anker bude vidljiv. Za koncept nađemo modul koji ga
+  // sadrži (transverzalni koncepti su uvijek vidljivi → null, bez auto-opena).
+  const hashTarget = location.hash.slice(1)
+  const openModuleNumber = useMemo(() => {
+    if (!hashTarget || !overview) return null
+    if (hashTarget.startsWith("module-")) {
+      const n = Number(hashTarget.slice("module-".length))
+      return Number.isInteger(n) ? n : null
+    }
+    if (hashTarget.startsWith("concept-")) {
+      const code = hashTarget.slice("concept-".length)
+      const owner = overview.main.find((p) =>
+        p.concepts.some((c) => c.code === code),
+      )
+      return owner ? owner.module.number : null
+    }
+    return null
+  }, [hashTarget, overview])
+
   // Integritetski signal (STANI-I-JAVI): jednom po promjeni podataka, ne po renderu.
   useEffect(() => {
     if (overview && overview.danglingPrereqs.length > 0) {
@@ -45,6 +66,31 @@ export function ModulesPage() {
       )
     }
   }, [overview])
+
+  // Skrol + flash na anker iz hasha. Ciljani modul je otvoren od prvog rendera
+  // (defaultOpen dolje), pa je anker već u DOM-u; rAF pričeka layout prije skrola.
+  // Highlight je JS-vođen (data-deeplinked, 2 s) umjesto CSS `:target` — `:target`
+  // je nepouzdan uz client-side routing (pushState ga ne re-evaluira dosljedno).
+  // Ovisi o hashu I o tome da su podaci stigli (overview) — bez toga ankera nema.
+  useEffect(() => {
+    if (!hashTarget || !overview) return
+    const el = document.getElementById(hashTarget)
+    if (!el) return
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    const raf = requestAnimationFrame(() => {
+      el.scrollIntoView({
+        block: "center",
+        behavior: reduce ? "auto" : "smooth",
+      })
+      el.setAttribute("data-deeplinked", "true")
+    })
+    const t = setTimeout(() => el.removeAttribute("data-deeplinked"), 2000)
+    return () => {
+      cancelAnimationFrame(raf)
+      clearTimeout(t)
+      el.removeAttribute("data-deeplinked")
+    }
+  }, [hashTarget, overview])
 
   if (profile.isPending || modules.isPending) {
     return (
@@ -125,12 +171,20 @@ export function ModulesPage() {
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
         {main.map((p) => (
-          <ModuleCard key={p.module.id} progress={p} />
+          <ModuleCard
+            key={p.module.id}
+            progress={p}
+            defaultOpen={p.module.number === openModuleNumber}
+          />
         ))}
       </div>
 
       {transversal && (
-        <section aria-labelledby="transversal-heading" className="space-y-3">
+        <section
+          id={`module-${transversal.module.number}`}
+          aria-labelledby="transversal-heading"
+          className="scroll-mt-24 space-y-3"
+        >
           <div className="flex items-center gap-2">
             <Waypoints
               className="size-4 text-muted-foreground"

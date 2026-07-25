@@ -10,6 +10,7 @@ import { DashboardPage } from "@/pages/DashboardPage"
 import { LoginPage } from "@/pages/LoginPage"
 import { ModulesPage } from "@/pages/ModulesPage"
 import { RegisterPage } from "@/pages/RegisterPage"
+import { TaskEntryPage } from "@/pages/TaskEntryPage"
 import { AdminRoute, ProtectedRoute, PublicOnlyRoute } from "./guards"
 
 // Lazy (4.3a): TaskPage vuče monaco-editor (velik chunk) — code-split po ruti,
@@ -52,6 +53,10 @@ export const router = createBrowserRouter([
         children: [
           { path: "/", element: <DashboardPage /> },
           { path: "/modules", element: <ModulesPage /> },
+          // Ulaz preko nav-stavke „Zadatak" (nema `:taskId`) → razriješi
+          // /next-task i redirect na /task/:taskId. Eager import: lagana
+          // komponenta (bez monaca), ne treba vlastiti chunk/Suspense.
+          { path: "/task", element: <TaskEntryPage /> },
           {
             path: "/task/:taskId",
             // LoadingState (ne FullPageLoading): fallback renderira UNUTAR

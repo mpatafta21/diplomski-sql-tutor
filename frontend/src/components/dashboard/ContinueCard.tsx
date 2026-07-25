@@ -5,7 +5,12 @@
  * (preporuka nosi samo ID).
  */
 import { Link } from "react-router-dom"
-import { ArrowRight, CircleSlash2, PartyPopper } from "lucide-react"
+import {
+  ArrowRight,
+  CheckCircle2,
+  CircleSlash2,
+  PartyPopper,
+} from "lucide-react"
 import {
   Card,
   CardContent,
@@ -118,6 +123,14 @@ export function ContinueCard({
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           {concept && <ConceptChip name={concept.name} tier={concept.tier} />}
+          {/* Rijedak, ali moguć slučaj (fallback/exhausted preporuka): preporučeni
+              task je već riješen → naznači da ponovno rješavanje ne nosi XP. */}
+          {task.data?.solved && (
+            <span className="inline-flex items-center gap-1 rounded-md border border-correct/40 bg-correct-soft px-2 py-0.5 text-xs font-medium text-correct">
+              <CheckCircle2 aria-hidden="true" className="size-3.5" />
+              Riješeno
+            </span>
+          )}
           <p className="text-sm text-muted-foreground">
             {/* Svjež user još NEMA povijest — reason (npr. partial_continuation)
                 dolazi iz tier PRIORA, pa bi "nastavi gdje si stao" lagao. */}

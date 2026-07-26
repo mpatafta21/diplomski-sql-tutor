@@ -3,13 +3,24 @@
  * Client zod pravila su prva obrana (mapiranje po polju); server 409 (duplikat)
  * i 422 dobivaju poruke. B1 registerRequest ne izlaže response detail
  * (username_taken vs email_taken) — svjesno generička 409 poruka, ne diramo B1.
+ *
+ * 🔴 Faza 4.7-1a — ovo je NAJVIDLJIVIJA površina sustava. Evaluacija se izvodi
+ * asinkrono na javnom URL-u, bez nadzora: studenti se sami registriraju, nema
+ * usmenih uputa i nema nikoga da pomogne. Zato ekran nosi DVIJE stvari koje
+ * prije nije imao:
+ *  1. informaciju sudionika (iznad polja) — jedina točka kroz koju sudionik
+ *     prođe PRIJE nego se prikupi ijedan podatak,
+ *  2. pomoć uz `username` — jer se username prikazuje na JAVNOJ ljestvici
+ *     (4.5a), a to mu dotad nigdje nije bilo rečeno.
+ * Oba teksta žive u `lib/participation.ts` — ne inline, jer idu u rad i mijenjaju
+ * se uz odluku, ne u prolazu.
  */
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
-import { Loader2 } from "lucide-react"
+import { Info, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,6 +33,13 @@ import {
 } from "@/components/ui/card"
 import { useAuth } from "@/hooks/useAuth"
 import { AuthError } from "@/lib/auth/api"
+import {
+  KONTAKT,
+  SUDJELOVANJE_KONTAKT_UVOD,
+  SUDJELOVANJE_NASLOV,
+  SUDJELOVANJE_ODLOMCI,
+  USERNAME_POMOC,
+} from "@/lib/participation"
 
 const registerSchema = z.object({
   username: z
@@ -66,7 +84,10 @@ export function RegisterPage() {
 
   return (
     <main className="flex min-h-svh items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
+      {/* max-w-md (ne -sm kao Login): info blok nosi pet odlomaka — u 384px
+          bi se slomio u uski stup teksta. min-h-svh (ne h-svh) → na niskom
+          zaslonu kartica raste i stranica skrola, sadržaj se ne reže. */}
+      <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-xl">Registracija</CardTitle>
           <CardDescription>
@@ -74,6 +95,46 @@ export function RegisterPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Informacija sudionika — ISPOD naslova, IZNAD polja: asinkroni eval
+              bez nadzora nema usmenih uputa, a ovo je jedina točka kroz koju
+              sudionik prođe prije nego se prikupi ijedan podatak.
+              Tekst živi u lib/participation.ts (jedan odlomak = jedna izmjena).
+              <section> + aria-labelledby → čitač ekrana ga najavljuje kao
+              cjelinu, ne kao odlutali tekst iznad forme. */}
+          <section
+            aria-labelledby="sudjelovanje-naslov"
+            className="mb-6 space-y-2 rounded-lg border border-border bg-muted/40 p-4"
+          >
+            <h2
+              id="sudjelovanje-naslov"
+              className="flex items-center gap-1.5 text-sm font-semibold"
+            >
+              <Info aria-hidden="true" className="size-4 shrink-0" />
+              {SUDJELOVANJE_NASLOV}
+            </h2>
+            {/* 🔴 `text-foreground`, NE `text-muted-foreground`, i `text-sm`, NE
+                `text-xs`. Izmjereno 2026-07-26 (alpha-kompozitirano vs card):
+                muted-foreground na bg-muted/40 daje 4.57:1 light / 6.43:1 dark —
+                light PROLAZI AA za 12px tekst, ali s marginom 1.5 %. Za tekst
+                koji sudionik MORA pročitati to je pretanko, a `text-xs` + siva
+                je točno obrazac „sitni sivi tekst suglasnosti".
+                S `text-foreground`: 19.13:1 light / 15.97:1 dark. */}
+            {SUDJELOVANJE_ODLOMCI.map((odlomak) => (
+              <p key={odlomak} className="text-sm leading-relaxed">
+                {odlomak}
+              </p>
+            ))}
+            <p className="text-sm leading-relaxed">
+              {SUDJELOVANJE_KONTAKT_UVOD}{" "}
+              <a
+                href={`mailto:${KONTAKT}`}
+                className="rounded-sm font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                {KONTAKT}
+              </a>
+            </p>
+          </section>
+
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="space-y-4"
@@ -85,8 +146,15 @@ export function RegisterPage() {
                 id="username"
                 autoComplete="username"
                 aria-invalid={!!errors.username}
+                // Pomoć je vezana PROGRAMATSKI (ne samo vizualno): bez ovoga je
+                // čitač ekrana nikad ne pročita, a upozorenje o javnoj ljestvici
+                // je upravo ono što sudionik mora čuti PRIJE unosa.
+                aria-describedby="username-pomoc"
                 {...register("username")}
               />
+              <p id="username-pomoc" className="text-xs text-muted-foreground">
+                {USERNAME_POMOC}
+              </p>
               {errors.username && (
                 <p className="text-sm text-incorrect" role="alert">
                   {errors.username.message}

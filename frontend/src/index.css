@@ -11,7 +11,13 @@
   --font-sans: "Geist Variable", sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 
-  /* ── Semantika verdicta (MASTER.md §2.2) — partial REZERVIRAN, ne koristiti u UI (ERRATA #8) ── */
+  /* ── Semantika verdicta (MASTER.md §2.2) ──
+     partial je AKTIVAN od 4.3c: deriviran iz `error_type === "row_mismatch"`
+     (lib/feedback.ts `deriveVerdict`) — ERRATA #8 je time REVIDIRAN, kolona
+     `verdict` i dalje ne postoji jer nije potrebna.
+     ⚠️ Uz partial je ikona + tekstualna oznaka OBAVEZAN kanal (MASTER §2.2):
+     partial hue 55–60 je blizu accent-warm 70–85 (ERRATA #13), pa boja
+     POJAČAVA značenje, nikad ga ne nosi sama. */
   --color-correct: var(--correct);
   --color-correct-soft: var(--correct-soft);
   --color-incorrect: var(--incorrect);
@@ -169,7 +175,7 @@
   --sidebar-ring: oklch(0.708 0 0);
 
   /* ═══ Prošireni tokeni — light (MASTER.md §2, AA-verificirano) ═══ */
-  /* Semantika verdicta — partial REZERVIRAN (ERRATA #8) */
+  /* Semantika verdicta — partial je AKTIVAN od 4.3c (ERRATA #8 revidiran) */
   --correct: oklch(0.52 0.13 150);
   --correct-soft: oklch(0.96 0.03 150);
   --incorrect: oklch(0.53 0.19 25);
@@ -242,7 +248,7 @@
   --sidebar-ring: oklch(0.556 0 0);
 
   /* ═══ Prošireni tokeni — dark (MASTER.md §2, AA-verificirano) ═══ */
-  /* Semantika verdicta — partial REZERVIRAN (ERRATA #8) */
+  /* Semantika verdicta — partial je AKTIVAN od 4.3c (ERRATA #8 revidiran) */
   --correct: oklch(0.75 0.15 150);
   --correct-soft: oklch(0.24 0.04 150);
   --incorrect: oklch(0.7 0.19 25);

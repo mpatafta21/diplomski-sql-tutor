@@ -1,7 +1,7 @@
 /**
  * AppShell (Faza 4.1c) — sidebar + header ljuska iza auth gatea.
- * Vuče 4.1b tokene (sidebar-* set), dark-first. Nav je SKICA — sve stavke vode
- * na "/" placeholder dok 4.2–4.5 ne donesu prave ekrane. Admin stavka role-gated.
+ * Vuče 4.1b tokene (sidebar-* set), dark-first. Nav NIJE skica — sve su stavke
+ * prave rute od 4.6-evala (vidi NAV_ITEMS ispod). Admin stavka je role-gated.
  */
 import { NavLink, Outlet } from "react-router-dom"
 import {

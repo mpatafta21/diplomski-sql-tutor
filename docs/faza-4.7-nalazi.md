@@ -144,3 +144,33 @@ bitno bolje od gole domene — samo bez slike.
 **Napomena o formatu:** slika je PNG namjerno. Slack/Facebook/iMessage **ne** renderiraju
 SVG kao `og:image`, pa bi SVG bio isto što i nemati sliku. SVG je zadržan u `public/` kao
 izvor za ponovnu rasterizaciju.
+
+---
+
+## N-3 🟡 Snimanje ekrana za dokumentaciju zaprlja `agent_messages_log` — ista klasa kao #40
+
+**Status:** 🟡 proceduralno · zabilježeno · 2026-07-26 (stage 1A-dopuna, točka 6)
+
+Za snimke prijavljenog stanja u stage 1A-dopuni registriran je privremeni korisnik
+`demo44_shot` i otvoren Dashboard. **Dashboard poziva `/next-task`, a to prolazi kroz pun
+agentski lanac** (XMPP → Prolog → Recommender) → svaki poziv **upisuje FIPA poruke u
+`agent_messages_log`**.
+
+Korisnik je uredno obrisan (`purge_demo_users` → `users_matched: 1`, `users: 1`; provjereno
+`SELECT`-om, ostao je samo `admin`), **ali logovi nisu** — po N-1 se i ne mogu obrisati po
+korisniku.
+
+Izmjereno nakon čišćenja: `attempts` = 12, `agent_messages_log` = **351**.
+⚠️ **Ne mogu tvrditi koliki je moj doprinos** — nisam zabilježio baseline PRIJE snimanja.
+`attempts` = 12 nisu moji (nijedan Submit nije izvršen), a dio od 351 zapisa je.
+
+**Praktična posljedica: nikakva za eval**, jer pred-eval slijed iz `docs/eval-runbook.md`
+(`pytest → baseline --confirm → preflight → backup`) radi `TRUNCATE agent_messages_log`
+(`prepare_eval_baseline.py:435`) pa ovo nestaje prije prve stvarne sesije.
+
+**Poučak za dalje:** svaka radnja koja dira živi backend radi dokumentacije (snimke,
+demonstracije, ručne provjere) treba **zabilježiti brojače prije i poslije**, isto kao što
+runbook to traži za `make smoke`. Bez baseline brojke tvrdnja „ništa nisam zaprljao" nije
+provjerljiva — a ovaj nalaz je dokaz koliko je lako.
+
+**Srodno:** #40 (`pytest` ostavlja 87 redaka), N-1 (nema per-user brisanja logova).

@@ -152,7 +152,13 @@ export function RegisterPage() {
                 aria-describedby="username-pomoc"
                 {...register("username")}
               />
-              <p id="username-pomoc" className="text-xs text-muted-foreground">
+              {/* `text-sm`, ne `text-xs`: nakon što je info blok podignut na
+                  text-sm/foreground, ova je pomoć na snimci (2026-07-26) ostala
+                  NAJSLABIJI tekst na ekranu — a to je rečenica koja sprječava
+                  sudionika da se izloži na javnoj ljestvici.
+                  `muted-foreground` ostaje (idiomatska pomoć uz polje) i
+                  izmjeren je: 6.91:1 dark / 4.73:1 light vs `card`. */}
+              <p id="username-pomoc" className="text-sm text-muted-foreground">
                 {USERNAME_POMOC}
               </p>
               {errors.username && (

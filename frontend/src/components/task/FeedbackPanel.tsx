@@ -131,6 +131,15 @@ export const FeedbackPanel = memo(function FeedbackPanel({
               +{attempt.xp_delta} XP
             </span>
           )}
+          {/* First-solve gate: već riješen task ne nosi XP ponovno. Prikazuje se
+              umjesto +XP čipa (xp_delta je tada 0) — jasan razlog, bez „zašto
+              nisam dobio XP?" konfuzije. */}
+          {attempt.already_solved && (
+            <span className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              <CheckCircle2 aria-hidden="true" className="size-3.5" />
+              Već riješeno · bez XP
+            </span>
+          )}
           <span className="text-xs text-muted-foreground tabular-nums">
             Ukupno {attempt.xp} XP · Level {attempt.level}
           </span>

@@ -22,16 +22,17 @@ import { useAuth } from "@/hooks/useAuth"
 import { useTheme } from "@/hooks/useTheme"
 import { cn } from "@/lib/utils"
 
-// Nav (4.2, ažurirano u 4.5a): Dashboard/Moduli/Profil/Ljestvica su prave rute.
-// „Zadatak" ostaje stub — nema smislenog odredišta bez konkretnog `:taskId`
-// (ulazi se preko CTA s Dashboarda). `stub: true` GASI active stanje (inače bi
-// na "/" bio istovremeno aktivan s Dashboardom).
+// Nav (4.2 → 4.6-eval): sve stavke su prave rute. „Zadatak" (`/task`) je entry
+// ruta koja razriješi tekuću preporuku i redirecta na `/task/:taskId`.
+// `end` po stavci: exact match svugdje OSIM „Zadatak" — njemu `end: false` da
+// ostane aktivan i dok si na konkretnom `/task/:taskId`. Dashboard (`/`) MORA
+// ostati `end: true`, inače bi kao prefiks bio aktivan na svakoj ruti.
 const NAV_ITEMS = [
-  { label: "Dashboard", icon: LayoutDashboard, to: "/", stub: false },
-  { label: "Moduli", icon: BookOpen, to: "/modules", stub: false },
-  { label: "Zadatak", icon: Terminal, to: "/", stub: true },
-  { label: "Profil", icon: User, to: "/profile", stub: false },
-  { label: "Ljestvica", icon: Trophy, to: "/leaderboard", stub: false },
+  { label: "Dashboard", icon: LayoutDashboard, to: "/", end: true },
+  { label: "Moduli", icon: BookOpen, to: "/modules", end: true },
+  { label: "Zadatak", icon: Terminal, to: "/task", end: false },
+  { label: "Profil", icon: User, to: "/profile", end: true },
+  { label: "Ljestvica", icon: Trophy, to: "/leaderboard", end: true },
 ] as const
 
 function SidebarNav() {
@@ -42,17 +43,17 @@ function SidebarNav() {
       aria-label="Glavna navigacija"
       className="flex flex-1 flex-col gap-1 p-3"
     >
-      {NAV_ITEMS.map(({ label, icon: Icon, to, stub }) => (
+      {NAV_ITEMS.map(({ label, icon: Icon, to, end }) => (
         <NavLink
           key={label}
           to={to}
-          end
+          end={end}
           className={({ isActive }) =>
             cn(
               // Invarijanta #3: h-11 = 44px touch target po nav stavci.
               "flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-fast ease-standard",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-              isActive && !stub
+              isActive
                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
                 : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
             )

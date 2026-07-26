@@ -87,6 +87,9 @@ class AttemptResponse(BaseModel):
     current_streak: int
     new_badges: list[str]
     recommendation: RecommendationModel
+    #: True ako je task bio VEĆ točno riješen prije ovog pokušaja → attempt-XP se
+    #: NE dodjeljuje (first-solve gate). UI prikazuje „već riješeno, bez XP-a".
+    already_solved: bool = False
 
 
 class NextTaskResponse(BaseModel):
@@ -134,6 +137,9 @@ class TaskDetailResponse(BaseModel):
     estimated_time_sec: int | None
     module_id: int
     concepts: list[ConceptRef]
+    #: True ako je trenutni korisnik već točno riješio ovaj task (bilo koji raniji
+    #: is_correct pokušaj). UI prikazuje „Riješeno" + da ponovni Submit ne nosi XP.
+    solved: bool = False
 
 
 class ConceptNode(BaseModel):
@@ -148,6 +154,10 @@ class ConceptNode(BaseModel):
     order_index: int
     prerequisites: list[str]
     primary_task_count: int
+    #: Reprezentativan AKTIVAN primary zadatak koncepta (najlakši prvi) — meta za
+    #: klik na koncept u Module overviewu → `/task/<id>`. None ⟺ koncept nema
+    #: vlastitih aktivnih primary zadataka (glue/izvan opsega) → UI ne nudi klik.
+    entry_task_id: int | None = None
 
 
 class ModuleNode(BaseModel):

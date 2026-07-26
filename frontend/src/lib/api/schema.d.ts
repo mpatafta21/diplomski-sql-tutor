@@ -321,6 +321,11 @@ export interface components {
             /** New Badges */
             new_badges: string[];
             recommendation: components["schemas"]["RecommendationModel"];
+            /**
+             * Already Solved
+             * @default false
+             */
+            already_solved: boolean;
         };
         /**
          * BadgeCatalogItem
@@ -383,6 +388,8 @@ export interface components {
             prerequisites: string[];
             /** Primary Task Count */
             primary_task_count: number;
+            /** Entry Task Id */
+            entry_task_id?: number | null;
         };
         /** ConceptRef */
         ConceptRef: {
@@ -611,6 +618,11 @@ export interface components {
             module_id: number;
             /** Concepts */
             concepts: components["schemas"]["ConceptRef"][];
+            /**
+             * Solved
+             * @default false
+             */
+            solved: boolean;
         };
         /** TokenResponse */
         TokenResponse: {

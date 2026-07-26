@@ -43,7 +43,10 @@ from spade.template import Template
 from sqlalchemy import func, select
 
 from agents.base import TutorAgent
-from agents.gamification_persistence import load_attempt
+from agents.gamification_persistence import (
+    load_attempt,
+    prior_correct_solve_exists,
+)
 from agents.messages import Ontology, Performative, body_to_payload
 from app.core import config
 from app.db.models import Badge, User, UserBadge, XpLog
@@ -119,6 +122,9 @@ def build_response_payload(user_id: int, attempt_id: int | None) -> dict:
         "level": None,
         "current_streak": None,
         "new_badges": [],
+        # True ako je task bio VEĆ točno riješen PRIJE ovog pokušaja → attempt-XP
+        # se ne dodjeljuje (first-solve gate). UI to prikazuje kao „bez XP-a".
+        "already_solved": False,
     }
 
     with SessionLocal() as session:
@@ -135,6 +141,12 @@ def build_response_payload(user_id: int, attempt_id: int | None) -> dict:
                 # izvodimo correct/incorrect iz is_correct. attempts.verdict migracija
                 # = Faza 4 (tada feedback može vratiti pravi partial).
                 feedback["verdict"] = "correct" if att.is_correct else "incorrect"
+                # already_solved: isti izvor istine kao gate u persist_gamification
+                # (raniji točan pokušaj istog taska). Correct pokušaj koji je PRVO
+                # rješavanje → False (XP je dodijeljen).
+                gamification["already_solved"] = prior_correct_solve_exists(
+                    session, user_id, att.task_id, att.attempt_number
+                )
 
             xp_delta = session.scalar(
                 select(func.coalesce(func.sum(XpLog.delta), 0)).where(

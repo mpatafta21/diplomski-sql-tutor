@@ -77,6 +77,30 @@ def load_task_difficulty(session: Session, task_id: int) -> int:
     return difficulty
 
 
+def prior_correct_solve_exists(
+    session: Session, user_id: int, task_id: int, before_attempt_number: int
+) -> bool:
+    """True ako task ima RANIJI točan pokušaj (attempt_number < zadani).
+
+    Temelj „prvo-rješavanje-nosi-XP" pravila: task koji je već jednom točno
+    riješen ne smije ponovno davati XP. Gleda SAMO `is_correct=true` i STROGO
+    ranije pokušaje (`< before_attempt_number`), pa ne uključuje tekući red i
+    ne tretira netočne pokušaje kao rješenje. Izvedeno iz `attempts` — bez nove
+    kolone/migracije.
+    """
+    row = session.scalar(
+        select(Attempt.id)
+        .where(
+            Attempt.user_id == user_id,
+            Attempt.task_id == task_id,
+            Attempt.is_correct.is_(True),
+            Attempt.attempt_number < before_attempt_number,
+        )
+        .limit(1)
+    )
+    return row is not None
+
+
 def user_has_correct(session: Session, user_id: int) -> bool:
     """True ako korisnik ima barem jedan točan pokušaj (is_correct=true)."""
     row = session.scalar(
@@ -171,6 +195,16 @@ def persist_gamification(session: Session, payload: dict) -> dict:
 
     # 2. XP delta (verdict iz PAYLOADA, attempt_number iz committed reda)
     delta = compute_xp(difficulty, verdict, att.attempt_number)
+
+    # 2b. Prvo-rješavanje-nosi-XP: task koji je RANIJE već točno riješen ne farma
+    # XP ponovnim točnim predajama. Gate je čisto na attempt-XP-u — streak (akt.
+    # dana), badge idempotencija i level-recompute ostaju netaknuti. `delta=0`
+    # prirodno preskače XpLog insert (korak 4), pa nema ni novog xp_log reda.
+    already_solved = prior_correct_solve_exists(
+        session, user_id, att.task_id, att.attempt_number
+    )
+    if already_solved:
+        delta = 0
 
     # 3. dnevni streak red (lokalni dan); upsert inkrementira attempts_count
     today = att.created_at.astimezone(_TZ).date()
@@ -270,4 +304,5 @@ def persist_gamification(session: Session, payload: dict) -> dict:
         "new_level": user.level,
         "new_badges": new_badges,
         "current_streak": current_streak,
+        "already_solved": already_solved,
     }

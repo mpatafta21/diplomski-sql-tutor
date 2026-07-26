@@ -182,6 +182,7 @@ def _to_attempt_response(result: dict) -> AttemptResponse:
             "concept": rec.get("concept"),
             "reason": rec.get("reason"),
         },
+        already_solved=bool(gam.get("already_solved")),
     )
 
 
@@ -313,11 +314,14 @@ async def get_profile(
 # ---------------------------------------------------------------------------
 
 
-def _read_task_detail(task_id: int) -> dict | None:
+def _read_task_detail(task_id: int, user_id: int) -> dict | None:
     """Sinkroni DB read detalja zadatka — pozvan kroz to_thread.
 
     NAMJERNO gradi dict eksplicitno po poljima: expected_query / expected_result /
     sandbox_schema se NIKAD ne uključuju (rješenje se ne izlaže).
+
+    `solved` = ima li `user_id` barem jedan točan pokušaj ovog taska (indikator
+    „Riješeno" + da ponovni Submit ne nosi XP). Izvedeno iz `attempts`.
 
     🔴 NEAKTIVAN task = 404, isto kao nepostojeći (NALAZ #19 dopuna, Faza 4.4-0f).
     Bez ovoga je izravan URL `/task/{id}` bio ZADNJI put do neevaluabilnog
@@ -339,6 +343,19 @@ def _read_task_detail(task_id: int) -> dict | None:
             .order_by(TaskConcept.is_primary.desc(), Concept.code)
         ).all()
 
+        solved = (
+            session.scalar(
+                select(Attempt.id)
+                .where(
+                    Attempt.user_id == user_id,
+                    Attempt.task_id == task_id,
+                    Attempt.is_correct.is_(True),
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
         return {
             "id": task.id,
             "title": task.title,
@@ -350,15 +367,16 @@ def _read_task_detail(task_id: int) -> dict | None:
                 {"code": code, "name": name, "is_primary": is_primary}
                 for code, name, is_primary in concept_rows
             ],
+            "solved": solved,
         }
 
 
 @router.get("/task/{task_id}", response_model=TaskDetailResponse)
 async def get_task_detail(
     task_id: int = Path(...),
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ) -> TaskDetailResponse:
-    data = await asyncio.to_thread(_read_task_detail, task_id)
+    data = await asyncio.to_thread(_read_task_detail, task_id, user.id)
     if data is None:
         raise HTTPException(status_code=404, detail="task_not_found")
     return TaskDetailResponse(**data)
@@ -411,6 +429,21 @@ def _read_modules() -> list[dict]:
         ).all()
         primary_counts: dict[int, int] = dict(count_rows)
 
+        # entry_task_id (self-test fix 4.6-eval): reprezentativan ZADATAK za klik
+        # na koncept u Module overviewu. STATIČKI (bez user-konteksta → /modules
+        # ostaje čist katalog, cacheable): AKTIVAN PRIMARY zadatak, najlakši prvi
+        # (difficulty ↑, pa id ↑ radi determinizma). Ista maska (is_primary +
+        # is_active) kao primary_task_count → entry postoji točno kad je count>0.
+        entry_rows = session.execute(
+            select(TaskConcept.concept_id, Task.id)
+            .join(Task, Task.id == TaskConcept.task_id)
+            .where(TaskConcept.is_primary.is_(True), Task.is_active.is_(True))
+            .order_by(TaskConcept.concept_id, Task.difficulty, Task.id)
+        ).all()
+        entry_task_by_concept: dict[int, int] = {}
+        for concept_id, task_id in entry_rows:
+            entry_task_by_concept.setdefault(concept_id, task_id)
+
     prereqs_by_concept: dict[int, list[str]] = {}
     for concept_id, prereq_code in edge_rows:
         prereqs_by_concept.setdefault(concept_id, []).append(prereq_code)
@@ -428,6 +461,7 @@ def _read_modules() -> list[dict]:
                 "order_index": c.order_index,
                 "prerequisites": prereqs_by_concept.get(c.id, []),
                 "primary_task_count": primary_counts.get(c.id, 0),
+                "entry_task_id": entry_task_by_concept.get(c.id),
             }
         )
 

@@ -4,7 +4,8 @@
  * Prag "savladano" = profile.mastery_threshold (backend istina, invarijanta #6).
  * Netaknuti koncepti se NE prikazuju (to je teren 4.2b Module overviewa).
  */
-import { CheckCircle2 } from "lucide-react"
+import { Link } from "react-router-dom"
+import { CheckCircle2, ChevronRight } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -27,15 +28,19 @@ interface MasteryHighlightsProps {
 function MasteryRow({
   item,
   masteryThreshold,
+  clickable,
 }: {
   item: EnrichedMastery
   masteryThreshold: number
+  /** Redak vodi na zadatak koncepta (samo ako koncept ima vlastiti zadatak). */
+  clickable: boolean
 }) {
   const pct = Math.round(item.p_l * 100)
   const mastered = item.p_l >= masteryThreshold
+  const isLink = clickable && item.entryTaskId !== null
 
-  return (
-    <li className="space-y-1.5">
+  const body = (
+    <>
       <div className="flex items-baseline justify-between gap-2">
         <span className="flex items-center gap-1.5 text-sm font-medium">
           {item.name}
@@ -44,6 +49,12 @@ function MasteryRow({
               role="img"
               className="size-3.5 text-correct"
               aria-label="Savladano"
+            />
+          )}
+          {isLink && (
+            <ChevronRight
+              aria-hidden="true"
+              className="size-3.5 shrink-0 text-muted-foreground"
             />
           )}
         </span>
@@ -57,6 +68,23 @@ function MasteryRow({
         label={`Savladanost: ${item.name} ${pct} %`}
       />
       <p className="text-xs text-muted-foreground">{item.moduleName}</p>
+    </>
+  )
+
+  return (
+    <li>
+      {isLink ? (
+        <Link
+          to={`/task/${item.entryTaskId}`}
+          aria-label={`Otvori zadatak za koncept ${item.name}`}
+          // -mx-2 px-2: hover diše u padding kartice, sadržaj se ne pomiče.
+          className="-mx-2 block space-y-1.5 rounded-md px-2 py-1.5 transition-colors duration-fast ease-standard hover:bg-sidebar-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
+        >
+          {body}
+        </Link>
+      ) : (
+        <div className="space-y-1.5">{body}</div>
+      )}
     </li>
   )
 }
@@ -66,11 +94,14 @@ function HighlightCard({
   description,
   items,
   masteryThreshold,
+  clickable = false,
 }: {
   title: string
   description: string
   items: EnrichedMastery[]
   masteryThreshold: number
+  /** Retci vode na zadatak koncepta (za „Za ojačati" karticu). */
+  clickable?: boolean
 }) {
   return (
     <Card>
@@ -85,6 +116,7 @@ function HighlightCard({
               key={item.code}
               item={item}
               masteryThreshold={masteryThreshold}
+              clickable={clickable}
             />
           ))}
         </ul>
@@ -113,9 +145,10 @@ export function MasteryHighlights({
       {weakest.length > 0 && (
         <HighlightCard
           title="Za ojačati"
-          description="Koncepti s najnižom procjenom znanja — dobar sljedeći fokus."
+          description="Koncepti s najnižom procjenom znanja — klikni za zadatak."
           items={weakest}
           masteryThreshold={masteryThreshold}
+          clickable
         />
       )}
       {strongest.length > 0 && (

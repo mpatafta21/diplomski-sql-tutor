@@ -50,6 +50,10 @@ export function useSubmitAttempt(taskId: number) {
       void queryClient.invalidateQueries({ queryKey: ["next-task"] })
       void queryClient.invalidateQueries({ queryKey: ["attempts"] })
       void queryClient.invalidateQueries({ queryKey: ["mastery-history"] })
+      // Prvi točan pokušaj mijenja /task.solved (false→true) → osvježi da se
+      // „Riješeno" indikator pojavi bez reloada. Ostali queryji su per-user
+      // agregati; ovaj je per-task pa se invalidira uz taskId.
+      void queryClient.invalidateQueries({ queryKey: ["task", taskId] })
     },
   })
 }

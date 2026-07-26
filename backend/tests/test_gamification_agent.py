@@ -249,6 +249,78 @@ def test_incorrect_attempt_no_xp_but_streak(gam_env):
 
 
 # ---------------------------------------------------------------------------
+# FIRST-SOLVE GATE — već riješen task NE farma XP (bugfix 4.6-eval)
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_already_solved_no_xp(gam_env):
+    """Već točno riješen task NE dodjeljuje XP ponovno: 2. točan pokušaj →
+    already_solved=True, 0 novih 'attempt' xp_log redova, users.xp nepromijenjen."""
+    tid = gam_env["make_task"](difficulty=3)
+    a1 = gam_env["make_attempt"](
+        tid, is_correct=True, created_at=_DAY, attempt_number=1
+    )
+    with SessionLocal() as s:
+        first = persist_gamification(s, _payload(a1, "correct"))
+    xp_after_first = gam_env["get_user"]().xp
+
+    a2 = gam_env["make_attempt"](
+        tid, is_correct=True, created_at=_DAY, attempt_number=2
+    )
+    with SessionLocal() as s:
+        second = persist_gamification(s, _payload(a2, "correct"))
+    xp_after_second = gam_env["get_user"]().xp
+
+    assert first["already_solved"] is False
+    assert second["already_solved"] is True
+    assert second["xp_delta"] == 0
+    assert xp_after_second == xp_after_first
+    # Samo PRVI solve nosi 'attempt' xp_log red — re-solve ga ne dodaje.
+    assert _count_xp(gam_env["user_id"], reason="attempt") == 1
+
+
+def test_first_correct_after_incorrect_awards(gam_env):
+    """Task s ranijim SAMO netočnim pokušajima: prvi točan je PRVO rješavanje →
+    nosi XP, already_solved=False (gate ne smije gledati incorrect kao solve)."""
+    tid = gam_env["make_task"](difficulty=2)
+    a1 = gam_env["make_attempt"](
+        tid, is_correct=False, created_at=_DAY, attempt_number=1
+    )
+    with SessionLocal() as s:
+        persist_gamification(s, _payload(a1, "incorrect"))
+
+    a2 = gam_env["make_attempt"](
+        tid, is_correct=True, created_at=_DAY, attempt_number=2
+    )
+    with SessionLocal() as s:
+        summary = persist_gamification(s, _payload(a2, "correct"))
+
+    assert summary["already_solved"] is False
+    assert summary["xp_delta"] > 0
+    assert _count_xp(gam_env["user_id"], reason="attempt") == 1
+
+
+def test_solved_task_does_not_block_other_task(gam_env):
+    """Gate je per-task: riješen task A ne gasi XP za PRVO rješavanje taska B."""
+    ta = gam_env["make_task"](difficulty=1)
+    aa = gam_env["make_attempt"](
+        ta, is_correct=True, created_at=_DAY, attempt_number=1
+    )
+    with SessionLocal() as s:
+        persist_gamification(s, _payload(aa, "correct"))
+
+    tb = gam_env["make_task"](difficulty=1)
+    ab = gam_env["make_attempt"](
+        tb, is_correct=True, created_at=_DAY, attempt_number=1
+    )
+    with SessionLocal() as s:
+        summary = persist_gamification(s, _payload(ab, "correct"))
+
+    assert summary["already_solved"] is False
+    assert summary["xp_delta"] > 0
+
+
+# ---------------------------------------------------------------------------
 # BADGE AWARD + xp_reward, bez ponavljanja
 # ---------------------------------------------------------------------------
 

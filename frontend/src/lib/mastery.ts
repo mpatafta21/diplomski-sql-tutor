@@ -32,6 +32,9 @@ export interface EnrichedMastery {
   tier: string
   moduleName: string
   p_l: number
+  /** Meta za klik → `/task/<id>` (self-test fix 4.6-eval). null = koncept nema
+   *  vlastitog zadatka (glue/sekundarni) → nije klikabilan. */
+  entryTaskId: number | null
 }
 
 /** Join + sort po p_l uzlazno. Koncepti bez unosa u /modules se preskaču. */
@@ -49,6 +52,7 @@ export function enrichMastery(
       tier: info.tier,
       moduleName: info.moduleName,
       p_l: item.p_l,
+      entryTaskId: info.entry_task_id ?? null,
     })
   }
   out.sort((a, b) => a.p_l - b.p_l)

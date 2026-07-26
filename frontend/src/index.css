@@ -127,15 +127,25 @@
   --text-5xl--line-height: 1.05;
   --text-5xl--letter-spacing: -0.02em;
 
-  /* ── Motion tokeni (MASTER.md §5) — vrijednosti, bez motion liba do 4.6 ── */
+  /* ── Motion tokeni (MASTER.md §5) ──
+     Sav motion u aplikaciji je CSS (Tailwind `animate-in` / `transition-*` iz
+     `tw-animate-css`) + ovi tokeni. Motion biblioteke NEMA i neće je biti:
+     Faza 4.6 (framer-motion, gamifikacijski motion, page tranzicije, WebSocket)
+     je REZANA (errata §Opseg implementacije). `framer-motion`/`motion` nisu u
+     package.json — ne dodavati ih bez izričite odluke. */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  /* KORIŠTEN — FeedbackPanel.tsx:130,169,185 (XP čip, level-up, badge unlock). */
   --ease-reward: cubic-bezier(0.34, 1.25, 0.64, 1);
   --duration-instant: 100ms;
   --duration-fast: 160ms;
   --duration-base: 240ms;
   --duration-slow: 400ms;
+  /* ⚠️ NEKORIŠTEN (provjereno grepom 2026-07-26: 0 pogodaka na `duration-reward`
+     u frontend/src). Bio je rezerviran za count-up envelope Faze 4.6 — a 4.6 je
+     REZANA, pa mu potrošač više ni ne dolazi. OSTAJE u skali radi cjelovitosti
+     ljestvice trajanja (instant→fast→base→slow→reward), ne kao najava rada. */
   --duration-reward: 700ms;
 }
 
@@ -305,7 +315,11 @@
   }
 
   /* A11y baseline (MASTER.md §5): reduced motion = gotovo bez pokreta.
-     Komponente u 4.6 mogu opt-in na blaže opacity prijelaze unutar vlastitih media query-ja. */
+     Univerzalni selektor namjerno — hvata SVE, uključujući komponente bez
+     vlastite `motion-reduce:` klase (te su dodatni sloj, ne nužnost).
+     ⚠️ Prijašnji komentar je najavljivao da „komponente u 4.6 mogu opt-in na
+     blaže opacity prijelaze" — Faza 4.6 je REZANA, taj opt-in nikad nije uveden
+     i nema ga tko uvesti. Guard je time JEDINI mehanizam za reduced motion. */
   @media (prefers-reduced-motion: reduce) {
     *,
     ::before,

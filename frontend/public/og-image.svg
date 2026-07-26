@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0a0a0a"/>
+  <!-- suptilna linija po dnu u accent-warm, kao "surface step + border" iz MASTER §4 -->
+  <rect x="0" y="626" width="1200" height="4" fill="#f0b135"/>
+  <g transform="translate(96 232) scale(6)" fill="none" stroke="#f0b135" stroke-width="2"
+     stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="12" cy="5" rx="9" ry="3"/>
+    <path d="M3 5V19A9 3 0 0 0 21 19V5"/>
+    <path d="M3 12A9 3 0 0 0 21 12"/>
+  </g>
+  <text x="272" y="300" font-family="Geist, Inter, system-ui, sans-serif" font-size="76"
+        font-weight="600" letter-spacing="-1.5" fill="#fafafa">SQL Tutor</text>
+  <text x="272" y="362" font-family="Geist, Inter, system-ui, sans-serif" font-size="34"
+        fill="#a1a1a1">adaptivno vježbanje SQL-a</text>
+</svg>

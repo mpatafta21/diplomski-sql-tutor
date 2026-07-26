@@ -971,6 +971,17 @@
           "primary_task_count": {
             "type": "integer",
             "title": "Primary Task Count"
+          },
+          "entry_task_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Task Id"
           }
         },
         "type": "object",

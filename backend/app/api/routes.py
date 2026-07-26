@@ -429,6 +429,21 @@ def _read_modules() -> list[dict]:
         ).all()
         primary_counts: dict[int, int] = dict(count_rows)
 
+        # entry_task_id (self-test fix 4.6-eval): reprezentativan ZADATAK za klik
+        # na koncept u Module overviewu. STATIČKI (bez user-konteksta → /modules
+        # ostaje čist katalog, cacheable): AKTIVAN PRIMARY zadatak, najlakši prvi
+        # (difficulty ↑, pa id ↑ radi determinizma). Ista maska (is_primary +
+        # is_active) kao primary_task_count → entry postoji točno kad je count>0.
+        entry_rows = session.execute(
+            select(TaskConcept.concept_id, Task.id)
+            .join(Task, Task.id == TaskConcept.task_id)
+            .where(TaskConcept.is_primary.is_(True), Task.is_active.is_(True))
+            .order_by(TaskConcept.concept_id, Task.difficulty, Task.id)
+        ).all()
+        entry_task_by_concept: dict[int, int] = {}
+        for concept_id, task_id in entry_rows:
+            entry_task_by_concept.setdefault(concept_id, task_id)
+
     prereqs_by_concept: dict[int, list[str]] = {}
     for concept_id, prereq_code in edge_rows:
         prereqs_by_concept.setdefault(concept_id, []).append(prereq_code)
@@ -446,6 +461,7 @@ def _read_modules() -> list[dict]:
                 "order_index": c.order_index,
                 "prerequisites": prereqs_by_concept.get(c.id, []),
                 "primary_task_count": primary_counts.get(c.id, 0),
+                "entry_task_id": entry_task_by_concept.get(c.id),
             }
         )
 

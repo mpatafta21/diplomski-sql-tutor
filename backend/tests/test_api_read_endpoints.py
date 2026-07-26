@@ -217,6 +217,7 @@ async def test_get_modules_structure_and_counts(student_auth):
                 "order_index",
                 "prerequisites",
                 "primary_task_count",
+                "entry_task_id",
             }
 
     # poznati prereq brid: from_clause ima select_basic kao preduvjet (po code-u)
@@ -293,6 +294,44 @@ async def test_get_modules_primary_task_count(student_auth):
     assert api_counts["join_condition"] == 0
     assert api_counts["column_alias"] == 0
     assert api_counts["null_handling"] > 0
+
+
+@pytest.mark.asyncio
+async def test_get_modules_entry_task_id(student_auth):
+    """entry_task_id (self-test fix 4.6-eval) — meta za klik na koncept: AKTIVAN
+    primary zadatak, najlakši prvi (difficulty ↑, id ↑). None ⟺ koncept nema
+    vlastitih aktivnih primary zadataka (invarijanta: prisutan ⟺ count > 0)."""
+    from app.db.models import Task
+
+    # Ground truth: isti (is_primary + is_active) filtar, najlakši-prvi po konceptu.
+    with SessionLocal() as s:
+        rows = s.execute(
+            select(Concept.code, Task.id, Task.difficulty)
+            .join(TaskConcept, TaskConcept.concept_id == Concept.id)
+            .join(Task, Task.id == TaskConcept.task_id)
+            .where(TaskConcept.is_primary.is_(True), Task.is_active.is_(True))
+            .order_by(Concept.code, Task.difficulty, Task.id)
+        ).all()
+    expected_entry: dict[str, int] = {}
+    for code, task_id, _difficulty in rows:
+        expected_entry.setdefault(code, task_id)
+
+    app = create_app()
+    async with _client(app) as client:
+        resp = await client.get("/modules", headers=student_auth)
+
+    assert resp.status_code == 200, resp.text
+    concepts = {c["code"]: c for m in resp.json() for c in m["concepts"]}
+
+    for code, c in concepts.items():
+        assert c["entry_task_id"] == expected_entry.get(code), code
+        # Invarijanta: entry postoji točno kad koncept ima primary zadataka.
+        assert (c["entry_task_id"] is not None) == (c["primary_task_count"] > 0)
+
+    # Sidra: glue bez zadataka → None; null_handling ima zadatke → int.
+    assert concepts["join_condition"]["entry_task_id"] is None
+    assert concepts["column_alias"]["entry_task_id"] is None
+    assert isinstance(concepts["null_handling"]["entry_task_id"], int)
 
 
 # ---------------------------------------------------------------------------

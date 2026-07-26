@@ -154,6 +154,10 @@ class ConceptNode(BaseModel):
     order_index: int
     prerequisites: list[str]
     primary_task_count: int
+    #: Reprezentativan AKTIVAN primary zadatak koncepta (najlakši prvi) — meta za
+    #: klik na koncept u Module overviewu → `/task/<id>`. None ⟺ koncept nema
+    #: vlastitih aktivnih primary zadataka (glue/izvan opsega) → UI ne nudi klik.
+    entry_task_id: int | None = None
 
 
 class ModuleNode(BaseModel):

@@ -388,6 +388,8 @@ export interface components {
             prerequisites: string[];
             /** Primary Task Count */
             primary_task_count: number;
+            /** Entry Task Id */
+            entry_task_id?: number | null;
         };
         /** ConceptRef */
         ConceptRef: {

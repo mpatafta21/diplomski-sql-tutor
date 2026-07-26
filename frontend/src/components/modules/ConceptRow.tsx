@@ -5,8 +5,10 @@
  * ako je koncept diran (netaknut ≠ prior) — uključujući i zaključan-a-diran
  * (regresija preduvjeta ne smije sakriti zabilježeni napredak).
  */
+import { Link } from "react-router-dom"
 import {
   CheckCircle2,
+  ChevronRight,
   CircleDashed,
   CircleDot,
   CircleSlash,
@@ -60,13 +62,13 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
   // stanje još "U tijeku" (prikaz mora biti konzistentan sa stanjem).
   const pct = pL !== null ? Math.floor(pL * 100) : null
 
-  return (
-    <li
-      // Anker za breadcrumb deep-link (`/modules#concept-<code>`). data-deeplinked
-      // flash (2 s, postavlja ga ModulesPage) istakne redak prstenom + blagim tonom.
-      id={`concept-${concept.code}`}
-      className="scroll-mt-24 space-y-1.5 rounded-md py-3 transition-colors duration-base ease-standard data-[deeplinked=true]:bg-accent-warm/5 data-[deeplinked=true]:ring-2 data-[deeplinked=true]:ring-accent-warm/40 data-[deeplinked=true]:ring-inset motion-reduce:transition-none"
-    >
+  // Klik → otvara zadatak koncepta. Dopušteno SAMO kad koncept ima zadatak
+  // (entryTaskId) I nije zaključan — zaključani (nezadovoljeni preduvjeti) i oni
+  // bez vlastitih zadataka (glue/izvan opsega) ostaju neklikabilni.
+  const clickable = concept.entryTaskId !== null && concept.state !== "locked"
+
+  const body = (
+    <>
       <div className="flex flex-wrap items-center gap-2">
         <Icon className={cn("size-4 shrink-0", iconClass)} aria-hidden="true" />
         <span className="text-sm font-medium">{concept.name}</span>
@@ -74,9 +76,13 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
           name={TIER_LABEL[concept.tier] ?? concept.tier}
           tier={concept.tier}
         />
-        <span className="ml-auto text-xs text-muted-foreground">
+        <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
           {label}
           {pct !== null && <span className="tabular-nums"> · {pct} %</span>}
+          {clickable && (
+            // Afordancija klika (uz hover/cursor) — strelica „otvori".
+            <ChevronRight aria-hidden="true" className="size-3.5 shrink-0" />
+          )}
         </span>
       </div>
 
@@ -92,6 +98,28 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
         <p className="pl-6 text-xs text-muted-foreground">
           Traži: {concept.missingPrereqs.join(", ")}
         </p>
+      )}
+    </>
+  )
+
+  return (
+    <li
+      // Anker za breadcrumb deep-link (`/modules#concept-<code>`). data-deeplinked
+      // flash (2 s, postavlja ga ModulesPage) istakne redak prstenom + blagim tonom.
+      id={`concept-${concept.code}`}
+      className="scroll-mt-24 rounded-md transition-colors duration-base ease-standard data-[deeplinked=true]:bg-accent-warm/5 data-[deeplinked=true]:ring-2 data-[deeplinked=true]:ring-accent-warm/40 data-[deeplinked=true]:ring-inset motion-reduce:transition-none"
+    >
+      {clickable ? (
+        <Link
+          to={`/task/${concept.entryTaskId}`}
+          aria-label={`Otvori zadatak za koncept ${concept.name}`}
+          // -mx-2 px-2: hover pozadina diše u padding kartice, sadržaj se ne pomiče.
+          className="-mx-2 block space-y-1.5 rounded-md px-2 py-3 transition-colors duration-fast ease-standard hover:bg-sidebar-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
+        >
+          {body}
+        </Link>
+      ) : (
+        <div className="space-y-1.5 py-3">{body}</div>
       )}
     </li>
   )

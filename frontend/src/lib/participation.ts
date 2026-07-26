@@ -23,12 +23,10 @@
 
 /**
  * Kontakt za pitanja i zahtjev za brisanje podataka.
- *
- * 🔴 NEPOTVRĐENO — čeka odluku korisnika/mentora (report gate 1, Faza 4.7-1a).
- * Namjerno NIJE popunjeno pogađanjem: adresa u informaciji sudionika je obveza
- * prema sudioniku, ne popuna praznine. Jedna izmjena ovdje mijenja sva mjesta.
+ * Potvrđeno odlukom korisnika 2026-07-26 (report gate 1).
+ * Jedna izmjena ovdje mijenja sva mjesta prikaza.
  */
-export const KONTAKT = "kontakt-nije-postavljen@primjer.hr"
+export const KONTAKT = "mpatafta21@student.foi.hr"
 
 /** Naslov info bloka na `/register`. */
 export const SUDJELOVANJE_NASLOV = "O sustavu i sudjelovanju"
@@ -42,6 +40,11 @@ export const SUDJELOVANJE_ODLOMCI = [
   "SQL Tutor je sustav za vježbanje SQL-a izrađen kao dio diplomskog rada na Fakultetu organizacije i informatike.",
   "Dok rješavaš zadatke, sustav bilježi tvoje SQL upite, ishode pokušaja i procjenu znanja po konceptu, vezano uz tvoj račun.",
   "U diplomskom radu ti se podaci prikazuju pseudonimizirano — bez korisničkog imena i bez e-adrese.",
+  // 🔴 Odlomak o roku čuvanja — odluka korisnika 2026-07-26. PODLOŽAN PROMJENI
+  // ako FOI zatraži formalni obrazac informiranog pristanka: tada rok, pravna
+  // osnova i način ostvarivanja prava dolaze iz obrasca, a ne odavde.
+  // Ne mijenjati bez odluke — tvrdnja o brisanju je obveza prema sudioniku.
+  "Podaci se čuvaju do obrane rada, nakon čega se brišu. U radu ostaje samo pseudonimizirani skup podataka bez korisničkih imena i e-adresa.",
   "Sudjelovanje je dobrovoljno i možeš prestati kad želiš. Registracijom pristaješ na sudjelovanje.",
 ] as const
 

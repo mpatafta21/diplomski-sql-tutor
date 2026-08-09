@@ -50,7 +50,7 @@ function SidebarNav() {
           end={end}
           className={({ isActive }) =>
             cn(
-              // Invarijanta #3: h-11 = 44px touch target po nav stavci.
+              // Invarijanta (WCAG 2.5.5): h-11 = 44px touch target po nav stavci.
               "flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-fast ease-standard",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
               isActive

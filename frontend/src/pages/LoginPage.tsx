@@ -1,5 +1,5 @@
 /**
- * LoginPage (Faza 4.1c) — prijava po USERNAME + password (invarijanta #4, NE email).
+ * LoginPage (Faza 4.1c) — prijava po USERNAME + password (invarijanta: prijava ide po usernameu, NE po emailu).
  * RHF + zod v4; submit ide kroz useAuth.login() (B1 api.ts rješava form-encoding).
  */
 import { useForm } from "react-hook-form"

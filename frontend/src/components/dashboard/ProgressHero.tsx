@@ -2,7 +2,7 @@
  * ProgressHero (Faza 4.2) — level + XP progres + streak. Amber accent je
  * REZERVIRAN za gamifikaciju (MASTER.md §2.1) — ovdje je doma.
  * XP progres: ISKLJUČIVO xp_in_level/level_step/xp_to_next iz /profile
- * (invarijanta #6 — nula lokalnih konstanti).
+ * (invarijanta: backend konstante iz /profile, nula lokalnih).
  */
 import { Flame } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"

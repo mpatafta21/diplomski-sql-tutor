@@ -2,7 +2,7 @@
  * MasteryBar (Faza 4.2) — jedini dopušteni način renderiranja mastery/XP
  * progresa.
  *
- * INVARIJANTA #1 (ISPRAVLJENA u 4.4c — vidi NALAZ #33): mastery-0/25 fillovi
+ * INVARIJANTA MasteryBara (ISPRAVLJENA u 4.4c — vidi NALAZ #33): mastery-0/25 fillovi
  * su ispod 3:1 prema pozadini (izmjereno na `card` oklch(0.205)/oklch(1)):
  * mastery-0 = 2.13:1 dark / 1.58:1 light, mastery-25 = 3.41:1 dark / 2.28:1
  * light. To je SVOJSTVO sekvencijalne skale — niski P(L) namjerno recedira.
@@ -48,14 +48,14 @@ export function MasteryBar({
       aria-valuenow={pct}
       aria-label={label}
       className={cn(
-        // Border-ani track — invarijanta #1, NE uklanjati border.
+        // Border-ani track — invarijanta MasteryBara, NE uklanjati border.
         "h-2.5 w-full overflow-hidden rounded-full border border-border bg-muted/40",
         className,
       )}
     >
       {/* Fill je full-width + translateX (transform-only → GPU, bez layouta);
           track ga clippa. Na 0 % fill je potpuno izvan — border track ostaje
-          vidljiv (invarijanta #1 nosi TRACK, ne fill). */}
+          vidljiv (invarijanta nosi TRACK, ne fill). */}
       <div
         className={cn(
           "h-full w-full rounded-full transition-transform duration-base ease-standard motion-reduce:transition-none",

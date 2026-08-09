@@ -21,7 +21,7 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        // Invarijanta #3 (WCAG 2.5.5): default/lg/icon/icon-lg ≥44px touch target.
+        // Invarijanta (WCAG 2.5.5): default/lg/icon/icon-lg ≥44px touch target.
         // xs/sm/icon-xs/icon-sm su svjesni escape-hatch za gusti sekundarni UI — NE za primarne akcije.
         default:
           "h-11 gap-1.5 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",

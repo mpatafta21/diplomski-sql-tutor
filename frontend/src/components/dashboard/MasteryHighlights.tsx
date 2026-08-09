@@ -1,7 +1,7 @@
 /**
  * MasteryHighlights (Faza 4.2) — najslabiji/najjači DIRANI koncepti.
  * Ime koncepta dolazi iz joina s /modules (mastery nosi samo code!).
- * Prag "savladano" = profile.mastery_threshold (backend istina, invarijanta #6).
+ * Prag "savladano" = profile.mastery_threshold (backend istina, invarijanta: prag iz /profile).
  * Netaknuti koncepti se NE prikazuju (to je teren 4.2b Module overviewa).
  */
 import { Link } from "react-router-dom"

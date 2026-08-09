@@ -3,7 +3,7 @@
  * × /modules (concept→ime/tier/modul) + mapiranje P(L) na tokene mastery skale.
  *
  * Prag "savladano" NIJE ovdje — dolazi iz /profile.mastery_threshold
- * (backend istina, invarijanta #6).
+ * (backend istina, invarijanta: prag iz /profile).
  */
 import type { ConceptNode, MasteryItem, ModuleNode } from "@/lib/api/types"
 

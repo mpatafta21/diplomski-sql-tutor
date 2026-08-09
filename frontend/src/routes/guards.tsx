@@ -1,7 +1,8 @@
 /**
  * Route guardovi (Faza 4.1c) — layout rute nad useAuth statusom.
  *
- * 401 tok (invarijanta #1): client middleware (401 runtime, NE tipizirana grana) →
+ * 401 tok (invarijanta: 401 se hvata u runtimeu, ne kroz tipiziranu granu):
+ * client middleware (401 runtime, NE tipizirana grana) →
  * AuthProvider setUnauthorizedHandler → status='anon' → <ProtectedRoute> deklarativno
  * <Navigate to="/login">. Hard redirect bez imperativnog router handlea u auth sloju.
  */

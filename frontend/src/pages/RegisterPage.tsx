@@ -1,5 +1,5 @@
 /**
- * RegisterPage (Faza 4.1c) — username + email + password (invarijanta #4).
+ * RegisterPage (Faza 4.1c) — username + email + password (invarijanta: sva tri polja obavezna).
  * Client zod pravila su prva obrana (mapiranje po polju); server 409 (duplikat)
  * i 422 dobivaju poruke. B1 registerRequest ne izlaže response detail
  * (username_taken vs email_taken) — svjesno generička 409 poruka, ne diramo B1.

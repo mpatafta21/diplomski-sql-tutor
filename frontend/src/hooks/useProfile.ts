@@ -1,7 +1,7 @@
 /**
  * useProfile (Faza 4.2) — XP/level/streak/mastery/badges trenutnog usera.
  * level_step i mastery_threshold su BACKEND konstante koje putuju kroz ovaj
- * odgovor — frontend ih NIKAD ne hardkodira (invarijanta #6).
+ * odgovor — frontend ih NIKAD ne hardkodira (invarijanta: backend konstante iz /profile).
  */
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api/client"

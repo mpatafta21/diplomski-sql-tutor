@@ -15,8 +15,8 @@
  * 🔴 WEEKLY PROZOR: backend računa „zadnjih 7 dana, cutoff TZ-aware
  * (Europe/Zagreb)" (routes.py:614), ali granicu NE vraća u odgovoru. Zato
  * generički tekst — klijentski izračunat datum mogao bi promašiti backend
- * definiciju za sat ili dan i lagati korisniku (ista logika kao invarijanta #6:
- * backend konstante se ne rekonstruiraju na klijentu).
+ * definiciju za sat ili dan i lagati korisniku (ista logika kao invarijanta
+ * o backend konstantama: ne rekonstruiraju se na klijentu).
  */
 import { useState } from "react"
 import { Trophy } from "lucide-react"

@@ -2,7 +2,7 @@
  * ErrorBoundary (Faza 4.1c) — hvata RENDER greške (ne mrežne; te idu kroz
  * TanStack Query error → <ErrorState>). Fallback je oporavljiv (reset + retry).
  *
- * Class komponenta bez TS parameter-properties (TS6 erasableSyntaxOnly — invarijanta #2):
+ * Class komponenta bez TS parameter-properties (TS6 erasableSyntaxOnly — invarijanta projekta):
  * sva polja eksplicitno deklarirana.
  */
 import { Component, type ErrorInfo, type ReactNode } from "react"

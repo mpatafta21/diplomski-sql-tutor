@@ -5,7 +5,7 @@
  * Izvučeno iz `AttemptHistory` (4.4a) bez promjene ponašanja; treći potrošač je
  * `/admin/agent-logs` u 4.5b (isti envelope na sve tri rute).
  *
- * INVARIJANTA #3: gumbi ostaju na default `size` (h-11 = 44 px touch target,
+ * INVARIJANTA (WCAG 2.5.5): gumbi ostaju na default `size` (h-11 = 44 px touch target,
  * WCAG 2.5.5) — mjereno 44 px prije i poslije ekstrakcije. NE spuštati na `sm`.
  *
  * Komponenta je BEZ vlastitog state-a: offset drži roditelj (isti obrazac kao
@@ -43,7 +43,7 @@ export function Pagination({
       <p className="text-xs text-muted-foreground tabular-nums">
         Prikaz {start}–{end} od {total}
       </p>
-      {/* default size = h-11 (44px touch target, invarijanta #3) */}
+      {/* default size = h-11 (44px touch target, invarijanta: WCAG 2.5.5) */}
       <div className="flex items-center gap-2">
         <Button
           variant="outline"

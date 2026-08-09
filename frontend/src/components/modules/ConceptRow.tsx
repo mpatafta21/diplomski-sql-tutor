@@ -1,7 +1,7 @@
 /**
  * ConceptRow (Faza 4.2b) — jedan koncept u detalju modula: 4 stanja (odluka B),
  * razlučena IKONOM + TEKSTOM + bojom (nikad samo bojom — a11y).
- * Progres isključivo kroz MasteryBar (invarijanta #1); p_l se prikazuje SAMO
+ * Progres isključivo kroz MasteryBar (invarijanta: nema drugog progres-renderera); p_l se prikazuje SAMO
  * ako je koncept diran (netaknut ≠ prior) — uključujući i zaključan-a-diran
  * (regresija preduvjeta ne smije sakriti zabilježeni napredak).
  */

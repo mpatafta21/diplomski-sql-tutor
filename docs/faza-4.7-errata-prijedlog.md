@@ -237,15 +237,111 @@ Bedž se ne mijenja.
 
 ---
 
+## PRIJEDLOG 4 — `MASTER.md` §5 Motion: tri zastarjele najave rezane Faze 4.6
+
+**Status prijedloga 1–3: PRIMIJENJENI** 2026-08-09 (commitovi `docs(4.7): #46 …` i
+`docs(4.7): revizija opsega, #13 …`). Ovaj prijedlog **NIJE primijenjen** —
+`design-system/sql-tutor/MASTER.md` je **nedirnut**, čeka OK.
+
+### Zašto se ovo ne može otpisati kao „posljedica iste odluke"
+
+U commitu `e05c6de` (stage 4c) ista je klasa netočnosti popravljena u `index.css`, a
+MASTER.md je tada **ostavljen** uz obrazloženje „posljedica iste odluke, ne zaseban
+defekt". **To obrazloženje ne stoji.** `index.css` čita razvijač koji već radi na
+datoteci; **`MASTER.md` je SSOT dizajn-sustava koji CC čita na početku svake sljedeće
+faze** (Faza 5, deployment). Zastarjela najava u SSOT-u nije komentar nego **uputa
+budućem izvođaču**: „bez framer-motion **do 4.6**" čita se kao „u 4.6 dolazi", pa budući
+izvođač očekuje motion lib koji nikad ne dolazi i `/review-animations` gate koji nikad
+nije bio globalno pokrenut.
+
+Pristup je **isti kao kod `index.css:139`**: vrijednost/token **ostaje**, mijenja se samo
+opis — iz najave rada u opis zatečenog stanja.
+
+### Zatečeno → predloženo, doslovno
+
+**Linija 181** — uvodna rečenica tablice motion tokena.
+
+Zatečeno:
+
+```markdown
+Tokeni u `@theme` (vrijednosti; bez framer-motion do 4.6):
+```
+
+Predloženo:
+
+```markdown
+Tokeni u `@theme` — **samo vrijednosti**. Motion lib (`framer-motion`/`motion`) **nije u
+`package.json` i ne dolazi**: Faza 4.6 (motion + WebSocket) je REZANA (v. `docs/errata.md`,
+§„Opseg implementacije — REZANE faze" + revizija 2026-08-09). Sav motion u aplikaciji je
+CSS — `tw-animate-css` (`animate-in`, `fade-in`, `slide-in-*`) + ovi tokeni. Dodavanje
+motion liba traži izričitu odluku, nije zatečeni plan:
+```
+
+**Linija 193** — redak `--duration-reward` u tablici.
+
+Zatečeno:
+
+```markdown
+| `--duration-reward` | `700ms` | gamifikacijski momenti (count-up envelope) |
+```
+
+Predloženo:
+
+```markdown
+| `--duration-reward` | `700ms` | ⚠️ **NEKORIŠTEN** — bio rezerviran za count-up envelope NEIZVEDENE Faze 4.6 (provjereno grepom 2026-07-26: 0 pogodaka na `duration-reward` u `frontend/src`). OSTAJE radi cjelovitosti ljestvice instant→fast→base→slow→reward, ne kao najava rada |
+```
+
+> Napomena: `--ease-reward` (linija 188) se **NE** dira — on **jest** korišten
+> (`FeedbackPanel.tsx:130` XP čip, `:169` level-up, `:185` badge unlock). Redak ostaje
+> kakav jest da se ta dva tokena ne zamijene.
+
+**Linija 197** — završetak rečenice o pravilima.
+
+Zatečeno:
+
+```markdown
+Pravila: sve animacije poštuju `prefers-reduced-motion` · bez layout-shift hovera (translateY max 1–2px,
+nikad scale koji pomiče susjede) · reward animacije SAMO na accent-warm događajima · svaka animacija
+prolazi `/review-animations` gate (4.3/4.6).
+```
+
+Predloženo:
+
+```markdown
+Pravila: sve animacije poštuju `prefers-reduced-motion` · bez layout-shift hovera (translateY max 1–2px,
+nikad scale koji pomiče susjede) · reward animacije SAMO na accent-warm događajima · svaka animacija
+prolazi `/review-animations` gate.
+
+⚠️ **Doseg gatea, zatečeno stanje:** `/review-animations` je stvarno pokrenut **samo nad
+Task screenom** (4.3). Faza 4.6, koja ga je trebala pokrenuti globalno, je REZANA →
+globalni prolaz **nikad se nije dogodio** i ne planira se. `prefers-reduced-motion` je
+pokriven **univerzalnim** guardom u `index.css` (`@media (prefers-reduced-motion: reduce)`
+nad `*`), ne per-komponentnim opt-inom, pa pravilo vrijedi i bez gatea. Za svaku NOVU
+animiranu površinu gate ostaje obavezan.
+```
+
+### Opseg i rizik
+
+| | |
+| --- | --- |
+| Datoteka | `design-system/sql-tutor/MASTER.md` — **jedna** |
+| Linije | 181, 193, 197 (+ jedan dodani odlomak uz 197) |
+| Izmjena vrijednosti tokena | **NULA** — mijenjaju se samo opisi |
+| Rizik nad eval-verificiranim putem | 🟢 **NULA** — dokument se ne kompajlira ni ne servira |
+
+---
+
 ## Sažetak — što traži tvoj OK
 
-| #   | Prijedlog                                   | Zahvat u `errata.md`                          |
-| --- | ------------------------------------------- | --------------------------------------------- |
-| 1   | Revizija §REZANE faze (uklj. opseg motiona) | **dodaje** odjeljak; postojeći tekst netaknut |
-| 2   | #13 → 📌 limitacija, vlastito obrazloženje  | mijenja status reda #13 + dodaje bilješku     |
-| 3   | #24 → revidirana pretpostavka               | mijenja status reda #24 + dodaje bilješku     |
+| #   | Prijedlog                                   | Zahvat                                        | Status                      |
+| --- | ------------------------------------------- | --------------------------------------------- | --------------------------- |
+| 1   | Revizija §REZANE faze (uklj. opseg motiona) | **dodaje** odjeljak; postojeći tekst netaknut | ✅ **primijenjen** 2026-08-09 |
+| 2   | #13 → 📌 limitacija, vlastito obrazloženje  | mijenja status reda #13 + dodaje bilješku     | ✅ **primijenjen** 2026-08-09 |
+| 3   | #24 → revidirana pretpostavka               | mijenja status reda #24 + dodaje bilješku     | ✅ **primijenjen** 2026-08-09 |
+| 4   | `MASTER.md` §5 Motion — tri zastarjele najave | mijenja 3 linije opisa, nula vrijednosti    | 🔴 **ČEKA OK**              |
 
-Uz njih, izvan errate: `docs/faza-4-plan.md:18` („prva se reže 4.6/4.7").
+Uz njih, izvan errate: `docs/faza-4-plan.md:18` („prva se reže 4.6/4.7") — **također
+nedirnut**, čeka odluku ide li ispravak ili bilješka.
 
-**Ništa od ovoga nije primijenjeno.** `errata.md` i `faza-4-plan.md` su nedirnuti —
-`git status` to dokazuje.
+**Prijedlog 4 nije primijenjen.** `MASTER.md` i `faza-4-plan.md` su nedirnuti —
+`git diff --stat HEAD -- design-system/sql-tutor/MASTER.md docs/faza-4-plan.md` je prazan.

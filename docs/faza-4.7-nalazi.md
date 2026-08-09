@@ -403,6 +403,117 @@ preglednik**, ne `curl`-om (curl ne provodi CORS pa uspijeva i kad preglednik ne
 
 ---
 
+## N-8 🔴 Prostor imena „invarijanta" je NEKOHERENTAN — isti broj nosi dva različita pravila
+
+**Status:** 🔴 otvoren · **konsolidacija čeka odluku korisnika** · pun search 2026-08-10
+
+Hipoteza je bila da su invarijante **raspršene** po wrapupima (nije rupa, samo nije na
+jednom mjestu). **Pun search je pokazao nešto drugo — i gore.**
+
+### Citat pretrage — jedino mjesto koje ih NUMERIRA
+
+```
+$ grep -rniE "invarijant[a-zšćžđč]* #[0-9]+ *[—–-]" docs/
+docs/faza-4.1-wrapup.md:85: - **Invarijanta #1 — 401 runtime:** …
+docs/faza-4.1-wrapup.md:86: - **Invarijanta #2 — TS6 `erasableSyntaxOnly`:** …
+docs/faza-4.1-wrapup.md:87: - **Invarijanta #3 — 44px touch-targeti (WCAG 2.5.5):** …
+
+$ grep -rniE "invarijant" docs/faza-4-plan.md CLAUDE.md .claude/ design-system/
+(nula pogodaka)
+```
+
+Kasniji wrapupi (4.2 §5, 4.3 §5, 4.4b) **imaju isti odjeljak** „Zaključane odluke /
+napomene za nasljednike" i u njemu **nabrajaju invarijante — ali BEZ brojeva**, kao obične
+natuknice. **Numerirana su samo tri, i to sva tri u 4.1.**
+
+### 🔴 Zato ovo nije „rupa na #5" nego KOLIZIJA
+
+Kod referencira **#1, #2, #3, #4, #6**. Usporedba s jedinim definicijama:
+
+| broj | definicija (`faza-4.1-wrapup.md`) | kod koji se SLAŽE | kod koji PROTURJEČI |
+| :---: | --- | --- | --- |
+| **#1** | 401 runtime (tipizirana `error` grana je `never`) | `guards.tsx:4` ✅ | 🔴 `MasteryBar.tsx:5,51,58` i `ConceptRow.tsx:4` — koriste #1 za **„border-ani track / progres isključivo kroz MasteryBar"** |
+| **#2** | TS6 `erasableSyntaxOnly`, bez parameter-properties | `ErrorBoundary.tsx:5` ✅ | 🔴 `progress.ts:5` i `ModulesPage.tsx:4` — koriste #2 za **„prag iz `/profile.mastery_threshold`"** |
+| **#3** | 44px touch-targeti (WCAG 2.5.5) | `pagination.tsx:46` ✅ | — |
+| **#4** | **nema definicije** | — | `LoginPage.tsx:2`, `RegisterPage.tsx:2` — „prijava po USERNAME, NE email" |
+| **#6** | **nema definicije** | — | `useProfile.ts:4`, `mastery.ts:6`, `MasteryHighlights.tsx:4`, `MasteryCurves.tsx:12`, `ProgressHero.tsx:5`, `LeaderboardPage.tsx:18` — „prag iz `/profile.mastery_threshold`" |
+
+**Dva su broja dvoznačna u samom kodu** (#1 i #2), a **isto pravilo** („prag dolazi iz
+`/profile`") nosi **dva različita broja** — #2 na dva mjesta i #6 na šest.
+
+**„#5 je nedodijeljen" je time kriv okvir.** Numeracija nije niz s rupom nego **tri
+definirana broja plus četiri naknadno izmišljena**, od kojih dva gaze postojeće. `#5`
+doista nigdje ne postoji (ni definicija ni referenca), ali to je posljedica, ne uzrok.
+
+### 🔴 Zašto NISAM konsolidirao
+
+Uputa je predviđala raspršenost → „konsolidiraj, nula izmjena komentara u kodu". Pri
+koliziji to **nije izvedivo bez diranja komentara**: konsolidirani popis mora odlučiti
+**kome pripada #1 i #2**, a koji god izbor padne, **8 datoteka** nosi suprotno značenje.
+Tri puta:
+
+1. **Definicije 4.1 su autoritativne** → prenumerirati kolidirajuće komentare
+   (`MasteryBar`, `ConceptRow`, `progress.ts`, `ModulesPage`) i dodijeliti #4/#6 brojeve.
+   Dira 8 datoteka, ali samo komentare.
+2. **Ukinuti brojeve** → komentari referenciraju pravilo opisno („invarijanta: prag iz
+   `/profile`"), popis ostaje neimenovan. Najotpornije na ponavljanje, dira istih 8.
+3. **Konsolidirati popis, komentare ostaviti** → popis bi tada **dokumentirao koliziju**
+   umjesto da je riješi. Najjeftinije, ali ostavlja dvoznačnost u kodu.
+
+**Preporuka: (2).** Prostor imena je već jednom pukao (errata → #49, v. konvencija u
+`errata.md`); brojevi bez jednog vlasnika pucaju opet. Opisna referenca nema što slomiti.
+**Odluka je korisnikova** — svaka od tri opcija mijenja frontend komentare, što je izvan
+onoga što je uputa dopuštala.
+
+---
+
+## N-9 📌 Zaključak za Fazu 6 — higijena komentara u gamifikaciji je SUSTAVNA, ne slučajna
+
+**Status:** 📌 preporuka za Fazu 6 · 2026-08-10
+
+Dva nalaza iz ovog prolaza **nisu dva nepovezana pogotka** — oba su ista klasa defekta, u
+istim datotekama:
+
+1. **Netočan docstring** (`gamification_logic.py:43-45`) tvrdi da je streak odvojen od
+   XP-a, dok mehanizam kojim se to opravdava (`streak_7` bedž) upravo tu odvojenost
+   poništava — **ERRATA #45**. Ispravak je pripremljen i **odgođen** (pun `pytest` +
+   `preflight` po politici zamrznutog backenda, a `pytest` zaprlja živu bazu — #40).
+2. **Dvije reference na nepostojeći dokument** — „3D nalaz #6" u
+   `gamification_logic.py:88` i `gamification_persistence.py:138`. Citat pretrage:
+   `grep -rn "3D nalaz" docs/` → **0 pogodaka**; popis nalaza Faze 3D u repou ne postoji
+   (`docs/` ima samo `faza-3-plan.md`, bez wrapupa). Backend zamrznut → **nije dirano**.
+
+### Obrazac je poznat — #23 ga je već pokazao
+
+`#23` (DML rupa, `evaluation.py` hardkodirao `dml=False`) preživio je **tri faze** jer
+**nikad nije bio pokriven testom**. Ista dinamika vrijedi za dokumentaciju: moduli nastali
+**prije Faze 4** imali su **slabiji nadzor komentara i dokumentacije** od frontenda —
+frontend je od 4.1 nadalje prolazio kroz inventare (KORAK 0), `/code-review` i 🔒 DOC
+politiku, a `backend/agents/` nije prošao nijedan takav prolaz otkad je napisan u Fazi 3.
+Otud i to da su **obje** ove netočnosti nađene **uzgred**, dok se tražilo nešto treće — a
+ne kroz namjenski prolaz.
+
+### Preporuka
+
+Faza 6 radi **ciljani prolaz nad komentarima i docstringovima**, ne nasumce, nad:
+
+- **`backend/agents/`** — `gamification_logic.py`, `gamification_persistence.py`,
+  `evaluation.py`, `persistence.py`, `recommender_agent.py`, `base.py`
+- **`backend/bkt/`** — isti period nastanka, ista izloženost
+- **`backend/prolog/`** — `badges.pl` je deklarativni mirror koji se **ne konzultira**
+  (izrijekom navedeno u zaglavlju); mirror koji nitko ne izvršava tiho zastarijeva
+
+⚠️ **Ispravak putanje iz naloga:** traženo je `backend/app/agents/` i `backend/app/logic/`
+— **ni jedna ne postoji**. Stvarne su `backend/agents/` i `backend/bkt/`
+(`ls backend/` → `agents alembic app bkt config prolog scripts tests`; `backend/app/`
+sadrži `api bridge core db prolog schemas`, bez `logic`). Prolaz bi promašio cilj.
+
+**Kriterij prolaza:** svaka tvrdnja u komentaru koja se može provjeriti — provjeri se; ono
+što ne stoji ili se ispravlja ili se označi kao zastarjelo. Isti postupak kao stage 0 ovog
+polisha nad `index.css`, samo nad backendom.
+
+---
+
 ## Metodološka bilješka za wrapup i rad — izračun mjeri element, snimka mjeri hijerarhiju
 
 **Zabilježeno 2026-07-26 (stage 1A + 1A-dopuna).**

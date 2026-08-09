@@ -492,6 +492,88 @@ vrijednosti:
 **Presuda nije moja.** Utvrđeno je: potrošači, odsutnost izvedenosti, odsutnost iz SSOT-a
 i **brojka** koja odgovara na pitanje iz t.4d.
 
+### ⟳ DOPUNA (2026-08-10) — `-soft` plohe, kolizija i ne-fokusni potrošači
+
+**Presuda korisnika:** jednovrijednosna korekcija na `oklch(0.556 0 0)`, `--sidebar-ring`
+istovremeno i identično, **izvedba u stageu 1C** (dira `ui/input.tsx`/`ui/button.tsx` na
+eval-verificiranom Task screenu, a smoke suite iz 1B još ne postoji). Ova dopuna je
+**mjerenje, ne izvedba** — vrijednosti su i dalje nedirnute.
+
+#### 1. `-soft` plohe FeedbackPanela — 🟢 `0.556` NE PADA
+
+Ovo su plohe s **najfrekventnijim fokusom tijekom evala**: retry i CTA „Sljedeći zadatak"
+dosežu se tipkovnicom, a leže na obojenom verdict panelu.
+
+| ploha | hex (light) | zatečeno `0.708` | **kandidat `0.556`** |
+| --- | --- | :---: | :---: |
+| `bg-correct-soft` | `#e4f8e7` | 2,33 ❌ | **4,26** ✅ |
+| `bg-incorrect-soft` | `#ffedeb` | 2,29 ❌ | **4,18** ✅ |
+| `bg-partial-soft` | `#fcefe5` | 2,30 ❌ | **4,20** ✅ |
+
+Dark (`0.556`, **nepromijenjen**): `correct-soft` 3,43 ✅ · `incorrect-soft` 3,51 ✅ ·
+`partial-soft` 3,50 ✅.
+
+🔴 **Ispravak vlastite brojke iz t.4d.** `-soft` plohe su **najgore light plohe u
+aplikaciji** (2,29–2,33, ispod dotad najgore `sidebar` 2,48) → **vezujuće ograničenje se
+premješta sa `sidebar` na `incorrect-soft`**, a prag raste:
+
+- prije (bez `-soft`): `oklch(0.658 0 0)` — **taj bi prag na `-soft` plohama PAO**;
+- ispravljeno (uklj. `-soft`): **`oklch(0.637 0 0)`**, vezujuća ploha `incorrect-soft`
+  (3,01:1).
+
+`0.556` ostaje s rezervom iznad oba praga. Isti poučak kao kod #13: mjeriti se mora
+**prema plohi na kojoj element stvarno stoji**.
+
+#### 2. Kolizija s `--muted-foreground` — 🟡 potvrđena, i bliža nego „susjedstvo"
+
+`--muted-foreground` light je **`oklch(0.556 0 0)` = `#737373`** — **bajt-identično**
+kandidatu. Zatečeni `--ring` (`#a1a1a1`) je od njega različit.
+
+Pitanje je bilo sjedne li fokusirani element ikad neposredno uz muted tekst. **Nalaz je
+jači od toga: na dva mjesta je to ISTI element** — nosi `text-muted-foreground` **i**
+`focus-visible:outline-ring`, pa bi prsten bio točno one boje koje je i sadržaj koji
+okružuje:
+
+```
+$ grep -rn "text-muted-foreground" frontend/src --include=*.tsx | grep "outline-ring"
+components/layout/AppShell.tsx:71    ← nav stavke (glavna tipkovnička površina)
+components/profile/AttemptRow.tsx:81 ← ikon-gumb u retku pokušaja
+```
+
+Uz to, prava susjednost u `FeedbackPanel.tsx:197-200`: obrazloženje preporuke
+(`<p className="text-xs text-muted-foreground">`) i CTA gumb (koji dobiva prsten) su
+**djeca istog flex reda**.
+
+**Nije a11y kvar** — prsten i dalje ima 4,53–4,73:1 prema plohi, a tekst i obrub su
+različiti oblici, ne dvije boje koje se moraju razlikovati. **Jest kolizija prostora**, u
+duhu cross-scale guarda §2.7: sekundarni tekst i indikator fokusa prestaju biti razlučivi
+**po boji**, pa fokus nosi samo geometrija (2px obrub + 2px razmak). Zatečeno stanje ih
+razlikuje po boji, ali po cijenu toga da prsten **nigdje ne prolazi 3:1**.
+Odluka je dizajnerska, ne mjeriteljska; ako se traži razdvajanje, `--ring` treba vlastitu
+vrijednost različitu od `--muted-foreground` (npr. `0.637`–`0.620`), uz manju rezervu.
+
+#### 3. Ne-fokusni potrošači pri `0.556`
+
+| potrošač | zatečeno | `0.556` | čita se kao |
+| --- | :---: | :---: | --- |
+| `index.css:301` — `outline-ring/50` (zadani outline za `*`) vs `card` | 1,54 | **1,96** | ostaje **ispod 3:1** → i dalje ukras, ne signal ✅ |
+| `ConceptCurveCard.tsx:61` — `border-ring` = stanje „odabrano" vs `bg-muted/40` | 2,51 | **4,57** | prelazi 3:1 |
+
+- **Halo ne postaje konkurentski signal.** Pri 50 % alfe ostaje na 1,96:1 — vidljiv kao
+  mekana aura, nikad kao rub. To je tražena podređenost.
+- **Stanje „odabrano" postaje vidljivo teže** — i to je dvosjeklo: po SC 1.4.11 ono je
+  **stanje komponente** i traži 3:1, što zatečenih 2,51 **ne ispunjava**. Promjena ga
+  usput popravlja. Ali ⚠️ **token ne može razdvojiti „odabrano" od „fokusirano"** jer oba
+  vuku `--ring`: pri `0.556` odabir je 4,57 a fokus na `card` 4,73 — praktički jednako
+  teški. Odnos se time **ne mijenja** (zatečeno je 2,51 vs 2,59, jednako blisko), nego se
+  **oba dižu**. Ako se traži hijerarhija „fokus > odabir", `ConceptCurveCard` treba
+  **vlastiti token**, a to je dizajnerska odluka za Fazu 6, ne promjena vrijednosti.
+
+**Zaključak dopune:** nijedna izmjerena ploha ne obara `0.556`; vezujuća ploha je
+`incorrect-soft` i prag je `0.637`, ne `0.658`. Otvorena su dva **dizajnerska** pitanja
+(kolizija s `muted-foreground`, razdvajanje odabira od fokusa) — nijedno ne mijenja
+brojke, oba su kandidati za odluku u stageu 1C.
+
 ---
 
 ## Sažetak — što traži tvoj OK

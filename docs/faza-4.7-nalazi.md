@@ -8,7 +8,12 @@ popravljaju. Po 🔒 DOC politici svaka tvrdnja „X ne postoji" nosi citat pret
 ## N-1 🔴 BLOKATOR PRIJE SLANJA LINKA — brisanje pojedinog sudionika nije dokazano izvedivo
 
 **Status:** 🔴 blokator **prije nego link ode studentima** · **nije 4.7** · nađeno 2026-07-26
-(stage 1A-dopuna)
+(stage 1A-dopuna) · ⟳ **PROMOVIRAN U ERRATU KAO #46** (2026-08-09)
+
+> 📌 **Kanonski zapis je od 2026-08-09 `docs/errata.md` #46.** Ovaj odjeljak ostaje kao
+> radni trag s punim dokazima; errata nosi status, izmjerenu brojku i ekstrapolaciju na
+> eval volumen. Razlog promocije: ovo nije radna bilješka nego **obveza prema sudioniku**
+> koja trajno stoji na Profilu. Ako se tekst obećanja ikad mijenja, mijenja se **#46**.
 
 > ⚠️ **PRIORITET PODIGNUT** (odluka korisnika, 2026-07-26, stage 1A-dopuna t.3): prvotno je
 > ovo bilo zabilježeno kao „blokator deploymenta". Nakon što je informacija o sudjelovanju
@@ -209,36 +214,145 @@ ne pretpostavljen** (27 attempta × ~12 poruka ≈ 324, plus `/next-task` i `/pr
 
 ---
 
-## N-4 🟡 Prsten fokusa je 2,59:1 u light temi — ispod 3:1 (WCAG 2.2 SC 2.4.11), token, cijela app
+## N-4 🟡 Prsten fokusa — ISPRAVLJEN KRITERIJ i PREMJEREN prema OBJE susjedne boje
 
-**Status:** 🟡 token-level a11y · **nije 4.7** (tokeni zamrznuti) · izmjereno 2026-07-26
+**Status:** 🟡 token-level a11y · **nije 4.7** (tokeni zamrznuti) · prvo mjerenje
+2026-07-26, **ispravak kriterija i puno premjeravanje 2026-08-09**
 
-Pri mjerenju nove sekcije na Profilu izmjeren je i `--ring`, koji nosi **svaki**
-`focus-visible:outline-*` u aplikaciji:
+### ⟳ ISPRAVAK VLASTITE TVRDNJE — krivi kriterij i premala mjerna baza
 
-|                                   | vs `card`     |
-| --------------------------------- | ------------- |
-| `--ring` light `oklch(0.708 0 0)` | **2,59:1** ❌ |
-| `--ring` dark `oklch(0.556 0 0)`  | **3,79:1** ✅ |
+Izvorni zapis glasio je „2,59:1 u light temi — ispod 3:1 (**WCAG 2.2 SC 2.4.11**)".
+**Oboje je trebalo popraviti:**
 
-WCAG 2.2 SC 2.4.11 (Focus Appearance) traži **≥ 3:1** za indikator fokusa prema susjednoj
-pozadini. Light tema ne prolazi.
+1. 🔴 **Krivi kriterij.** SC **2.4.11 u WCAG 2.2 je „Focus Not Obscured (Minimum)"** — o
+   tome da fokusirani element nije **prekriven** autorskim sadržajem; s kontrastom nema
+   veze. U **WCAG 2.1, koji je baseline projekta** (plan §3.5), SC 2.4.11 **uopće ne
+   postoji**. Zahtjev **≥ 3:1 za vidljivost indikatora** dolazi iz **SC 1.4.11 Non-text
+   Contrast (AA, WCAG 2.1)**, koji pokriva „vizualne informacije potrebne za identifikaciju
+   komponenata sučelja **i njihovih stanja**" — fokus je stanje. Kontrast **i veličina
+   zajedno** su SC **2.4.13 Focus Appearance (WCAG 2.2)**, a to je **AAA** — izvan
+   baselinea, navodi se samo informativno.
+2. 🔴 **Premala mjerna baza.** Prsten graniči s **dvije** boje: plohom oko sebe i
+   komponentom koju okružuje. Brojka 2,59:1 mjerila je **samo jedan par** (`ring` vs
+   `card`) i prikazana je kao cijela slika. Premjeravanje pokazuje da to **podcjenjuje**
+   jedan slučaj (ispunjeni gumb, 6,91:1) i **precjenjuje ujednačenost** ostalih.
 
-🔴 **Nije uvedeno u 4.7** — `--ring` je shadcn-seedani token iz 4.1b i koristi ga svaka
-fokusabilna površina (nav, gumbi, poveznice, inputi, paginacija). Popravak je **izmjena
-tokena**, što je globalnim pravilima 4.7 izričito zabranjeno, i tražio bi remjeru cijele
-palete kao u #33.
+### Kako je mjereno
 
-**Ublažavajuće, ali NE opravdanje:** inputi uz prsten dobivaju i `focus-visible:border-ring`
+Konvertor oklch → sRGB → relativna luminancija, alpha **kompozitirana** nad navedenom
+plohom. Prije upotrebe **validiran na šest već objavljenih brojki** projekta (`ring` vs
+`card` 2,59 / 3,79; `muted-foreground` vs `card` 4,73 / 6,91; `foreground` vs `card`
+19,79 / 17,16) — sve reproducirane na dvije decimale, pa su nove brojke usporedive sa
+starima. Vrijednosti tokena: `--ring` light `oklch(0.708 0 0)` = `#a1a1a1`, dark
+`oklch(0.556 0 0)` = `#737373`.
 
-- `ring-3`, a poveznice u sekciji sudjelovanja su **trajno podcrtane** pa fokus nije jedini
-  signal njihove interaktivnosti. To ne mijenja činjenicu da je sam indikator ispod praga.
+Geometrija je pročitana **iz živog DOM-a** (CDP, dev server, `/register`), ne iz koda:
+`outline-style: solid`, `outline-width: 2px`, `outline-offset: 2px`,
+`outline-color: oklch(0.708 0 0)` light / `oklch(0.556 0 0)` dark, uz
+`matches(":focus-visible") === true`.
 
-**Ne tvrdim da je fokus u novoj sekciji WCAG-usklađen** — tvrdim izmjerenu brojku i
-navodim da je ograničenje naslijeđeno, app-wide.
+### Mehanizam A — `outline-2 outline-offset-2 outline-ring`
 
-Kandidat za Fazu 6 uz punu remjeru palete. Prijavljuje se u radu kao poznato ograničenje,
-kao #33.
+Poveznice, nav stavke, `ConceptRow`, `MasteryRow`, mailto u sekciji sudjelovanja.
+
+🔴 **Ključna posljedica `outline-offset: 2px`:** razmak od 2px pokazuje **plohu ispod**, pa
+su **obje** susjedne boje prstena ista ploha. Ovdje **nema druge boje koja bi indikator
+spasila** — za razliku od mehanizma B.
+
+| Ploha ispod                                    |     light     |    dark     |
+| ---------------------------------------------- | :-----------: | :---------: |
+| `card` (kartice, Profil)                       | **2,59:1** ❌ | 3,79:1 ✅   |
+| `background` (ploha stranice)                  | **2,59:1** ❌ | 4,18:1 ✅   |
+| `sidebar` (nav — glavna tipkovnička površina)  | **2,48:1** ❌ | 3,79:1 ✅   |
+| `bg-muted/40` nad `card` (info blok /register) | **2,51:1** ❌ | 3,56:1 ✅   |
+
+### Mehanizam B — `focus-visible:border-ring` + `ring-3 ring-ring/50`
+
+Shadcn baza za `Input` i `Button`. Tri granice: prsten-rub prema **ispuni komponente**,
+prsten-rub prema **halou** (`ring/50` kompozitiran nad plohom), halo prema **plohi**.
+
+| Komponenta                | granica                                  |     light     |    dark     |
+| ------------------------- | ---------------------------------------- | :-----------: | :---------: |
+| **Input**                 | rub(ring) vs ispuna (light `bg-transparent`→`card`; dark `bg-input/30`) | **2,59:1** ❌ | 3,38:1 ✅ |
+|                           | rub(ring) vs halo                        |    1,68:1     |   2,02:1    |
+|                           | halo vs ploha                            |    1,54:1     |   1,87:1    |
+| **Button default**        | rub(ring) vs `primary` (ispuna gumba)    |  **6,91:1** ✅ | 3,76:1 ✅  |
+|                           | rub(ring) vs halo                        |    1,68:1     |   2,02:1    |
+| **Button outline** (paginacija) | rub(ring) vs ispuna                |  **2,59:1** ❌ | 3,38:1 ✅  |
+
+Uz to, kontrast **promjene stanja** (rub u mirovanju `--input` → rub u fokusu `--ring`):
+**2,06:1** light / **2,41:1** dark — relevantno samo za AAA čitanje (2.4.13), navodi se
+radi potpunosti.
+
+### PRIJEDLOG PRESUDE — 🔴 ČEKA OK (t.3c)
+
+Pod **SC 1.4.11 (AA, WCAG 2.1)**, prag ≥ 3:1 prema susjednoj boji:
+
+- **DARK tema PROLAZI** na svakoj izmjerenoj granici komponente (3,38–4,18:1).
+- **LIGHT tema PADA** za mehanizam A (2,48–2,59:1 prema **jedinoj** susjednoj boji) te za
+  `Input` i `Button outline` (2,59:1). To pogađa nav, poveznice, koncept-retke, inpute i
+  paginaciju — dakle **većinu tipkovničkog puta**.
+- **LIGHT tema PROLAZI** samo za ispunjeni `Button default` — 6,91:1 prema vlastitoj
+  tamnoj ispuni. Ta je granica ono što gumb čini razlučivim; vanjska granica ga ne nosi.
+- **Halo (`ring/50`) nikad ne dosegne 3:1** prema plohi (1,54 light / 1,87 dark) → on je
+  **ukras, ne indikator**; nositelj je 1px/2px rub.
+
+Prethodna formulacija „prsten je 2,59:1" time nije bila netočna za par koji je izmjerila,
+ali **jest bila nepotpuna kao presuda o aplikaciji**.
+
+### Što se NE radi sada
+
+🔴 **Nijedan token nije mijenjan** (`--ring` ni bilo koji drugi) — potvrđeno u diffu.
+Popravak je token-level i dira svaku fokusabilnu površinu, što je globalnim pravilima 4.7
+zabranjeno.
+
+**Prijedlog za Fazu 6 — kao ZASEBAN nalaz, odvojeno od #13 i #33.** Spajanje nalaza u
+`c12ec31` je i dovelo do toga da #13 ostane bez vlastite presude; ovaj se ne smješta u isti
+paket. Smjerovi (ni jedan nije odabran, svi traže remjeru):
+podignuti tamnoću `--ring` u light temi; ili dodati drugi, kontrastni sloj prstena
+(vanjski svijetli + unutarnji tamni) čime prestaje ovisiti o jednoj plohi; ili ukinuti
+`outline-offset` ondje gdje prsten leži na ispuni komponente.
+
+**Ublažavajuće, ali NE opravdanje:** poveznice u sekciji sudjelovanja su **trajno
+podcrtane** (v. N-7), pa fokus nije jedini signal njihove interaktivnosti. To ne mijenja
+izmjerenu brojku indikatora.
+
+---
+
+## N-7 ✅ Poveznica u `ParticipationSection` — 1.4.1 PROVJEREN IZ DOM-a, prolazi
+
+**Status:** ✅ provjereno, **bez izmjene koda** · 2026-08-09
+
+Prethodni zapis naveo je **jednu** brojku (19,79:1) za „tekst sekcije **i** poveznicu".
+Ista brojka za dva elementa znači **istu boju** — a ako je boja jedini razlikovni kanal,
+to je prekršaj **SC 1.4.1 Use of Color**. Provjereno je **iz računatog stila živog DOM-a**
+(CDP, `/register`, gdje je niz klasa **byte-identičan** onome u
+`ParticipationSection.tsx:68`), obje teme:
+
+| svojstvo                 | poveznica                  | okolni `<p>`               |
+| ------------------------ | -------------------------- | -------------------------- |
+| `color` (light)          | `oklch(0.145 0 0)`         | `oklch(0.145 0 0)` — ISTA  |
+| `color` (dark)           | `oklch(0.985 0 0)`         | `oklch(0.985 0 0)` — ISTA  |
+| `text-decoration-line`   | **`underline`**            | `none`                     |
+| `text-underline-offset`  | `4px`                      | `auto`                     |
+| `font-weight`            | **500**                    | 400                        |
+
+**Presuda: 1.4.1 nije prekršen — i to ne granično.** Boja **uopće nije kanal** (identična
+je), pa se razlikovanje u cijelosti oslanja na **podcrtavanje + težinu fonta**, dva
+ne-bojna kanala. Jedna brojka za oba elementa bila je **posljedica** te odluke, ne simptom
+propusta. **Nikakav popravak nije potreban** — `underline underline-offset-4 font-medium`
+već stoji u komponenti.
+
+**Fokus-vidljivost te poveznice, mjerena zasebno** (traženo uz ovu provjeru): outline
+2px, offset 2px, boja `--ring` → **2,59:1 light / 3,79:1 dark** na `card` (Profil) i
+**2,51:1 / 3,56:1** na `bg-muted/40` (/register). Light pada pod 1.4.11 — to je N-4,
+naslijeđeno i app-wide, ne svojstvo ove komponente.
+
+**Usput uočeno, NE dirano (nije 4.7 opseg, nije prekršaj):** poveznica „Prijavi se"
+(`RegisterPage.tsx:220-227`) razlikuje se od okolnog teksta bojom (`text-foreground` vs
+`text-muted-foreground`) i težinom (500 vs 400), a podcrtava se **tek na hover**
+(`hover:underline`). Težina fonta jest ne-bojni kanal pa 1.4.1 formalno drži, ali je
+kanal slabiji nego kod mailto poveznice. Kandidat za dosljednost, ne za popravak.
 
 ---
 

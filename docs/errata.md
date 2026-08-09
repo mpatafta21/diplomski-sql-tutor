@@ -21,7 +21,7 @@ koristi se `source_id` (NALAZ #21).
 | #10b | `primary_task_count` izložen ali NIKAD konzumiran | ✅ 4.4-0e | Polje je od 4.3 stajalo mrtvo → M6 je izgledao otključivo. Uvedeno 5. stanje `unavailable` u `deriveProgress` |
 | #11 | `NextTaskResponse` bez naslova zadatka | ✅ odbijen | Dvostruki hop prihvaćen (cachiran) |
 | #12 | `/run` rows dict kolabira duplikate stupce s različitim vrijednostima | 🟡 otvoren | UI caveat ugrađen (preporuka `AS` aliasa); pravi fix = contract promjena (rows kao arrayevi) → **Faza 6** |
-| #13 | Partial hue 55–60 preblizu accent-warm 70–85 | 📌 mitigiran | Ikona+tekst kanal OBAVEZAN (MASTER §2.2). Trajna korekcija hue→45 = kandidat 4.7 |
+| #13 | Partial hue 55–60 preblizu accent-warm 70–85 | 📌 **prihvaćeno kao limitacija (4.7)** | **Zatvoreno VLASTITIM obrazloženjem, neovisno o #33.** Ikona+tekst kanal OBAVEZAN (MASTER §2.2) → boja je pojačanje, ne nosilac informacije. Korekcija hue→45 je izvediva ali se NE izvodi — v. bilješku „#13" u §Bilješke uz nalaze |
 | #14 | `earned_at` bedža nije izložen kroz API | 📌 **limitacija** | `/profile.badges` je `list[str]`; datum postoji SAMO u `user_badges`. Galerija (4.4a) prikazuje bedževe **bez datuma** — datum se NE improvizira |
 | #15 | `/attempts` nema server-side filtere | 📌 **limitacija** | Povijest (4.4a) namjerno NEMA filter kontrole: client-side filter nad jednom stranicom lagao bi da filtrira cijelu povijest |
 | #16 | **P(L) saturira i plato je istina, ne greška** | 📌 **svojstvo modela** | Uz easy parametre (`l0=.30 t=.30 g=.25 s=.08`) P(L) brzo saturira blizu 1.0 i nakon greške se jedva vraća — izmjereno živo na `order_by` (21 prilika): od 12. prilike nadalje serija stoji u rasponu 0.99978–1.00000, a 4 uzastopne greške spuste 1.000 → 0.993. Regresija je time praktički nedetektabilna okom. To je POSLJEDICA IZBORA PARAMETARA, ne greška implementacije (kanonska BKT formula, Corbett & Anderson 1994, ručno verificirana na živim podacima — poklapanje na 3 decimale). **UI to NE SKRIVA:** Y-os krivulja je fiksna `[0,1]` (`Y_DOMAIN`, lib/mastery-history.ts) pa se plato vidi kao plato; auto-scale bi raspon 0.9998–1.0000 razvukao preko cijele visine grafa i lagao o dramatičnom usponu. Broj je do 4.4b stajao neiskorišten (rezerviran); sada je dodijeljen jer ga kod referencira |
@@ -32,7 +32,7 @@ koristi se `source_id` (NALAZ #21).
 | #21 | `task_id` je nestabilan preko reseeda | ✅ invarijanta | `down -v` resetira SERIAL (npr. #7 taskovi 71–73 → 60–62). **`source_id` je kanonski ključ** — dokumentacija, testovi i sweep izvještaji koriste njega |
 | #22 | Bedž `explorer` bio NEDOSTIŽAN | ✅ 4.4-0f | Kriterij je bio hardkodiran `{1..6}`, a M6 je izvan opsega. Sada DINAMIČKI: moduli koji stvarno imaju aktivne zadatke (`BadgeFacts.evaluable_modules`, trenutno {1..5}) |
 | #23 | DML evaluacijska rupa (9/83), postojala od Faze 2 | ✅ 4.4-0d | `evaluation.py` hardkodirao `dml=False` → svaki INSERT/UPDATE/DELETE padao na „permission denied". Nikad nije bila pokrivena testom; sada 10 novih testova. ⚠️ **POPRAVAK JE BIO DJELOMIČAN:** vratio je `update` i `delete` (4 taska svaki), ali je `insert` imao samo 1 primarni task pa ga je subfloor maska i dalje činila NEDOSTUPNIM — student INSERT nije mogao vježbati sve do 4.4-0h (vidi #27) |
-| #24 | `streak_7` traži 7 KALENDARSKIH dana | 📌 **dizajn** | Horizont bedža je dulji od trajanja evaluacijske sesije → **očekivana stopa osvajanja 0 %**. To je svjestan dugoročni retention element, **ne defekt**; tako se i izvještava u analizi gamifikacije. Bedž se NE mijenja |
+| #24 | `streak_7` traži 7 KALENDARSKIH dana | 📌 **dizajn — REVIDIRAN 2026-08-09** | Kriterij je nepromijenjen i **opis u izvornom zapisu je bio točan** (`gamification_logic.py:241` + `streak_from_active_dates:186-191`); revidirana je **pretpostavka o dostižnosti**, koja je pala s prelaskom na asinkronu javnu evaluaciju. Izvorna tvrdnja „očekivana stopa osvajanja 0 %" vrijedila je pod modelom nadzirane jednokratne sesije. Bedž se i dalje NE mijenja — v. bilješku „#24" u §Bilješke uz nalaze |
 | #25 | Bedž `join_master` je NEDOSTIŽAN normalnim putem | ✅ **ZATVOREN u 4.4-0h — PODACIMA, bez izmjene pravila** | `right_join` ima **1 primarni + 0 sekundarnih** aktivnih taskova → (a) `<2` ga čini **subfloor** pa ga Prolog maskira na 0.99 i recommender ga NIKAD ne nudi, (b) 0 sekundarnih pojavljivanja = nema uzgrednih BKT updatea. Simulacija (student točno riješi sve ponuđeno, 38 taskova): `right_join` ostaje na **prioru 0.0500**, `left_join` 0.854 ✓, `inner_join` 0.9999 ✓ → `join_master` = **NE**. `null_ninja` je dostižan (`null_handling` 1.0000 ✓). ⚠️ **ISPRAVAK:** izvještaj i commit poruka Faze 4.4-0f tvrdili su da je `join_master` dostižan („2 točna po konceptu") — taj je račun bio točan izolirano, ali je previdio da `right_join` NIKAD ne biva ponuđen (subfloor maska) niti dobiva uzgredne updateove. **RJEŠENJE (0h):** `right_join` je dobio 2. primarni zadatak → izlazi iz subfloora → recommender ga sada NUDI → simulacija: 0.0500 → **0.8541 ✓**. `join_master` = **DA**, uz NULA promjena Prolog/gamification pravila. Opcije (iii)–(v) iz §Odluke NISU trebale |
 | #26 | `make dev` nije bio from-scratch sposoban | ✅ 4.4-0g | Nedostajali su import taskova, seed sandboxa i **registracija SPADE agenata** (Prosody volume se briše uz `down -v` → backend lifespan puca). Sve uvedeno u `dev` lanac |
 | **#27** | **Subfloor pravilo tiho ubija koncepte s TOČNO 1 zadatkom** | ✅ **4.4-0h (podacima)** | `subfloor_concepts` maskira svaki koncept (modul ≠ 0) s `<2` aktivna primarna zadatka kao „savladan" (0.99) da ga Prolog ne preporuči. Posljedica: koncept s **točno 1** zadatkom nikad ne biva ponuđen, njegov jedini zadatak se nikad ne servira, i ako nema sekundarnih pojavljivanja BKT mu ostaje na tier prioru — **tiho, bez ijedne greške u logovima**. Zatečeno stanje: `right_join` (1 primarni, 0 sekundarnih) i `insert` (1, 0) — empirijski potvrđeno simulacijom (0 updatea nakon savršenog rješavanja svih ponuđenih zadataka). **Riješeno dodavanjem po jednog ručno autorskog zadatka** (2 primarna → izlaze iz subfloora), bez ijedne izmjene pravila. **OSTAJU kao namjerna limitacija:** `explain_plan`/`index_usage` (M6, #19) i `join_condition`/`column_alias` (modul-0 glue, dizajn) |
@@ -60,6 +60,118 @@ koristi se `source_id` (NALAZ #21).
 
 ---
 
+## Bilješke uz nalaze — dugi oblik
+
+Nalazi čije obrazloženje ne stane u ćeliju tablice. Redak u tablici nosi status i
+presudu, ovdje stoji dokaz.
+
+### #13 — zašto se korekcija hue→45 NE izvodi (odluka 4.7, 2026-08-09)
+
+🔴 **Za trag odlučivanja:** #13 se **NE** zatvara nasljeđivanjem dokaza iz #33. Commit
+`c12ec31` (4.4b) ih je bio spojio jednom rečenicom — „Token-level, ide uz rekalibraciju
+palete zajedno s partial hue 60→45" — iako s #33 nema veze: **#33 je o kontrastu mastery
+gradijenta, #13 o hue blizini partiala i accenta.** Kad je #33 odbačen matematičkim
+dokazom, #13 je otišao s njim **bez vlastite presude**. Ovo je ispravlja.
+
+1. **Mitigacija je izmjerena i drži — ali tek nakon što je izmjerena u PRAVOM kontekstu.**
+   Ikona + tekstualna oznaka su OBAVEZAN kanal (MASTER §2.2), pa boja **nije nosilac
+   informacije** nego pojačanje: verdict „Djelomično" nosi `TriangleAlert` + tekstualnu
+   oznaku u svakoj grani (`FeedbackPanel.tsx:55-59`, `verdict-ui.ts:39-45`).
+   Izmjereno 2026-08-09 (alpha-kompozitirano, konvertor validiran na prethodno
+   objavljenim brojkama):
+
+   | `text-partial` prema | light | dark |
+   |---|---|---|
+   | `bg-partial-soft` — **stvarni kontekst renderiranja** | **4,86:1** ✅ | **8,03:1** ✅ |
+   | `card` — ploha na kojoj komponenta NE stoji | 5,48:1 ✅ | 8,68:1 ✅ |
+
+   🔒 **DOC — poučak, ne fusnota:** wrapup 4.3 (`docs/faza-4.3-wrapup.md:58`) objavio je
+   „Kontrast `text-partial` AA ✓ (8.68:1 dark / 5.50:1 light)". Te su brojke mjerene
+   **vs `card`**, a komponenta se renderira unutar omotača `border-partial/40
+   bg-partial-soft` — dakle na `partial-soft`. Mjerenje je bilo **izvan konteksta
+   renderiranja**. Ovdje ishod ne mijenja presudu (oba para prolaze AA), ali je to
+   **ista klasa greške** kao netočni docstring `MasteryBar` iz #33: broj je bio točan za
+   par koji je izmjeren i neprimjenjiv na par koji se stvarno vidi. Otud dopuna politike:
+   uz brojku i datum ide i **ploha prema kojoj je mjereno**.
+   (Napomena o preciznosti: ponovno mjerenje `partial` vs `card` u light temi daje
+   **5,48:1** naspram objavljenih 5,50:1 — isti par, razlika je zaokruživanje konvertora,
+   ne promjena tokena.)
+
+2. **Korekcija je izvediva, ali ne besplatna.** Pomak na hue 45 dira **4 datoteke i
+   0 komponenata** (`index.css` ×4 vrijednosti, `MASTER.md` §2.2 + §2.7, errata) —
+   komponente vuku `text-partial`/`bg-partial-soft`/`border-partial` pa promjena tokena
+   propagira sama. Hue udaljenosti bi se popravile prema accentu i **pogoršale** prema
+   `incorrect`: light 55→45 znači Δ do accenta 15→**25**, a Δ do `incorrect` 30→**20**;
+   dark 60→45 znači Δ do accenta 20→**35**, Δ do `incorrect` 35→**20**.
+
+3. **Cijena je ponovno otvaranje SSOT-a neposredno pred deploy.** MASTER §2.7 t. 4
+   propisuje hue mapu sustava (**25 incorrect · 55 partial · 70–85 accent · 150 correct ·
+   190–260 mastery · 300 tier · 345 difficulty**). Pomak partiala prepisuje tu mapu, a po
+   🔒 DOC politici traži **novo mjerenje cijele skale** u obje teme, ne samo partiala.
+
+4. **Korist je neprimjetna.** Boja ionako nije jedini kanal (t. 1), pa se korisniku ništa
+   ne mijenja. Uz to se partial prikazuje na **eval-verificiranom** FeedbackPanelu (4.3c,
+   živo verificiran) — dodir bez funkcionalne koristi je čisti regresijski rizik.
+
+**Status: 📌 prihvaćeno kao limitacija.** Nijedna vrijednost tokena nije mijenjana.
+Kandidat za Fazu 6 uz punu remjeru palete, zajedno s #33 i s nalazom o prstenu fokusa —
+ali kao **odvojeni nalazi s odvojenim obrazloženjima**, ne kao jedan paket. Spajanje je i
+dovelo do ovog propusta.
+
+### #24 — revizija pretpostavke o dostižnosti (2026-08-09)
+
+**Kriterij, pročitan iz koda (ne iz errate):** `gamification_logic.py:240-241`
+`if facts.current_streak >= 7: earned.add("streak_7")`, gdje `current_streak` dolazi iz
+`streak_from_active_dates:186-191` — broj **uzastopnih kalendarskih dana** s barem jednim
+pokušajem, koji **završava danas**, u zoni Europe/Zagreb. Deklarativni mirror
+`badges.pl:22-23` govori isto. ✅ **Opis kriterija u izvornom zapisu je bio TOČAN.**
+
+**Ono što pada je zaključak.** Izvorni zapis tvrdio je: „horizont bedža je dulji od
+trajanja evaluacijske sesije → **očekivana stopa osvajanja 0 %**". Ta je tvrdnja bila
+točna **pod modelom nadzirane jednokratne laboratorijske sesije**, u kojoj sudionik sustav
+vidi jedan dan. **Taj model više ne vrijedi:** evaluacija se izvodi asinkrono preko javnog
+linka, sudionici rade u vlastitom ritmu kroz dane ili tjedne. `streak_7` time prestaje
+biti nedostižan **po konstrukciji**.
+
+**Kriterij se NE mijenja** (gamifikacija je zamrznuta; i nema potrebe). Mijenja se
+**status u analizi gamifikacije**:
+
+- prije: 0 % je bila **predvidljiva posljedica dizajna eksperimenta** — izvještavala se
+  kao takva, bez informacijske vrijednosti;
+- sada: stopa osvajanja je **mjerena varijabla** — pokazatelj *održanog* angažmana kroz
+  dane, a ne trenutne aktivnosti.
+
+**Pun katalog provjeren na vremenske komponente** (`seed_data.py` BADGES × `eval_badges`,
+`gamification_logic.py:226-247`):
+
+| Bedž | Kriterij (iz koda) | Vremenska komponenta |
+|---|---|---|
+| `first_correct` | `facts.has_correct` | nema |
+| `join_master` | `{inner,left,right}_join ⊆ mastered` | nema (problem je bio podatkovni — #25/#27) |
+| **`streak_7`** | `current_streak >= 7` | **DA — kalendarski dani; JEDINI** |
+| `null_ninja` | `"null_handling" in mastered` | nema |
+| `explorer` | `evaluable_modules ⊆ attempted_modules` | nema (broj modula, ne vrijeme) |
+
+Ostala četiri mjere **ishode** (točnost, ovladanost, pokrivenost modula) koji ne poznaju
+pojam dana. Po tragu #22 provjereno i da `explorer` nema fiksne brojke koja bi ostarila —
+kriterij je od 4.4-0f dinamičan uz fail-closed guard (`gamification_logic.py:244-246`).
+
+**Empirijski (2026-07-26):** `seed_demo_user` odradio je **27 attempta u JEDNOM danu**
+(streak 1/1) → osvojeno `['first_correct', 'explorer']`. `explorer` je dakle osvojen
+unutar jednog dana — potvrđeno **mjerenjem**, ne izvodom; `streak_7` nije, kako i mora
+biti pri streaku 1.
+
+⚠️ **Dostižan ≠ vjerojatan.** Kriterij je strog: 7 **uzastopnih** dana, **bez ijednog
+propuštenog**, svaki s barem jednim pokušajem. Sudionik koji odradi studiju kroz dva
+tjedna s prekidima ne osvaja bedž. Očekivana stopa ostaje **niska**, ali je sada
+**empirijsko pitanje**, ne unaprijed poznata nula. U radu se izvještava izmjerena stopa uz
+ovu napomenu o strogosti.
+
+**Ostaje netaknuto:** `streak_7` je i dalje svjestan dugoročni retention element, ne
+defekt. Bedž se ne mijenja.
+
+---
+
 ## Opseg implementacije — REZANE faze (odluka korisnika, 2026-07-20)
 
 **Faza 4.6 (motion/WebSocket) i Faza 4.7 (visual QA polish) su REZANE.**
@@ -77,6 +189,51 @@ obrazloženo, ne izostavljeno previdom.
 
 Umjesto njih izvedena je **Faza 4.6-eval** — sigurnost podataka, export,
 čist baseline i operativne procedure (#37, #38, #39).
+
+### ⟳ REVIZIJA (2026-08-09) — Faza 4.7 je OŽIVLJENA, 4.6 ostaje rezana
+
+**Što se mijenja:** odjeljak iznad točno opisuje odluku od 2026-07-20, ali je u dijelu
+koji se tiče **4.7** nadglasan. Faza 4.7 (visual QA / a11y / responsive / hardening)
+**više nije rezana**. Faza 4.6 (motion + WebSocket) **ostaje rezana** i neizmijenjena;
+umjesto nje je izvedena 4.6-eval (#37, #38, #39). Postojeći tekst se **ne prepisuje** —
+trag odlučivanja ostaje, isti obrazac kao §„~~Odluke koje čekaju~~".
+
+**Razlog — promjena strategije evaluacije s NADZIRANE LABORATORIJSKE na ASINKRONU
+JAVNU.** Odluka od 2026-07-20 pretpostavljala je nadziranu sesiju: pripremljeni računi,
+usmene upute i prisutan autor koji pomaže kad nešto pukne. Evaluacija se sada izvodi na
+**javnom URL-u**, sa **samostalnom registracijom** i **bez nadzora**. Nenadzirano sučelje
+na javnom URL-u nosi drukčiji rizik nego sučelje kojim se rukuje uz prisutnog autora, pa
+se mijenja i *što je* polish:
+
+- Put `/register → prvi login → prazna stanja → prvi zadatak` prestaje biti kozmetika i
+  postaje **jedini kanal uputa** — nema usmenog objašnjenja koje bi ga nadomjestilo.
+- Oporavak od greške prestaje biti ugodnost i postaje **uvjet da sudionik završi** — nema
+  nikoga da ga izvuče.
+- Obrazloženje preporuke (#44) više se ne može dati uživo; ako ga UI ne nosi, sudionik ga
+  ne dobiva.
+- Nepoznat preglednik i nepoznata širina zaslona postaju stvaran rizik (u labosu su bili
+  poznati).
+- Informiranje sudionika i kontakt postaju obveza sučelja, a ne razgovora (v. #46).
+
+**Opseg motiona u 4.7 (da se ne pročita kao tiho oživljavanje 4.6):** 4.6 ostaje rezana.
+Jedina animirana površina dodana u 4.7 je **mobilni navigacijski drawer**, i to kao
+posljedica zahtjeva **pristupačnosti** (ispod 768px nije postojala nikakva navigacija), ne
+kao motion polish. Gamifikacijski motion (XP count-up, level-up celebration, badge-unlock,
+streak flame), page tranzicije, ⌘K paleta i WebSocket **ostaju neizvedeni**.
+`framer-motion`/`motion` nisu u `package.json`; sav motion u aplikaciji je CSS
+(`tw-animate-css` + motion tokeni iz 4.1b).
+
+**Što ostaje istinito iz odluke 2026-07-20:** obrazloženje da polish ne otključava novu
+funkcionalnost i ne utječe na mjerenje vrijedi za **estetski** dio 4.7 (razmaci,
+poravnanja, motion). Taj dio je i dalje najniži prioritet i reže se prvi ako rok pritisne.
+Ono što je 4.7 dobila natrag je **operativna upotrebljivost bez nadzora**, ne uglađivanje.
+
+**Kako se prijavljuje u radu:** u odjeljku o opsegu implementacije navodi se da je 4.6
+(motion/WS) rezana svjesno i obrazloženo, a da je 4.7 izvedena u **suženom,
+prioritiziranom** obliku vođenom zahtjevima asinkrone javne evaluacije — ne kao puni
+vizualni QA prolaz iz plana §4.7. Popis stvarno izvedenog vodi
+`docs/faza-4.7-korak-0.md` §9 i wrapup 4.7; nepopravljeni nalazi su u
+`docs/faza-4.7-nalazi.md`.
 
 ---
 

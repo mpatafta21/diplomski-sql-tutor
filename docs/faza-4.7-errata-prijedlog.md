@@ -574,6 +574,139 @@ vrijednost različitu od `--muted-foreground` (npr. `0.637`–`0.620`), uz manju
 (kolizija s `muted-foreground`, razdvajanje odabira od fokusa) — nijedno ne mijenja
 brojke, oba su kandidati za odluku u stageu 1C.
 
+#### 4. 🔴 IZLAZNI KRITERIJ ZA STAGE 1C
+
+Odobrena izvedba: `--ring` **i** `--sidebar-ring` → `oklch(0.556 0 0)`, obje teme
+usklađene, u stageu 1C (ne prije — dira `ui/input.tsx` i `ui/button.tsx` na
+eval-verificiranom Task screenu, a smoke suite iz 1B još ne postoji).
+
+**Uz brojke, 1C MORA proći i vizualnu provjeru po snimkama.** Razlog je kolizija iz t.2:
+light `--muted-foreground` je **bajt-identičan** ciljnoj vrijednosti (`#737373`), pa
+prsten fokusa postaje **iste boje kao sekundarni tekst**. Brojka to ne mjeri —
+izračun mjeri usklađenost elementa, snimka mjeri **relativnu težinu u kompoziciji**
+(v. metodološku bilješku u `faza-4.7-nalazi.md`).
+
+Obavezne snimke, obje teme, s fokusom **stvarno postavljenim** na element:
+
+| # | mjesto | što se provjerava |
+| --- | --- | --- |
+| 1 | [AppShell.tsx:71](frontend/src/components/layout/AppShell.tsx#L71) — nav stavka | isti element nosi `text-muted-foreground` **i** `outline-ring` → prsten je iste boje kao vlastita labela stavke. Čita li se fokus kao fokus? |
+| 2 | [FeedbackPanel.tsx:197-200](frontend/src/components/task/FeedbackPanel.tsx#L197-L200) | muted `<p>` (obrazloženje preporuke) i CTA gumb su **djeca istog flex reda** — prsten CTA-a i susjedni tekst dijele boju |
+| 3 | [AttemptRow.tsx:81](frontend/src/components/profile/AttemptRow.tsx#L81) | isti obrazac kao (1), ikon-gumb |
+| 4 | `ConceptCurveCard` — odabrana **i** fokusirana kartica istovremeno | razlikuju li se dva stanja koja dijele isti token (4,57 vs 4,73) |
+| 5 | `Input` u fokusu (Login/Register) | rub + halo pri novoj vrijednosti; halo ostaje 1,96:1 → smije ostati aura, ne rub |
+
+**Kriterij prolaza:** fokus mora biti prepoznatljiv kao fokus **bez** oslanjanja na boju
+— nosi ga geometrija (2px obrub + 2px razmak). Ako snimka pokaže da se prsten stapa sa
+sekundarnim tekstom, alternativa je `0.637`–`0.620` (i dalje ≥3:1 na svim plohama, ali
+različito od `--muted-foreground`) uz manju rezervu.
+
+---
+
+## REVIZIJA „mjereno vs `card`, renderirano na `-soft`" (READ-ONLY, 2026-08-10)
+
+🔴 **NIŠTA NIJE POPRAVLJENO.** Dva razreda elemenata **padaju AA** — odluka je korisnikova.
+
+Povod: `-soft` plohe su najgore light plohe u aplikaciji, a kroz projekt se kontrast
+mjerio „vs `card`". #13 je to pokazao na jednom tokenu (5,48 vs `card` → 4,86 vs
+`partial-soft`); ovo je pun prolaz kroz **FeedbackPanel**, jedini ekran koji renderira na
+`-soft` plohama.
+
+### a) Inventar — što stvarno stoji na `-soft` plohi
+
+Panel (`FeedbackPanel.tsx:112-114`) nosi `ui.wrap` = `bg-correct-soft` / `bg-incorrect-soft`
+/ `bg-partial-soft`. Sve unutar njega leži na toj plohi, ne na `card`:
+
+| # | element | mjesto | boja teksta |
+| --- | --- | --- | --- |
+| 1 | oznaka verdikta („Točno"/„Djelomično"/„Netočno") + ikona | `:119` | `text-correct`/`-incorrect`/`-partial` |
+| 2 | poruka feedbacka | `:123` | naslijeđeni `foreground` |
+| 3 | čip „Već riješeno · bez XP" | `:138` | `text-muted-foreground` |
+| 4 | XP/pokušaj info | `:143` | `text-muted-foreground` |
+| 5 | streak indikator | `:147` | `text-accent-warm-text` |
+| 6 | objašnjenje uz verdikt | `:156` | `text-muted-foreground` |
+| 7 | mono blok s detaljem greške | `:163` | `text-muted-foreground` na `bg-background/60` |
+| 8 | level-up redak | `:169` | `text-accent-warm-text` (`font-semibold`) |
+| 9 | „Novi bedž:" | `:177` | `text-muted-foreground` |
+| 10 | obrazloženje preporuke (#44) | `:198` | `text-muted-foreground` |
+| — | XP čip i badge čip | `:130`, `:185` | vlastita ploha `bg-accent-warm` → nije pogođeno |
+
+### b) + d) Izmjereno prema plohi na kojoj element STVARNO stoji (2026-08-10)
+
+Prag: **4,50:1** (sve je `text-sm` 14px ili `text-xs` 12px — normalan tekst; `font-semibold`
+na 14px nije „large text").
+
+**LIGHT — 🔴 dva razreda padaju:**
+
+| element (boja) | `correct-soft` | `incorrect-soft` | `partial-soft` | presuda |
+| --- | :---: | :---: | :---: | :---: |
+| oznaka verdikta | 4,67 | 5,15 | 4,86 | ✅ |
+| poruka (`foreground`) | 17,80 | 17,50 | 17,56 | ✅ |
+| **`muted-foreground`** (#3,4,6,9,10) | **4,26** | **4,18** | **4,20** | 🔴 **PADA** |
+| **`accent-warm-text`** (#5,8) | **4,30** | **4,22** | **4,24** | 🔴 **PADA** |
+| mono blok (`bg-background/60`) | 4,54 | 4,51 | 4,51 | ✅ **na rubu** |
+| XP/badge čip (vlastita ploha) | 5,04 | 5,04 | 5,04 | ✅ |
+
+**DARK — sve prolazi s rezervom:**
+
+| element | `correct-soft` | `incorrect-soft` | `partial-soft` |
+| --- | :---: | :---: | :---: |
+| oznaka verdikta | 7,74 | 5,72 | 8,03 |
+| poruka | 15,57 | 15,93 | 15,87 |
+| `muted-foreground` | 6,27 | 6,41 | 6,39 |
+| `accent-warm-text` | 8,57 | 8,77 | 8,74 |
+| mono blok | 7,18 | 7,23 | 7,22 |
+| XP/badge čip | 9,15 | 9,15 | 9,15 |
+
+### c) Usporedba s ranijim tvrdnjama — jedna je preširoka, ostalih nije bilo
+
+| element | ranija tvrdnja | ploha na kojoj je mjerena | presuda |
+| --- | --- | --- | --- |
+| oznaka verdikta | `faza-4.3-wrapup.md:58` — „`text-partial` AA ✓ (8.68:1 dark / 5.50:1 light)" | **`card`** — pogrešna ploha | ishod **isti** (prolazi i na `partial-soft`, 4,86), ali brojka nije bila o kontekstu renderiranja (v. #13) |
+| **`accent-warm-text`** | 🔴 `MASTER.md:46` — „amber tekst NA pozadini (**≥4.5:1 ✓**)" | neimenovana „pozadina" (drži za `card` 4,78) | 🔴 **TVRDNJA JE PRESIROKA** — na `-soft` plohama je 4,22–4,30, dakle **ne drži** ondje gdje token stvarno stoji (streak `:147`, level-up `:169`) |
+| `muted-foreground` | `faza-4.4b-wrapup.md:59` — „7.66:1 / 4.74:1 (muted)" | `card`, na Profilu (BKT krivulje) | tvrdnja **točna za svoj ekran**; FeedbackPanel nije bio pokriven → **nije bilo tvrdnje** |
+| poruka, mono blok, čipovi | — | — | **nije bilo tvrdnje** |
+
+### 🔴 Što ovo znači (odluka je korisnikova)
+
+**Sedam elemenata u light temi je ispod AA praga**, svi na eval-verificiranom ekranu:
+čip „Već riješeno", XP/pokušaj info, objašnjenje verdikta, „Novi bedž:", **obrazloženje
+preporuke (#44)**, streak indikator i level-up redak. Nedostatak je **mali** (4,18–4,30
+naspram 4,50, dakle 4–7 %), ali sustavan i pogađa **svaki** feedback nakon svake predaje.
+
+Dodatno: mono blok na **4,51** prolazi s marginom od 0,2 % — praktički knife-edge.
+
+**Uzrok nije token nego ploha.** `muted-foreground` (4,73) i `accent-warm-text` (4,78)
+prolaze na `card` s tankom rezervom; `-soft` plohe su za ~10 % tamnije od `card` i ta
+rezerva nestane. Zato se ovo nije vidjelo: **svaka pojedina tvrdnja bila je točna za plohu
+koju je mjerila.**
+
+**Mogući smjerovi (nijedan nije izveden, nijedan nije preporuka bez tvoje odluke):**
+
+1. **Posvijetliti `-soft` plohe** (`0.96` → npr. `0.975`) — jedan token po verdiktu, dira
+   samo plohu, ali mijenja piksel eval-verificiranog panela i traži remjeru svih elemenata
+   iznad.
+2. **Potamniti `muted-foreground` i `accent-warm-text`** — dira **cijelu aplikaciju**, ne
+   samo panel; `muted-foreground` je najčešći sekundarni tekst u projektu.
+3. **Lokalni override u panelu** (npr. `text-foreground/70` umjesto `muted-foreground`
+   unutar `FeedbackPanel`) — najuži zahvat, ali uvodi iznimku od tokena, što MASTER §2
+   izrijekom ne voli.
+4. **Prihvatiti kao limitaciju** uz izmjerene brojke — po uzoru na #33, s tim da je ovdje
+   nedostatak znatno manji i popravljiv.
+
+**Neovisno o odluci: `MASTER.md:46` treba suziti** — tvrdnja „≥4.5:1 ✓" bez imenovane
+plohe je ista klasa greške kao netočni `MasteryBar` docstring iz #33.
+
+---
+
+## PRIJEDLOG 6 — errata #48 (tekst pripremljen, `errata.md` NIJE mijenjan)
+
+```markdown
+| **#48** | 🟡 **Stanje „odabrano" na `ConceptCurveCard` krši 1.4.11 (AA) danas, neovisno o fokusu** | 🟡 **otvoren — popravlja se u 4.7-1C kao posljedica korekcije `--ring`** | `ConceptCurveCard.tsx:61` renderira odabranu karticu kao `selected ? "border-ring bg-muted/40" : "border-border"`. `border-ring` je time **indikator stanja**, a ne fokusa: vidljiv je trajno, i kad fokus nije na kartici. SC 1.4.11 Non-text Contrast (AA, WCAG 2.1) pokriva „vizualne informacije potrebne za identifikaciju komponenata sučelja **i njihovih stanja**" → traži ≥3:1 prema susjednoj boji. **Izmjereno 2026-08-10** (alpha-kompozitirano, konvertor validiran na šest ranije objavljenih brojki): `--ring` vs `bg-muted/40` nad `card` = **2,51:1 light** ❌ (dark prolazi). **Zapisuje se SAMOSTALNO iako ga popravlja tuđa promjena:** korekcija `--ring` na `oklch(0.556 0 0)` (stage 1C) diže ga na **4,57:1** ✅, ali to je **posljedica, ne namjera** — bez vlastitog zapisa nalaz bi tiho nestao i vratio bi se neprimijećen ako se token ikad vrati na svjetliju vrijednost ili ako `ConceptCurveCard` dobije vlastitu boju. ⚠️ **Bilješka o hijerarhiji:** token **ne razdvaja** „odabrano" od „fokusirano" — oba vuku `--ring`, pa su pri 0.556 na 4,57 odnosno 4,73:1, praktički jednako teški (zatečeno je 2,51 vs 2,59 — jednako blisko). Odnos se korekcijom **ne mijenja**, oba se dižu. Ako se traži hijerarhija „fokus > odabir", `ConceptCurveCard` treba **vlastiti token** — dizajnerska odluka za Fazu 6, ne promjena vrijednosti. Srodno: N-4 (prsten fokusa), #33 (non-text kontrast kao klasa) |
+```
+
+**Gdje ide:** novi redak u tablici errate, iza #47. **Ne primjenjujem do odobrenja.**
+
 ---
 
 ## Sažetak — što traži tvoj OK

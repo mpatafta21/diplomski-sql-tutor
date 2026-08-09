@@ -332,6 +332,130 @@ animiranu površinu gate ostaje obavezan.
 
 ---
 
+## `--ring` — INVENTAR POTROŠAČA (read-only, 2026-08-10)
+
+🔴 **Nijedna vrijednost nije mijenjana.** Ovo je istraga; presuda (limitacija vs
+jednovrijednosna korekcija) je korisnikova.
+
+**Zašto se ne smije naslijediti presuda #13/#33:** #33 je odbačen dokazom da **skala**
+kolabira (tri donja stopa mastery gradijenta u rasponu 0.035 L), #13 zato što pomak
+prepisuje **hue mapu** MASTER §2.7. `--ring` **nema ni skalu ni hue susjede** — nije ista
+klasa problema i ne smije dijeliti presudu. To je isti poučak kao `c12ec31`.
+
+### a) Svi potrošači — koristi li se za išta osim fokusa?
+
+**DA, dva ne-fokusna potrošača.**
+
+🔴 **1. Stanje „odabrano", ne fokus** — [ConceptCurveCard.tsx:61](frontend/src/components/profile/ConceptCurveCard.tsx#L61):
+
+```tsx
+selected ? "border-ring bg-muted/40" : "border-border"
+```
+
+`--ring` ovdje označava **odabranu krivulju** — trajno stanje kartice, vidljivo i kad
+fokusa nema. Po SC 1.4.11 i to je „stanje komponente" i traži 3:1. Praktična posljedica:
+promjena `--ring` mijenja **i izgled odabira**, ne samo prstena.
+
+🔴 **2. Zadana boja outlinea za SVAKI element** — [index.css:299-302](frontend/src/index.css#L299-L302):
+
+```css
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+}
+```
+
+Svaki element u aplikaciji dobiva `outline-color: ring/50` kao **default**, neovisno o
+tome ima li vlastiti `focus-visible:`. Doseg je time širi od popisa komponenata.
+
+**Fokusni potrošači** (za potpunost, 4 obrasca):
+
+| Obrazac | Mjesta |
+| --- | --- |
+| `outline-2 outline-offset-2 outline-ring` | `AppShell.tsx:55,71` · `ConceptRow.tsx:117` · `MasteryHighlights.tsx:81` · `AttemptRow.tsx:81` · `ParticipationSection.tsx:68` · `RegisterPage.tsx:131,224` · `LoginPage.tsx:124` · `TaskPage.tsx:235,254` |
+| `focus-visible:border-ring` + `ring-3 ring-ring/50` | `ui/input.tsx:12` · `ui/button.tsx:8` (vendorani shadcn) |
+| `focus-visible:ring-2 focus-visible:ring-ring` | `ConceptCurveCard.tsx:60` |
+| `focus-within:border-ring` + `ring-2 ring-ring/40` | `TaskPage.tsx:327` — omotač Monaco editora |
+
+⚠️ **Lažni pozitivi — riječ „ring" bez tokena `--ring`:** `ui/card.tsx:15` koristi
+`ring-1 ring-foreground/10` (ukrasna vlas, boja je `foreground`), a `ModuleCard.tsx:47`
+`ring-2 ring-accent-warm/50` (deep-link isticanje). **Ni jedan ne troši `--ring`** i
+promjena ga ne bi dotakla.
+
+### b) Je li `--ring` izveden iz druge vrijednosti?
+
+**NE — samostalan literal, bez repova.**
+
+```
+index.css:170  --ring: oklch(0.708 0 0);    ← light, literal
+index.css:244  --ring: oklch(0.556 0 0);    ← dark,  literal
+index.css:77   --color-ring: var(--ring);   ← samo @theme mapiranje
+```
+
+Nije `var(--border)`, nije `color-mix`, ne dijeli sirovinu ni s čim. Promjena nema
+kaskadu — dodiruje **točno** potrošače iz (a).
+
+🔴 **Jedna zamka:** `--sidebar-ring` (`index.css:185` light, `:258` dark) je **neovisan
+literal s IDENTIČNOM vrijednošću**. Promjena `--ring` ga **ne bi povukla** → tiho bi
+divergirali. Danas bez vizualne posljedice jer **nema nijednog potrošača** (citat
+pretrage: `grep -rn "sidebar-ring" frontend/src` daje samo `index.css:64,185,258` —
+definiciju i `@theme` mapiranje, nula komponenata), ali ostaje zamka za kasnije.
+
+### c) Je li spomenut u `MASTER.md`?
+
+**NE.** `grep -rn "ring" design-system/sql-tutor/MASTER.md` daje **dva** pogotka, oba
+unutar drugih riječi — `:13` „tuto**ring**" i `:216` „st**ring**ovi". **Nijedan se ne
+odnosi na token.**
+
+**Posljedica je bitna za presudu:** `--ring` je shadcn seed iz 4.1b koji **nikad nije ušao
+u SSOT**. Za razliku od #13 (prepisuje hue mapu §2.7) i #33 (ruši skalu §2.3), promjena
+`--ring` **ne dira nijednu dokumentiranu skalu, mapu ni tvrdnju** — nema što remjeriti
+osim same vrijednosti.
+
+### d) HIPOTETSKI — koja bi light vrijednost prošla? (NIJE primijenjeno)
+
+Vezujuće ograničenje je **najtamnija** light ploha, `--sidebar` (`#fafafa`).
+
+| L (oklch) | hex | vs `card` | vs `sidebar` | vs `muted/40` | vs `--primary` | vs `--border` |
+| --- | --- | --- | --- | --- | --- | --- |
+| **0.708 (zatečeno)** | `#a1a1a1` | 2,59 ❌ | 2,48 ❌ | 2,51 ❌ | 6,91 | 2,06 |
+| 0.658 (prag) | `#919191` | 3,14 ✅ | **3,00** ✅ | 3,03 ✅ | 5,71 | 2,49 |
+| 0.620 | `#868686` | 3,64 ✅ | 3,49 ✅ | 3,52 ✅ | 4,92 | 2,89 |
+| **0.556** | `#737373` | **4,73** ✅ | **4,53** ✅ | **4,57** ✅ | **3,79** ✅ | **3,76** ✅ |
+
+**Odgovor na pitanje „koja bi vrijednost prošla":** prag je **`oklch(0.658 0 0)`** —
+najsvjetlija koja istovremeno prolazi prema sve četiri plohe, ali s **nula rezerve**
+(3,00:1 prema `sidebar`).
+
+🔴 **Nalaz koji nisam očekivao:** **`oklch(0.556 0 0)` prolazi u OBJE teme.** To je
+**vrijednost koju dark tema već koristi** za `--ring`, a u light paleti već postoji kao
+`--muted-foreground` (`index.css:161`) — dakle **nijedna nova boja se ne uvodi**. Pri toj
+vrijednosti:
+
+- sve četiri light plohe prolaze s rezervom (4,53–4,73:1);
+- ostaje razlučiv od `--primary` (3,79:1), pa prsten na tamnom gumbu i dalje čita;
+- 🔴 **promjena stanja inputa** (mirovanje `--border` `0.922` → fokus) skače
+  **2,06 → 3,76:1**, čime prelazi 3:1 — a to je uvjet koji zatečena vrijednost ne
+  ispunjava ni blizu (relevantno za AAA čitanje 2.4.13, ali i za samu primjetnost fokusa);
+- light i dark `--ring` postali bi **identični**, što je kod neutralnog sivog obranjivo:
+  `0.556` je dovoljno tamna za bijelu plohu i dovoljno svijetla za `card` `0.205`.
+
+**Što ta promjena NIJE besplatna — pošteno:**
+
+1. Dira **dva ne-fokusna potrošača** iz (a): odabir u `ConceptCurveCard` i zadani
+   `outline-ring/50` na `*`.
+2. `--sidebar-ring` bi trebao ići **istim potezom** ili svjesno divergirati (b).
+3. Prstenovi u light temi postaju **vizualno teži**. Brojka to ne mjeri — traži prolaz
+   po snimkama, po poučku „izračun mjeri element, snimka mjeri hijerarhiju".
+4. Dodiruje `ui/input.tsx` i `ui/button.tsx`, koji se pojavljuju na **eval-verificiranom**
+   Task screenu — kroz token, ne kroz kod, ali piksel se mijenja.
+
+**Presuda nije moja.** Utvrđeno je: potrošači, odsutnost izvedenosti, odsutnost iz SSOT-a
+i **brojka** koja odgovara na pitanje iz t.4d.
+
+---
+
 ## Sažetak — što traži tvoj OK
 
 | #   | Prijedlog                                   | Zahvat                                        | Status                      |

@@ -332,6 +332,44 @@ animiranu površinu gate ostaje obavezan.
 
 ---
 
+## PRIJEDLOG 5 — docstring `gamification_logic.py:43-45` (BACKEND, čeka OK)
+
+🔴 **NIJE primijenjeno. Backend je zamrznut** — ovo je pripremljen diff, ništa više.
+
+**Vrijedi li ispravak? Smatram da da**, iz jednog razloga: to nije zastarjeli komentar
+nego **netočna tvrdnja** koja se nalazi **točno na mjestu gdje bi je budući čitatelj
+provjeravao**. Tko otvori `gamification_logic.py` da vidi ovisi li XP o vremenu, pročita
+„streak NAMJERNO ne množi XP" i **stane** — a odgovor je u drugoj datoteci
+(`gamification_persistence.py:283-297`). Ista klasa kao netočni `MasteryBar` docstring iz
+#33 i kao `index.css` komentari iz stage 0.
+
+**Protuargument koji priznajem:** #45 je sada zapisan u errati, pa tvrdnja **više nije
+nezabilježena**. Ako je politika da se zamrznuti backend ne dira ni radi komentara, ovo
+legitimno čeka Fazu 6 — errata nosi istinu.
+
+**Diff (nula izmjena ponašanja, samo komentar):**
+
+```diff
+-# Nota: streak NAMJERNO ne množi XP — XP ostaje čist proxy za učinak-u-učenju
+-# (streak se nagrađuje kroz streak_7 badge). Badge XP (seed_data.py xp_reward)
+-# se u persistenceu STAKUJE u isti xp_delta kao attempt XP.
++# Nota: streak NAMJERNO ne ulazi u FORMULU XP-a — compute_xp ima tri ulaza
++# (difficulty, verdict, attempt_number) i nijedan nije vremenski.
++#
++# ⚠️ ALI UKUPAN XP NIJE VREMENSKI NEUTRALAN: streak se nagrađuje bedžom
++# streak_7, čiji xp_reward (30, seed_data.py) persistence STAKUJE u isti
++# xp_delta kao attempt XP, pribraja ga user.xp i uračunava u level
++# (gamification_persistence.py:283-297), a level i XP ulaze u global ljestvicu.
++# Tvrdnja „XP je čist proxy za učinak-u-učenju" zato vrijedi SAMO za compute_xp,
++# ne za ukupan XP. Vidi ERRATA #45 (prijetnja valjanosti). Pravilo se NE mijenja
++# — mijenja se samo tvrdnja o njemu.
+```
+
+**Opseg:** 1 datoteka, 3 linije komentara → 10. **Nula izvršnog koda**, nula testova,
+nula migracija. Ako se odobri, ide s `pytest` prolazom po politici zamrznutog backenda.
+
+---
+
 ## `--ring` — INVENTAR POTROŠAČA (read-only, 2026-08-10)
 
 🔴 **Nijedna vrijednost nije mijenjana.** Ovo je istraga; presuda (limitacija vs

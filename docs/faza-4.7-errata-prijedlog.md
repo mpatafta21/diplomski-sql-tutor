@@ -208,7 +208,8 @@ jednokratne laboratorijske sesije**, gdje sudionik sustav vidi jedan dan. **Taj 
 ne vrijedi:** evaluacija se izvodi asinkrono preko javnog linka, sudionici rade u vlastitom
 ritmu kroz dane ili tjedne. Time `streak_7` prestaje biti nedostižan **po konstrukciji**.
 
-**Kriterij se NE mijenja** (backend zamrznut, #49; i nema potrebe). Mijenja se **status u
+**Kriterij se NE mijenja** (backend zamrznut — 🔒 politika, **nema broj**; i nema potrebe).
+Mijenja se **status u
 analizi gamifikacije**:
 
 - prije: 0 % je bila **predvidljiva posljedica dizajna eksperimenta**, izvještavala se kao

@@ -178,7 +178,11 @@ od "ne diraj postojeće"). Hue-razmaknuta, svaka serija razlučiva i po svjetlin
 
 ## 5. Motion
 
-Tokeni u `@theme` (vrijednosti; bez framer-motion do 4.6):
+Tokeni u `@theme` — **samo vrijednosti**. Motion lib (`framer-motion`/`motion`) **nije u
+`package.json` i ne dolazi**: Faza 4.6 (motion + WebSocket) je REZANA (v. `docs/errata.md`,
+§„Opseg implementacije — REZANE faze" + revizija 2026-08-09). Sav motion u aplikaciji je
+CSS — `tw-animate-css` (`animate-in`, `fade-in`, `slide-in-*`) + ovi tokeni. Dodavanje
+motion liba traži izričitu odluku, nije zatečeni plan:
 
 | Token | Vrijednost | Namjena |
 |---|---|---|
@@ -190,11 +194,18 @@ Tokeni u `@theme` (vrijednosti; bez framer-motion do 4.6):
 | `--duration-fast` | `160ms` | mikrointerakcije |
 | `--duration-base` | `240ms` | paneli, fade |
 | `--duration-slow` | `400ms` | page transitions |
-| `--duration-reward` | `700ms` | gamifikacijski momenti (count-up envelope) |
+| `--duration-reward` | `700ms` | ⚠️ **NEKORIŠTEN** — bio rezerviran za count-up envelope NEIZVEDENE Faze 4.6 (provjereno grepom 2026-07-26: 0 pogodaka na `duration-reward` u `frontend/src`). OSTAJE radi cjelovitosti ljestvice instant→fast→base→slow→reward, ne kao najava rada |
 
 Pravila: sve animacije poštuju `prefers-reduced-motion` · bez layout-shift hovera (translateY max 1–2px,
 nikad scale koji pomiče susjede) · reward animacije SAMO na accent-warm događajima · svaka animacija
-prolazi `/review-animations` gate (4.3/4.6).
+prolazi `/review-animations` gate.
+
+⚠️ **Doseg gatea, zatečeno stanje:** `/review-animations` je stvarno pokrenut **samo nad
+Task screenom** (4.3). Faza 4.6, koja ga je trebala pokrenuti globalno, je REZANA →
+globalni prolaz **nikad se nije dogodio** i ne planira se. `prefers-reduced-motion` je
+pokriven **univerzalnim** guardom u `index.css` (`@media (prefers-reduced-motion: reduce)`
+nad `*`), ne per-komponentnim opt-inom, pa pravilo vrijedi i bez gatea. Za svaku NOVU
+animiranu površinu gate ostaje obavezan.
 
 ---
 

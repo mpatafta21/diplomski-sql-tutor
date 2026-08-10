@@ -332,10 +332,44 @@ zapisuje se kao stavka za stage u kojem se harness ionako dira.
 
 ---
 
-## #53 🔴 `--accent-warm-text` na brand marku i još tri mjesta krši §2.1
+## #53 🔴 STRUKTURNI: sustav nema WARNING semantiku, pa se §2.1 predvidljivo probija
 
-**Status:** 🔴 zatečeno · brand mark **popravljen u 4.7-r2**, ostala tri **otvorena**
-· revidirano 2026-08-10
+**Status:** 🔴 zatečeno · **STRUKTURNI**, ne higijenski · brand mark popravljen u 4.7-r2,
+ostatak čeka novi token (Faza 6) · revidirano i preuokvireno 2026-08-10 (1C t.0c)
+
+> ⟳ **PREUOKVIREN.** Prva verzija ovog nalaza brojala je prekršaje i tražila da se
+> „poprave". To je bio krivi okvir — isti kao kod #51, gdje je ispalo da problem nije u
+> pojedinim pozivima nego u tome što skup tokena **nema mjesta** za ono što se pokušava
+> izraziti.
+>
+> ### Skup semantika koje sustav ima
+>
+> | semantika | tokeni |
+> |---|---|
+> | verdict | `correct` · `incorrect` · `partial` (+ `-soft`) |
+> | tier | `tier-easy/medium/hard` |
+> | difficulty | `difficulty-*` ×5 |
+> | mastery | `mastery-0…100` |
+> | gamifikacija | `accent-warm` trio |
+> | danger | `destructive` |
+> | data-viz | `chart-1…5` |
+> | **warning** | 🔴 **NE POSTOJI** |
+>
+> **Amber je univerzalno warning boja.** Sustav ima amber, ali ga je §2.1 rezervirao za
+> gamifikaciju. Kad developer treba označiti *upozorenje* — „poslužitelj vraća najviše
+> 200 zapisa", „ovaj zapis je duplikat" — ne postoji token koji to znači, a postoji token
+> koji tako **izgleda**. Rezervacija se zato ne probija iz nemara nego **predvidljivo**,
+> i probijat će se opet pri svakoj sljedećoj poruci te vrste.
+>
+> **Popravak nije prebojati tri mjesta, nego uvesti token** (`--warning` + `-soft`, ili
+> proširiti `--neutral` obitelj). To je promjena skupa semantika → **Faza 6**, uz odluku
+> o hue-u koja mora proći isti cross-scale guard kao sve ostalo (§2.7): amber pojas
+> 70–85 je zauzet, pa warning ili dijeli pojas s gamifikacijom (i tada ih razlikuje
+> nešto drugo), ili ide izvan njega.
+>
+> **Srodno:** #51 (gamifikacijske površine kao strukturno najslabiji a11y teren),
+> N-10 (`ErrorState` posuđuje verdict plohu za sistemsku grešku — **isti korijen**:
+> nedostaje ne-verdict, ne-gamifikacijska semantika).
 
 MASTER §2.1 kaže za topli amber: *„Rezerviran ISKLJUČIVO za: XP, level, streak, badge,
 progres, CTA 'sljedeći zadatak'. **Ne koristi se za dekoraciju, navigaciju ni neutralne
@@ -374,14 +408,79 @@ $ grep -rn "accent-warm-text" frontend/src --include=*.tsx --include=*.ts
 **Popravljeno (#1, #2):** brand mark sada nosi `--grad-brand` (h280), ne amber. Time
 prestaje tvrditi „ovo je napredak" na mjestu koje je čista brand identifikacija.
 
-**NIJE popravljeno (#3, #4, #5) — i to je svjesno:** sva tri su na **admin ekranu**, koji
-student nikad ne vidi, a sva tri semantički označavaju **anomaliju/upozorenje**, ne
-napredak. Ispravan token za njih ne postoji: `--partial` je verdict studentskog rada,
-`--incorrect` je greška studenta, a `--neutral`/`--neutral-soft` je ono što N-10 tek treba
-dobiti. Popravak je dakle **vezan uz N-10** (uvođenje sistemske, ne-verdict semantike) i
-ide s njim u stage 2, ne prije. Dotad je ovdje zapisano da nije previd nego odgoda.
+**NIJE popravljeno (#3, #4, #5), i NEĆE biti dok ne postoji token:** sva tri označavaju
+**upozorenje**, a upozorenje u ovom sustavu nema boju. Prebojati ih u `--partial` ili
+`--incorrect` značilo bi reći „student je pogriješio" ondje gdje je poslužitelj nešto
+ograničio — zamjena jedne netočnosti drugom, glasnijom. Ostaju amber dok ne stigne
+`--warning`, i ovdje je zapisano da to **nije previd nego posljedica praznine u skupu**.
+(Sva tri su usto na admin ekranu, koji student nikad ne vidi — što snižava hitnost, ali
+ne mijenja dijagnozu.)
 
 **#6 ostaje granično i NE dira se.** Boja ondje nije jedini kanal — uz nju stoje ikona i
 tekst „(ti)" (`LeaderboardTable.tsx:84-88`, s vlastitim komentarom „Tekstualni kanal —
 oznaka ne smije biti samo boja/ikona"). Ako se §2.1 ikad proširi, ovo je prvi kandidat za
 eksplicitno dopuštenje, ne za promjenu koda.
+
+---
+
+## #54 🔴 VALJANOST: `recommendations_log` broji i preporuke koje nitko nije vidio
+
+**Status:** 🔴 otvoren · **nalaz o valjanosti mjerenja**, ne o kodu · utvrđeno 2026-08-10
+(4.7-1C t.6) · klasa: #29 / #31 / #35 / #45 / #47
+
+### Mehanizam, s citatom
+
+TanStack Query **po defaultu refetcha na fokus prozora** (`refetchOnWindowFocus: true`).
+`main.tsx:17-27` postavlja samo `retry` u `defaultOptions.queries` — **`refetchOnWindowFocus`
+se NE gasi nigdje**, ni globalno ni po upitu:
+
+```
+$ grep -rn "refetchOnWindowFocus" frontend/src   → 0 pogodaka
+```
+
+Jedina obrana je `staleTime` na `useNextTask` (`useNextTask.ts:18`, **60 s**), i njezin
+komentar točno opisuje mehanizam:
+
+> „bez staleTime svaki tab-focus okida cijeli agentski pipeline i može zamijeniti CTA
+> pod rukom"
+
+`staleTime` **odgađa**, ne ukida: nakon 60 s neaktivnosti sljedeći povratak fokusa okida
+`/next-task` → `RecommenderAgent` upiše redak (`recommender_agent.py:76-88`) → i to bez
+ijednog studentovog klika.
+
+### Zašto je to nalaz o VALJANOSTI, a ne o kodu
+
+Ponašanje je **ispravno** za UI (svjež CTA po povratku na tab). Problem je što isti poziv
+ostavlja **trag u tablici koja se čita kao mjera**.
+
+🔴 **Evaluacija je asinkrona i nenadzirana** — studenti rade danima, iz vlastitih
+preglednika, i **ostavljaju tabove otvorene**. Svaki povratak na takav tab (nakon 60 s)
+generira redak. Zato:
+
+- **broj redaka u `recommendations_log` NIJE broj preporuka koje je student vidio**, a
+  pogotovo nije broj onih na koje je reagirao;
+- svaka metrika oblika „izdane preporuke", „stopa prihvaćanja preporuke",
+  „preporuka → attempt konverzija" ima **napuhan nazivnik/brojnik za nepoznat faktor**,
+  koji ovisi o navici korisnika (koliko tabova drži otvoreno), ne o sustavu.
+
+**Empirijski trag iz ove sesije:** tablica je narasla 75 → 89 redaka kroz nekoliko sati,
+**svi pod `user_id = 1` (admin), bez ijednog attempta** (`attempts` za tog korisnika
+nepromijenjen na 13). Sonda je isključila krivu atribuciju kao uzrok: registracija →
+`/next-task` → novi redak nosi **ispravan** `user_id` novog korisnika. Dakle rast dolazi
+iz refetcha otvorenog taba, ne iz buga.
+
+### Što se NE radi
+
+Ne gasi se `refetchOnWindowFocus` — to bi pogoršalo UI radi čistoće mjerenja, a mjerenje
+nije razlog zbog kojeg aplikacija postoji. Ne dira se `staleTime`.
+
+### Što treba u analizu rada
+
+1. **Ne izvještavati sirovi `COUNT(*)`** iz `recommendations_log` kao „broj preporuka".
+2. Ako metrika treba: brojati **distinct `(user_id, recommended_task_id)` parove**, ili
+   vezati preporuku uz **attempt koji je unutar razumnog prozora slijedi** — oboje je
+   analitička odluka, ne izmjena koda.
+3. U ograničenjima rada navesti ovaj efekt uz ostale nalaze o valjanosti (#29/#31/#35/#45/#47).
+
+⚠️ Isto vrijedi, u manjoj mjeri, za `agent_messages_log` (N-3): i on raste bez studentove
+akcije, samo mu je uzrok drugi (nema `user_id`, pa ga nijedan cleanup ne dohvaća).

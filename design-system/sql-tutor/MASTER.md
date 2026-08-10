@@ -417,13 +417,32 @@ mehanizam kao Geist i JetBrains Mono.
 
 | gdje | kako |
 |---|---|
-| `h1`, `h2` | `@layer base { h1, h2 { font-family: var(--font-heading) } }` — jedno mjesto, ne `font-heading` na ~12 poziva |
+| `h1`, `h2` | `@layer base { h1, h2 { font-family: var(--font-heading) } }` — jedno mjesto, ne `font-heading` na svaki naslov |
+| **svi `CardTitle`** | `ui/card.tsx:41` **već je nosio** `font-heading` — v. ispravak ispod |
 | hero brojka levela | `ProgressHero.tsx:26`, utility `font-heading` (utilities > base, pa pobjeđuje nad mono pravilom za brojke) |
 | **NIGDJE drugdje** | body ostaje Geist, mono ostaje JetBrains Mono |
 
-🔴 **Ne ide na `h3`+ ni na body.** Display crta ima uži razmak i jači kontrast poteza, pa
-ispod ~20 px gubi na čitljivosti — a ondje živi većina a11y-kritičnog teksta
-(`muted-foreground` na 118 mjesta, uglavnom `text-xs`/`text-sm`).
+> 🔴 **ISPRAVAK VLASTITE TVRDNJE (2026-08-10, 1C t.0a).** U KORAKU 0 §D.2 i u commitu
+> `8504f3c` napisao sam da `--font-heading` ima **nula potrošača**. **Netočno.**
+> `grep -rn "font-heading" frontend/src` daje **dva**: `ProgressHero.tsx:26` i —
+> ključno — **`ui/card.tsx:41`**, gdje `CardTitle` nosi `font-heading` od shadcn setupa.
+>
+> Dok je `--font-heading` bio alias za `--font-sans`, taj potrošač **nije imao učinak**,
+> pa ga je površan grep previdio. Čim je token dobio vlastiti font, display se
+> **automatski proširio na SVE naslove kartica** — širi doseg nego što je commit tvrdio.
+>
+> **Prihvaćeno, ne vraćeno.** Naslovi kartica **jesu** naslovi, pa je proširenje u duhu
+> pravila. Legibilnost provjerena na snimci Modula: `CardTitle` je `text-base` (16 px),
+> dakle **ispod praga od ~20 px** iz pravila niže — ali su to kratke, poludebele niske
+> (`font-medium`), ne tekst za čitanje, i na snimci su jasne.
+>
+> **Poučak:** token koji je *alias* nema vidljive potrošače, ali ih ima. Prije nego se
+> aliasu da vlastita vrijednost, grepa se **ime tokena**, ne njegov učinak.
+
+🔴 **Ne ide na `h3`+ ni na body tekst.** Display crta ima uži razmak i jači kontrast
+poteza, pa ispod ~20 px gubi na čitljivosti — a ondje živi većina a11y-kritičnog teksta
+(`muted-foreground` na 118 mjesta, uglavnom `text-xs`/`text-sm`). Iznimka su `CardTitle`
+niske (16 px), v. ispravak gore.
 
 ### Cijena i CLS — izmjereno 2026-08-10
 

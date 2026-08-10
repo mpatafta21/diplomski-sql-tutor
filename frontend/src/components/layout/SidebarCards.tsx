@@ -1,15 +1,22 @@
 /**
- * Kartice na dnu sidebara (Faza 4.7-1C, t.2) — level/streak i korisnik.
+ * Kartice chromea — level (sidebar footer), streak čip i user kartica (topbar),
+ * te user kartica za drawer.
+ *
+ * ⟳ A.3 (2026-08-10) — OBRAT ODLUKE 1C t.2, zabilježen u nalazi.md (N-17):
+ * user kartica (username, rola, odjava) SELI iz sidebar footera u topbar, a
+ * streak SELI iz sidebar level kartice u topbar čip koji postaje vidljiv na
+ * SVIM širinama. To je PREMJEŠTANJE, ne dodavanje — svaka brojka i dalje
+ * postoji točno jednom po kadru (`docs/invarijante.md#jedan-prikaz-po-kadru`).
  *
  * 🔴 LEVEL KARTICA NAMJERNO NE PRIKAZUJE XP. Invarijanta (`ProfilePage.tsx:7-8`,
  * `StatsSummary.tsx:8-10`): „hero (`ProgressHero`) je JEDINO mjesto s XP-om …
- * dvije XP brojke na ekranu = bug". Sidebar je PERSISTENTAN, pa bi na Dashboardu i
- * Profilu — gdje `ProgressHero` već stoji — dao dvije XP brojke u istom kadru.
- * Zato: level + streak, bez XP brojke i bez XP bara. Varijanta (C) iz 1C t.2.
+ * dvije XP brojke na ekranu = bug". Sidebar je PERSISTENTAN, pa bi na Dashboardu
+ * i Profilu — gdje `ProgressHero` već stoji — dao dvije XP brojke u istom kadru.
+ * XP čip u topbar NE ide iz istog razloga.
  *
- * 🔴 `accent-warm` JE DOPUŠTEN OVDJE. MASTER §2.1 ga rezervira za „XP, level, streak,
- * badge, progres" — level i streak su doslovno na tom popisu. NE „popravljati" po
- * ERRATA #53: #53 se tiče mjesta koja NISU gamifikacija (brand mark, poruke o limitu).
+ * 🔴 `accent-warm` JE DOPUŠTEN OVDJE. MASTER §2.1 ga rezervira za „XP, level,
+ * streak, badge, progres" — level i streak su doslovno na tom popisu. NE
+ * „popravljati" po ERRATA #53: #53 se tiče mjesta koja NISU gamifikacija.
  */
 import { Flame } from "lucide-react"
 import { LogOut } from "lucide-react"
@@ -20,15 +27,20 @@ import { useProfile } from "@/hooks/useProfile"
 import { cn } from "@/lib/utils"
 
 /**
- * Level + streak. Podaci iz `/profile` — BEZ novog poziva: `useProfile` dijeli
- * `queryKey: ["profile"]` s Dashboardom i Profilom, pa TanStack servira isti cache.
+ * Level — podaci iz `/profile` — BEZ novog poziva: `useProfile` dijeli
+ * `queryKey: ["profile"]` s Dashboardom i Profilom, pa TanStack servira isti
+ * cache.
  *
  * ⚠️ POSLJEDICA KOJU TREBA ZNATI: ovo je PRVI trajni observer nad `["profile"]`.
- * `useSubmitAttempt.ts:34-48` ima `setQueryData` patch uz komentar „na /task ruti nema
- * aktivnog profile observera pa invalidacija samo označi stale". Od sada observer
- * POSTOJI, pa `invalidateQueries(["profile"])` (`:49`) i stvarno refetcha. Patch time
- * ne postaje suvišan — on je i dalje ono što karticu osvježi ODMAH, prije mrežnog
- * odgovora. Neto: jedan `GET /profile` više po Submitu, i svježiji podatak.
+ * `useSubmitAttempt.ts:34-48` ima `setQueryData` patch uz komentar „na /task ruti
+ * nema aktivnog profile observera pa invalidacija samo označi stale". Od 1C
+ * observer POSTOJI, pa `invalidateQueries(["profile"])` (`:49`) i stvarno
+ * refetcha. Patch time ne postaje suvišan — on je i dalje ono što karticu
+ * osvježi ODMAH, prije mrežnog odgovora. Neto: jedan `GET /profile` više po
+ * Submitu, i svježiji podatak.
+ *
+ * ⟳ A.3: streak je iseljen u `TopbarStreakChip` (vidljiv na svim širinama) —
+ * da je ostao i ovdje, na ≥768px bile bi DVIJE streak brojke u istom kadru.
  */
 export function SidebarLevelCard() {
   const { data, isPending } = useProfile()
@@ -51,39 +63,17 @@ export function SidebarLevelCard() {
           {data.level}
         </span>
       </div>
-      <div className="ml-auto flex flex-col items-end">
-        <span className="font-mono text-xs text-muted-foreground">streak</span>
-        <span className="flex items-center gap-1">
-          {/* lucide, NE emoji: emoji čitač ekrana izgovara imenom, a set nam je
-              zaključan na lucide (MASTER §6). */}
-          <Flame
-            className={cn(
-              "size-3.5",
-              data.current_streak > 0
-                ? "text-accent-warm-text"
-                : "text-muted-foreground",
-            )}
-            aria-hidden="true"
-          />
-          <span className="text-sm leading-none font-semibold tabular-nums">
-            {data.current_streak}
-          </span>
-          <span className="sr-only">
-            {data.current_streak === 1 ? "dan zaredom" : "dana zaredom"}
-          </span>
-        </span>
-      </div>
     </div>
   )
 }
 
 /**
- * Streak čip za topbar — SAMO <768px (`md:hidden`).
+ * Streak čip u topbaru — od A.3 vidljiv na SVIM širinama.
  *
- * 🔴 ZAŠTO SAMO NA MOBITELU: na desktopu streak već stoji u sidebar kartici, a sidebar
- * je persistentan. Čip u topbaru bi ondje dao DVIJE ISTE BROJKE u istom kadru — točno
- * ono što je u t.2 zaustavilo XP karticu. Ispod 768px sidebar je skriven, pa je čip
- * jedino mjesto gdje streak postoji.
+ * ⟳ OBRAT 1C t.2 (bio `md:hidden`): dotad je na desktopu streak živio u sidebar
+ * level kartici, pa bi čip u topbaru dao dvije iste brojke u kadru. A.3 je
+ * streak IZ level kartice uklonio — čip je sada JEDINO mjesto sa streakom, na
+ * svakoj širini, i uvijek u kadru (istaknutost povratne sprege, stup 4.6).
  *
  * 🔴 XP ČIPA NEMA, ni na jednoj širini. XP je pod invarijantom jednoznačnosti
  * (`ProfilePage.tsx:7-8`) — `ProgressHero` je jedino mjesto s XP-om.
@@ -96,7 +86,7 @@ export function TopbarStreakChip() {
 
   return (
     <span
-      className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 md:hidden"
+      className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1"
       title={`Streak: ${data.current_streak} ${data.current_streak === 1 ? "dan" : "dana"} zaredom`}
     >
       <Flame
@@ -119,11 +109,54 @@ export function TopbarStreakChip() {
 }
 
 /**
- * Korisnik + odjava. JEDNA komponenta za sidebar I drawer — da se rola-badge i
- * ponašanje odjave ne raziđu između dva mjesta.
- * `onAction` koristi samo drawer (zatvori nakon klika).
+ * Rola badge — JEDAN izvor za topbar i drawer varijantu user kartice, da se
+ * boje/oblik ne raziđu (ista briga zbog koje je 1C držao jednu komponentu).
  */
-export function SidebarUserCard({ onAction }: { onAction?: () => void } = {}) {
+function RoleBadge({ role }: { role: string }) {
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-full px-2 py-0.5 font-mono text-xs font-medium",
+        role === "admin"
+          ? "bg-accent-warm text-accent-warm-foreground"
+          : "bg-muted text-muted-foreground",
+      )}
+    >
+      {role}
+    </span>
+  )
+}
+
+/**
+ * User kartica u topbaru (A.3) — ≥768px. Ispod 768px je skrivena: ondje
+ * username/rolu/odjavu nosi drawer (`DrawerUserCard`), jer je topbar pretijesan.
+ * Odjava je dostupna na SVAKOM breakpointu: topbar ≥768 · drawer <768.
+ */
+export function TopbarUserCard() {
+  const { user, logout } = useAuth()
+  if (!user) return null
+
+  return (
+    <div className="hidden min-w-0 items-center gap-2 md:flex">
+      <span className="max-w-40 min-w-0 truncate text-sm font-medium">
+        {user.username}
+      </span>
+      <RoleBadge role={user.role} />
+      <Button variant="outline" onClick={logout}>
+        <LogOut data-icon="inline-start" />
+        Odjava
+      </Button>
+    </div>
+  )
+}
+
+/**
+ * User kartica za DRAWER (<768px) — do A.3 živjela i u sidebar footeru pod
+ * imenom `SidebarUserCard`; sidebar ju je predao topbaru, drawer je zadržava
+ * jer na telefonu topbar nema mjesta (v. AppShell `MobileNav`).
+ * `onAction` zatvara drawer nakon klika.
+ */
+export function DrawerUserCard({ onAction }: { onAction?: () => void } = {}) {
   const { user, logout } = useAuth()
   if (!user) return null
 
@@ -133,16 +166,7 @@ export function SidebarUserCard({ onAction }: { onAction?: () => void } = {}) {
         <span className="min-w-0 truncate text-sm font-medium">
           {user.username}
         </span>
-        <span
-          className={cn(
-            "shrink-0 rounded-full px-2 py-0.5 font-mono text-xs font-medium",
-            user.role === "admin"
-              ? "bg-accent-warm text-accent-warm-foreground"
-              : "bg-muted text-muted-foreground",
-          )}
-        >
-          {user.role}
-        </span>
+        <RoleBadge role={user.role} />
       </div>
       <Button
         variant="outline"

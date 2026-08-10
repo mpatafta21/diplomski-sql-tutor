@@ -1010,3 +1010,45 @@ jer bi pri prelasku na dinamički import opet bio jedina obrana.
 `Dashboard @1440`: XP niske u kadru = **1**, i to u `<main>` (`ProgressHero`).
 U `<aside>`: **0**. Invarijanta o jednoznačnosti XP-a (v. dopunu N-8) drži.
 Streak: sidebar kartica @≥768px, topbar čip @<768px — **nikad oboje**.
+
+---
+
+## N-17 ⟳ OBRAT odluke 1C t.2 — user kartica u topbar, streak trade (stage 3, A.3)
+
+**Datum:** 2026-08-10 · **odluka:** stage 3 redizajn, DIO A t.3 · **status:** proveden
+
+### Što je bilo, što je sad
+
+| element | 1C t.2 (varijanta C) | A.3 (sad) |
+|---|---|---|
+| username + rola + Odjava | sidebar footer (≥768) · drawer (<768) | **topbar** (≥768) · drawer (<768, nepromijenjeno) |
+| streak | sidebar level kartica (≥768) · topbar čip `md:hidden` (<768) | **topbar čip, SVE širine** |
+| level | sidebar level kartica | sidebar level kartica (nepromijenjeno) |
+| XP | samo `ProgressHero` | samo `ProgressHero` (čip u topbar NE ide) |
+
+### Zašto obrat — da povijest ne laže
+
+1C t.2 je user karticu smjestio u sidebar footer jer je topbar tada bio breadcrumb-only
+i jer je streak već imao dom u level kartici. Stage 3 mijenja oba uvjeta:
+- **topbar dobiva desnu stranu** koja je na ≥768 bila prazna — identitet korisnika i
+  odjava su standardno topbar sadržaj i oslobađaju sidebar footer;
+- **streak mora biti UVIJEK vidljiv** (4.6: gamifikacija kao istaknutost povratne
+  sprege, ne tihe brojke) — a jedino mjesto koje postoji na svim širinama je topbar;
+- da je streak ostao i u level kartici, na ≥768 bila bi DVA prikaza u kadru →
+  `#jedan-prikaz-po-kadru` bi pao. Zato TRADE: level kartica predaje streak čipu.
+
+Ovo je PREMJEŠTANJE, ne dodavanje — nijedan podatak nije dobio drugi prikaz.
+
+### Verifikacija (Playwright, živa aplikacija, DOM brojanje vidljivih čvorova)
+
+| kadar | streak | level | username | Odjava | XP |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Dashboard @1440 | **1** (topbar) | **1** (sidebar) | **1** (topbar) | **1** (topbar) | **1** (`ProgressHero`) |
+| @380, drawer zatvoren | **1** (topbar) | 0 | 0 | 0¹ | 1 |
+| @380, **drawer otvoren + topbar vidljiv** | **1** (topbar) | 0 | **1** (drawer) | **1** (drawer) | 1 |
+
+¹ Odjava @380 živi u draweru (1C izlazni kriterij drži — dostupna u svakom međukoraku
+kroz hamburger); `Esc` zatvara drawer i vraća fokus na trigger (provjereno).
+
+Napomena za B t.3 (klizni nav indikator): raspored je sada konačan — `offsetTop`
+geometrija nav stavki mjeri se NAKON ovog obrata, kako je stage 3 i propisao.

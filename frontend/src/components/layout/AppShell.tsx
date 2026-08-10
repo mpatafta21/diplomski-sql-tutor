@@ -24,9 +24,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import {
+  DrawerUserCard,
   SidebarLevelCard,
-  SidebarUserCard,
   TopbarStreakChip,
+  TopbarUserCard,
 } from "@/components/layout/SidebarCards"
 import { Breadcrumb } from "@/components/layout/Breadcrumb"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
@@ -193,7 +194,7 @@ function MobileNav() {
         {/* NE `SheetClose asChild` — on bi cijeli blok pretvorio u gumb za zatvaranje,
             pa bi i klik na username zatvarao drawer. Zatvaranje nosi `onAction`. */}
         <div className="shrink-0 border-t border-sidebar-border p-3">
-          <SidebarUserCard onAction={close} />
+          <DrawerUserCard onAction={close} />
         </div>
       </SheetContent>
     </Sheet>
@@ -237,12 +238,11 @@ export function AppShell() {
         <div className="min-h-0 flex-1 overflow-y-auto">
           <SidebarNav />
         </div>
-        {/* Footer (1C t.2): level/streak + korisnik. Na <768px sidebar je skriven,
-            pa istu Odjavu ondje nosi drawer — Odjava je dostupna na SVAKOM
-            breakpointu. */}
-        <div className="shrink-0 space-y-3 border-t border-sidebar-border p-3">
+        {/* Footer (⟳ A.3, obrat 1C t.2 — v. nalazi.md N-17): samo LEVEL. User
+            kartica je u topbaru (≥768) odnosno draweru (<768), streak u topbar
+            čipu — svaka brojka točno jednom po kadru. */}
+        <div className="shrink-0 border-t border-sidebar-border p-3">
           <SidebarLevelCard />
-          <SidebarUserCard />
         </div>
       </aside>
 
@@ -255,9 +255,11 @@ export function AppShell() {
             <Breadcrumb />
           </div>
 
-          {/* Desno: streak čip, samo <768px (v. TopbarStreakChip docstring). */}
-          <div className="flex shrink-0 items-center gap-2">
+          {/* Desno (⟳ A.3): streak čip na SVIM širinama + user kartica ≥768px
+              (ispod toga username/rolu/odjavu nosi drawer). */}
+          <div className="flex shrink-0 items-center gap-2 md:gap-3">
             <TopbarStreakChip />
+            <TopbarUserCard />
           </div>
         </header>
 

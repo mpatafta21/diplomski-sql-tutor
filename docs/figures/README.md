@@ -1,5 +1,21 @@
 # Slike za diplomski rad
 
+> 🔴 **SVIH 9 SNIMKI JE NEVAŽEĆE od 2026-08-10** (Faza 4.7 redizajn, stage 1).
+> Dva odvojena razloga:
+> 1. **Paleta.** Aplikacija je prebojena u ink-indigo (hue 280); svih 9 snimki prikazuje
+>    staru neutralno-sivu paletu.
+> 2. **Tema.** `08-fipa-agent-log-light.png` i `09-profil-bkt-krivulje-light.png` su u
+>    **light temi, koja više ne postoji**. One se ne presnimavaju nego **brišu** — postoje
+>    samo da pokažu „isto, svijetla tema" uz `07` odnosno `03`, pa bez light teme nemaju
+>    ni sadržaj ni svrhu.
+>
+> **Presnimavanje ide JEDNOM, na kraju svih vizualnih stageova** (redizajn stage 2,
+> display font, stage 1C mobilna navigacija) — ne nakon svakog. Uz snimanje se bilježi
+> `COUNT(*)` tablice `agent_messages_log` prije i poslije (NALAZ N-3): snimanje ide kroz
+> žive agente i ostavlja promet koji nijedan cleanup po korisniku ne dohvaća.
+>
+> ⚠️ Popis ispod opisuje **što snimke prikazuju**, ne kako aplikacija danas izgleda.
+
 Snimke zaslona koje ilustriraju implementirani sustav. **Pod verzijom su namjerno**
 (NALAZ #38): do Faze 4.6-eval artefakti rada živjeli su u scratchpadu, koji nije
 repozitorij — ista klasa problema kao NALAZ #17, #20 i #26.
@@ -43,9 +59,15 @@ zamijeniti pseudonimima — vidi `docs/eval-runbook.md`.
 
 ## Kako su nastale
 
-Bez Playwrighta (**NALAZ #17** — nije u `package.json`, e2e suite i dalje ne
-postoji): goli `chrome-headless-shell` vođen preko CDP-a iz scratchpad skripte,
-isti pristup kao ručne verifikacije u fazama 4.1–4.5.
+Bez Playwrighta (**NALAZ #17** — tada nije bio u `package.json`): goli
+`chrome-headless-shell` vođen preko CDP-a iz scratchpad skripte, isti pristup kao ručne
+verifikacije u fazama 4.1–4.5.
+
+> ⟳ **Za presnimavanje NE ponavljati taj put.** Playwright je u repou od `7f7c9aa`
+> (`frontend/e2e/`, `@playwright/test`), s gotovim `globalSetup`/`globalTeardown` koji
+> broje i vraćaju bazu na baseline. Snimanje u redizajn-stageu 1 (t.4) išlo je tim putem i
+> radi — v. NALAZ N-15. Dvije zamke ispod vrijede i dalje, `e2e/smoke.spec.ts:28-40` ih je
+> neovisno potvrdio.
 
 Dvije zamke koje su usput otkrivene i koje vrijedi zapamtiti pri sljedećem snimanju:
 

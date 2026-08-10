@@ -731,3 +731,120 @@ dom** — treba mu samo `-soft` par. To je jeftinije od uvođenja dva nova token
 
 **NE popravlja se ovdje.** Zapisano da se pri STAGEU 2 ne krene od krive premise da
 neutralnog tokena uopće nema.
+
+---
+
+## N-14 📌 Registar MRTVOG KODA koji svjesno ostaje (i jednog koji je otišao)
+
+**Status:** 📌 zapis, ne zadatak · 2026-08-10, redizajn stage 1
+
+Projekt ima obrazac: **cjelovitost skupa nije najava rada.** Nekorišten član ljestvice ostaje
+ako bi njegovo brisanje ljestvicu učinilo nepotpunom. Da se to ne bi svaki put ponovno
+raspravljalo, evo popisa na jednom mjestu — sa **datumom provjere** i **razlogom**.
+
+| stavka | potrošača | ostaje? | razlog |
+| --- | :---: | :---: | --- |
+| `--duration-reward` | 0 | **DA** | cjelovitost ljestvice trajanja (instant→fast→base→slow→reward) |
+| `verdict-ui.ts` `soft` | 0 | **DA** | cjelovitost oblika verdikta (ERRATA #10b) |
+| `--neutral` | 0 u komponentama | **DA** | zamrznuta semantika; jedini izvedeni potrošač je `monaco-theme.ts` `rules[operator]` |
+| `--neutral-soft` | 0 | **DA** | uveden u 4.7 kao dom za N-10; žičenje je stage 2 |
+| `--chart-3` / `-4` / `-5` | 0 / 0 / 0 | **DA** | skala od 5 mora imati svih 5 članova (`chart-3` ipak je izvor za Monaco `rules[predefined]`) |
+| `--accent`, `--accent-foreground`, `--sidebar-foreground` | 0 | **DA** | shadcn ugovor — `ui/*` ih smije zatražiti |
+| `ui/button.tsx` `variant="destructive"` | **0** | **DA** | cjelovitost skupa varijanti (`default`/`outline`/`secondary`/`ghost`/`destructive`/`link`) |
+| `--sidebar-primary` (+ `-foreground`) | 0 | 🔴 **NE — OBRISAN** | v. niže |
+| `ui/field.tsx` (10 izvoza) | **0** | 🔴 **NE — OBRISAN** | v. niže |
+
+### Zašto su ta dva otišla, a ostalo je ostalo
+
+Kriterij nije „ima li potrošača" nego **„čini li odsutnost skup nepotpunim, i je li prisutnost
+bezopasna"**. Kod ova dva odgovor je bio ne na oba pitanja:
+
+**`--sidebar-primary` = `oklch(0.488 0.243 264.376)`** — nije član nikakve ljestvice (nema
+`sidebar-secondary` ni `sidebar-tertiary`), a chroma **0,243** je najviša u cijeloj paleti (sljedeća
+je `--incorrect` 0,19) na hueu **264,4°**, tj. **4,4° od gornjeg ruba mastery skale**. Bio je jedini
+KROMA token koji ulazi u semantički prostor. Prisutnost dakle **nije** bezopasna: da ga netko ikad
+upotrijebi, sidebar bi dobio boju koja čita kao mastery signal.
+
+**`ui/field.tsx`** — shadcn stub koji je izvozio 10 komponenti, a nijednu nitko nije importao.
+Dokaz **prije** brisanja:
+
+```
+$ git grep -n "ui/field" -- 'frontend/*'                                    → 0
+$ git grep -n "Field|FieldError|FieldLabel|…" -- 'frontend/src/**'          → 0 izvan same datoteke
+```
+
+Nije ljestvica nego cijela neupotrijebljena datoteka; k tome je nosila 2 od 6 `dark:` prefiksa
+koje je stage 1 morao razriješiti — brisanjem su otpali umjesto da budu prevedeni.
+
+### 🔴 Poučak koji vrijedi zapisati
+
+`variant="destructive"` **ostaje**, ali s izmjerenim stanjem: `--destructive` mu je izvor, a taj
+token danas **pada 3:1 na jedinom mjestu gdje se stvarno renderira** (obrub nevaljanog polja,
+2,33–2,42; ERRATA #52). Mrtva varijanta koja se ikad probudi probudit će se **s tim nalazom**.
+Zato mrtav kod nosi bilješku, a ne samo tišinu.
+
+---
+
+## N-15 ✅ Presuda po snimkama nakon ink-indigo palete (redizajn stage 1, t.4)
+
+**Datum:** 2026-08-10 · **metoda:** Playwright nad **živom** aplikacijom (backend :8000,
+docker compose gore), 1440×900, ključni kadrovi na `deviceScaleFactor: 3`.
+
+🔴 Ovo je **prvi put** da se vizualna provjera radi nad stvarnim routingom, a ne nad
+harnessom s izgrađenim CSS-om (usporedi metodu commita `5994107`, koja je izrijekom
+priznavala ograničenje „mjeri render tokena, ne stvarni routing"). Playwright je u
+međuvremenu ušao u repo (#17), pa je ograničenje otpalo.
+
+### Odgovor na zadano pitanje: čita li akromatski prsten `#868686` **mrtvo** na ink-indigo plohi?
+
+**NE. Čita kao namjerna sistemska boja, ne kao previd.** Presuda po kadru
+`ConceptRow` s fokusom postavljenim **tipkovnicom** (`focus-visible`), uz tier čip
+unutar prstena — dakle točno kadar zbog kojeg N-12 postoji.
+
+Tri razloga, redom po težini:
+
+1. **Prsten i tier čip su nedvojbeno različite boje.** Sivi obrub i violet ispuna
+   („Lako") ne dijele obitelj. Tintani kandidat (`oklch(0.62 0.04 280)` = `#81849e`) bio
+   bi vidljivo bliži toj violeti — mjereno ΔE 0,067 vs 0,102. Snimka to **potvrđuje**,
+   ne opovrgava.
+2. **Odsutnost tinte čita se kao „ovo je UI, ne sadržaj".** Sve ostalo na ekranu nosi
+   hue 280; prsten je jedina ploha koja ga nema, i baš time se čita kao **furnitura**, a
+   ne kao još jedan podatak u boji. Ista logika kojom je siva bila ispravna i prije
+   redizajna — samo sada ima i razlog, ne samo naslijeđe.
+3. **Ne djeluje toplo ni hladno, nego neutralno.** Bojazan je bila da će akromatski sivi
+   uz indigo skliznuti u žućkasto (simultani kontrast). Na snimci ne sklizne — razlika u
+   svjetlini (prsten 0,62 vs ploha 0,205) dominira nad razlikom u kromi.
+
+⚠️ **Ograničenje presude, pošteno:** jedan promatrač, jedan zaslon, bez kalibracije. Ovo
+je presuda o **kompoziciji**, ne mjerenje — i vrijedi točno onoliko koliko i svaka takva
+(v. metodološka bilješka uz N-4/N-7: izračun mjeri element, snimka mjeri hijerarhiju).
+Brojčani dio (ΔE 0,102, kontrast 4,18–5,44) stoji neovisno o njoj.
+
+### Hijerarhija — je li išta izgubilo relativnu težinu?
+
+| kadar | provjereno | ishod |
+| --- | --- | --- |
+| Dashboard | h1 `foreground` vs podnaslov `muted-foreground` vs amber eyebrow „POČNI OVDJE" | ✅ tri jasne razine, redoslijed nepromijenjen |
+| Moduli | tier čipovi (violet) vs difficulty čipovi (magenta) **na istom ekranu** | ✅ ostaju dvije različite skale; indigo ploha nijednu ne posuđuje |
+| Task screen | naslov · čipovi · opis · shema · Monaco · Run/Submit | ✅ Submit (`primary`, gotovo bijel) i dalje čita kao primarna akcija; Run (`outline`) kao sekundarna |
+| FeedbackPanel ×3 | `correct-soft` / `partial-soft` / `incorrect-soft` na novoj `card` plohi | ✅ **bolje odvojeni nego prije** — ΔE prema `card` porastao s 0,0495–0,0532 na 0,0624–0,0746, jer se ploha odmaknula prema indigu, a verdikti su ostali zeleni/amber/crveni |
+| Monaco | 7 sintaksnih boja na `--card` pozadini | ✅ čitljive; keyword-plava, string-zelena, number-teal i predefined-violet ostaju razlučivi |
+| `/register` | obrub polja, fokus polja, **nevaljano polje** | 🟡 obrub nevaljanog polja je vidljiv, ali slab — brojka to potvrđuje (2,33–2,42, ispod 3:1, ERRATA #52). Poruku nosi tekst uz polje, ne obrub |
+
+### Snimljena 4 stanja FeedbackPanela — sva na živim podacima
+
+| stanje | kako je dobiveno | što nosi |
+| --- | --- | --- |
+| **Točno** | `expected_query` iz `tasks` (harness smije znati rješenje; smoke suite ne smije) | ✅ zeleni panel, `+20 XP` amber čip, bedž „Prvi uspjeh", CTA |
+| **Djelomično** | isti stupci, `LIMIT 2` umjesto `LIMIT 3` → `row_mismatch` | ⚠️ ikona + **riječ „Djelomično"** (obavezan ne-bojni kanal, ERRATA #13), `+10 XP`, mono blok „Row count mismatch: actual=2 vs expected=3" |
+| **Netočno** | `SELECT 1 AS nema_veze;` | ⊗ crveni panel |
+| **Netočno / SQL greška** | namjerno neispravan SQL | ⊗ crveni panel + mono blok s porukom PostgreSQL-a na `background/60` |
+
+### 🔴 Usput otkriveno, NIJE 4.7 opseg
+
+`Collapsible.Trigger asChild` na `ModuleCard.tsx:85-101` **ne otvara** sadržaj klikom u
+Playwrightu (trigger dobije fokus, `Collapsible.Content` ostaje zatvoren). Deep-link
+`/modules#module-<n>` radi (`defaultOpen`, `ModulesPage.tsx:177`), pa je snimanje išlo
+tim putem. **Nije provjereno ponaša li se isto u stvarnom pregledniku uz stvarni miš** —
+ako se ponaša, to je funkcionalni kvar navigacije po modulima, ne kozmetika. Kandidat za
+provjeru u stageu 1C (isti fajl, mobilna navigacija).

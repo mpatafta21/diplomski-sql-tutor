@@ -30,10 +30,29 @@ Motion suptilan i nagrađujući — feedback, ne konfeti-spam.
 
 ## 2. Boje
 
-Sve boje su **oklch**, definirane u `frontend/src/index.css` kao CSS varijable u `:root` (light) i
-`.dark` (dark), mapirane u `@theme inline` za Tailwind utility-e. Base neutralna paleta (background,
-foreground, card, muted, border…) je shadcn-seedana i **u pravilu se ne dira** — grupe ispod ju proširuju.
+Sve boje su **oklch**, definirane u `frontend/src/index.css` kao CSS varijable u **jednom `:root`
+bloku**, mapirane u `@theme inline` za Tailwind utility-e.
 
+> ⟳ **APLIKACIJA JE DARK-ONLY (Faza 4.7 redizajn, 2026-08-10).** Light tema je ukinuta: nema
+> `.dark` bloka, `@custom-variant dark`, `ThemeProvider`a ni toggla. Svaka tvrdnja „light / dark"
+> ispod odnosi se na povijest, ne na zatečeno stanje. Snimke `08-fipa-agent-log-light.png` i
+> `09-profil-bkt-krivulje-light.png` time postaju **nevažeće**.
+>
+> ⟳ **BASE PALETA VIŠE NIJE SHADCN-SEEDANA.** Tvrdnja „u pravilu se ne dira" vrijedila je do 4.7.
+> Cijela KROMA — `background`, `card`, `popover`, `muted`, `secondary`, `accent`, `sidebar*`,
+> `foreground`, `muted-foreground`, `border`, `input`, `ring`, `primary` — prebojena je u
+> **ink-indigo, hue 280**, uz **nepromijenjenu ljestvicu svjetlina** (`background` 0,145 →
+> `card` 0,205 → `muted` 0,269; Δ +0,060 i +0,064, identično zatečenom).
+>
+> **Hue 280 nije izveden iz ΔE mjere** — ta mjera hue ne razlikuje (cijela krivulja 0°–360°
+> varira 0,1192–0,1587, nigdje kolizije). Bira ga pravilo §2.7: generički UI ne smije **preuzeti
+> hue-pojas** semantičke skale. 280° je središte jedine upotrebljive praznine (260°–300°), na
+> točno 20° i od mastery i od tiera. Detalji: `docs/faza-4.7-redizajn-korak-0.md` §C.2.
+>
+> **Obrisano:** `--sidebar-primary` i `--sidebar-primary-foreground` — 0 potrošača, a
+> `--sidebar-primary` je bio jedini KROMA token u semantičkom prostoru
+> (`oklch(0.488 0.243 264.376)`: najviša chroma u paleti, 4,4° od ruba mastery skale).
+>
 > ⟳ **IZNIMKA (Faza 4.7-4c, 2026-08-10) — tri shadcn-seedana tokena promijenjena su u LIGHT temi**,
 > uz mjerenje i uz odluku korisnika. Dark je netaknut.
 >
@@ -44,6 +63,49 @@ foreground, card, muted, border…) je shadcn-seedana i **u pravilu se ne dira**
 > | `--sidebar-ring` | `oklch(0.708 0 0)` | `oklch(0.556 0 0)` | neovisan literal iste vrijednosti — mijenja se istovremeno da ne divergira tiho |
 >
 > Puna matrica: `docs/faza-4.7-kontrast-matrica.md`. Tvrdnja o nediranju vrijedila je do 4.7.
+> (Te su tri light vrijednosti nestale s light temom u stageu 1 redizajna; redak ostaje kao
+> zapis odluke, ne kao opis zatečenog stanja.)
+
+#### 🔒 INVARIJANTA: `--ring` je AKROMATSKI, i to nije stvar ukusa
+
+`--ring` i `--sidebar-ring` = **`oklch(0.62 0 0)`**. Chroma **mora** ostati 0.
+
+**Razlog je strukturni, ne estetski.** Prsten fokusa okružuje sadržaj, pa mu je sve unutra
+sukorišteno — a `ConceptRow.tsx:112-120` stavlja **tier čip unutar `<Link>`a** koji nosi
+`focus-visible:outline-ring`. Tier skala se u paleti proteže **L 0,60 → 0,80 na hue 300**, dakle
+kroz cijeli upotrebljiv raspon svjetline prstena. Svaki **kromatski** prsten u tom pojasu ulazi u
+njezin prostor:
+
+| `--ring` | ΔE do najbližeg sukorištenog | najbliži | kontrast (najgora ploha od 11) |
+|---|:---:|---|:---:|
+| `oklch(0.556 0 0)` (do 4.7) | 0,084 | `mastery-25` | 3,21 |
+| `oklch(0.62 0.04 280)` (tintan) | **0,067** | `tier-easy` | 4,15 |
+| **`oklch(0.62 0 0)`** | **0,102** | `mastery-50` | **4,18** |
+
+Tinta ne kupuje ništa, a plaća koliziju: ista svjetlina **bez** krome diže ΔE za **52 %** uz
+jednak kontrast. Sve semantičke skale imaju C ≥ 0,03 — akromatski prsten je **po konstrukciji**
+izvan svih njih. Ploha smije nositi identitet palete; prsten mora nositi razlučivost.
+
+🔴 **Ako se `--ring` ikad tintira, provjera koja to hvata je**
+`python3 scripts/a11y/contrast_matrix.py --delta-e`, ne matrica kontrasta. Nalaz: N-12.
+
+#### 🔴 `--border` i `--input` NE dosežu 3:1 — ni prije ni poslije redizajna
+
+Da se za godinu dana ne pročita kao „popravljeno". Izmjereno 2026-08-10, alpha-kompozitirano:
+
+| obrub | prije 4.7 | poslije 4.7 | prag |
+|---|:---:|:---:|:---:|
+| `border` nad `background` / `card` / `muted` | 1,25 / 1,32 / 1,37 | **1,27 / 1,34 / 1,36** | 3,00 |
+| `input` nad `background` / `card` / `muted` | 1,47 / 1,57 / 1,62 | **1,50 / 1,58 / 1,60** | 3,00 |
+| `sidebar-border` nad `sidebar` | 1,32 | **1,34** | 3,00 |
+
+Redizajn ih je vratio **na paritet** (alfa `border` 10→15 %, `input` 15→22 %) jer bi ih tintana
+baza inače spustila — bijela s alfom je najsvjetlija moguća, tintana nije. **Paritet nije prolaz.**
+Doseći stvarnih 3:1 traži alfu **48–50 %**, što je drugi vizualni jezik i **dizajnerska odluka**,
+ne korekcija palete.
+
+Ovo je izravan nastavak **poučka #33**: docstring je nekoć tvrdio „border ≥3:1", a stvarnost je
+bila upola manja. Zato je svih 7 parova sada u `pairs.py` — tvrdnja više ne može živjeti nemjerena.
 
 ### 2.1 Accent — topli amber (jedini "warm" u sustavu)
 
@@ -67,6 +129,22 @@ Ne koristi se za dekoraciju, navigaciju ni neutralne akcije.
 | `--incorrect` | `oklch(0.53 0.19 25)` | `oklch(0.70 0.19 25)` |
 | `--partial` | `oklch(0.53 0.11 55)` | `oklch(0.78 0.13 60)` |
 | `--neutral` | `oklch(0.50 0.02 260)` | `oklch(0.72 0.02 260)` |
+
+> ⟳ **`--neutral-soft` = `oklch(0.28 0.02 260)` — NOVO u 4.7, s NULA potrošača, namjerno.**
+> Postoji da N-10 (`ErrorState` posuđuje `incorrect-soft` za **sistemsku** grešku, pa student ne
+> razlučuje vlastiti neuspjeh od kvara aplikacije) ima gdje sletjeti, a da se `index.css` i ovaj
+> dokument ne otvaraju drugi put. Žičenje je **stage 2**.
+>
+> 🔴 **Obrazac `-soft` se ovdje LOMI.** Zatečeni `-soft` imaju L = 0,240 (sva tri), hue baze, i
+> C = 0,035–0,040 (0,18–0,31 × C baze). Ali te su baze **kromatske** (C 0,13–0,19), a `--neutral`
+> ima C = 0,02. Omjerno bi dalo C ≈ 0,005 (nevidljivo od `card`); apsolutno C ≈ 0,04, tj. soft
+> **kromatskiji od vlastite baze** — obrnuto od onoga što „-soft" znači.
+>
+> Zato je reproducirano ono što obrazac **postiže**, a ne brojka kojom to postiže: ΔE prema `card`
+> 0,0761 (zatečeni raspon 0,0624–0,0746) i ΔE prema braći ≥ 0,0635 (zatečeni međusobno
+> 0,0231–0,0666). ⚠️ **L = 0,28, ne 0,240** — na 0,240 uz C 0,02 ploha je na ΔE 0,0493 od
+> `incorrect-soft`, ispod praga kolizije; panel sistemske greške koji se ne razlikuje od panela
+> netočnog odgovora **jest N-10, samo obrnuto**. Separaciju nosi svjetlina, ne kroma.
 
 Svaki ima `-soft` varijantu (suptilna pozadina feedback banera). ⚠️ **Ploha:** tvrdnja da tekst-token
 preko nje ostaje AA vrijedi za **verdict tokene** (`--correct` 4,67 · `--incorrect` 5,15 ·

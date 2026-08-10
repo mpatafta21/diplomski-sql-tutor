@@ -43,8 +43,12 @@ export function ModuleCard({ progress, defaultOpen = false }: ModuleCardProps) {
       // Anker za breadcrumb deep-link (`/modules#module-<number>`). scroll-mt
       // drži karticu ispod headera pri skrolu; data-deeplinked flash (2 s, ModulesPage
       // ga postavlja) suptilnim prstenom naznači na koju je karticu korisnik došao.
+      // 🔴 BEZ vlastitog `transition-*`: raniji `transition-shadow` je kroz
+      // tailwind-merge GAZIO primitivovu listu `transition-[translate,box-shadow]`,
+      // pa je hover lift na modul karticama bio trenutan (2026-08-10). Ring
+      // flash vozi na primitivovoj box-shadow tranziciji (ring = box-shadow).
       id={`module-${module.number}`}
-      className="scroll-mt-24 transition-shadow duration-base ease-standard data-[deeplinked=true]:ring-2 data-[deeplinked=true]:ring-accent-warm/50 motion-reduce:transition-none"
+      className="scroll-mt-24 data-[deeplinked=true]:ring-2 data-[deeplinked=true]:ring-accent-warm/50"
     >
       <CardHeader>
         <CardTitle className="text-base">{module.name}</CardTitle>

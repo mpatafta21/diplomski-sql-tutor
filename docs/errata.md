@@ -232,11 +232,12 @@ se mijenja i *što je* polish:
   poznati).
 - Informiranje sudionika i kontakt postaju obveza sučelja, a ne razgovora (v. #46).
 
-**Opseg motiona u 4.7 (da se ne pročita kao tiho oživljavanje 4.6):** 4.6 ostaje rezana.
+**Opseg motiona u 4.7 (da se ne pročita kao tiho oživljavanje 4.6):** ~~4.6 ostaje rezana.~~
 Jedina animirana površina dodana u 4.7 je **mobilni navigacijski drawer**, i to kao
 posljedica zahtjeva **pristupačnosti** (ispod 768px nije postojala nikakva navigacija), ne
-kao motion polish. Gamifikacijski motion (XP count-up, level-up celebration, badge-unlock,
-streak flame), page tranzicije, ⌘K paleta i WebSocket **ostaju neizvedeni**.
+kao motion polish. ~~Gamifikacijski motion (XP count-up, level-up celebration, badge-unlock,
+streak flame), page tranzicije, ⌘K paleta i WebSocket **ostaju neizvedeni**.~~
+*(⟳ 2026-08-10: dvije precrtane tvrdnje nadglasane su završnom revizijom niže.)*
 `framer-motion`/`motion` nisu u `package.json`; sav motion u aplikaciji je CSS
 (`tw-animate-css` + motion tokeni iz 4.1b).
 
@@ -251,6 +252,44 @@ prioritiziranom** obliku vođenom zahtjevima asinkrone javne evaluacije — ne k
 vizualni QA prolaz iz plana §4.7. Popis stvarno izvedenog vodi
 `docs/faza-4.7-korak-0.md` §9 i wrapup 4.7; nepopravljeni nalazi su u
 `docs/faza-4.7-nalazi.md`.
+
+### ⟳ ZAVRŠNA REVIZIJA (2026-08-10) — 4.6 se IZVODI unutar 4.7; granica se više ne pomiče
+
+**Što se mijenja, zadnji put:** Faza 4.6 **više nije rezana** — izvedena je u cijelosti
+unutar 4.7 (stage 3, DIO B), **osim**: WebSocketa (backend + infra, deployment nepoznanica
+— ostaje rezan), ⌘K palete (Monaco hvata tipke, najmanja vrijednost — ostaje rezana) i
+page tranzicija (B.6 — rezane UNUTAR DIJELA B: entrance stagger već animira ulaz svake
+ne-Task stranice pa bi fade dupli-animirao isti mount, a Task mora ostati bez entrance
+animacije; jedina čista dekoracija na popisu, rezana prva, kako je i predviđeno).
+
+**Stvarno izvedeno (2026-08-10):** hover/press mikrointerakcije (B.1) · entrance stagger
+(B.2) · klizni aktivni nav indikator (B.3) · animirani progres + streak flame ≤ 1,8 s
+(B.4) · FeedbackPanel: XP count-up, level-up puls + konfeti, badge unlock (B.5, uz ručnu
+re-verifikaciju sva 4 stanja na živom agentskom lancu). Usput otkriven i popravljen
+**N-18**: `duration-*` klase bile su bez učinka od 4.1b (sve tranzicije na defaultu
+150 ms). 🔴 `framer-motion` NIJE uveden — sve je CSS + minimalni JS kroz postojeće motion
+tokene; jedina nova ovisnost je `canvas-confetti` (4,2 kB gzip, lijeni chunk).
+
+**Poučak:** tri uzastopne revizije istog opsega (2026-07-20 rez → 2026-08-09 oživljena
+4.7 uz „4.6 ostaje rezana" → 2026-08-10 izvedba 4.6) bile su signal da granica **nije
+bila stvarna, nego odgađanje odluke**. Granica koja se mora ponovno crtati svakih
+tjedan-dva nije granica opsega nego simptom da kriterij reza („polish ne utječe na
+mjerenje") nije bio točan za gamifikacijski dio — v. sljedeći odlomak.
+
+**Za rad (odjeljak o gamifikaciji):** gamifikacijska povratna sprega bila je dosad
+implementirana kao **TIHE BROJKE** — XP se promijeni, level se promijeni, bedž se pojavi,
+sve bez ikakve istaknutosti. Rad opisuje gamifikaciju kao jedan od tri stupa sustava, a
+literatura mehanizam gamifikacije opisuje kao **istaknutost povratne sprege** (salience),
+ne kao puko postojanje nagrade u bazi. 4.6 time **dovršava stup koji rad tvrdi da
+postoji**, ne ukrašava ga — zato njezino izvođenje prije evaluacije nije polish nego
+usklađivanje implementacije s opisom sustava u radu.
+
+**Napomena o valjanosti (bilježi se, nije prijetnja):** istaknutija nagrada može pojačati
+privlačnost svakodnevnog povratka, što je u interakciji s **#45** (vremenski ovisan XP —
+streak mehanika). Nije prijetnja valjanosti jer **svi sudionici dobivaju istu verziju
+prije početka evaluacije** (nema between-subjects razlike u istaknutosti), ali se
+interakcija bilježi za interpretaciju rezultata: mjereni angažman uključuje i doprinos
+istaknutosti povratne sprege, ne samo mehanike nagrađivanja.
 
 ---
 

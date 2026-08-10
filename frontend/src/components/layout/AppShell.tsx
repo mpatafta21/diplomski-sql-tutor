@@ -59,11 +59,10 @@ const NAV_GROUPS = [
   },
 ] as const
 
-// Section header: mono, `muted-foreground`, BEZ uppercasea (mala slova su dio
-// dev-konzolnog glasa — v. MASTER §3.2). `aria-hidden` jer skupinu za čitač
-// ekrana nosi `aria-label` na <ul>, ne vizualni tekst.
-const SECTION_HEADER =
-  "px-3 pt-4 pb-1 font-mono text-xs text-muted-foreground first:pt-0"
+// ⟳ Vizualni section headeri (`-- učenje` …) UKLONJENI na korisnikov zahtjev
+// (2026-08-10) — grupe za čitač ekrana i dalje nosi `aria-label` na <ul>,
+// pa se pristupačnost ne mijenja; mono konzolni glas ostaje u labelama
+// level/streak boxa (MASTER §3.2, ⟳ bilješka).
 
 /**
  * Nav stavke. `onNavigate` je OPCIONALAN i koristi ga SAMO drawer (zatvara se nakon
@@ -125,9 +124,6 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void } = {}) {
       />
       {NAV_GROUPS.map((group) => (
         <div key={group.label}>
-          <div className={SECTION_HEADER} aria-hidden="true">
-            -- {group.label}
-          </div>
           <ul aria-label={group.label} className="flex flex-col gap-1">
             {group.items.map(({ label, icon: Icon, to, end }) => (
               <li key={label}>
@@ -169,9 +165,6 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void } = {}) {
           obećanje sadržaja kojeg nema. */}
       {user?.role === "admin" && (
         <div>
-          <div className={SECTION_HEADER} aria-hidden="true">
-            -- sustav
-          </div>
           <ul aria-label="sustav" className="flex flex-col gap-1">
             <li>
               <NavLink

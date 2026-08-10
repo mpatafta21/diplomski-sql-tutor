@@ -161,13 +161,13 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: oklch(0.528 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: oklch(0.556 0 0);
   /* Data-viz kategorijska (MASTER.md §2.6) — zamjena neutralnih placeholdera */
   --chart-1: oklch(0.55 0.15 250);
   --chart-2: oklch(0.55 0.094 185);
@@ -182,7 +182,7 @@
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: oklch(0.556 0 0);
 
   /* ═══ Prošireni tokeni — light (MASTER.md §2, AA-verificirano) ═══ */
   /* Semantika verdicta — partial je AKTIVAN od 4.3c (ERRATA #8 revidiran) */
@@ -196,7 +196,7 @@
   /* Topli amber accent — samo napredak/gamifikacija */
   --accent-warm: oklch(0.66 0.13 72);
   --accent-warm-foreground: oklch(0.25 0.04 75);
-  --accent-warm-text: oklch(0.56 0.12 70);
+  --accent-warm-text: oklch(0.514 0.12 70);
   /* Mastery gradient P(L) — CB-safe, monoton po svjetlini */
   --mastery-0: oklch(0.85 0.05 260);
   --mastery-25: oklch(0.74 0.08 245);

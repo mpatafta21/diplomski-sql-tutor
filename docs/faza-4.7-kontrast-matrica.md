@@ -1,6 +1,6 @@
 # Faza 4.7 — MATRICA KONTRASTA: tekst-token × ploha
 
-**Datum:** 2026-08-10 · **Grana:** `faza-4-7-polish` · **Status: READ-ONLY** (mjerenje)
+**Datum:** 2026-08-10 · **Grana:** `faza-4-7-polish` · **Status:** vrijednosti PRIMIJENJENE 2026-08-10
 
 ## Zašto postoji
 
@@ -22,20 +22,20 @@ grafika i stanja **3,00:1** (SC 1.4.11).
 **●** = ploha i tekst u **istom** `className` (dokazano) · **○** = tekst je u
 podstablu elementa koji nosi plohu (naslijeđeno).
 
-**Predloženo (light):** `--muted-foreground` 0.556 → **0.528** ·
-`--accent-warm-text` 0.56 → **0.534**. **Dark se ne mijenja.**
+**PRIMIJENJENO (light, 2026-08-10, commit stage 4c):** `--muted-foreground` 0.556 → **0.528** ·
+`--accent-warm-text` 0.56 → **0.514**. **Dark se ne mijenja.**
 
 ---
 
 ## LIGHT
 
-| ploha | gdje se koristi | tekst token | dokaz | zatečeno | predloženo |
+| ploha | gdje se koristi | tekst token | dokaz | prije 4c | PRIMIJENJENO |
 |---|---|---|---|---|---|
 | `background` | ploha stranice | `foreground` | ○ AppShell | 19,79 | — ✅ |
 | `background` | ploha stranice | `muted-foreground` | ○ AppShell | 4,73 | **5,32** ✅ |
 | `card` | kartice, paneli | `foreground` | ○ svi ekrani | 19,79 | — ✅ |
 | `card` | kartice, paneli | `muted-foreground` | ○ svi ekrani | 4,73 | **5,32** ✅ |
-| `card` | kartice, paneli | `accent-warm-text` | ○ ProgressHero, AttemptRow:67 | 4,78 | **5,33** ✅ |
+| `card` | kartice, paneli | `accent-warm-text` | ○ ProgressHero, AttemptRow:67 | 4,78 | **5,79** ✅ |
 | `card` | kartice, paneli | `correct` | ○ ConceptRow | 5,19 | — ✅ |
 | `card` | kartice, paneli | `incorrect` | ○ AttemptRow | 5,83 | — ✅ |
 | `card` | kartice, paneli | `partial` | ○ StatsSummary:69 | 5,48 | — ✅ |
@@ -43,15 +43,15 @@ podstablu elementa koji nosi plohu (naslijeđeno).
 | `popover` | popover/tooltip | `foreground` | ○ ui/popover | 19,79 | — ✅ |
 | `popover` | popover/tooltip | `muted-foreground` | ○ ui/popover | 4,73 | **5,32** ✅ |
 | `sidebar` | lijeva navigacija | `muted-foreground` | ● AppShell.tsx:71 | 4,53 | **5,10** ✅ |
-| `sidebar` | lijeva navigacija | `accent-warm-text` | ○ AppShell | 4,58 | **5,10** ✅ |
+| `sidebar` | lijeva navigacija | `accent-warm-text` | ○ AppShell | 4,58 | **5,55** ✅ |
 | `secondary` | secondary gumb | `foreground` | ○ ui/button secondary | 18,15 | — ✅ |
 | `muted` | čipovi, prazna stanja | `muted-foreground` | ● BadgeGallery.tsx:73,97 | 4,34 | **4,88** ✅ |
 | `muted` | čipovi, prazna stanja | `foreground` | ○ EmptyState | 18,15 | — ✅ |
-| `muted` | čipovi, prazna stanja | `accent-warm-text` | ○ BadgeGallery | 4,38 | **4,88** ✅ |
+| `muted` | čipovi, prazna stanja | `accent-warm-text` | ○ BadgeGallery | 4,38 | **5,31** ✅ |
 | `muted/30` | BadgeGallery neosvojen | `muted-foreground` | ○ BadgeGallery.tsx:62 | 4,61 | **5,19** ✅ |
 | `muted/40` | info blok, odabrana kartica | `muted-foreground` | ○ ConceptCurveCard, RegisterPage info blok | 4,57 | **5,14** ✅ |
 | `muted/40` | info blok, odabrana kartica | `foreground` | ○ RegisterPage info blok | 19,12 | — ✅ |
-| `muted/40` | info blok, odabrana kartica | `accent-warm-text` | ○ ConceptCurveCard | 4,62 | **5,15** ✅ |
+| `muted/40` | info blok, odabrana kartica | `accent-warm-text` | ○ ConceptCurveCard | 4,62 | **5,60** ✅ |
 | `muted/50` | hover | `muted-foreground` | ○ ConceptCurveCard hover | 4,53 | **5,10** ✅ |
 | `muted/50` | hover | `foreground` | ○ hover | 18,96 | — ✅ |
 | `muted/60` | mono blok u povijesti | `muted-foreground` | ○ AttemptRow.tsx:117 mono | 4,49 | **5,06** ✅ |
@@ -66,27 +66,27 @@ podstablu elementa koji nosi plohu (naslijeđeno).
 | `correct-soft` | FeedbackPanel, čip Riješeno | `correct` | ● FeedbackPanel.tsx:52-53, ContinueCard:129, TaskPage:288 | 4,67 | — ✅ |
 | `correct-soft` | FeedbackPanel, čip Riješeno | `foreground` | ○ FeedbackPanel.tsx:123 | 17,80 | — ✅ |
 | `correct-soft` | FeedbackPanel, čip Riješeno | `muted-foreground` | ○ FeedbackPanel.tsx:138,143,156,177,198 | 4,26 | **4,79** ✅ |
-| `correct-soft` | FeedbackPanel, čip Riješeno | `accent-warm-text` | ○ FeedbackPanel.tsx:147,169 | 4,30 | **4,79** ✅ |
+| `correct-soft` | FeedbackPanel, čip Riješeno | `accent-warm-text` | ○ FeedbackPanel.tsx:147,169 | 4,30 | **5,21** ✅ |
 | `incorrect-soft` | FeedbackPanel, ErrorState, Run greška, Login/Register | `incorrect` | ● FeedbackPanel.tsx:64-65, LoginPage:105, RegisterPage:205 | 5,15 | — ✅ |
 | `incorrect-soft` | FeedbackPanel, ErrorState, Run greška, Login/Register | `foreground` | ○ FeedbackPanel.tsx:123, ErrorState.tsx:35, RunResultPanel:114 | 17,50 | — ✅ |
 | `incorrect-soft` | FeedbackPanel, ErrorState, Run greška, Login/Register | `muted-foreground` | ○ ErrorState.tsx:36, RunResultPanel:130, FeedbackPanel ×5 | 4,18 | **4,71** ✅ |
-| `incorrect-soft` | FeedbackPanel, ErrorState, Run greška, Login/Register | `accent-warm-text` | ○ FeedbackPanel.tsx:147,169 | 4,22 | **4,71** ✅ |
+| `incorrect-soft` | FeedbackPanel, ErrorState, Run greška, Login/Register | `accent-warm-text` | ○ FeedbackPanel.tsx:147,169 | 4,22 | **5,12** ✅ |
 | `partial-soft` | FeedbackPanel | `partial` | ● FeedbackPanel.tsx:58-59 | 4,86 | — ✅ |
 | `partial-soft` | FeedbackPanel | `foreground` | ○ FeedbackPanel.tsx:123 | 17,56 | — ✅ |
 | `partial-soft` | FeedbackPanel | `muted-foreground` | ○ FeedbackPanel ×5 | 4,20 | **4,72** ✅ |
-| `partial-soft` | FeedbackPanel | `accent-warm-text` | ○ FeedbackPanel.tsx:147,169 | 4,24 | **4,73** ✅ |
+| `partial-soft` | FeedbackPanel | `accent-warm-text` | ○ FeedbackPanel.tsx:147,169 | 4,24 | **5,14** ✅ |
 | `accent-warm/5` | ConceptRow deep-link | `muted-foreground` | ○ ConceptRow.tsx:110 deep-link | 4,50 | **5,06** ✅ |
 | `accent-warm/5` | ConceptRow deep-link | `correct` | ○ ConceptRow | 4,93 | — ✅ |
-| `accent-warm/10` | BadgeStrip, ContinueCard, ljestvica „ja” | `accent-warm-text` | ● BadgeStrip.tsx:47+51 (ikona), ContinueCard:86 ⚠️ ikona (BadgeStrip:51) — grafika; ContinueCard:86 ikona | 4,32 | **4,81** ✅ |
+| `accent-warm/10` | BadgeStrip, ContinueCard, ljestvica „ja” | `accent-warm-text` | ● BadgeStrip.tsx:47+51 (ikona), ContinueCard:86 ⚠️ ikona (BadgeStrip:51) — grafika; ContinueCard:86 ikona | 4,32 | **5,24** ✅ |
 | `accent-warm/10` | BadgeStrip, ContinueCard, ljestvica „ja” | `muted-foreground` | ○ LeaderboardTable.tsx:64 redak „ja” | 4,28 | **4,81** ✅ |
-| `accent-warm/20` | BadgeGallery osvojen | `accent-warm-text` | ● BadgeGallery.tsx:72 (ikona), :96 (TEKST 10,4 px) ⚠️ ikona (:72) — grafika 3:1; ALI :96 je TEKST | 3,89 | **4,34** ❌ |
+| `accent-warm/20` | BadgeGallery osvojen | `accent-warm-text` | ● BadgeGallery.tsx:72 (ikona), :96 (TEKST 10,4 px) ⚠️ ikona (:72) — grafika 3:1; ALI :96 je TEKST | 3,89 | **4,72** ✅ |
 | `incorrect/10` | ErrorState krug ikone | `incorrect` | ● ErrorState.tsx:32 (ikona), guards.tsx:69 ⚠️ samo ikona — grafika, prag 3:1 | 4,97 | — ✅ |
 
 ---
 
 ## DARK
 
-| ploha | gdje se koristi | tekst token | dokaz | zatečeno | predloženo |
+| ploha | gdje se koristi | tekst token | dokaz | prije 4c | PRIMIJENJENO |
 |---|---|---|---|---|---|
 | `background` | ploha stranice | `foreground` | ○ AppShell | 18,96 | — ✅ |
 | `background` | ploha stranice | `muted-foreground` | ○ AppShell | 7,63 | — ✅ |
@@ -141,9 +141,7 @@ podstablu elementa koji nosi plohu (naslijeđeno).
 
 ---
 
-## Padovi NAKON predloženih vrijednosti
+## Padovi NAKON primjene
 
-| tema | ploha | tekst | zatečeno | predloženo | dokaz |
-|---|---|---|---|---|---|
-| light | `accent-warm/20` | `accent-warm-text` | 3,89 | **4,34** | ● BadgeGallery.tsx:72 (ikona), :96 (TEKST 10,4 px) |
+**Nijedan.** ✅
 

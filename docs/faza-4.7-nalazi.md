@@ -514,6 +514,55 @@ polisha nad `index.css`, samo nad backendom.
 
 ---
 
+## N-10 🔴 `ErrorState` posuđuje VERDICT semantiku za sistemsku grešku — stavka za STAGE 2
+
+**Status:** 🔴 otvoren · **nije 4c** (dira komponentu, ne token) · nađeno 2026-08-10
+
+[ErrorState.tsx:28](frontend/src/components/state/ErrorState.tsx#L28) renderira se na
+**`bg-incorrect-soft`** uz `border-incorrect/30` i `text-incorrect` ikonu — dakle na plohi
+koja u ovom dizajn-sustavu znači **„tvoj odgovor je netočan"** (MASTER §2.2, semantika
+verdicta). Ali `ErrorState` ne govori o odgovoru nego o **sustavu**: „Dashboard nije
+dostupan", „Ljestvica nije dostupna", „Preporuka nije dostupna".
+
+### Zašto to nije kozmetika pod nenadziranim evalom
+
+Student koji vidi **istu crvenu plohu** za „tvoj SQL je pogrešan" i za „backend je pao"
+nema kanal kojim bi razlikovao **vlastiti neuspjeh** od **kvara aplikacije**. Pod
+nadzorom bi pitao; asinkrono zaključi da griješi, pa odustane. To ne kvari samo doživljaj
+— kvari **podatke**: odustajanje uzrokovano kvarom ulazi u analizu kao slab učinak.
+
+### Doseg — svaki ekran, ne jedan
+
+```
+$ grep -rn "<ErrorState" frontend/src --include=*.tsx | cut -d: -f1 | sort | uniq -c
+   4 pages/TaskPage.tsx          2 pages/AdminPage.tsx        1 components/task/RunResultPanel.tsx
+   3 components/ErrorBoundary.tsx 1 pages/TaskEntryPage.tsx    1 components/profile/MasteryCurves.tsx
+   2 pages/ProfilePage.tsx        1 pages/ModulesPage.tsx      1 components/profile/AttemptHistory.tsx
+   2 pages/DashboardPage.tsx      1 pages/LeaderboardPage.tsx  1 components/dashboard/ContinueCard.tsx
+```
+
+**20 upotreba u 12 datoteka** — Dashboard, Moduli, Profil, Ljestvica, Admin, Task,
+TaskEntry, plus `ErrorBoundary` (render crash, bilo gdje). Nema ekrana koji ga ne koristi.
+
+### Popravak postoji i nema potrošača
+
+`--neutral` i **`--neutral-soft`**… ⚠️ **provjereno:** `--neutral` postoji
+(`index.css:195` light / `:268` dark), ali **`--neutral-soft` NE postoji** — citat
+pretrage: `grep -n "neutral-soft" frontend/src/index.css` → **0 pogodaka**. Postoji samo
+`--neutral`. Dakle popravak nije „prebaci na postojeći token" nego **ili** uvesti
+`--neutral-soft` (nova vrijednost + mjerenje), **ili** koristiti `bg-muted` +
+`border-border` (postojeći neutralni par, `VERDICT_UI.unknown` već tako izgleda:
+`FeedbackPanel.tsx:69-71`).
+
+🔴 **Ispravljam vlastitu pretpostavku iz naloga** („`--neutral-soft` postoji i nema
+potrošača") — polovica je točna: potrošača nema jer **ni token ne postoji**.
+
+**Zašto ne u 4c:** dira `ErrorState.tsx` (komponentu), a 4c je token-only. Ide u
+**STAGE 2 (oporavak od greške)**, gdje se ionako dira `ErrorState` zbog kontakta i
+poruke za trajni pad. Tamo se rješava jednim potezom.
+
+---
+
 ## Metodološka bilješka za wrapup i rad — izračun mjeri element, snimka mjeri hijerarhiju
 
 **Zabilježeno 2026-07-26 (stage 1A + 1A-dopuna).**

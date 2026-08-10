@@ -32,7 +32,18 @@ Motion suptilan i nagrađujući — feedback, ne konfeti-spam.
 
 Sve boje su **oklch**, definirane u `frontend/src/index.css` kao CSS varijable u `:root` (light) i
 `.dark` (dark), mapirane u `@theme inline` za Tailwind utility-e. Base neutralna paleta (background,
-foreground, card, muted, border…) je shadcn-seedana i **ne dira se** — grupe ispod ju proširuju.
+foreground, card, muted, border…) je shadcn-seedana i **u pravilu se ne dira** — grupe ispod ju proširuju.
+
+> ⟳ **IZNIMKA (Faza 4.7-4c, 2026-08-10) — tri shadcn-seedana tokena promijenjena su u LIGHT temi**,
+> uz mjerenje i uz odluku korisnika. Dark je netaknut.
+>
+> | Token | prije | poslije | razlog |
+> |---|---|---|---|
+> | `--muted-foreground` | `oklch(0.556 0 0)` | `oklch(0.528 0 0)` | padao je AA na `-soft` plohama (4,18–4,26) i na `bg-muted` (4,34); sada ≥4,71 na svim stvarnim plohama |
+> | `--ring` | `oklch(0.708 0 0)` | `oklch(0.556 0 0)` | fokus indikator bio 2,48–2,59:1, ispod 3:1 (SC 1.4.11); sada ≥4,18 na svim plohama |
+> | `--sidebar-ring` | `oklch(0.708 0 0)` | `oklch(0.556 0 0)` | neovisan literal iste vrijednosti — mijenja se istovremeno da ne divergira tiho |
+>
+> Puna matrica: `docs/faza-4.7-kontrast-matrica.md`. Tvrdnja o nediranju vrijedila je do 4.7.
 
 ### 2.1 Accent — topli amber (jedini "warm" u sustavu)
 
@@ -41,23 +52,27 @@ Ne koristi se za dekoraciju, navigaciju ni neutralne akcije.
 
 | Token | Light | Dark | Uloga |
 |---|---|---|---|
-| `--accent-warm` | `oklch(0.66 0.13 72)` | `oklch(0.80 0.15 80)` | fill (XP bar, badge, progres; ≥3:1 vs bg ✓) |
-| `--accent-warm-foreground` | `oklch(0.25 0.04 75)` | `oklch(0.22 0.04 80)` | tekst NA fillu (≥4.5:1 ✓) |
-| `--accent-warm-text` | `oklch(0.56 0.12 70)` | `oklch(0.80 0.15 80)` | amber tekst NA pozadini (≥4.5:1 ✓) |
+| `--accent-warm` | `oklch(0.66 0.13 72)` | `oklch(0.80 0.15 80)` | fill (XP bar, badge, progres). ⚠️ **Ploha:** ≥3:1 vrijedi vs `card`/`background`; kao **alpha-kompozit** (`accent-warm/5,10,20`) NE doseže 3:1 vs `card` (1,05–1,52 light, 1,09–1,52 dark, mjereno 2026-08-10) — tint je ondje **ukras**, stanje nose ikona + tekst. V. errata i `docs/faza-4.7-kontrast-matrica.md` |
+| `--accent-warm-foreground` | `oklch(0.25 0.04 75)` | `oklch(0.22 0.04 80)` | tekst NA punom fillu `--accent-warm` — **ploha: `accent-warm`**, 5,04:1 light / 9,15:1 dark (2026-08-10) ✓ |
+| `--accent-warm-text` | `oklch(0.514 0.12 70)` ⟳ | `oklch(0.80 0.15 80)` | amber tekst na plohi. ⟳ **light potamnjen 0.56 → 0.514 u 4.7-4c** jer je stara vrijednost padala na `-soft` (4,22–4,30) i na `accent-warm/20` (3,89). **Ploha:** ≥4,72:1 na SVE stvarne plohe (`card` 5,79 · `sidebar` 5,55 · `muted` 5,31 · `accent-warm/10` 5,24 · `-soft` 5,12–5,21 · `accent-warm/20` **4,72** ← vezujuća), mjereno 2026-08-10 |
 
 > Napomena o imenu: shadcn već zauzima `--accent` (neutralni hover) — topli accent je zato
 > `--accent-warm`, bez gaženja postojećih shadcn stanja.
 
 ### 2.2 Semantika verdicta
 
-| Token | Light (na bijelom ≥4.5 ✓) | Dark (na 0.145 ≥4.5 ✓) |
+| Token | Light — **ploha `card`/`background` (bijela)**, ≥4.5 ✓ | Dark — **ploha `background` (0.145)**, ≥4.5 ✓ |
 |---|---|---|
 | `--correct` | `oklch(0.52 0.13 150)` | `oklch(0.75 0.15 150)` |
 | `--incorrect` | `oklch(0.53 0.19 25)` | `oklch(0.70 0.19 25)` |
 | `--partial` | `oklch(0.53 0.11 55)` | `oklch(0.78 0.13 60)` |
 | `--neutral` | `oklch(0.50 0.02 260)` | `oklch(0.72 0.02 260)` |
 
-Svaki ima `-soft` varijantu (suptilna pozadina feedback banera; tekst-token preko nje ostaje AA).
+Svaki ima `-soft` varijantu (suptilna pozadina feedback banera). ⚠️ **Ploha:** tvrdnja da tekst-token
+preko nje ostaje AA vrijedi za **verdict tokene** (`--correct` 4,67 · `--incorrect` 5,15 ·
+`--partial` 4,86 light, mjereno 2026-08-10) — ali do 4.7-4c **NIJE** vrijedila za
+`--muted-foreground` (4,18–4,26) ni `--accent-warm-text` (4,22–4,30), koji na tim plohama također
+stoje (FeedbackPanel, ErrorState, RunResultPanel). Oba su potamnjena u 4c; v. errata i matricu.
 
 **PARTIAL JE AKTIVAN od 4.3c** (revizija ERRATA #8: `verdict` kolona i dalje ne postoji, ali je
 partial DETERMINISTIČKI izvediv — backend `row_mismatch` ⇔ interni verdict "partial",
@@ -105,8 +120,8 @@ ordinalna po svjetlini/chromi.
 | `--tier-medium` | `oklch(0.55 0.14 300)` | `oklch(0.70 0.13 300)` |
 | `--tier-hard` | `oklch(0.45 0.18 300)` | `oklch(0.80 0.11 300)` |
 
-Svaki korak ima `-foreground` par (tekst na chip fillu, ≥4.5:1 verificirano per-tema — u lightu
-medium/hard nose near-white, easy near-black; u darku svi near-black).
+Svaki korak ima `-foreground` par — **ploha je pun tier fill** (ne `card`), ≥4.5:1 verificirano
+per-tema: u lightu medium/hard nose near-white, easy near-black; u darku svi near-black.
 
 ### 2.5 Module-difficulty skala — 5 koraka (ODVOJENA od tier!)
 
@@ -122,8 +137,9 @@ kategorija (modul 0) — desaturirana, namjerno IZVAN ordinalnog niza.
 | `--difficulty-expert` | `oklch(0.46 0.18 345)` | `oklch(0.82 0.105 345)` |
 | `--difficulty-cross-module` | `oklch(0.55 0.03 345)` | `oklch(0.68 0.03 345)` |
 
-Svaki korak ima `-foreground` par (tekst na chip fillu, ≥4.5:1 verificirano per-tema — u lightu
-advanced/expert/cross nose near-white, beginner/intermediate near-black; u darku svi near-black).
+Svaki korak ima `-foreground` par — **ploha je pun difficulty fill** (ne `card`), ≥4.5:1
+verificirano per-tema: u lightu advanced/expert/cross nose near-white, beginner/intermediate
+near-black; u darku svi near-black.
 
 ### 2.6 Data-viz paleta (Recharts)
 
@@ -239,7 +255,9 @@ brojevi = chart-2 teal, komentari = muted, funkcije = chart-3 violet.
 ## 9. Pre-delivery checklist (svaka komponenta, 4.2–4.7)
 
 - [ ] Boje isključivo iz tokena; prava skala za pravu domenu (tier≠difficulty≠mastery)
-- [ ] Kontrast: tekst ≥4.5:1, UI grafika ≥3:1 (obje teme)
+- [ ] Kontrast: tekst ≥4.5:1, UI grafika ≥3:1 (obje teme) — 🔒 **uz NAVEDENU PLOHU**: mjeri se
+      prema plohi na kojoj element STVARNO stoji (alpha-kompoziti se kompozitiraju), ne prema `card`
+      po defaultu. Tvrdnja o kontrastu bez navedene plohe je nepotpuna tvrdnja.
 - [ ] Fokus vidljiv, tipkovnička navigacija radi
 - [ ] `prefers-reduced-motion` poštovan; motion iz tokena (§5)
 - [ ] Loading=skeleton / empty / error / success stanja dizajnirana

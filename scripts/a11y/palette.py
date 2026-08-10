@@ -231,10 +231,18 @@ def report_gamut(stream=sys.stderr) -> int:
 #: ⟳ 4.7 stage 1: tri LIGHT retka uklonjena jer light teme više nema. Zamijenjena su
 #: trima DARK retcima iz iste objavljene tablice (`docs/faza-4.7-kontrast-matrica.md`,
 #: retci 141/145/136) — broj provjera ostaje šest, pokrivenost se ne smanjuje.
+#:
+#: ⟳ 4.7 stage 2 (ink-indigo paleta): tri KROMA retka su pala jer su im se tokeni
+#: namjerno promijenili. Nove brojke provjerene ručno prije upisa:
+#:    foreground × card        17,16 → 16,46  (foreground 0.985→0.970, card dobio tintu)
+#:    muted-foreground × card   6,91 →  6,89  (L nepromijenjen, razlika je čista kroma)
+#:    ring × card               3,79 →  4,94  (ring 0.556→0.620 akromatski, N-12)
+#: Tri SEMANTIČKA retka nisu ni zatitrala (7,74 · 5,72 · 8,03) — to je ujedno i dokaz
+#: da redizajn nije dirnuo zamrznute tokene.
 SELF_TEST = [
-    ("foreground × card", "dark", "foreground", "card", "17,16"),
-    ("muted-foreground × card", "dark", "muted-foreground", "card", "6,91"),
-    ("ring × card", "dark", "ring", "card", "3,79"),
+    ("foreground × card", "dark", "foreground", "card", "16,46"),
+    ("muted-foreground × card", "dark", "muted-foreground", "card", "6,89"),
+    ("ring × card", "dark", "ring", "card", "4,94"),
     ("correct × correct-soft", "dark", "correct", "correct-soft", "7,74"),
     ("incorrect × incorrect-soft", "dark", "incorrect", "incorrect-soft", "5,72"),
     ("partial × partial-soft", "dark", "partial", "partial-soft", "8,03"),

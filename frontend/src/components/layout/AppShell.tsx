@@ -26,7 +26,9 @@ import {
 import {
   SidebarLevelCard,
   SidebarUserCard,
+  TopbarStreakChip,
 } from "@/components/layout/SidebarCards"
+import { Breadcrumb } from "@/components/layout/Breadcrumb"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { useAuth } from "@/hooks/useAuth"
 import { cn } from "@/lib/utils"
@@ -244,23 +246,17 @@ export function AppShell() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 items-center justify-between gap-3 border-b border-border px-4 md:px-6">
-          {/* Mobilni brand + hamburger (sidebar skrivena) */}
-          <div className="flex items-center gap-2 md:hidden">
+          {/* Lijevo: hamburger (<768px) + breadcrumb. Brand je u sidebaru odnosno
+              u draweru — u topbaru bi ga na mobitelu tjerao breadcrumb u drugi red. */}
+          <div className="flex min-w-0 items-center gap-2">
             <MobileNav />
-            <Database
-              className="size-5 [stroke:url(#brand-grad)]"
-              aria-hidden="true"
-            />
-            <span className="bg-[image:var(--grad-wordmark)] bg-clip-text font-semibold text-transparent">
-              SQL Tutor
-            </span>
+            <Breadcrumb />
           </div>
-          <div className="hidden md:block" />
 
-          {/* ⟳ 1C t.2: user kartica i Odjava PRESELILE u sidebar footer (desktop)
-              odnosno u drawer (<768px). Topbar ostaje prazan s desne strane do t.3,
-              kad dobiva breadcrumb i streak čip. */}
-          <div className="flex items-center gap-2" />
+          {/* Desno: streak čip, samo <768px (v. TopbarStreakChip docstring). */}
+          <div className="flex shrink-0 items-center gap-2">
+            <TopbarStreakChip />
+          </div>
         </header>
 
         <main className="flex-1 p-4 md:p-8">

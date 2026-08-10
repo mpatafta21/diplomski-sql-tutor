@@ -78,6 +78,47 @@ export function SidebarLevelCard() {
 }
 
 /**
+ * Streak čip za topbar — SAMO <768px (`md:hidden`).
+ *
+ * 🔴 ZAŠTO SAMO NA MOBITELU: na desktopu streak već stoji u sidebar kartici, a sidebar
+ * je persistentan. Čip u topbaru bi ondje dao DVIJE ISTE BROJKE u istom kadru — točno
+ * ono što je u t.2 zaustavilo XP karticu. Ispod 768px sidebar je skriven, pa je čip
+ * jedino mjesto gdje streak postoji.
+ *
+ * 🔴 XP ČIPA NEMA, ni na jednoj širini. XP je pod invarijantom jednoznačnosti
+ * (`ProfilePage.tsx:7-8`) — `ProgressHero` je jedino mjesto s XP-om.
+ *
+ * `accent-warm` je dopušten po §2.1 (streak je na popisu). Ne „popravljati" po #53.
+ */
+export function TopbarStreakChip() {
+  const { data } = useProfile()
+  if (!data) return null
+
+  return (
+    <span
+      className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 md:hidden"
+      title={`Streak: ${data.current_streak} ${data.current_streak === 1 ? "dan" : "dana"} zaredom`}
+    >
+      <Flame
+        className={cn(
+          "size-3.5",
+          data.current_streak > 0
+            ? "text-accent-warm-text"
+            : "text-muted-foreground",
+        )}
+        aria-hidden="true"
+      />
+      <span className="text-xs font-medium tabular-nums">
+        {data.current_streak}
+      </span>
+      <span className="sr-only">
+        {data.current_streak === 1 ? "dan zaredom" : "dana zaredom"}
+      </span>
+    </span>
+  )
+}
+
+/**
  * Korisnik + odjava. JEDNA komponenta za sidebar I drawer — da se rola-badge i
  * ponašanje odjave ne raziđu između dva mjesta.
  * `onAction` koristi samo drawer (zatvori nakon klika).

@@ -256,6 +256,21 @@
     oklch(0.91 0.039 280) 50%,
     oklch(0.97 0.013 280) 100%
   );
+  /* XP bar (korisnikova odluka, 2026-08-10; mockup .pbar): JEDINA traka s
+     gradijentom — ⟳ REVIZIJA pravila R-2 „trake napretka ne dobivaju
+     gradijent" za točno ovaj slučaj: XP bar je REWARD domena (accent-warm),
+     ne statusna skala; hue putuje 80 → 45 (žuto → crveno-narančasto).
+     Guardovi (2026-08-10): kraj vs `incorrect` ΔE 0,0685 ✓ (≥0,05) · kraj vs
+     `accent-warm` 0,1266 (vidljiv pomak) · gamut C 0,17 ≤ max 0,185.
+     🔴 TRANZIT kroz ~h60 je na ΔE 0,0364 od `partial` — SVJESNO: XP bar
+     (Dashboard hero) i verdict panel (Task) nisu nikad u istom kadru, a
+     partial obvezno nosi ikonu+tekst (MASTER §2.2), boja mu nije jedini
+     kanal. Mastery trake i dalje BEZ gradijenta (statusna skala). */
+  --grad-xp: linear-gradient(
+    90deg,
+    oklch(0.8 0.15 80) 0%,
+    oklch(0.72 0.17 45) 100%
+  );
   /* Kartice (A.2b, 2026-08-10). Kartice NOSE verdict/tier/mastery sadržaj →
      gradijent je NAMJERNO suptilan (pikselni Δ krajeva 5/5/9); vidljivost ruba
      nosi hairline na gornjem rubu (`--border` inset, Δ 23/24/25 nad vrhom) —
@@ -287,13 +302,29 @@
      kraj tu dijagonalu nastavlja; (3) wordmark/brand na vrhu DOBIVAJU kontrast:
      4,38→4,76 · 3,56→3,87. Tekst na najgorem (najsvjetlijem) kraju:
      `foreground` 15,60 · `muted-fg` 6,54 · `accent-warm-text` 8,98 — sve AA.
-     Vrh se stapa s `background` (ΔE 0,0128) — namjerno, granicu drži border-r. */
+     Vrh se stapa s `background` (ΔE 0,0128) — namjerno, granicu drži border-r.
+     ⟳ STAKLO (korisnik, 2026-08-10, po mockupu .sidebar; POJAČANO na 2.
+     iteraciju): alfa PADA prema dnu (88→80→72 %) — staklo se otvara prema
+     glow-b svjetlu u donjem lijevom kutu kadra — uz backdrop blur 4px + saturate 1.4 (iOS/macOS materijal: puno prozirnosti, malo blura, blagi saturate) na
+     plohi (AppShell aside / sheet). Ispod je samo body pozadina (bg 0,145 —
+     TAMNIJA od svih stopova) → kompozit je tamniji od izmjerenoga u A.2a,
+     pa kontrasti odozgo OSTAJU donje granice; prosijavanje dot-grida do
+     28 % od Δ21 ≈ 6/255 na dnu, razmazano blurom u teksturu. */
   --grad-sidebar: linear-gradient(
     180deg,
-    oklch(0.155 0.04 280) 0%,
-    oklch(0.19 0.046 280) 50%,
-    oklch(0.23 0.054 280) 100%
+    oklch(0.175 0.035 280 / 92%) 0%,
+    oklch(0.16 0.033 280 / 92%) 50%,
+    oklch(0.148 0.03 280 / 92%) 100%
   );
+  /* ⟳ TONALITET PO MOCKUP SCREENU (korisnik, 2026-08-10, finalna iteracija):
+     mockupov sidebar je TAMAN i suptilan — rgba(15,19,38)→rgba(11,14,26)
+     na 92 % — svjetliji tek mrvicu na vrhu i TONE PREMA DNU do gotovo boje
+     pozadine (0,148 ≈ bg 0,145), pa se ploha uklapa u pozadinu; granicu
+     drži border-r + specularni rub iz .liquid-glass. Jednohuen h280
+     (invarijanta §2.8). Tamnije od svih prijašnjih iteracija → svi ranije
+     izmjereni kontrasti teksta su donje granice (tamnija ploha = viši
+     kontrast svijetlog teksta). Svijetli bloom iz prethodne iteracije
+     UKLONJEN — mockup ga na plohi nema. */
   /* Dot-grid (t.3; alfa A.1, 2026-08-10). Jedna točka po ćeliji 24×24, iz
      `--border` baze. Alfa 3,5 % → 12 %: stari kriterij je čuvao samo kontrast,
      kriterij vidljivosti nije postojao — pikselni Δ bio je 7/7/7 (nevidljivo).
@@ -579,6 +610,109 @@
   }
   .badge-pop {
     animation: badge-pop var(--duration-base) var(--ease-reward) backwards;
+  }
+
+  /* ── XP BAR: gradijentni fill + zraka (korisnik, 2026-08-10; mockup .pbar) ──
+     `.xp-fill` ide kroz fillClass, a `.bar-shimmer` na TRACK (className prop)
+     — na fillu zraka ne bi pokrila cijeli bar jer je fill translatiran
+     ulijevo; track je pune širine i `overflow-hidden` je reže rub-do-ruba.
+     MasteryBar komponenta netaknuta (#mastery-bar). Ciklus 2 s (sweep ~1 s +
+     stanka ~1 s), BESKONAČNO na korisnikov izričit zahtjev („svake 2
+     sekunde") — ⚠️ ODSTUPANJE od WCAG 2.2.2 obrasca „ograniči trajanjem"
+     (zabilježeno; reduced-motion guard zraku gasi u cijelosti). */
+  @keyframes bar-shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    50%,
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  .xp-fill {
+    background-image: var(--grad-xp);
+    box-shadow: 0 0 14px oklch(0.8 0.15 80 / 0.4);
+  }
+  .bar-shimmer {
+    position: relative;
+  }
+  .bar-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      100deg,
+      transparent 30%,
+      color-mix(in oklab, var(--foreground) 35%, transparent) 50%,
+      transparent 70%
+    );
+    animation: bar-shimmer 2s ease-in-out 0.6s infinite;
+  }
+
+  /* ── LIQUID GLASS (korisnik, 2026-08-10) — iOS/visionOS materijal ─────────
+     Tri sastojka povrh prozirne `--grad-sidebar` plohe (alfe se štimaju TAMO,
+     index.css ~:300):
+       1. dijagonalni ODSJAJ preko površine (foreground kroz color-mix,
+          8 % → 2 % → nestane do 45 % plohe) — „svjetlo klizi po staklu";
+       2. SPECULARNI RUB: unutarnji hairline na vrhu (--border) + slabiji
+          lijevi — brid koji hvata svjetlo;
+       3. backdrop blur 8px + saturate 1.7 — prosijano postaje sočnije.
+     Poluge: blur/saturate OVDJE, prozirnost NA STOPOVIMA --grad-sidebar. */
+  .liquid-glass {
+    background-image:
+      linear-gradient(
+        115deg,
+        color-mix(in oklab, var(--foreground) 6%, transparent) 0%,
+        color-mix(in oklab, var(--foreground) 2%, transparent) 18%,
+        transparent 40%
+      ),
+      var(--grad-sidebar);
+    backdrop-filter: blur(8px) saturate(1.7);
+    box-shadow:
+      inset 0 1px 0 0 var(--border),
+      inset 1px 0 0 0 color-mix(in oklab, var(--foreground) 6%, transparent);
+  }
+
+  /* ── BRAND SPOTLIGHT (korisnikov zahtjev, 2026-08-10; mockup .brand-icon) ──
+     Pločica: `--grad-brand` kao ploha, tamna ikona (var(--background) stroke),
+     glow sjena u boji SREDNJEG stopa --grad-brand — literal namjerno živi
+     odmah uz svoj izvor (isti obrazac kao stopovi gradijenata gore), nije
+     nova boja nego sjena postojeće. Mount: jednokratni pop (< 1 s → 2.2.2 ✓);
+     hover: jači glow + blagi scale (`scale` svojstvo, ne transform — v.
+     MASTER §5 🔴). Reduced motion: guard ruši trajanja, hover scale se
+     neutralizira ovdje. */
+  @keyframes brand-pop {
+    0% {
+      opacity: 0;
+      scale: 0.7;
+      rotate: -8deg;
+    }
+    60% {
+      scale: 1.06;
+      rotate: 2deg;
+    }
+    100% {
+      opacity: 1;
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+  .brand-tile {
+    background-image: var(--grad-brand);
+    box-shadow: 0 4px 18px oklch(0.665 0.13 280 / 0.35);
+    animation: brand-pop var(--duration-slow) var(--ease-reward) backwards;
+    transition:
+      box-shadow var(--duration-base) ease,
+      scale var(--duration-base) ease;
+  }
+  .brand-tile:hover {
+    box-shadow: 0 4px 24px oklch(0.665 0.13 280 / 0.55);
+    scale: 1.06;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .brand-tile:hover {
+      scale: 1;
+    }
   }
 
   /* MASTER.md §7: cursor-pointer na svemu klikabilnom. Tailwind v4 preflight

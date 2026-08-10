@@ -40,9 +40,10 @@ function SheetContent({
       />
       <Dialog.Content
         className={cn(
-          // Gradijent plohe (A.2a): isti par kao desktop sidebar u AppShellu,
-          // da se plohe drawera i sidebara ne raziđu.
-          "fixed inset-y-0 z-50 flex w-[min(20rem,85vw)] flex-col border-sidebar-border bg-sidebar bg-[image:var(--grad-sidebar)]",
+          // Staklena ploha (A.2a + ⟳ 2026-08-10): isti par kao desktop sidebar
+          // u AppShellu (92 % alfa + blur), da se plohe ne raziđu. BEZ
+          // bg-sidebar podloge — prozirnost mora imati kroz što gledati.
+          "liquid-glass fixed inset-y-0 z-50 flex w-[min(20rem,85vw)] flex-col border-sidebar-border",
           side === "left" ? "left-0 border-r" : "right-0 border-l",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           side === "left"

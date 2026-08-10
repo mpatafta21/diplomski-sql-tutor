@@ -65,6 +65,24 @@ const NAV_GROUPS = [
 // level/streak boxa (MASTER §3.2, ⟳ bilješka).
 
 /**
+ * Brand pločica (korisnikov zahtjev, 2026-08-10; mockup `.brand-icon`):
+ * `--grad-brand` ploha + tamna ikona + glow, mount pop i hover — sve u
+ * `.brand-tile` (index.css). JEDNA komponenta za sidebar i drawer da se
+ * spotlight ne raziđe. SVG defs `#brand-grad` je time ostao bez potrošača
+ * i uklonjen je (stroke je sada var(--background) na gradijentnoj plohi).
+ */
+function BrandMark() {
+  return (
+    <span className="brand-tile grid size-9 shrink-0 place-items-center rounded-lg">
+      <Database
+        className="size-4.5 [stroke:var(--background)]"
+        aria-hidden="true"
+      />
+    </span>
+  )
+}
+
+/**
  * Nav stavke. `onNavigate` je OPCIONALAN i koristi ga SAMO drawer (zatvara se nakon
  * odabira). Desktop sidebar ga ne prosljeđuje → njegovo ponašanje je nepromijenjeno.
  */
@@ -220,10 +238,7 @@ function MobileNav() {
       </SheetTrigger>
       <SheetContent side="left" className="md:hidden">
         <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-sidebar-border px-5">
-          <Database
-            className="size-5 [stroke:url(#brand-grad)]"
-            aria-hidden="true"
-          />
+          <BrandMark />
           <SheetTitle className="bg-[image:var(--grad-wordmark)] bg-clip-text text-base font-semibold tracking-tight text-transparent">
             SQL Tutor
           </SheetTitle>
@@ -252,33 +267,17 @@ function MobileNav() {
 export function AppShell() {
   return (
     <div className="flex min-h-svh">
-      {/* Jedan <defs> za cijelu aplikaciju — lucide ikone crtaju `stroke`, pa im
-          gradijent mora doći kroz SVG referencu, ne kroz CSS `background`.
-          Srednji stop je upisan jer SVG interpolira u sRGB, a brojke su mjerene
-          na oklch-sredini (v. `--grad-brand` u index.css). */}
-      <svg width="0" height="0" aria-hidden="true" className="absolute">
-        <defs>
-          <linearGradient id="brand-grad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="oklch(0.55 0.15 280)" />
-            <stop offset="50%" stopColor="oklch(0.665 0.13 280)" />
-            <stop offset="100%" stopColor="oklch(0.78 0.11 280)" />
-          </linearGradient>
-        </defs>
-      </svg>
-
       {/* Sidebar — desktop primaran (plan §4.7); na užem ekranu skrivena, header ostaje. */}
       {/* 🔴 `sticky top-0 h-svh`: bez toga sidebar raste s DOKUMENTOM (roditelj je
           `min-h-svh`), pa footer s karticama završi ispod pregiba na svakoj stranici
           koja je duža od zaslona — a to su gotovo sve. Sticky ga drži u vidnom polju,
           `h-svh` daje fiksnu visinu unutar koje nav skrola, a footer stoji. */}
-      {/* Gradijent plohe (A.2a): `bg-sidebar` ostaje kao podloga ispod slike —
-          isti par nosi i drawer (ui/sheet.tsx), da se plohe ne raziđu. */}
-      <aside className="sticky top-0 hidden h-svh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar bg-[image:var(--grad-sidebar)] md:flex">
+      {/* Staklena ploha (A.2a + ⟳ 2026-08-10): polupropusni gradijent (92 %)
+          + backdrop blur — BEZ `bg-sidebar` podloge, inače prozirnost nema
+          kroz što gledati. Isti par nosi i drawer (ui/sheet.tsx). */}
+      <aside className="liquid-glass sticky top-0 hidden h-svh w-60 shrink-0 flex-col border-r border-sidebar-border md:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-5">
-          <Database
-            className="size-5 [stroke:url(#brand-grad)]"
-            aria-hidden="true"
-          />
+          <BrandMark />
           <span className="bg-[image:var(--grad-wordmark)] bg-clip-text text-base font-semibold tracking-tight text-transparent">
             SQL Tutor
           </span>

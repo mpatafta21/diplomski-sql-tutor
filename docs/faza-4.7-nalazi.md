@@ -916,3 +916,88 @@ Brojčani dio (ΔE 0,102, kontrast 4,18–5,44) stoji neovisno o njoj.
 >
 > ⚠️ Snimanje je i dalje išlo deep-linkom `/modules#module-<n>` (`defaultOpen`,
 > `ModulesPage.tsx:177`) — to je legitiman put i radi, ali NIJE bio nužan.
+
+---
+
+## N-16 ✅ Stage 1C — mjerenja pristupa i rasporeda (verifikacija)
+
+**Datum:** 2026-08-10 · **metoda:** Playwright nad živom aplikacijom, 1440×900 i 380×780,
+ključni kadrovi na `deviceScaleFactor: 3`.
+
+### N-5 je ZATVOREN
+
+Mobilni drawer sadrži **Profil** i **Odjavu**. Time prijavljen korisnik na telefonu
+prvi put ima put do `/profile#sudjelovanje` — informacije o sudjelovanju, kontaktu i
+brisanju podataka.
+
+| provjera | @380 |
+|---|---|
+| hamburger target | **44×44** ✅ |
+| nav stavka target | **295×44** ✅ |
+| Zatvori target | **44×44** ✅ |
+| `aria-expanded` | false → **true** ✅ |
+| pozadina `aria-hidden` dok je otvoren | ✅ |
+| fokus-trap nakon **12** Tabova | fokus **još u draweru** ✅ |
+| `Esc` zatvara | ✅ |
+| fokus vraćen na trigger | ✅ |
+| klik na stavku zatvara drawer | ✅ |
+| **Admin za studenta** | **skriven** ✅ |
+| tab-red izvan drawera (zatvoren) | neporemećen ✅ |
+
+### Tab-red @1440 (iz DOM-a, ne izveden)
+
+```
+a:Dashboard → a:Moduli → a:Zadatak → a:Profil → a:Ljestvica → button:Odjava
+→ a:Otvori zadatak → a:Otvori zadatak za koncept … → body
+```
+
+Sidebar prije glavnog sadržaja, redoslijedom dokumenta. Targeti: nav **215×44**,
+Odjava **215×44** ✅.
+
+### 🔴 Legibilnost mono na najmanjem tekstu (#51) — čitljivost, ne WCAG omjer
+
+Na Dashboardu je **13 niski u monou na ≤ 12,9 px**, najmanja **10,2 px**:
+
+| px | niska | mjesto |
+|---|---|---|
+| 10,2 | `-- učenje`, `-- napredak` | sidebar section headeri |
+| 10,2 | `level`, `streak` | sidebar kartica |
+| 10,2 | `student` | rola-badge |
+| 10,2 | `sql_tutor` `.` `dashboard` | topbar breadcrumb |
+| 10,2 | `još 70 XP do levela 2` | ProgressHero |
+| 12,8 | `30`, `100`, `1` | XP i level brojke |
+
+**Presuda: čitljivo.** Provjereno na snimci pri 3× DPI. JetBrains Mono ima velik x-height
+i otvorene kontrapunktove, pa na 10,2 px drži oblik bolje nego Geist na istoj veličini.
+⚠️ Ovo je presuda o **čitljivosti**, ne o kontrastu — kontrast tih niski je u matrici
+(`muted-foreground × sidebar` 6,92, `muted-foreground × background` 7,60).
+⚠️ Ograničenje: jedan promatrač, jedan zaslon, bez kalibracije — ista klasa kao N-15.
+
+### Task screen @380
+
+Ostaje čitljivo: breadcrumb ×2, naslov, čipovi, opis, „Usput vježba", **cijela shema baze
+(8 tablica)**. Zamijenjeno: editor + Run/Submit → kartica s razlogom i dva izlaza.
+`.monaco-editor` nije vidljiv, `textarea.offsetParent === null` → **izvan tab-reda**.
+
+### Što se renderira dok Monaco stiže
+
+Presretač je svaki monaco zahtjev odgodio 3 s (5 presretnutih); stanja anketirana svakih
+120 ms kroz 4 s:
+
+```
+role=status aria-label="Provjera prijave"
+role=status aria-label="Tražim tvoj sljedeći zadatak"
+role=status aria-label="Učitavanje zadatka"     ← router.tsx Suspense
+```
+
+**Nije prazno.** 🔴 Nusprodukt: `SqlEditor.tsx:79`
+`loading={<LoadingState label="Učitavanje editora" />}` **nije viđen nijednom** — jer je
+`monaco-setup.ts` statički import, pa je monaco u modulnom grafu TaskPage chunka i
+Suspense granica pokriva cijelo čekanje. Praktički mrtav kod (klasa N-14); **ne uklanja se**
+jer bi pri prelasku na dinamički import opet bio jedina obrana.
+
+### Dvije brojke u istom kadru — provjereno
+
+`Dashboard @1440`: XP niske u kadru = **1**, i to u `<main>` (`ProgressHero`).
+U `<aside>`: **0**. Invarijanta o jednoznačnosti XP-a (v. dopunu N-8) drži.
+Streak: sidebar kartica @≥768px, topbar čip @<768px — **nikad oboje**.

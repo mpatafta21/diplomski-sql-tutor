@@ -3,18 +3,28 @@
  * Vuče 4.1b tokene (sidebar-* set); od 4.7 je aplikacija dark-only. Nav NIJE skica — sve su stavke
  * prave rute od 4.6-evala (vidi NAV_ITEMS ispod). Admin stavka je role-gated.
  */
-import { NavLink, Outlet } from "react-router-dom"
+import { useState } from "react"
+import { NavLink, Outlet, useLocation } from "react-router-dom"
 import {
   BookOpen,
   Database,
   LayoutDashboard,
   LogOut,
+  Menu,
   ShieldCheck,
   Terminal,
   Trophy,
   User,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { useAuth } from "@/hooks/useAuth"
 import { cn } from "@/lib/utils"
@@ -50,7 +60,11 @@ const NAV_GROUPS = [
 const SECTION_HEADER =
   "px-3 pt-4 pb-1 font-mono text-xs text-muted-foreground first:pt-0"
 
-function SidebarNav() {
+/**
+ * Nav stavke. `onNavigate` je OPCIONALAN i koristi ga SAMO drawer (zatvara se nakon
+ * odabira). Desktop sidebar ga ne prosljeđuje → njegovo ponašanje je nepromijenjeno.
+ */
+function SidebarNav({ onNavigate }: { onNavigate?: () => void } = {}) {
   const { user } = useAuth()
 
   return (
@@ -69,6 +83,7 @@ function SidebarNav() {
                 <NavLink
                   to={to}
                   end={end}
+                  onClick={onNavigate}
                   className={({ isActive }) =>
                     cn(
                       // Invarijanta (WCAG 2.5.5): h-11 = 44px touch target po stavci.
@@ -102,6 +117,7 @@ function SidebarNav() {
               <NavLink
                 to="/admin"
                 end
+                onClick={onNavigate}
                 className="flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
@@ -112,6 +128,91 @@ function SidebarNav() {
         </div>
       )}
     </nav>
+  )
+}
+
+/**
+ * Mobilna navigacija (<768px) — NALAZ N-5.
+ *
+ * 🔴 IZLAZNI KRITERIJ: drawer MORA sadržavati **Profil** i **Odjavu**.
+ * Profil nosi `ParticipationSection` (informacija o sudjelovanju, kontakt, brisanje
+ * podataka). Do 1C je ispod 768px sidebar bio `hidden` bez zamjene, pa prijavljen
+ * korisnik na telefonu do te informacije NIJE IMAO PUTA: `/register` mu je zatvoren
+ * (`PublicOnlyRoute` → redirect), a Profil nedosežan.
+ *
+ * 🔴 Admin stavka je i ovdje role-gated — `SidebarNav` je JEDAN izvor istine za nav,
+ * pa se uvjet `user?.role === "admin"` ne replicira nego NASLJEĐUJE. Da je drawer imao
+ * vlastitu kopiju popisa, role-gate bi se mogao razići.
+ */
+function MobileNav() {
+  const { user, logout } = useAuth()
+  const [open, setOpen] = useState(false)
+  const location = useLocation()
+
+  // Zatvori na promjenu rute — pokriva i navigacije koje ne idu preko NavLinka
+  // (npr. redirect iz `/task` na `/task/:id`).
+  const close = () => setOpen(false)
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen} key={location.pathname}>
+      <SheetTrigger asChild>
+        {/* `size="icon"` = 44px (WCAG 2.5.5). `aria-expanded` dolazi od Radixa. */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          aria-label="Otvori izbornik"
+        >
+          <Menu />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="md:hidden">
+        <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-sidebar-border px-5">
+          <Database
+            className="size-5 [stroke:url(#brand-grad)]"
+            aria-hidden="true"
+          />
+          <SheetTitle className="bg-[image:var(--grad-wordmark)] bg-clip-text text-base font-semibold tracking-tight text-transparent">
+            SQL Tutor
+          </SheetTitle>
+        </div>
+        <SheetDescription className="sr-only">
+          Glavna navigacija, profil i odjava
+        </SheetDescription>
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <SidebarNav onNavigate={close} />
+        </div>
+
+        {/* 🔴 Odjava je OVDJE jer je na mobitelu topbar pretijesan; bez nje bi
+            korisnik na telefonu ostao bez izlaza iz sessiona. */}
+        <div className="shrink-0 border-t border-sidebar-border p-3">
+          {user && (
+            <div className="mb-2 flex items-center gap-2 px-3">
+              <span className="truncate text-sm font-medium">
+                {user.username}
+              </span>
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                  user.role === "admin"
+                    ? "bg-accent-warm text-accent-warm-foreground"
+                    : "bg-muted text-muted-foreground",
+                )}
+              >
+                {user.role}
+              </span>
+            </div>
+          )}
+          <SheetClose asChild>
+            <Button variant="outline" className="w-full" onClick={logout}>
+              <LogOut data-icon="inline-start" />
+              Odjava
+            </Button>
+          </SheetClose>
+        </div>
+      </SheetContent>
+    </Sheet>
   )
 }
 
@@ -150,8 +251,9 @@ export function AppShell() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 items-center justify-between gap-3 border-b border-border px-4 md:px-6">
-          {/* Mobilni brand (sidebar skrivena) */}
+          {/* Mobilni brand + hamburger (sidebar skrivena) */}
           <div className="flex items-center gap-2 md:hidden">
+            <MobileNav />
             <Database
               className="size-5 [stroke:url(#brand-grad)]"
               aria-hidden="true"

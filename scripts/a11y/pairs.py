@@ -43,6 +43,9 @@ SURFACES: dict[str, object] = {
     "sidebar-accent/40": ("sidebar-accent", 0.40, "card"),
     "sidebar-accent/60": ("sidebar-accent", 0.60, "card"),
     "input/30": ("input", 0.30, "card"),
+    # ⟳ 4.7-1C: isti `outline` gumb, ali na plohi SIDEBARA (Odjava u draweru i u
+    # sidebar footeru). Drukčija ploha ⇒ drukčiji kompozit ⇒ vlastiti redak.
+    "input/30@sidebar": ("input", 0.30, "sidebar"),
     # ⟳ 4.7 stage 1: bilo `input/50`. To je bila LIGHT vrijednost (`disabled:bg-input/50`);
     # u darku je disabled polje oduvijek bilo `dark:disabled:bg-input/80`. Redak je dakle
     # mjerio klasu koja se u dark temi nikad nije primijenila — ista klasa kao fantomski
@@ -92,6 +95,7 @@ SURFACE_USE: dict[str, str] = {
     "sidebar-accent/40": "ConceptRow hover",
     "sidebar-accent/60": "nav hover",
     "input/30": "input (dark varijanta)",
+    "input/30@sidebar": "Odjava (outline gumb) u draweru i sidebar footeru",
     "input/80": "disabled input",
     "correct-soft": "FeedbackPanel, čip „Riješeno”",
     "incorrect-soft": "FeedbackPanel, ErrorState, Run greška, Login/Register",
@@ -130,7 +134,12 @@ PAIRS: dict[str, dict[str, str]] = {
         # `rules[operator]`, a to je vrijednosna kopija koju mjeri `monaco_check.py`.
     },
     "popover": {"foreground": "○ ui/popover", "muted-foreground": "○ ui/popover"},
-    "sidebar": {"muted-foreground": "● AppShell.tsx:71", "accent-warm-text": "○ AppShell"},
+    "sidebar": {
+        "muted-foreground": "● AppShell.tsx nav stavke + section headeri",
+        "accent-warm-text": "○ AppShell",
+        # ⟳ 4.7-1C: username u draweru/sidebar footeru nasljeđuje `foreground`.
+        "foreground": "○ MobileNav username, sidebar user kartica",
+    },
     "secondary": {"foreground": "○ ui/button variant=secondary"},
     "muted": {
         "muted-foreground": "● BadgeGallery.tsx:73,97",
@@ -150,6 +159,7 @@ PAIRS: dict[str, dict[str, str]] = {
     "sidebar-accent/40": {"muted-foreground": "○ ConceptRow.tsx:117", "correct": "○ ConceptRow"},
     "sidebar-accent/60": {"muted-foreground": "○ AppShell.tsx:71 hover"},
     "input/30": {"foreground": "○ ui/input", "muted-foreground": "○ placeholder"},
+    "input/30@sidebar": {"foreground": "○ Odjava, ui/button variant=outline na sidebaru"},
     "input/80": {"muted-foreground": "○ disabled input"},
     "correct-soft": {
         "correct": "● FeedbackPanel.tsx:52-53, ContinueCard.tsx:129, TaskPage.tsx:288",

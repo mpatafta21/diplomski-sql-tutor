@@ -33,8 +33,9 @@ nosi plohu. Popis i citati: `scripts/a11y/pairs.py`.
 | `card` | kartice, paneli | `partial` | ○ StatsSummary.tsx:69 | 8,74 | ✅ |
 | `popover` | popover / tooltip | `foreground` | ○ ui/popover | 16,51 | ✅ |
 | `popover` | popover / tooltip | `muted-foreground` | ○ ui/popover | 6,92 | ✅ |
-| `sidebar` | lijeva navigacija | `muted-foreground` | ● AppShell.tsx:71 | 6,92 | ✅ |
+| `sidebar` | lijeva navigacija | `muted-foreground` | ● AppShell.tsx nav stavke + section headeri | 6,92 | ✅ |
 | `sidebar` | lijeva navigacija | `accent-warm-text` | ○ AppShell | 9,51 | ✅ |
+| `sidebar` | lijeva navigacija | `foreground` | ○ MobileNav username, sidebar user kartica | 16,51 | ✅ |
 | `secondary` | secondary gumb | `foreground` | ○ ui/button variant=secondary | 14,00 | ✅ |
 | `muted` | čipovi, prazna stanja | `muted-foreground` | ● BadgeGallery.tsx:73,97 | 5,87 | ✅ |
 | `muted` | čipovi, prazna stanja | `foreground` | ○ EmptyState | 14,00 | ✅ |
@@ -53,6 +54,7 @@ nosi plohu. Popis i citati: `scripts/a11y/pairs.py`.
 | `sidebar-accent/60` | nav hover | `muted-foreground` | ○ AppShell.tsx:71 hover | 6,30 | ✅ |
 | `input/30` | input (dark varijanta) | `foreground` | ○ ui/input | 14,77 | ✅ |
 | `input/30` | input (dark varijanta) | `muted-foreground` | ○ placeholder | 6,19 | ✅ |
+| `input/30@sidebar` | Odjava (outline gumb) u draweru i sidebar footeru | `foreground` | ○ Odjava, ui/button variant=outline na sidebaru | 14,77 | ✅ |
 | `input/80` | disabled input | `muted-foreground` | ○ disabled input | 4,89 | ✅ |
 | `correct-soft` | FeedbackPanel, čip „Riješeno” | `correct` | ● FeedbackPanel.tsx:52-53, ContinueCard.tsx:129, TaskPage.tsx:288 | 7,74 | ✅ |
 | `correct-soft` | FeedbackPanel, čip „Riješeno” | `foreground` | ○ FeedbackPanel.tsx:123 | 14,88 | ✅ |

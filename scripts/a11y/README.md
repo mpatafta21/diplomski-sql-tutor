@@ -53,6 +53,13 @@ struktura CSS-a promijeni (očekuje se `:root` → `@layer base`), parser **prek
 greškom** umjesto da tiho vrati krive brojke. Od 4.7 je aplikacija **dark-only**: pojava
 `.dark` bloka također je prekid, jer bi značila da parser čita samo pola palete.
 
+> 🔴 **Prolaz izvršen tijekom nestabilne infrastrukture PONAVLJA SE prije nego uđe u
+> `nalazi.md`.** Povod (4.7-r2, t.0a): zapisao sam da `Collapsible` u `ModuleCard` ne
+> otvara koncepte klikom — na temelju jednog neuspjelog prolaza koji je pao **odmah nakon
+> što su docker kontejneri i backend pali usred sesije i bili ponovno dignuti**. Ponovna
+> provjera (14 pokušaja, 4 uvjeta) pokazala je da komponenta radi savršeno, uključujući
+> tipkovnicu. Nalaz je povučen. Šum u `nalazi.md` skuplji je od šutnje jer se čita kao dug.
+
 **2. Konvertor se validira prije svakog mjerenja.** `SELF_TEST` u `palette.py` nosi šest
 brojki koje su **objavljene u dokumentaciji projekta prije nego je ova skripta
 postojala** (npr. `foreground × card` = 17,16). Ako ih konvertor ne reproducira, skripta
@@ -161,6 +168,28 @@ vidljivosti), ali razlika mora biti **vidljiva**, ne prešućena. ⚠️ Uz to: 
 klamp po kanalu — pa je izmjereni hex za takav token približan, ne točan.
 
 ## Što alat NE mjeri
+
+- 🔴 **Približavanje PLOHE susjednom pojasu percepcije čipa.** ΔE nad sukorištenim skupom
+  mjeri **par**, a ne koliko je ploha „ušla u prostor" skale. Primjer iz 4.7-r2, t.0b —
+  kandidat **B** za kromu ploha (C 0,044 / 0,066 / 0,082 na hue 280):
+
+  | provjera | ishod za B |
+  | --- | :---: |
+  | matrica kontrasta (49 parova + 12 čipova) | **0 padova** ✅ |
+  | ΔE nad sukorištenim parovima | **0 kolizija** ✅ |
+  | ΔE `-soft` ploha prema `card` | **porastao** (0,0895–0,1060) ✅ |
+  | ΔE `card` × `tier-easy` | ≫ prag, nije ni blizu ✅ |
+  | **oko na snimci Dashboarda** | 🔴 **violet `tier` i magenta `difficulty` čipovi počinju se stapati s plohom** |
+
+  Alat je rekao „prolazi" po svakoj brojci koju zna izmjeriti. Odluka je ipak pala na
+  **A** (C 0,032 / 0,048 / 0,060), i to **ne zbog gamuta** (dopušta 0,088 / 0,124 / 0,163)
+  nego zbog referentnog dizajna: A već premašuje kromu mockupa na sva tri sloja
+  (0,026 / 0,039 / 0,056, KORAK 0 §C.1). **Strop nije gamut nego referentni dizajn.**
+
+  **Zašto metrika to ne hvata:** ΔE(ploha, čip) ostaje velik jer ih razdvaja svjetlina
+  (L 0,205 vs 0,60–0,80). Ono što se stapa nije *par* nego **kromatski kontekst** — čip
+  prestaje biti jedina obojena stvar u kadru. Za to nema brojke u ovom alatu; ima je samo
+  snimka. Ako netko ikad opet pojača kromu ploha, **provjera je snimka, ne `--delta-e`.**
 
 - **Vizualnu hijerarhiju.** Izračun mjeri element, snimka mjeri kompoziciju. Token može
   proći AA i pritom se stopiti sa susjedom (poučak iz 4.7-1a: pomoć uz `username` prolazila

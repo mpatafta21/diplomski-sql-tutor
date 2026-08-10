@@ -42,16 +42,16 @@ MAP: list[tuple[str, object, str]] = [
     ("rules[string]", "correct", "5DC879"),
     ("rules[number]", "chart-2", "36C6B8"),
     ("rules[predefined]", "chart-3", "B191EA"),
-    ("editor.background / editorWidget.background", "card", "141625"),
+    ("editor.background / editorWidget.background", "card", "13142C"),
     ("editorCursor / editorLineNumber.activeForeground", "accent-warm", "F0B135"),
     ("editor.selectionBackground", ("accent-warm", 0.20), "F0B13533"),
     ("editor.inactiveSelectionBackground", ("accent-warm", 0.10), "F0B1351A"),
     ("editorBracketMatch.border", ("accent-warm", 0.50), "F0B13580"),
     ("editorSuggestWidget.selectedBackground", ("accent-warm", 0.15), "F0B13526"),
-    ("editorIndentGuide.background / editorWidget.border", ("border", None, "card"), "2C2D3F"),
-    ("editor.lineHighlightBackground", ("border", 0.40, "card"), "2C2D3F66"),
-    ("scrollbarSlider.background", ("border", 0.50, "card"), "2C2D3F80"),
-    ("scrollbarSlider.hoverBackground", ("border", 0.80, "card"), "2C2D3FCC"),
+    ("editorIndentGuide.background / editorWidget.border", ("border", None, "card"), "2B2C46"),
+    ("editor.lineHighlightBackground", ("border", 0.40, "card"), "2B2C4666"),
+    ("scrollbarSlider.background", ("border", 0.50, "card"), "2B2C4680"),
+    ("scrollbarSlider.hoverBackground", ("border", 0.80, "card"), "2B2C46CC"),
 ]
 
 #: Vrijednosti u temi koje NISU izvedene ni iz jednog tokena.

@@ -46,7 +46,7 @@ export const sqlTutorDark: MonacoThemeData = {
     { token: "predefined", foreground: "B191EA" }, // --chart-3 (violet) — funkcije
   ],
   colors: {
-    "editor.background": "#141625", //                --card
+    "editor.background": "#13142C", //                --card
     "editor.foreground": "#F3F4FE", //                --foreground
     "editorLineNumber.foreground": "#9C9FB7", //      --muted-foreground
     "editorLineNumber.activeForeground": "#F0B135", // --accent-warm
@@ -56,12 +56,12 @@ export const sqlTutorDark: MonacoThemeData = {
     "editorBracketMatch.border": "#F0B13580", //      --accent-warm @ 50 %
     "editorSuggestWidget.selectedBackground": "#F0B13526", // --accent-warm @ 15 %
     // ⟳ 4.7: bilo #292929 — ručna vrijednost bez izvora. Sada KOMPOZIT --border nad --card.
-    "editorIndentGuide.background": "#2C2D3F", //     --border nad --card
-    "editorWidget.border": "#2C2D3F", //              --border nad --card
-    "editor.lineHighlightBackground": "#2C2D3F66", // --border nad --card @ 40 %
-    "scrollbarSlider.background": "#2C2D3F80", //     --border nad --card @ 50 %
-    "scrollbarSlider.hoverBackground": "#2C2D3FCC", // --border nad --card @ 80 %
-    "editorWidget.background": "#141625", //          --card
+    "editorIndentGuide.background": "#2B2C46", //     --border nad --card
+    "editorWidget.border": "#2B2C46", //              --border nad --card
+    "editor.lineHighlightBackground": "#2B2C4666", // --border nad --card @ 40 %
+    "scrollbarSlider.background": "#2B2C4680", //     --border nad --card @ 50 %
+    "scrollbarSlider.hoverBackground": "#2B2C46CC", // --border nad --card @ 80 %
+    "editorWidget.background": "#13142C", //          --card
   },
 }
 

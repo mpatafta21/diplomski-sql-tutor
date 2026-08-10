@@ -239,10 +239,13 @@ def report_gamut(stream=sys.stderr) -> int:
 #:    ring × card               3,79 →  4,94  (ring 0.556→0.620 akromatski, N-12)
 #: Tri SEMANTIČKA retka nisu ni zatitrala (7,74 · 5,72 · 8,03) — to je ujedno i dokaz
 #: da redizajn nije dirnuo zamrznute tokene.
+#: ⟳ 4.7 r2 (pojačana kroma ploha, kandidat A): iste tri KROMA brojke pomaknule su se
+#: za ≤0,05 jer je `card` dobio C 0.030 → 0.048. Smjer je NAGORE kod sve tri (ploha je
+#: tamnija po luminanciji pri istom L), dakle promjena ne troši rezervu.
 SELF_TEST = [
-    ("foreground × card", "dark", "foreground", "card", "16,46"),
-    ("muted-foreground × card", "dark", "muted-foreground", "card", "6,89"),
-    ("ring × card", "dark", "ring", "card", "4,94"),
+    ("foreground × card", "dark", "foreground", "card", "16,51"),
+    ("muted-foreground × card", "dark", "muted-foreground", "card", "6,92"),
+    ("ring × card", "dark", "ring", "card", "4,95"),
     ("correct × correct-soft", "dark", "correct", "correct-soft", "7,74"),
     ("incorrect × incorrect-soft", "dark", "incorrect", "incorrect-soft", "5,72"),
     ("partial × partial-soft", "dark", "partial", "partial-soft", "8,03"),

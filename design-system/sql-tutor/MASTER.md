@@ -377,6 +377,7 @@ mjerenje ne opisuje ono što se renderira.
 | `--grad-cta` (r3 A.1) | `0,85 0,065` → `0,97 0,013` | **11,30** (tamni tekst) · 11,30 (fill vs `card`) | **0,0734** (`tier-hard`) |
 | `--glow-a` / `--glow-b` (r3 A.1) | h280 @ 18 % / 12 % | `foreground` 18,16 → **14,40** (puna α) | — |
 | `--grad-sidebar` (r3 A.2a) | `0,155 0,04` → `0,23 0,054` (180°, tamno gore) | `muted-fg` **6,54** na svijetlom kraju · `fg` 15,60 | — (skup je **prazan**; aktivna stavka: ΔE 0,095–0,109 u nav zoni, bolje od flat 0,065) |
+| `--grad-card` (r3 A.2b) | `0,2175 0,0505` → `0,1925 0,0455` (sredina == `--card`) | `muted-fg` **6,73** na vrhu · `fg` 16,07 | min **0,20** (mastery-0); `-soft` 0,0704–0,0880; `muted` 0,0524 (vrh spušten s 0,22 zbog 0,0498) |
 
 ⟳ **r3 A.1 (2026-08-10):** CTA start `0,90 0,045` → `0,85 0,065` po pikselnom kriteriju
 vidljivosti (§3.3): Δ kroz površinu **R 24 · G 22 → R 40 · G 37** (B ~5 — pri vrhu gamuta

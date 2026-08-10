@@ -247,6 +247,27 @@
     oklch(0.91 0.039 280) 50%,
     oklch(0.97 0.013 280) 100%
   );
+  /* Kartice (A.2b, 2026-08-10). Kartice NOSE verdict/tier/mastery sadržaj →
+     gradijent je NAMJERNO suptilan (pikselni Δ krajeva 5/5/9); vidljivost ruba
+     nosi hairline na gornjem rubu (`--border` inset, Δ 23/24/25 nad vrhom) —
+     v. ui/card.tsx. Sredina == `--card` (0.205), krajevi simetrični ±0.0125.
+     ΔE provjere (2026-08-10), najgori = svijetli vrh 0.2175:
+       nabrojane skale: min 0,20 (mastery-0) — tier/mastery/verdict/accent-warm
+       svi daleko iznad praga 0,05
+       -soft plohe: 0,0704–0,0880 (min neutral-soft)
+       muted/secondary: 0,0524 — vrh SPUŠTEN s 0.22 na 0.2175 upravo zbog ovog
+       para (na 0.22 bio je 0,0498 < 0,05); nije statusni par iz guarda, ali se
+       na 0,0498 ne gradi
+       kartica vs `background`: vrh 0,0748 · dno 0,0494 — dno ispod 0,05, ali
+       separaciju kartice nosi ring + hairline, ne ΔE plohe (R-2: ploha nije
+       nositelj statusa)
+     Tekst na najgorem (svijetlom) kraju: fg 16,07 · muted-fg 6,73 — AA. */
+  --grad-card: linear-gradient(
+    180deg,
+    oklch(0.2175 0.0505 280) 0%,
+    oklch(0.205 0.048 280) 50%,
+    oklch(0.1925 0.0455 280) 100%
+  );
   /* Sidebar i drawer (A.2a, 2026-08-10). Sukorišteni semantički skup je PRAZAN
      (stage 2 t.4) → gradijent smije biti izražen: pikselni Δ krajeva 15/16/25
      (svi kanali ≥ prag 15). Smjer TAMNO→SVJETLO odozgo prema dolje, NAMJERNO:

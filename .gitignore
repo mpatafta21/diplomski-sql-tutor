@@ -83,3 +83,8 @@ docs/prompts
 
 # Playwright MCP smoke test artifacts (lokalni snapshots/logovi)
 .playwright-mcp/
+# Playwright e2e (Faza 4.7-1B) — artefakti runa, ne izvor
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/e2e/.baseline.json

@@ -563,6 +563,42 @@ poruke za trajni pad. Tamo se rješava jednim potezom.
 
 ---
 
+## N-11 🟡 „Sljedeći zadatak" nakon netočne predaje vodi na ISTI zadatak — CTA izgleda mrtvo
+
+**Status:** 🟡 otvoren · **nije 1B** (smoke ga je našao, ne uzrokovao) · 2026-08-10
+
+Nađeno pokretanjem Playwright smokea (1B), ne čitanjem koda. Ispis runa:
+
+```
+ℹ️  prvi zadatak: http://localhost:5173/task/15
+ℹ️  nakon CTA:    http://localhost:5173/task/15  (ISTI)
+```
+
+**Mehanizam je ispravan, doživljaj nije.** Nakon **netočne** predaje BKT za taj koncept
+ostaje nizak, pa `recommend_next` legitimno vraća **isti koncept** — a `entry_task`/
+`next-task` onda i **isti zadatak**. To je ZPD ponašanje, ne bug (srodno #44).
+
+🔴 **Ali:** CTA je `<Link to={/task/${rec.task_id}}>`. Klik na link koji vodi na **trenutnu**
+rutu ne mijenja `:taskId`, pa se **keyed `TaskView` ne remounta** (invarijanta iz
+`faza-4.7-korak-0.md` §C.1). Posljedica: SQL u editoru, rezultat i feedback panel
+**ostaju kakvi jesu**, a URL se ne mijenja → za studenta **klik na primarnu akciju ne radi
+ništa vidljivo**.
+
+**Zašto to nije kozmetika pod nenadziranim evalom:** „Sljedeći zadatak" je jedina
+napredujuća akcija na ekranu. Student koji klikne i ne vidi promjenu zaključi da je
+aplikacija zaglavila — pa ili odustane ili počne klikati u prazno. Nema nikoga da kaže
+„to je namjerno, riješi ovaj isti zadatak ponovno".
+
+**Nije popravljeno** — popravak dira `FeedbackPanel` CTA granu i/ili `TaskPage` reset
+logiku, dakle **eval-verificirani** put, a 1B je testni stage. Mogući smjerovi (nijedan
+odabran): CTA mijenja tekst kad je `rec.task_id === trenutni` („Pokušaj ponovno ovaj
+zadatak"); ili resetira editor bez navigacije; ili se preporuka prikaže bez linka uz
+objašnjenje. Odluka je dizajnerska.
+
+**Srodno:** #44 (breadth-first ZPD), §C.1 (keyed `TaskView` je jedini mehanizam resetiranja).
+
+---
+
 ## Metodološka bilješka za wrapup i rad — izračun mjeri element, snimka mjeri hijerarhiju
 
 **Zabilježeno 2026-07-26 (stage 1A + 1A-dopuna).**

@@ -19,11 +19,15 @@ function Card({
         // `motion-reduce:hover:translate-y-0` neutralizira POMAK i kad globalni
         // guard (index.css) sruši samo trajanje tranzicije.
         "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card bg-[image:var(--grad-card)] py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 inset-shadow-[0_1px_0_0_var(--border)] [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
-        // ⟳ glađi hover na VELIKIM plohama (korisnik, 2026-08-10, 2. iteracija):
-        // asimetrično — ulaz `duration-base` (240 ms, odziv odmah), povratak
-        // `duration-slow` (400 ms, meko slijeganje). Pri prelasku preko niza
-        // kartica napuštene se ne trzaju natrag nego se slegnu.
-        "transition-[transform,box-shadow] duration-slow ease-standard hover:-translate-y-0.5 hover:shadow-lg hover:duration-base motion-reduce:hover:translate-y-0",
+        // ⟳ hover po MOCKUPU (korisnik, 2026-08-10, 3. iteracija — v.
+        // docs/sql-tutor-redesign-v3.html .card:hover): simetrično 240 ms s
+        // CSS `ease` krivuljom, VELIKA difuzna sjena 0 10px 30px i
+        // posvjetljenje ringa (ring je box-shadow u TW v4 → pokriven).
+        // 🔴 `translate`, NE `transform`, u listi svojstava: TW v4
+        // -translate-y-* piše CSS `translate` svojstvo — s `transform` u
+        // listi lift je bio TRENUTAN (bez tranzicije), i to je bio stvarni
+        // uzrok trzaja, ne trajanje ni krivulja.
+        "transition-[translate,box-shadow] duration-base ease-[ease] hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgb(0_0_0/0.3)] hover:ring-foreground/20 motion-reduce:hover:translate-y-0",
         className
       )}
       {...props}

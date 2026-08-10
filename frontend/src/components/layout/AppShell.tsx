@@ -138,11 +138,14 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void } = {}) {
                   className={({ isActive }) =>
                     cn(
                       // Invarijanta (WCAG 2.5.5): h-11 = 44px touch target po stavci.
-                      // B.1: hover lift -2px (transform u transition listi);
-                      // motion-reduce neutralizira pomak, ne samo trajanje.
+                      // ⟳ hover po MOCKUPU (korisnik, 2026-08-10 — .nav-item:hover):
+                      // translateX(2px) u stranu + scale ikone 1.08, 160 ms `ease`
+                      // (= mockupovih .16s). motion-reduce neutralizira pomake.
                       // `relative` (B.3): stavka slika IZNAD apsolutnog indikatora.
-                      // ⟳ glađi hover (korisnik, 2026-08-10): fast → base.
-                      "relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-[color,background-color,transform] duration-base ease-standard hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
+                      // 🔴 `translate`/`scale` svojstva u listama (TW v4 ih
+                      // piše umjesto `transform` — v. card.tsx komentar).
+                      "relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-[color,background-color,translate] duration-fast ease-[ease] hover:translate-x-0.5 motion-reduce:hover:translate-x-0",
+                      "[&_svg]:transition-[scale] [&_svg]:duration-fast [&_svg]:ease-[ease] hover:[&_svg]:scale-[1.08] motion-reduce:hover:[&_svg]:scale-100",
                       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                       // B.3: pozadinu aktivne stavke crta KLIZNI indikator, ne
                       // stavka sama — ovdje ostaje samo boja teksta.
@@ -175,7 +178,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void } = {}) {
                 to="/admin"
                 end
                 onClick={onNavigate}
-                className="relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-[color,background-color,transform] duration-base ease-standard hover:-translate-y-0.5 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:hover:translate-y-0"
+                className="relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-[color,background-color,translate] duration-fast ease-[ease] hover:translate-x-0.5 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:hover:translate-x-0 [&_svg]:transition-[scale] [&_svg]:duration-fast [&_svg]:ease-[ease] hover:[&_svg]:scale-[1.08] motion-reduce:hover:[&_svg]:scale-100"
               >
                 <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
                 Admin
@@ -307,8 +310,9 @@ export function AppShell() {
             <Breadcrumb />
           </div>
 
-          {/* Desno (⟳ A.3): streak čip na SVIM širinama + user kartica ≥768px
-              (ispod toga username/rolu/odjavu nosi drawer). */}
+          {/* Desno (⟳⟳ korekcija A.3): streak čip SAMO <768px (≥768 streak
+              živi u sidebar level boxu) + user kartica ≥768px (ispod toga
+              username/rolu/odjavu nosi drawer). */}
           <div className="flex shrink-0 items-center gap-2 md:gap-3">
             <TopbarStreakChip />
             <TopbarUserCard />

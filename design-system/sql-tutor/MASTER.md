@@ -288,7 +288,7 @@ nije utility namespace u TW v4 — do 2026-08-10 su SVE tranzicije tiho radile n
 | `--ease-reward` | `cubic-bezier(0.34, 1.25, 0.64, 1)` | XP/badge/level (blagi overshoot) |
 | `--duration-instant` | `100ms` | hover, press |
 | `--duration-fast` | `160ms` | mikrointerakcije |
-| `--duration-base` | `240ms` | paneli, fade · ⟳ i hover LIFT kartica/nav stavki (2026-08-10, korisnikova odluka: 160 ms je djelovao naglo; press ostaje trenutan) |
+| `--duration-base` | `240ms` | paneli, fade · ⟳ i hover kartica (2026-08-10, po mockupu `.card:hover`: 240 ms + CSS `ease` + sjena 0 10px 30px; nav stavke: 160 ms + `ease`, translateX(2px) + scale ikone 1.08). 🔴 U tranzicijskim listama stoji **`translate`/`scale`**, ne `transform` — TW v4 translate/scale utilityji pišu ta svojstva; s `transform` u listi pomak je TRENUTAN (uzrok „trzaja" 4.6 B.1, otkriven i popravljen 2026-08-10) |
 | `--duration-slow` | `400ms` | page transitions |
 | `--duration-reward` | `700ms` | ⟳ **KORIŠTEN od B.5 (2026-08-10)** — točno za ono za što je rezerviran: XP count-up envelope (`useXpCountUp` čita token iz computed stylea) + `level-pulse` keyframe |
 

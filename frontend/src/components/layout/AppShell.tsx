@@ -92,7 +92,9 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void } = {}) {
                   className={({ isActive }) =>
                     cn(
                       // Invarijanta (WCAG 2.5.5): h-11 = 44px touch target po stavci.
-                      "flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-fast ease-standard",
+                      // B.1: hover lift -2px (transform u transition listi);
+                      // motion-reduce neutralizira pomak, ne samo trajanje.
+                      "flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-[color,background-color,transform] duration-fast ease-standard hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
                       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                       isActive
                         ? "bg-sidebar-accent text-sidebar-accent-foreground"
@@ -123,7 +125,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void } = {}) {
                 to="/admin"
                 end
                 onClick={onNavigate}
-                className="flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-[color,background-color,transform] duration-fast ease-standard hover:-translate-y-0.5 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:hover:translate-y-0"
               >
                 <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
                 Admin

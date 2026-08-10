@@ -439,14 +439,18 @@
   /* A11y baseline (MASTER.md §5): reduced motion = gotovo bez pokreta.
      Univerzalni selektor namjerno — hvata SVE, uključujući komponente bez
      vlastite `motion-reduce:` klase (te su dodatni sloj, ne nužnost).
-     ⚠️ Prijašnji komentar je najavljivao da „komponente u 4.6 mogu opt-in na
-     blaže opacity prijelaze" — Faza 4.6 je REZANA, taj opt-in nikad nije uveden
-     i nema ga tko uvesti. Guard je time JEDINI mehanizam za reduced motion. */
+     ⟳ B/4.6 (2026-08-10): Faza 4.6 se IZVODI unutar 4.7 (stage 3, DIO B) —
+     prijašnja bilješka „4.6 je rezana, opt-in nema tko uvesti" više ne vrijedi.
+     Guard ostaje temelj; komponente s POMAKOM na hover dodaju vlastite
+     `motion-reduce:` klase jer guard ruši samo TRAJANJE, ne i ciljno stanje.
+     `animation-delay` je u guardu zbog entrance staggera (B.2): bez toga bi
+     elementi i pod reduced-motion iskakali sekvencijalno kroz ~400 ms. */
   @media (prefers-reduced-motion: reduce) {
     *,
     ::before,
     ::after {
       animation-duration: 0.01ms !important;
+      animation-delay: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;

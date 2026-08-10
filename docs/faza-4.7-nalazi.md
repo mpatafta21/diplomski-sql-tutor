@@ -840,11 +840,32 @@ Brojčani dio (ΔE 0,102, kontrast 4,18–5,44) stoji neovisno o njoj.
 | **Netočno** | `SELECT 1 AS nema_veze;` | ⊗ crveni panel |
 | **Netočno / SQL greška** | namjerno neispravan SQL | ⊗ crveni panel + mono blok s porukom PostgreSQL-a na `background/60` |
 
-### 🔴 Usput otkriveno, NIJE 4.7 opseg
+### ~~🔴 Usput otkriveno, NIJE 4.7 opseg~~ → 🔴 **POVUČENO 2026-08-10 (r2, t.0a)**
 
-`Collapsible.Trigger asChild` na `ModuleCard.tsx:85-101` **ne otvara** sadržaj klikom u
-Playwrightu (trigger dobije fokus, `Collapsible.Content` ostaje zatvoren). Deep-link
-`/modules#module-<n>` radi (`defaultOpen`, `ModulesPage.tsx:177`), pa je snimanje išlo
-tim putem. **Nije provjereno ponaša li se isto u stvarnom pregledniku uz stvarni miš** —
-ako se ponaša, to je funkcionalni kvar navigacije po modulima, ne kozmetika. Kandidat za
-provjeru u stageu 1C (isti fajl, mobilna navigacija).
+> **Tvrdnja je bila NETOČNA i ovdje se povlači, ne briše.**
+>
+> Zapisao sam da `Collapsible.Trigger asChild` (`ModuleCard.tsx:85-101`) ne otvara
+> koncepte klikom. **Ne stoji.** Provjereno u 14 pokušaja kroz četiri uvjeta:
+>
+> | provjera | ishod |
+> | --- | --- |
+> | `locator.click()` (trusted input kroz CDP) | ✅ `aria-expanded` false→true, 9 redaka, 1 klikabilan |
+> | `page.mouse.down/up` na koordinatama | ✅ |
+> | tipkovnica **Enter** | ✅ toggla (zatvara) |
+> | tipkovnica **Space** | ✅ toggla (otvara) |
+> | klik nakon 0 / 150 / 300 / 600 / 900 / 1500 ms od navigacije | ✅ **svih šest** — trke nema |
+> | `fullPage` snimka neposredno prije klika (hipoteza da je kriv harness) | ✅ i sa i bez |
+>
+> `aria-controls` pokazuje na postojeći element, `data-state` prati stanje, trigger je
+> pravi `<button type="button">`. Komponenta je ispravna, uključujući tipkovnicu.
+>
+> ⚠️ **Izvorni promašaj ostaje NEOBJAŠNJEN i nije reproduciran.** Najbliži kontekst: taj
+> je prolaz bio prvi nakon što su docker kontejneri i backend pali usred sesije i bili
+> ponovno dignuti. To je nagađanje, ne nalaz — zapisujem ga kao takvo.
+>
+> **Poučak koji ostaje:** jedan neuspio prolaz harnessa nije nalaz o aplikaciji. Prije
+> nego se kvar pripiše proizvodnom kodu, mora se **reproducirati** — inače se u
+> `nalazi.md` upisuje šum, a on je skuplji od šutnje jer se čita kao dug.
+>
+> ⚠️ Snimanje je i dalje išlo deep-linkom `/modules#module-<n>` (`defaultOpen`,
+> `ModulesPage.tsx:177`) — to je legitiman put i radi, ali NIJE bio nužan.

@@ -58,28 +58,37 @@ export function SidebarLevelCard() {
   if (!data) return null
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-sidebar-border p-3">
-      <div className="flex min-w-0 flex-col">
+    // Dvije RAVNOPRAVNE ćelije s razdjelnikom — streak dobiva isti tretman
+    // kao level (mono labela + display brojka), ne sporedni kut.
+    <div className="grid grid-cols-2 divide-x divide-sidebar-border rounded-lg border border-sidebar-border">
+      <div className="flex min-w-0 flex-col gap-1 p-3">
         <span className="font-mono text-xs text-muted-foreground">level</span>
         {/* Display font — isto pravilo kao hero numeral (MASTER §3.1). */}
         <span className="font-heading text-2xl leading-none font-semibold text-accent-warm-text tabular-nums">
           {data.level}
         </span>
       </div>
-      <div className="ml-auto flex flex-col items-end">
+      <div className="flex min-w-0 flex-col gap-1 p-3">
         <span className="font-mono text-xs text-muted-foreground">streak</span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
           {/* lucide, NE emoji (MASTER §6). `flame-flicker` (B.4): ≤1,8 s. */}
           <Flame
             className={cn(
-              "size-3.5",
+              "size-4.5 shrink-0",
               data.current_streak > 0
                 ? "flame-flicker text-accent-warm-text"
                 : "text-muted-foreground",
             )}
             aria-hidden="true"
           />
-          <span className="text-sm leading-none font-semibold tabular-nums">
+          <span
+            className={cn(
+              "font-heading text-2xl leading-none font-semibold tabular-nums",
+              data.current_streak > 0
+                ? "text-accent-warm-text"
+                : "text-muted-foreground",
+            )}
+          >
             {data.current_streak}
           </span>
           <span className="sr-only">

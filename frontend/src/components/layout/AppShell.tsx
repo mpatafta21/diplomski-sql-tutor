@@ -222,7 +222,9 @@ export function AppShell() {
           `min-h-svh`), pa footer s karticama završi ispod pregiba na svakoj stranici
           koja je duža od zaslona — a to su gotovo sve. Sticky ga drži u vidnom polju,
           `h-svh` daje fiksnu visinu unutar koje nav skrola, a footer stoji. */}
-      <aside className="sticky top-0 hidden h-svh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+      {/* Gradijent plohe (A.2a): `bg-sidebar` ostaje kao podloga ispod slike —
+          isti par nosi i drawer (ui/sheet.tsx), da se plohe ne raziđu. */}
+      <aside className="sticky top-0 hidden h-svh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar bg-[image:var(--grad-sidebar)] md:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-5">
           <Database
             className="size-5 [stroke:url(#brand-grad)]"

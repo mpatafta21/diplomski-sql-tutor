@@ -247,6 +247,23 @@
     oklch(0.91 0.039 280) 50%,
     oklch(0.97 0.013 280) 100%
   );
+  /* Sidebar i drawer (A.2a, 2026-08-10). Sukorišteni semantički skup je PRAZAN
+     (stage 2 t.4) → gradijent smije biti izražen: pikselni Δ krajeva 15/16/25
+     (svi kanali ≥ prag 15). Smjer TAMNO→SVJETLO odozgo prema dolje, NAMJERNO:
+     (1) aktivna nav stavka (`sidebar-accent`) živi u gornjoj trećini — na
+     tamnom vrhu ΔE prema njoj je 0,095–0,109 (flat je davao 0,065; svjetliji
+     vrh bi je srušio na 0,045); (2) svjetlosna dijagonala kadra ide glow-a
+     (gore-desno) → glow-b (dolje-lijevo), sidebar je lijevo pa svjetliji donji
+     kraj tu dijagonalu nastavlja; (3) wordmark/brand na vrhu DOBIVAJU kontrast:
+     4,38→4,76 · 3,56→3,87. Tekst na najgorem (najsvjetlijem) kraju:
+     `foreground` 15,60 · `muted-fg` 6,54 · `accent-warm-text` 8,98 — sve AA.
+     Vrh se stapa s `background` (ΔE 0,0128) — namjerno, granicu drži border-r. */
+  --grad-sidebar: linear-gradient(
+    180deg,
+    oklch(0.155 0.04 280) 0%,
+    oklch(0.19 0.046 280) 50%,
+    oklch(0.23 0.054 280) 100%
+  );
   /* Dot-grid (t.3; alfa A.1, 2026-08-10). Jedna točka po ćeliji 24×24, iz
      `--border` baze. Alfa 3,5 % → 12 %: stari kriterij je čuvao samo kontrast,
      kriterij vidljivosti nije postojao — pikselni Δ bio je 7/7/7 (nevidljivo).

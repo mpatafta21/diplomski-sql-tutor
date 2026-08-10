@@ -376,6 +376,7 @@ mjerenje ne opisuje ono što se renderira.
 | `--grad-wordmark` | `0,60 0,155` → `0,90 0,045` | 4,38 vs `sidebar` | — (skup je **prazan**) |
 | `--grad-cta` (r3 A.1) | `0,85 0,065` → `0,97 0,013` | **11,30** (tamni tekst) · 11,30 (fill vs `card`) | **0,0734** (`tier-hard`) |
 | `--glow-a` / `--glow-b` (r3 A.1) | h280 @ 18 % / 12 % | `foreground` 18,16 → **14,40** (puna α) | — |
+| `--grad-sidebar` (r3 A.2a) | `0,155 0,04` → `0,23 0,054` (180°, tamno gore) | `muted-fg` **6,54** na svijetlom kraju · `fg` 15,60 | — (skup je **prazan**; aktivna stavka: ΔE 0,095–0,109 u nav zoni, bolje od flat 0,065) |
 
 ⟳ **r3 A.1 (2026-08-10):** CTA start `0,90 0,045` → `0,85 0,065` po pikselnom kriteriju
 vidljivosti (§3.3): Δ kroz površinu **R 24 · G 22 → R 40 · G 37** (B ~5 — pri vrhu gamuta

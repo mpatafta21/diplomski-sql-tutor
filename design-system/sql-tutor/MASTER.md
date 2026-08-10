@@ -406,3 +406,97 @@ najtamnijem kraju, što pri h280 znači L ≥ 0,584. Ali pretraga cijelog prosto
 prema tier skali — svaki dovoljno svijetao ton je preblizu `tier-hard` (`0,80 0,11 300`).
 Jedina prohodna varijanta bila je tint 0,90 → 0,97, efekt koji se ne vidi. **Ime ostaje
 puni `foreground`.** Proračun je umjesto toga otišao u wordmark, gdje ograničenja nema.
+
+---
+
+## 3.1 Display font (Faza 4.7-r2)
+
+**`Bricolage Grotesque Variable`** (`@fontsource-variable/bricolage-grotesque@5.3.0`,
+OFL-1.1, os `wght` 200–800). **Nula CDN-a** — lokalni npm asset koji Vite hashira, isti
+mehanizam kao Geist i JetBrains Mono.
+
+| gdje | kako |
+|---|---|
+| `h1`, `h2` | `@layer base { h1, h2 { font-family: var(--font-heading) } }` — jedno mjesto, ne `font-heading` na ~12 poziva |
+| hero brojka levela | `ProgressHero.tsx:26`, utility `font-heading` (utilities > base, pa pobjeđuje nad mono pravilom za brojke) |
+| **NIGDJE drugdje** | body ostaje Geist, mono ostaje JetBrains Mono |
+
+🔴 **Ne ide na `h3`+ ni na body.** Display crta ima uži razmak i jači kontrast poteza, pa
+ispod ~20 px gubi na čitljivosti — a ondje živi većina a11y-kritičnog teksta
+(`muted-foreground` na 118 mjesta, uglavnom `text-xs`/`text-sm`).
+
+### Cijena i CLS — izmjereno 2026-08-10
+
+| | prije | poslije | Δ |
+|---|---|---|---|
+| woff2 u `dist/` | 160 636 B | 229 256 B | +68 620 B |
+| **stvarno dohvaćeno (hrvatski)** | — | **60 012 B** | latin 41 344 + latin-ext 18 668 |
+| CSS bundle | 56 854 B | 58 071 B | +1 217 B |
+
+`vietnamese` subset (8 608 B) se **nikad ne dohvaća**. `latin-ext` se dohvaća **uvijek**,
+jer hrvatski `č ć ž š đ` leže u `U+0100-02BA`, a `latin` pokriva samo `U+0000-00FF`.
+
+**CLS = 0,0055** na hladnom učitavanju Dashboarda (prag „dobar" je 0,1 — dakle **18× ispod**).
+
+🔴 **Zašto je CLS tako nizak, i zašto `size-adjust` NIJE potreban:** fallback u
+`--font-heading` je **`"Geist Variable"`, ne `system-ui`**. Geist je body font i već je
+učitan kad naslov prvi put crta, a metrički je gotovo identičan Bricolageu:
+
+| font | širina istog naslova | Δ vs Geist |
+|---|---|---|
+| Bricolage Grotesque | 450,9 px | — |
+| **Geist (fallback)** | **449,9 px** | **+0,2 %** |
+| system-ui | 521,0 px | +15,8 % |
+
+Da je fallback `system-ui`, swap bi pomicao naslov za ~16 % širine. Ovako je 1 px.
+**Zaključak: `font-display: swap` (fontsource default) ostaje, `size-adjust` i `optional`
+nisu potrebni.** Ako se lanac fallbacka ikad promijeni, CLS treba **ponovno izmjeriti**.
+
+**Preload:** `index.html` preloada obje osi (`latin` + `latin-ext`) s `crossorigin`.
+Vite pri buildu prepisuje `href` u hashirani asset. ⚠️ `crossorigin` je obavezan i za isti
+origin — bez njega preglednik dohvati font dvaput i preload odmaže.
+
+---
+
+## 3.2 Mono identitet (Faza 4.7-r2)
+
+Mono nije samo za kod. U ovoj aplikaciji mono znači **„ovo je podatak ili identifikator,
+ne proza"** — dio dev-konzolnog glasa iz §1.
+
+| što | kako | zašto |
+|---|---|---|
+| **sve brojke** | `@layer base { .tabular-nums { font-family: var(--font-mono) } }` | `tabular-nums` je već posvuda gdje stoji brojka (~50 mjesta). Jedno pravilo umjesto 50 poziva → svaka **nova** brojka je dosljedna bez da se netko sjeti |
+| **nazivi koncepata** | `font-mono` na `ConceptChip`, `ConceptRow`, `MasteryHighlights` | naziv koncepta (`select_basic`, `INNER JOIN`) je identifikator gradiva |
+| **sidebar section headeri** | `-- učenje` / `-- napredak` / `-- sustav`, mono + `text-muted-foreground`, **bez uppercasea** | mala slova su dio glasa; `--` je konzolni marker |
+| **SQL u editoru** | JetBrains Mono, od 4.3 | — |
+
+🔴 **Promjena obitelji fonta NE mijenja nijedan kontrastni omjer** — WCAG omjer ovisi o
+boji, ne o fontu, a nijedna niska ne seli na drugu plohu. Mijenja se **širina**, pa je
+provjera prelijevanja **snimka**, ne izračun. (Ovo je iznimka od pravila „svaka nova niska
+dobiva izmjeren kontrast": mjeriti bi značilo prepisati brojke koje već stoje u matrici.)
+
+⚠️ **Što NIJE u monou, iako spada u duh pravila:** SQL ključne riječi unutar **opisa
+modula i zadataka** (`module.description`, `task.description`) — npr. „Projekcija, FROM,
+WHERE, ORDER BY, LIMIT, DISTINCT." To je **slobodan tekst iz baze**; selektivno stiliziranje
+tražilo bi parsiranje ili označavanje kojeg u podacima nema. Kandidat za Fazu 6 (uz
+promjenu sheme), ne za CSS.
+
+---
+
+## 3.3 Dot-grid i glow (Faza 4.7-r2)
+
+`body` nosi tri sloja preko `--background`: `--dot-grid` (24×24 px, alfa 3,5 %) i dva
+radijalna glowa (6 % i 4 %), svi h280, svi `background-attachment: fixed` da ne putuju sa
+skrolom.
+
+| sloj | `foreground` | `muted-foreground` |
+|---|:---:|:---:|
+| čista `background` | 18,16 | 7,61 |
+| + dot-grid 3,5 % | 17,46 | 7,31 |
+| + glow 6 % | 17,13 | 7,18 |
+| **+ oboje (najgore)** | **16,28** | **6,82** |
+
+Oba su daleko iznad AA 4,50. 🔴 Dot-grid ima **nižu** alfu od glowa namjerno: mreža
+pokriva **cijelu** plohu, pa se njezin doprinos zbraja preko svakog piksela teksta, dok je
+glow lokalan. `-soft` plohe su neprozirne (alpha = 1,00) → pozadina ispod njih se ne vidi i
+ne može ih razbiti.

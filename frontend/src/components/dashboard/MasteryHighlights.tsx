@@ -42,7 +42,7 @@ function MasteryRow({
   const body = (
     <>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="flex items-center gap-1.5 text-sm font-medium">
+        <span className="flex items-center gap-1.5 font-mono text-sm font-medium">
           {item.name}
           {mastered && (
             <CheckCircle2

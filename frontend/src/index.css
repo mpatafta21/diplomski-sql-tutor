@@ -2,10 +2,17 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/bricolage-grotesque";
 @import "@fontsource-variable/jetbrains-mono";
 
 @theme inline {
-  --font-heading: var(--font-sans);
+  /* ⟳ 4.7-r2: `--font-heading` je do sada bio ALIAS za `--font-sans` i imao NULA
+     potrošača — naslovi su vukli Geist preko `html { font-sans }`. Sada je vlastiti
+     display font i dobiva potrošače u `@layer base` (h1/h2) + hero brojku levela.
+     Body ostaje Geist, mono ostaje JetBrains Mono. Nula CDN-a — fontsource je lokalni
+     npm asset koji Vite hashira, isti mehanizam kao za ostala dva. */
+  --font-heading:
+    "Bricolage Grotesque Variable", "Geist Variable", system-ui, sans-serif;
   --font-sans: "Geist Variable", sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 
@@ -237,6 +244,17 @@
     oklch(0.935 0.029 280) 50%,
     oklch(0.97 0.013 280) 100%
   );
+  /* Dot-grid (t.3). Jedna točka po ćeliji 24×24, iz `--border` baze, alfa 3,5 %.
+     🔴 Namjerno NIŽA alfa od glowa: mreža pokriva CIJELU plohu, pa se njezin
+     doprinos zbraja preko svakog piksela teksta, dok je glow lokalan.
+     Mjereno u najgušćoj točki, nad `background`:
+       sama mreža @ 3,5 %      `foreground` 18,16 → 17,46 · `muted-fg` 7,61 → 7,31
+       mreža + glow (najgore)  `foreground` 18,16 → 16,28 · `muted-fg` 7,61 → 6,82
+     Oba su daleko iznad AA 4,50. `-soft` plohe su neprozirne → ne dira ih. */
+  --dot-grid: radial-gradient(
+    oklch(0.78 0.05 280 / 3.5%) 1px,
+    transparent 1.4px
+  );
   /* Pozadinski glow. Alfa 6 % — `foreground` 18,16 → 17,13, `muted-foreground`
      7,61 → 7,18. `-soft` plohe su NEPROZIRNE (alpha = 1,00, provjereno na sve
      četiri), pa glow ispod njih fizički ne prolazi i ne može ih razbiti. */
@@ -325,11 +343,40 @@
     /* Glow: dva radijala nad plohom. `background-attachment: fixed` drži ih uz
        viewport, pa ne putuju sa skrolom i ne stvaraju pojas na dugim stranicama.
        Boja ostaje `--background` kao zadnji sloj — glow je NAD njom, ne umjesto. */
-    background-image: var(--glow-a), var(--glow-b);
+    background-image: var(--dot-grid), var(--glow-a), var(--glow-b);
+    background-size:
+      24px 24px,
+      auto,
+      auto;
     background-attachment: fixed;
   }
   html {
     @apply font-sans;
+  }
+
+  /* Display font SAMO na h1/h2 (MASTER §3.1). Globalno u `@layer base`, ne po
+     komponenti: alternativa bi bila `font-heading` na ~12 mjesta, a svako novo
+     zaboravljeno mjesto bilo bi tiha nedosljednost.
+     🔴 NE ide na h3+ ni na body: display crta ima uži razmak i jači kontrast poteza,
+     pa ispod ~20 px gubi na čitljivosti — a ondje živi većina a11y-kritičnog teksta
+     (`muted-foreground` je na 118 mjesta, uglavnom `text-xs`/`text-sm`). */
+  h1,
+  h2 {
+    font-family: var(--font-heading);
+  }
+
+  /* ── BROJKE SU MONO (Faza 4.7-r2, MASTER §3.2) ────────────────────────────
+     `tabular-nums` u ovoj aplikaciji ne znači samo „poravnaj znamenke" nego
+     „ovo je PODATAK, ne proza" — a podatak se čita u monou. Pravilo stoji na
+     JEDNOM mjestu umjesto `font-mono` na ~50 poziva: svaka nova brojka koja
+     dobije `tabular-nums` automatski je dosljedna, bez da se netko sjeti.
+     ⚠️ Ne mijenja NIJEDAN kontrast — obitelj fonta ne ulazi u WCAG omjer, a
+     nijedna niska ne seli na drugu plohu. Mijenja se ŠIRINA, pa je provjera
+     prelijevanja snimka, ne izračun.
+     ⚠️ `@layer base` namjerno: utility `font-heading` (hero brojka levela,
+     ProgressHero.tsx:26) time i dalje pobjeđuje, jer utilities > base. */
+  .tabular-nums {
+    font-family: var(--font-mono);
   }
 
   /* MASTER.md §7: cursor-pointer na svemu klikabilnom. Tailwind v4 preflight

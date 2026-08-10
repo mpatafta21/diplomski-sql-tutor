@@ -4,7 +4,31 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="theme-color" content="#080817" />
+
+    <!--
+      Preload display fonta (Faza 4.7-r2). Samo `latin` + `latin-ext` osi `wght` —
+      `vietnamese` se nikad ne dohvaća, a `latin-ext` DA jer ondje žive hrvatski
+      `č ć ž š đ` (latin pokriva samo U+0000-00FF).
+      Vite prepisuje `href` u hashirani asset pri buildu; putanja je izvorna.
+      ⚠️ `crossorigin` je OBAVEZAN i za isti origin — bez njega preglednik dohvati
+      font DVAPUT (jednom kao preload, jednom kao font), pa preload odmaže.
+      🔴 Nula CDN-a: ovo su lokalni npm assetovi, ne vanjski host.
+    -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="/node_modules/@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2"
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="/node_modules/@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-ext-wght-normal.woff2"
+    />
 
     <title>SQL Tutor — adaptivno vježbanje SQL-a</title>
     <meta

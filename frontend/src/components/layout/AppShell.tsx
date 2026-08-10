@@ -24,13 +24,31 @@ import { cn } from "@/lib/utils"
 // `end` po stavci: exact match svugdje OSIM „Zadatak" — njemu `end: false` da
 // ostane aktivan i dok si na konkretnom `/task/:taskId`. Dashboard (`/`) MORA
 // ostati `end: true`, inače bi kao prefiks bio aktivan na svakoj ruti.
-const NAV_ITEMS = [
-  { label: "Dashboard", icon: LayoutDashboard, to: "/", end: true },
-  { label: "Moduli", icon: BookOpen, to: "/modules", end: true },
-  { label: "Zadatak", icon: Terminal, to: "/task", end: false },
-  { label: "Profil", icon: User, to: "/profile", end: true },
-  { label: "Ljestvica", icon: Trophy, to: "/leaderboard", end: true },
+// ⟳ 4.7-r2: iste stavke, sada GRUPIRANE — grupa nosi mono section header
+// (`-- učenje`). Redoslijed stavki unutar grupa je NEPROMIJENJEN.
+const NAV_GROUPS = [
+  {
+    label: "učenje",
+    items: [
+      { label: "Dashboard", icon: LayoutDashboard, to: "/", end: true },
+      { label: "Moduli", icon: BookOpen, to: "/modules", end: true },
+      { label: "Zadatak", icon: Terminal, to: "/task", end: false },
+    ],
+  },
+  {
+    label: "napredak",
+    items: [
+      { label: "Profil", icon: User, to: "/profile", end: true },
+      { label: "Ljestvica", icon: Trophy, to: "/leaderboard", end: true },
+    ],
+  },
 ] as const
+
+// Section header: mono, `muted-foreground`, BEZ uppercasea (mala slova su dio
+// dev-konzolnog glasa — v. MASTER §3.2). `aria-hidden` jer skupinu za čitač
+// ekrana nosi `aria-label` na <ul>, ne vizualni tekst.
+const SECTION_HEADER =
+  "px-3 pt-4 pb-1 font-mono text-xs text-muted-foreground first:pt-0"
 
 function SidebarNav() {
   const { user } = useAuth()
@@ -40,36 +58,58 @@ function SidebarNav() {
       aria-label="Glavna navigacija"
       className="flex flex-1 flex-col gap-1 p-3"
     >
-      {NAV_ITEMS.map(({ label, icon: Icon, to, end }) => (
-        <NavLink
-          key={label}
-          to={to}
-          end={end}
-          className={({ isActive }) =>
-            cn(
-              // Invarijanta (WCAG 2.5.5): h-11 = 44px touch target po nav stavci.
-              "flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-fast ease-standard",
-              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-              isActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-            )
-          }
-        >
-          <Icon className="size-4 shrink-0" aria-hidden="true" />
-          {label}
-        </NavLink>
+      {NAV_GROUPS.map((group) => (
+        <div key={group.label}>
+          <div className={SECTION_HEADER} aria-hidden="true">
+            -- {group.label}
+          </div>
+          <ul aria-label={group.label} className="flex flex-col gap-1">
+            {group.items.map(({ label, icon: Icon, to, end }) => (
+              <li key={label}>
+                <NavLink
+                  to={to}
+                  end={end}
+                  className={({ isActive }) =>
+                    cn(
+                      // Invarijanta (WCAG 2.5.5): h-11 = 44px touch target po stavci.
+                      "flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-fast ease-standard",
+                      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                      isActive
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                    )
+                  }
+                >
+                  <Icon className="size-4 shrink-0" aria-hidden="true" />
+                  {label}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </div>
       ))}
-      {/* Role-gating skriva stavku; ZAŠTITU rute radi AdminRoute (4.5b DIO 1). */}
+
+      {/* Role-gating skriva stavku; ZAŠTITU rute radi AdminRoute (4.5b DIO 1).
+          Grupa „sustav" se NE renderira studentu — prazan section header bio bi
+          obećanje sadržaja kojeg nema. */}
       {user?.role === "admin" && (
-        <NavLink
-          to="/admin"
-          end
-          className="flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
-          Admin
-        </NavLink>
+        <div>
+          <div className={SECTION_HEADER} aria-hidden="true">
+            -- sustav
+          </div>
+          <ul aria-label="sustav" className="flex flex-col gap-1">
+            <li>
+              <NavLink
+                to="/admin"
+                end
+                className="flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
+                Admin
+              </NavLink>
+            </li>
+          </ul>
+        </div>
       )}
     </nav>
   )

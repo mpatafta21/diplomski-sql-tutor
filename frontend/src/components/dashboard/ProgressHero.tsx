@@ -23,7 +23,7 @@ export function ProgressHero({ profile }: ProgressHeroProps) {
           <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             Level
           </span>
-          <span className="text-4xl font-semibold tracking-tight text-accent-warm-text tabular-nums">
+          <span className="font-heading text-4xl font-semibold tracking-tight text-accent-warm-text tabular-nums">
             {level}
           </span>
         </div>

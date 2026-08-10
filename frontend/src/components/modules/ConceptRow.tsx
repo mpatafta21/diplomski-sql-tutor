@@ -71,7 +71,7 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
     <>
       <div className="flex flex-wrap items-center gap-2">
         <Icon className={cn("size-4 shrink-0", iconClass)} aria-hidden="true" />
-        <span className="text-sm font-medium">{concept.name}</span>
+        <span className="font-mono text-sm font-medium">{concept.name}</span>
         <ConceptChip
           name={TIER_LABEL[concept.tier] ?? concept.tier}
           tier={concept.tier}

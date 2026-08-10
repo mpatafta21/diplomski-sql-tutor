@@ -55,10 +55,12 @@ export function MasteryBar({
     >
       {/* Fill je full-width + translateX (transform-only → GPU, bez layouta);
           track ga clippa. Na 0 % fill je potpuno izvan — border track ostaje
-          vidljiv (invarijanta nosi TRACK, ne fill). */}
+          vidljiv (invarijanta nosi TRACK, ne fill).
+          `bar-fill-enter` (B.4): mount animacija s 0 do vrijednosti — animira
+          PRIKAZ, komponenta se ne cijepa (#mastery-bar). */}
       <div
         className={cn(
-          "h-full w-full rounded-full transition-transform duration-base ease-standard motion-reduce:transition-none",
+          "bar-fill-enter h-full w-full rounded-full transition-transform duration-base ease-standard motion-reduce:transition-none",
           fillClass,
         )}
         style={{ transform: `translateX(-${100 - pct}%)` }}

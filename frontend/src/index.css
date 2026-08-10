@@ -391,33 +391,29 @@
 
 /* ── @utility most za trajanja (N-18) ────────────────────────────────────────
    Tailwind v4 nema namespace za IMENOVANA trajanja, pa `duration-<ime>` klase
-   gradimo eksplicitno. Pokrivaju TRANZICIJE i ANIMACIJE (tw-animate čita
-   `--tw-duration`), čime postojeći potrošači (sheet, nav, kartice) prvi put
-   stvarno dobivaju tokenska trajanja umjesto defaulta 150 ms. */
+   gradimo eksplicitno: `transition-duration` + `--tw-duration` (tw-animate ga
+   čita kao fallback za SVOJE animacije — provjereno u dist/tw-animate.css).
+   ⚠️ NAMJERNO BEZ `animation-duration`: on bi gazio shorthand trajanje ručnih
+   keyframe klasa na istom elementu (izmjereno na `.bar-fill-enter`, B.4). */
 @utility duration-instant {
   --tw-duration: var(--duration-instant);
   transition-duration: var(--duration-instant);
-  animation-duration: var(--duration-instant);
 }
 @utility duration-fast {
   --tw-duration: var(--duration-fast);
   transition-duration: var(--duration-fast);
-  animation-duration: var(--duration-fast);
 }
 @utility duration-base {
   --tw-duration: var(--duration-base);
   transition-duration: var(--duration-base);
-  animation-duration: var(--duration-base);
 }
 @utility duration-slow {
   --tw-duration: var(--duration-slow);
   transition-duration: var(--duration-slow);
-  animation-duration: var(--duration-slow);
 }
 @utility duration-reward {
   --tw-duration: var(--duration-reward);
   transition-duration: var(--duration-reward);
-  animation-duration: var(--duration-reward);
 }
 
 @layer base {
@@ -499,6 +495,34 @@
   }
   .stagger-cards > :nth-child(n + 7) {
     animation-delay: 360ms;
+  }
+
+  /* ── PROGRES I STREAK (B.4/4.6) ──────────────────────────────────────────
+     `bar-fill-enter`: fill MasteryBara ulazi s 0 na stvarnu vrijednost nakon
+     mounta. Animacija nadjačava inline `translateX` SAMO dok traje, pa se
+     komponenta ne cijepa niti zaobilazi (#mastery-bar) — animira se PRIKAZ.
+     Kasnije promjene vrijednosti i dalje nosi postojeća tranzicija.
+     `flame-flicker`: 3 × 600 ms = 1,8 s UKUPNO — WCAG 2.2.2 riješen
+     TRAJANJEM, ne guardom (guard pokriva samo korisnike koji su ga postavili). */
+  @keyframes bar-fill {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+  .bar-fill-enter {
+    animation: bar-fill var(--duration-slow) var(--ease-entrance);
+  }
+  @keyframes flame-flicker {
+    30% {
+      transform: scale(1.15) rotate(-4deg);
+    }
+    60% {
+      transform: scale(0.95) rotate(3deg);
+    }
+  }
+  .flame-flicker {
+    transform-origin: bottom center;
+    animation: flame-flicker 600ms var(--ease-standard) 3;
   }
 
   /* MASTER.md §7: cursor-pointer na svemu klikabilnom. Tailwind v4 preflight

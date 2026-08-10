@@ -89,11 +89,13 @@ export function TopbarStreakChip() {
       className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1"
       title={`Streak: ${data.current_streak} ${data.current_streak === 1 ? "dan" : "dana"} zaredom`}
     >
+      {/* `flame-flicker` (B.4): samo uz aktivan streak; 3 iteracije × 600 ms
+          = 1,8 s ukupno → WCAG 2.2.2 zadovoljen trajanjem, ne guardom. */}
       <Flame
         className={cn(
           "size-3.5",
           data.current_streak > 0
-            ? "text-accent-warm-text"
+            ? "flame-flicker text-accent-warm-text"
             : "text-muted-foreground",
         )}
         aria-hidden="true"

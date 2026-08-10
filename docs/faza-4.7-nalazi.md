@@ -465,6 +465,53 @@ Tri puta:
 **Odluka je korisnikova** — svaka od tri opcija mijenja frontend komentare, što je izvan
 onoga što je uputa dopuštala.
 
+### ⟳ DOPUNA (2026-08-10, 1C t.2) — PETA neimenovana invarijanta, i prvi put da je NEŠTO ZAUSTAVILA
+
+🔴 **Odgovor na pitanje „gdje je kanonski popis": NE POSTOJI.** N-8 je i dalje otvoren,
+konsolidacija čeka odluku. Zato se ova invarijanta upisuje OVDJE — na mjesto gdje će se o
+prostoru imena odlučivati — a ne u popis koji bi trebalo izmisliti da bi je se imalo gdje
+staviti.
+
+**Invarijanta o jednoznačnosti XP-a.** Živi u DVA docstringa, bez broja, bez ijedne
+reference iz drugog koda:
+
+```
+frontend/src/pages/ProfilePage.tsx:7-8
+   „XP JE JEDNOZNAČAN: hero (ProgressHero) je JEDINO mjesto s XP-om, iz /profile
+    (autoritativno). StatsSummary NE prikazuje XP (vidi njegov docstring)."
+
+frontend/src/components/profile/StatsSummary.tsx:8-10
+   „NE sumira `xp_awarded` i NE prikazuje XP (badge XP ide kroz xp_log s
+    attempt_id=NULL → Σ delti < /profile.xp; autoritativni XP je SAMO /profile,
+    prikazuje ga ProgressHero). Dvije XP brojke na ekranu = bug."
+```
+
+**PRESEDAN:** u 1C t.2 ta je invarijanta **zaustavila zadanu izmjenu**. Plan je tražio
+level/XP karticu u sidebaru; sidebar je persistentan, pa bi na Dashboardu i Profilu — gdje
+`ProgressHero` već stoji — dao dvije XP brojke u istom kadru. Kartica je zato izvedena kao
+**level + streak, bez XP-a** (varijanta C). To je prvi zabilježen slučaj da je neka od ovih
+invarijanti promijenila ishod, a ne samo stajala u komentaru.
+
+🔴 **NIJANSA koju treba zapisati da se pravilo ne protumači ni preširoko ni preusko.**
+Izvorni hazard iz `StatsSummary` bio je **IZVEDENA vs AUTORITATIVNA** brojka: `Σ xp_awarded`
+po pokušajima je **manje** od `/profile.xp`, jer bedž-XP ulazi u `xp_log` s
+`attempt_id = NULL`. Dvije brojke bi se **razilazile**.
+
+U slučaju sidebar kartice izvor bi bio **identičan** (`/profile`, isti `queryKey`, isti
+cache) — brojke se **ne bi mogle** razići. Invarijanta je dakle poštovana **po slovu**, a
+ne zato što je prijetila neusklađenost.
+
+Vrijedi li onda uopće? **Da**, ali iz drugog razloga: dvije jednake brojke u istom kadru
+tjeraju čitatelja da traži razliku koje nema. To je problem čitljivosti, ne točnosti.
+Ako se invarijanta ikad formalizira, ta dva razloga treba **razdvojiti** — jer prvi
+(neusklađenost) je tvrd i mjerljiv, a drugi (redundancija) je dizajnerski i podložan
+iznimci.
+
+**Za konsolidaciju:** ovo je četvrto pravilo koje se ponaša kao invarijanta a nema broj
+(uz „prijava po username", „prag iz `/profile`", „progres isključivo kroz `MasteryBar`").
+Broj **ne dodjeljujem** — dodjela je upravo ono što N-8 traži da se odluči odjednom, a ne
+usput.
+
 ---
 
 ## N-9 📌 Zaključak za Fazu 6 — higijena komentara u gamifikaciji je SUSTAVNA, ne slučajna

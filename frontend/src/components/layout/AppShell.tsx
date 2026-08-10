@@ -9,7 +9,6 @@ import {
   BookOpen,
   Database,
   LayoutDashboard,
-  LogOut,
   Menu,
   ShieldCheck,
   Terminal,
@@ -19,12 +18,15 @@ import {
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
+import {
+  SidebarLevelCard,
+  SidebarUserCard,
+} from "@/components/layout/SidebarCards"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { useAuth } from "@/hooks/useAuth"
 import { cn } from "@/lib/utils"
@@ -145,7 +147,6 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void } = {}) {
  * vlastitu kopiju popisa, role-gate bi se mogao razići.
  */
 function MobileNav() {
-  const { user, logout } = useAuth()
   const [open, setOpen] = useState(false)
   const location = useLocation()
 
@@ -185,31 +186,12 @@ function MobileNav() {
         </div>
 
         {/* 🔴 Odjava je OVDJE jer je na mobitelu topbar pretijesan; bez nje bi
-            korisnik na telefonu ostao bez izlaza iz sessiona. */}
+            korisnik na telefonu ostao bez izlaza iz sessiona. Ista komponenta kao u
+            sidebar footeru — jedan izvor za rola-badge i ponašanje odjave. */}
+        {/* NE `SheetClose asChild` — on bi cijeli blok pretvorio u gumb za zatvaranje,
+            pa bi i klik na username zatvarao drawer. Zatvaranje nosi `onAction`. */}
         <div className="shrink-0 border-t border-sidebar-border p-3">
-          {user && (
-            <div className="mb-2 flex items-center gap-2 px-3">
-              <span className="truncate text-sm font-medium">
-                {user.username}
-              </span>
-              <span
-                className={cn(
-                  "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
-                  user.role === "admin"
-                    ? "bg-accent-warm text-accent-warm-foreground"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
-                {user.role}
-              </span>
-            </div>
-          )}
-          <SheetClose asChild>
-            <Button variant="outline" className="w-full" onClick={logout}>
-              <LogOut data-icon="inline-start" />
-              Odjava
-            </Button>
-          </SheetClose>
+          <SidebarUserCard onAction={close} />
         </div>
       </SheetContent>
     </Sheet>
@@ -217,8 +199,6 @@ function MobileNav() {
 }
 
 export function AppShell() {
-  const { user, logout } = useAuth()
-
   return (
     <div className="flex min-h-svh">
       {/* Jedan <defs> za cijelu aplikaciju — lucide ikone crtaju `stroke`, pa im
@@ -236,7 +216,11 @@ export function AppShell() {
       </svg>
 
       {/* Sidebar — desktop primaran (plan §4.7); na užem ekranu skrivena, header ostaje. */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+      {/* 🔴 `sticky top-0 h-svh`: bez toga sidebar raste s DOKUMENTOM (roditelj je
+          `min-h-svh`), pa footer s karticama završi ispod pregiba na svakoj stranici
+          koja je duža od zaslona — a to su gotovo sve. Sticky ga drži u vidnom polju,
+          `h-svh` daje fiksnu visinu unutar koje nav skrola, a footer stoji. */}
+      <aside className="sticky top-0 hidden h-svh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-5">
           <Database
             className="size-5 [stroke:url(#brand-grad)]"
@@ -246,7 +230,16 @@ export function AppShell() {
             SQL Tutor
           </span>
         </div>
-        <SidebarNav />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <SidebarNav />
+        </div>
+        {/* Footer (1C t.2): level/streak + korisnik. Na <768px sidebar je skriven,
+            pa istu Odjavu ondje nosi drawer — Odjava je dostupna na SVAKOM
+            breakpointu. */}
+        <div className="shrink-0 space-y-3 border-t border-sidebar-border p-3">
+          <SidebarLevelCard />
+          <SidebarUserCard />
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -264,29 +257,10 @@ export function AppShell() {
           </div>
           <div className="hidden md:block" />
 
-          {/* Faza 4.7 stage 1: toggle teme uklonjen — aplikacija je dark-only. */}
-          <div className="flex items-center gap-2">
-            {user && (
-              <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5">
-                <span className="text-sm font-medium">{user.username}</span>
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-xs font-medium",
-                    user.role === "admin"
-                      ? "bg-accent-warm text-accent-warm-foreground"
-                      : "bg-muted text-muted-foreground",
-                  )}
-                >
-                  {user.role}
-                </span>
-              </div>
-            )}
-
-            <Button variant="outline" onClick={logout}>
-              <LogOut data-icon="inline-start" />
-              Odjava
-            </Button>
-          </div>
+          {/* ⟳ 1C t.2: user kartica i Odjava PRESELILE u sidebar footer (desktop)
+              odnosno u drawer (<768px). Topbar ostaje prazan s desne strane do t.3,
+              kad dobiva breadcrumb i streak čip. */}
+          <div className="flex items-center gap-2" />
         </header>
 
         <main className="flex-1 p-4 md:p-8">

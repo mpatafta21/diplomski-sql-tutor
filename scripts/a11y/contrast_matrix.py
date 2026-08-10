@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Matrica kontrasta tekst-token × ploha — jedna naredba, pun izlaz, obje teme.
+"""Matrica kontrasta tekst-token × ploha — jedna naredba, pun izlaz.
 
     python3 scripts/a11y/contrast_matrix.py                  # tablica u terminal
     python3 scripts/a11y/contrast_matrix.py --md > out.md    # markdown
     python3 scripts/a11y/contrast_matrix.py --pair muted-foreground incorrect-soft
-    python3 scripts/a11y/contrast_matrix.py --theme light
 
 Izlazni kod: 0 = svi parovi prolaze · 1 = barem jedan pad · 2 = samotest konvertora pao.
 """
@@ -207,7 +206,7 @@ def run_delta_e(themes, tokens, md: bool) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--md", action="store_true", help="markdown umjesto terminalskog ispisa")
-    ap.add_argument("--theme", choices=["light", "dark"], help="samo jedna tema")
+    ap.add_argument("--theme", choices=["dark"], help="samo jedna tema (od 4.7 postoji samo dark)")
     ap.add_argument("--pair", nargs=2, metavar=("TEKST", "PLOHA"), help="jedan par")
     ap.add_argument("--delta-e", action="store_true",
                     help="ΔE nad SUKORIŠTENIM parovima (cross-scale guard, MASTER §2.7)")

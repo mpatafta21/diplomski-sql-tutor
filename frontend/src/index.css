@@ -4,8 +4,6 @@
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/jetbrains-mono";
 
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: "Geist Variable", sans-serif;
@@ -149,81 +147,18 @@
   --duration-reward: 700ms;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   JEDINA PALETA — aplikacija je DARK-ONLY (Faza 4.7 redizajn, stage 1).
+   Light tema je UKINUTA: `:root` vs `.dark` više ne postoje kao par, nema
+   `@custom-variant dark`, nema `ThemeProvider`a ni toggla. Tokeni koji su do
+   4.7 živjeli u `.dark` bloku sada su jedini i stoje u `:root`.
+   🔴 `--radius` je JEDINI token koji `.dark` nikad nije redefinirao — živio je
+   samo u starom `:root`. Prenesen je PRVI i namjerno stoji na vrhu: iz njega se
+   izvodi svih 7 radius stepenica (`@theme inline` gore) i sonnerov
+   `--border-radius`, pa bi ga brisanje starog bloka tiho odnijelo.
+   ══════════════════════════════════════════════════════════════════════════ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.528 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.556 0 0);
-  /* Data-viz kategorijska (MASTER.md §2.6) — zamjena neutralnih placeholdera */
-  --chart-1: oklch(0.55 0.15 250);
-  --chart-2: oklch(0.55 0.094 185);
-  --chart-3: oklch(0.55 0.16 300);
-  --chart-4: oklch(0.58 0.16 345);
-  --chart-5: oklch(0.6 0.12 75);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.556 0 0);
-
-  /* ═══ Prošireni tokeni — light (MASTER.md §2, AA-verificirano) ═══ */
-  /* Semantika verdicta — partial je AKTIVAN od 4.3c (ERRATA #8 revidiran) */
-  --correct: oklch(0.52 0.13 150);
-  --correct-soft: oklch(0.96 0.03 150);
-  --incorrect: oklch(0.53 0.19 25);
-  --incorrect-soft: oklch(0.96 0.02 25);
-  --partial: oklch(0.53 0.11 55);
-  --partial-soft: oklch(0.96 0.02 60);
-  --neutral: oklch(0.5 0.02 260);
-  /* Topli amber accent — samo napredak/gamifikacija */
-  --accent-warm: oklch(0.66 0.13 72);
-  --accent-warm-foreground: oklch(0.25 0.04 75);
-  --accent-warm-text: oklch(0.514 0.12 70);
-  /* Mastery gradient P(L) — CB-safe, monoton po svjetlini */
-  --mastery-0: oklch(0.85 0.05 260);
-  --mastery-25: oklch(0.74 0.08 245);
-  --mastery-50: oklch(0.63 0.11 225);
-  --mastery-75: oklch(0.53 0.086 205);
-  --mastery-100: oklch(0.44 0.072 190);
-  /* Concept-tier (3) — violet 300; foreground = AA-par za tekst na fillu */
-  --tier-easy: oklch(0.72 0.09 300);
-  --tier-easy-foreground: oklch(0.145 0 0);
-  --tier-medium: oklch(0.55 0.14 300);
-  --tier-medium-foreground: oklch(0.985 0 0);
-  --tier-hard: oklch(0.45 0.18 300);
-  --tier-hard-foreground: oklch(0.985 0 0);
-  /* Module-difficulty (5) — magenta 345; cross_module desaturiran (transverzalan) */
-  --difficulty-beginner: oklch(0.78 0.06 345);
-  --difficulty-beginner-foreground: oklch(0.145 0 0);
-  --difficulty-intermediate: oklch(0.68 0.1 345);
-  --difficulty-intermediate-foreground: oklch(0.145 0 0);
-  --difficulty-advanced: oklch(0.57 0.14 345);
-  --difficulty-advanced-foreground: oklch(0.985 0 0);
-  --difficulty-expert: oklch(0.46 0.18 345);
-  --difficulty-expert-foreground: oklch(0.985 0 0);
-  --difficulty-cross-module: oklch(0.55 0.03 345);
-  --difficulty-cross-module-foreground: oklch(0.985 0 0);
-}
-
-.dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -257,7 +192,7 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 
-  /* ═══ Prošireni tokeni — dark (MASTER.md §2, AA-verificirano) ═══ */
+  /* ═══ Prošireni tokeni (MASTER.md §2, AA-verificirano) ═══ */
   /* Semantika verdicta — partial je AKTIVAN od 4.3c (ERRATA #8 revidiran) */
   --correct: oklch(0.75 0.15 150);
   --correct-soft: oklch(0.24 0.04 150);

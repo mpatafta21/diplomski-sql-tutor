@@ -43,7 +43,11 @@ SURFACES: dict[str, object] = {
     "sidebar-accent/40": ("sidebar-accent", 0.40, "card"),
     "sidebar-accent/60": ("sidebar-accent", 0.60, "card"),
     "input/30": ("input", 0.30, "card"),
-    "input/50": ("input", 0.50, "card"),
+    # ⟳ 4.7 stage 1: bilo `input/50`. To je bila LIGHT vrijednost (`disabled:bg-input/50`);
+    # u darku je disabled polje oduvijek bilo `dark:disabled:bg-input/80`. Redak je dakle
+    # mjerio klasu koja se u dark temi nikad nije primijenila — ista klasa kao fantomski
+    # par `neutral × card` (N-13). Ispravljeno na stvarnu vrijednost.
+    "input/80": ("input", 0.80, "card"),
     "correct-soft": "correct-soft",
     "incorrect-soft": "incorrect-soft",
     "partial-soft": "partial-soft",
@@ -88,7 +92,7 @@ SURFACE_USE: dict[str, str] = {
     "sidebar-accent/40": "ConceptRow hover",
     "sidebar-accent/60": "nav hover",
     "input/30": "input (dark varijanta)",
-    "input/50": "disabled input",
+    "input/80": "disabled input",
     "correct-soft": "FeedbackPanel, čip „Riješeno”",
     "incorrect-soft": "FeedbackPanel, ErrorState, Run greška, Login/Register",
     "partial-soft": "FeedbackPanel",
@@ -146,7 +150,7 @@ PAIRS: dict[str, dict[str, str]] = {
     "sidebar-accent/40": {"muted-foreground": "○ ConceptRow.tsx:117", "correct": "○ ConceptRow"},
     "sidebar-accent/60": {"muted-foreground": "○ AppShell.tsx:71 hover"},
     "input/30": {"foreground": "○ ui/input", "muted-foreground": "○ placeholder"},
-    "input/50": {"muted-foreground": "○ disabled input"},
+    "input/80": {"muted-foreground": "○ disabled input"},
     "correct-soft": {
         "correct": "● FeedbackPanel.tsx:52-53, ContinueCard.tsx:129, TaskPage.tsx:288",
         "foreground": "○ FeedbackPanel.tsx:123",

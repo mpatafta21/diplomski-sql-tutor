@@ -1,6 +1,6 @@
 /**
  * AppShell (Faza 4.1c) — sidebar + header ljuska iza auth gatea.
- * Vuče 4.1b tokene (sidebar-* set), dark-first. Nav NIJE skica — sve su stavke
+ * Vuče 4.1b tokene (sidebar-* set); od 4.7 je aplikacija dark-only. Nav NIJE skica — sve su stavke
  * prave rute od 4.6-evala (vidi NAV_ITEMS ispod). Admin stavka je role-gated.
  */
 import { NavLink, Outlet } from "react-router-dom"
@@ -9,9 +9,7 @@ import {
   Database,
   LayoutDashboard,
   LogOut,
-  Moon,
   ShieldCheck,
-  Sun,
   Terminal,
   Trophy,
   User,
@@ -19,7 +17,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { useAuth } from "@/hooks/useAuth"
-import { useTheme } from "@/hooks/useTheme"
 import { cn } from "@/lib/utils"
 
 // Nav (4.2 → 4.6-eval): sve stavke su prave rute. „Zadatak" (`/task`) je entry
@@ -80,7 +77,6 @@ function SidebarNav() {
 
 export function AppShell() {
   const { user, logout } = useAuth()
-  const { dark, toggle } = useTheme()
 
   return (
     <div className="flex min-h-svh">
@@ -110,18 +106,8 @@ export function AppShell() {
           </div>
           <div className="hidden md:block" />
 
+          {/* Faza 4.7 stage 1: toggle teme uklonjen — aplikacija je dark-only. */}
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggle}
-              aria-label={
-                dark ? "Prebaci na light temu" : "Prebaci na dark temu"
-              }
-            >
-              {dark ? <Sun /> : <Moon />}
-            </Button>
-
             {user && (
               <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5">
                 <span className="text-sm font-medium">{user.username}</span>

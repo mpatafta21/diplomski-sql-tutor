@@ -27,8 +27,9 @@ from palette import REPO, load_tokens  # noqa: E402
 THEME = REPO / "frontend" / "src" / "lib" / "monaco-theme.ts"
 
 #: (opis, tema, token, hex-u-datoteci) — izvedeno iz komentara u monaco-theme.ts (4.1b).
+#: ⟳ 4.7 stage 1: light retci uklonjeni s light temom. Dva drifta koja su ovdje
+#: stajala od commita 5994107 bila su OBA u lightu → bespredmetni, ne popravljaju se.
 MAP: list[tuple[str, str, str, str]] = [
-    # ── dark ──
     ("rules[''] / editor.foreground", "dark", "foreground", "FAFAFA"),
     ("rules[keyword]", "dark", "chart-1", "53A3F2"),
     ("rules[operator]", "dark", "neutral", "9DA5B1"),
@@ -38,18 +39,6 @@ MAP: list[tuple[str, str, str, str]] = [
     ("rules[predefined]", "dark", "chart-3", "B191EA"),
     ("editor.background", "dark", "card", "171717"),
     ("editorLineNumber.activeForeground / cursor", "dark", "accent-warm", "F0B135"),
-    # ── light ──
-    ("rules[''] / editor.foreground", "light", "foreground", "0A0A0A"),
-    ("rules[keyword]", "light", "chart-1", "0F74C5"),
-    ("rules[operator]", "light", "neutral", "5D646F"),
-    ("rules[string]", "light", "correct", "1D7D3E"),
-    ("rules[number]", "light", "chart-2", "0F8379"),
-    ("rules[comment] / editorLineNumber", "light", "muted-foreground", "737373"),
-    ("rules[predefined]", "light", "chart-3", "8156C0"),
-    ("editor.background", "light", "background", "FFFFFF"),
-    ("editorLineNumber.activeForeground / cursor", "light", "accent-warm-text", "A06604"),
-    ("editor.selectionBackground (bez alfe)", "light", "accent-warm", "C38323"),
-    ("editorIndentGuide / widget.border", "light", "border", "E5E5E5"),
 ]
 
 

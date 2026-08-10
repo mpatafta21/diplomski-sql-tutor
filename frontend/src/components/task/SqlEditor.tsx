@@ -2,8 +2,8 @@
  * SqlEditor (Faza 4.3a) — Monaco SQL editor s custom temama iz 4.1b tokena.
  *
  * - Self-hosted monaco (vidi lib/monaco-setup.ts — nula CDN-a).
- * - Teme: sql-tutor-dark / sql-tutor-light (lib/monaco-theme.ts, MASTER.md §6);
- *   prati app theme toggle kroz `dark` prop.
+ * - Tema: sql-tutor-dark (lib/monaco-theme.ts, MASTER.md §6). Od 4.7 je aplikacija
+ *   dark-only, pa nema light varijante ni `dark` propa koji bi je birao.
  * - Hotkeys: Ctrl/Cmd+Enter = Run, Shift+Enter = Submit — callbacke žice
  *   4.3b/4.3c; ovdje su opcionalni (no-op dok ne postoje).
  * - `automaticLayout` prati resize kontejnera (editor ne lomi layout).
@@ -11,17 +11,12 @@
 import { useEffect, useRef } from "react"
 import { Editor, type OnMount } from "@monaco-editor/react"
 import { monaco } from "@/lib/monaco-setup"
-import {
-  sqlTutorDark,
-  sqlTutorLight,
-  sqlTutorEditorOptions,
-} from "@/lib/monaco-theme"
+import { sqlTutorDark, sqlTutorEditorOptions } from "@/lib/monaco-theme"
 import { LoadingState } from "@/components/state/LoadingState"
 
 interface SqlEditorProps {
   value: string
   onChange: (value: string) => void
-  dark: boolean
   /** Ctrl/Cmd+Enter — žici 4.3b (/run). */
   onRun?: () => void
   /** Shift+Enter — žici 4.3c (/attempt). */
@@ -32,13 +27,11 @@ interface SqlEditorProps {
 // bez guard flaga, poziv po mountu je bezopasan.
 function defineThemes() {
   monaco.editor.defineTheme("sql-tutor-dark", sqlTutorDark)
-  monaco.editor.defineTheme("sql-tutor-light", sqlTutorLight)
 }
 
 export function SqlEditor({
   value,
   onChange,
-  dark,
   onRun,
   onSubmit,
 }: SqlEditorProps) {
@@ -82,7 +75,7 @@ export function SqlEditor({
       onChange={(v) => onChange(v ?? "")}
       beforeMount={defineThemes}
       onMount={handleMount}
-      theme={dark ? "sql-tutor-dark" : "sql-tutor-light"}
+      theme="sql-tutor-dark"
       loading={<LoadingState lines={4} label="Učitavanje editora" />}
       options={{
         ...sqlTutorEditorOptions,

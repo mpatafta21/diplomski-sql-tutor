@@ -20,7 +20,7 @@ export interface MonacoThemeData {
   colors: Record<string, string>
 }
 
-/** Dark tema (primarna — dark-first). Pozadina = --card, accent = --accent-warm. */
+/** Jedina tema — aplikacija je dark-only od 4.7. Pozadina = --card, accent = --accent-warm. */
 export const sqlTutorDark: MonacoThemeData = {
   base: "vs-dark",
   inherit: true,
@@ -53,42 +53,6 @@ export const sqlTutorDark: MonacoThemeData = {
     "editorSuggestWidget.selectedBackground": "#F0B13526",
     "scrollbarSlider.background": "#29292980",
     "scrollbarSlider.hoverBackground": "#292929CC",
-  },
-}
-
-/** Light tema (ravnopravna). Pozadina = --background (bijela). */
-export const sqlTutorLight: MonacoThemeData = {
-  base: "vs",
-  inherit: true,
-  rules: [
-    { token: "", foreground: "0A0A0A" }, //           --foreground        oklch(0.145 0 0)
-    { token: "keyword", foreground: "0F74C5" }, //    --chart-1 (plava)   oklch(0.55 0.15 250)
-    { token: "keyword.sql", foreground: "0F74C5" },
-    { token: "operator", foreground: "5D646F" }, //   --neutral           oklch(0.50 0.02 260)
-    { token: "string", foreground: "1D7D3E" }, //     --correct (zelena)  oklch(0.52 0.13 150)
-    { token: "string.sql", foreground: "1D7D3E" },
-    { token: "number", foreground: "0F8379" }, //     --chart-2 (teal)    oklch(0.55 0.094 185)
-    { token: "comment", foreground: "737373", fontStyle: "italic" }, // --muted-foreground
-    { token: "predefined", foreground: "8156C0" }, // --chart-3 (violet)  oklch(0.55 0.16 300) — funkcije
-    { token: "identifier", foreground: "0A0A0A" },
-    { token: "delimiter", foreground: "737373" },
-  ],
-  colors: {
-    "editor.background": "#FFFFFF", //                --background        oklch(1 0 0)
-    "editor.foreground": "#0A0A0A", //                --foreground
-    "editorLineNumber.foreground": "#737373", //      --muted-foreground
-    "editorLineNumber.activeForeground": "#A06604", // --accent-warm-text oklch(0.56 0.12 70)
-    "editorCursor.foreground": "#A06604", //          --accent-warm-text
-    "editor.selectionBackground": "#C3832340", //     --accent-warm fill oklch(0.66 0.13 72) @ 25%
-    "editor.inactiveSelectionBackground": "#C3832320",
-    "editor.lineHighlightBackground": "#E5E5E566", // --border pojas, suptilno
-    "editorIndentGuide.background": "#E5E5E5",
-    "editorBracketMatch.border": "#A0660480",
-    "editorWidget.background": "#FFFFFF",
-    "editorWidget.border": "#E5E5E5",
-    "editorSuggestWidget.selectedBackground": "#C3832326",
-    "scrollbarSlider.background": "#E5E5E580",
-    "scrollbarSlider.hoverBackground": "#E5E5E5CC",
   },
 }
 

@@ -32,7 +32,6 @@ import { useModules } from "@/hooks/useModules"
 import { useRun } from "@/hooks/useRun"
 import { useSubmitAttempt } from "@/hooks/useSubmitAttempt"
 import { useTask } from "@/hooks/useTask"
-import { useTheme } from "@/hooks/useTheme"
 import type {
   AttemptResponse,
   ProfileResponse,
@@ -118,7 +117,6 @@ interface TaskViewProps {
 }
 
 function TaskView({ task, conceptIndex }: TaskViewProps) {
-  const { dark } = useTheme()
   const runM = useRun(task.id)
   const { mutate } = runM // v5: mutate je referencijski stabilan
   const [query, setQuery] = useState(INITIAL_QUERY)
@@ -329,7 +327,6 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
             <SqlEditor
               value={query}
               onChange={setQuery}
-              dark={dark}
               onRun={handleRun}
               onSubmit={handleSubmit}
             />

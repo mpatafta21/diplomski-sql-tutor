@@ -173,21 +173,33 @@ def _parse_block(css: str, start: int, end: int) -> dict[str, Color]:
 
 
 def load_tokens(css_path: Path = CSS) -> dict[str, dict[str, Color]]:
-    """Vrati {'light': {...}, 'dark': {...}} iz `:root` i `.dark` blokova."""
+    """Vrati `{'dark': {...}}` iz jedinog `:root` bloka.
+
+    🔴 Aplikacija je od Faze 4.7 DARK-ONLY: `.dark` blok više ne postoji, svi su tokeni u
+    `:root`. Rječnik zadržava ključ teme (a ne vraća gol `dict[str, Color]`) namjerno —
+    `contrast_matrix.py` petlja po temama, pa bi promjena oblika povukla izmjene svugdje
+    radi ničega. Ključ je `dark` jer to i jest jedina tema, ne `default`: ime govori ŠTO
+    se mjeri, a ne da tema ima ime.
+
+    Parser i dalje PREKIDA ako struktura CSS-a nije očekivana — bolje pad nego tihe krive
+    brojke.
+    """
     css = css_path.read_text(encoding="utf-8")
-    root = css.index("\n:root {")
-    dark = css.index("\n.dark {")
-    base = css.index("\n@layer base") if "\n@layer base" in css else len(css)
-    if not root < dark < base:
+    if "\n.dark {" in css:
         raise SystemExit(
-            f"🔴 {css_path.name}: očekivan redoslijed `:root` → `.dark` → `@layer base` "
-            f"nije nađen (offseti {root}/{dark}/{base}). Struktura CSS-a se promijenila — "
-            f"provjeri parser prije nego vjeruješ brojkama."
+            f"🔴 {css_path.name}: nađen `.dark` blok. Aplikacija je dark-only od 4.7 i svi "
+            f"tokeni pripadaju u `:root`. Ako se light tema vraća, vrati i dvotemni parser "
+            f"— ali svjesno, ne tako da ovaj tiho pročita samo pola palete."
         )
-    out = {
-        "light": _parse_block(css, root, dark),
-        "dark": _parse_block(css, dark, base),
-    }
+    root = css.index("\n:root {")
+    base = css.index("\n@layer base") if "\n@layer base" in css else len(css)
+    if not root < base:
+        raise SystemExit(
+            f"🔴 {css_path.name}: očekivan redoslijed `:root` → `@layer base` nije nađen "
+            f"(offseti {root}/{base}). Struktura CSS-a se promijenila — provjeri parser "
+            f"prije nego vjeruješ brojkama."
+        )
+    out = {"dark": _parse_block(css, root, base)}
     report_gamut()
     return out
 
@@ -215,12 +227,16 @@ def report_gamut(stream=sys.stderr) -> int:
 
 #: (opis, tema, token, ploha-token, očekivano). Sve brojke su VEĆ OBJAVLJENE u
 #: dokumentaciji projekta prije nego je ova skripta postojala.
+#:
+#: ⟳ 4.7 stage 1: tri LIGHT retka uklonjena jer light teme više nema. Zamijenjena su
+#: trima DARK retcima iz iste objavljene tablice (`docs/faza-4.7-kontrast-matrica.md`,
+#: retci 141/145/136) — broj provjera ostaje šest, pokrivenost se ne smanjuje.
 SELF_TEST = [
-    ("foreground × card", "light", "foreground", "card", "19,79"),
     ("foreground × card", "dark", "foreground", "card", "17,16"),
     ("muted-foreground × card", "dark", "muted-foreground", "card", "6,91"),
     ("ring × card", "dark", "ring", "card", "3,79"),
-    ("correct × correct-soft", "light", "correct", "correct-soft", "4,67"),
+    ("correct × correct-soft", "dark", "correct", "correct-soft", "7,74"),
+    ("incorrect × incorrect-soft", "dark", "incorrect", "incorrect-soft", "5,72"),
     ("partial × partial-soft", "dark", "partial", "partial-soft", "8,03"),
 ]
 

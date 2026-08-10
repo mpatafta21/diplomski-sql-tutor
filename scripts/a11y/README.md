@@ -15,7 +15,7 @@ naredba, a ne ručni posao.
 ## Naredbe
 
 ```bash
-# puna matrica u terminal (obje teme) — izlazni kod 1 ako išta padne
+# puna matrica u terminal — izlazni kod 1 ako išta padne
 python3 scripts/a11y/contrast_matrix.py
 
 # markdown za docs/faza-4.7-kontrast-matrica.md
@@ -24,9 +24,6 @@ python3 scripts/a11y/contrast_matrix.py --md > docs/faza-4.7-kontrast-matrica.md
 # jedan par, brzo tijekom iteriranja palete
 python3 scripts/a11y/contrast_matrix.py --pair muted-foreground incorrect-soft
 python3 scripts/a11y/contrast_matrix.py --pair accent-warm-text accent-warm/20
-
-# samo jedna tema
-python3 scripts/a11y/contrast_matrix.py --theme dark
 
 # ΔE nad SUKORIŠTENIM parovima — cross-scale guard (MASTER §2.7)
 # izlazni kod 1 ako ima neprihvaćene kolizije
@@ -52,14 +49,15 @@ Bez dependencyja — čisti Python 3.11 iz standardne biblioteke.
 
 **1. Tokeni se ČITAJU iz `index.css`, ne hardkodiraju.** Zato alat preživi promjenu
 palete: promijeni `index.css`, pokreni istu naredbu, dobiješ nove brojke. Ako se
-struktura CSS-a promijeni (redoslijed `:root` → `.dark` → `@layer base`), parser
-**prekida s greškom** umjesto da tiho vrati krive brojke.
+struktura CSS-a promijeni (očekuje se `:root` → `@layer base`), parser **prekida s
+greškom** umjesto da tiho vrati krive brojke. Od 4.7 je aplikacija **dark-only**: pojava
+`.dark` bloka također je prekid, jer bi značila da parser čita samo pola palete.
 
 **2. Konvertor se validira prije svakog mjerenja.** `SELF_TEST` u `palette.py` nosi šest
 brojki koje su **objavljene u dokumentaciji projekta prije nego je ova skripta
-postojala** (npr. `foreground × card` = 19,79 light / 17,16 dark). Ako ih konvertor ne
-reproducira, skripta **izlazi s kodom 2** i ne mjeri ništa. Poučak iz #39: guard koji
-nije testiran u oba smjera nije guard.
+postojala** (npr. `foreground × card` = 17,16). Ako ih konvertor ne reproducira, skripta
+**izlazi s kodom 2** i ne mjeri ništa. Poučak iz #39: guard koji nije testiran u oba
+smjera nije guard.
 
 > Kad se paleta namjerno promijeni, dio `SELF_TEST` brojki će pasti — to je **očekivano**.
 > Tada se `SELF_TEST` ažurira **uz obrazloženje u commitu**, i tek nakon što je nova

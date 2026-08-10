@@ -3,10 +3,13 @@
  * te user kartica za drawer.
  *
  * ⟳ A.3 (2026-08-10) — OBRAT ODLUKE 1C t.2, zabilježen u nalazi.md (N-17):
- * user kartica (username, rola, odjava) SELI iz sidebar footera u topbar, a
- * streak SELI iz sidebar level kartice u topbar čip koji postaje vidljiv na
- * SVIM širinama. To je PREMJEŠTANJE, ne dodavanje — svaka brojka i dalje
- * postoji točno jednom po kadru (`docs/invarijante.md#jedan-prikaz-po-kadru`).
+ * user kartica (username, rola, odjava) SELI iz sidebar footera u topbar.
+ * ⟳⟳ ISTI DAN, korisnikova korekcija A.3: streak se VRAĆA u sidebar level
+ * box (level + streak zajedno, kao u 1C), topbar čip opet `md:hidden` —
+ * ispod 768 px čip je jedini nositelj (sidebar ne postoji), iznad 768 px
+ * jedini je nositelj sidebar box. User kartica OSTAJE u topbaru. Svaka
+ * brojka i dalje točno jednom po kadru
+ * (`docs/invarijante.md#jedan-prikaz-po-kadru`).
  *
  * 🔴 LEVEL KARTICA NAMJERNO NE PRIKAZUJE XP. Invarijanta (`ProfilePage.tsx:7-8`,
  * `StatsSummary.tsx:8-10`): „hero (`ProgressHero`) je JEDINO mjesto s XP-om …
@@ -39,8 +42,8 @@ import { cn } from "@/lib/utils"
  * osvježi ODMAH, prije mrežnog odgovora. Neto: jedan `GET /profile` više po
  * Submitu, i svježiji podatak.
  *
- * ⟳ A.3: streak je iseljen u `TopbarStreakChip` (vidljiv na svim širinama) —
- * da je ostao i ovdje, na ≥768px bile bi DVIJE streak brojke u istom kadru.
+ * ⟳⟳ korisnikova korekcija A.3 (2026-08-10): level + streak opet ZAJEDNO u
+ * ovom boxu (≥768 px); topbar čip nosi streak samo <768 px.
  */
 export function SidebarLevelCard() {
   const { data, isPending } = useProfile()
@@ -63,17 +66,38 @@ export function SidebarLevelCard() {
           {data.level}
         </span>
       </div>
+      <div className="ml-auto flex flex-col items-end">
+        <span className="font-mono text-xs text-muted-foreground">streak</span>
+        <span className="flex items-center gap-1">
+          {/* lucide, NE emoji (MASTER §6). `flame-flicker` (B.4): ≤1,8 s. */}
+          <Flame
+            className={cn(
+              "size-3.5",
+              data.current_streak > 0
+                ? "flame-flicker text-accent-warm-text"
+                : "text-muted-foreground",
+            )}
+            aria-hidden="true"
+          />
+          <span className="text-sm leading-none font-semibold tabular-nums">
+            {data.current_streak}
+          </span>
+          <span className="sr-only">
+            {data.current_streak === 1 ? "dan zaredom" : "dana zaredom"}
+          </span>
+        </span>
+      </div>
     </div>
   )
 }
 
 /**
- * Streak čip u topbaru — od A.3 vidljiv na SVIM širinama.
+ * Streak čip u topbaru — SAMO <768 px (`md:hidden`).
  *
- * ⟳ OBRAT 1C t.2 (bio `md:hidden`): dotad je na desktopu streak živio u sidebar
- * level kartici, pa bi čip u topbaru dao dvije iste brojke u kadru. A.3 je
- * streak IZ level kartice uklonio — čip je sada JEDINO mjesto sa streakom, na
- * svakoj širini, i uvijek u kadru (istaknutost povratne sprege, stup 4.6).
+ * ⟳⟳ korisnikova korekcija A.3 (2026-08-10): A.3 ga je nakratko učinio
+ * vidljivim na svim širinama, ali je streak vraćen u sidebar level box —
+ * na ≥768 px čip bi dao DVIJE iste brojke u kadru. Ispod 768 px sidebar je
+ * skriven, pa je čip ondje jedino mjesto gdje streak postoji (kao u 1C).
  *
  * 🔴 XP ČIPA NEMA, ni na jednoj širini. XP je pod invarijantom jednoznačnosti
  * (`ProfilePage.tsx:7-8`) — `ProgressHero` je jedino mjesto s XP-om.
@@ -86,7 +110,7 @@ export function TopbarStreakChip() {
 
   return (
     <span
-      className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1"
+      className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 md:hidden"
       title={`Streak: ${data.current_streak} ${data.current_streak === 1 ? "dan" : "dana"} zaredom`}
     >
       {/* `flame-flicker` (B.4): samo uz aktivan streak; 3 iteracije × 600 ms

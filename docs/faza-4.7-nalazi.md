@@ -1092,3 +1092,13 @@ tw-animate). Izmjereno nakon zahvata: `duration-base` → 0.24s, `duration-fast`
 
 Brojke u §5 od danas su i IZMJERENE, ne samo propisane. Drawer ulaz/izlaz sada
 stvarno 240/160 ms — prije je oboje bilo 150 ms.
+
+### ⟳ N-17 korekcija (2026-08-10, isti dan) — streak VRAĆEN u sidebar level box
+
+Korisnikova odluka nakon pregleda: **streak se vraća u sidebar level box** (level +
+streak zajedno, kao u 1C t.2), topbar čip ponovno `md:hidden` (<768 px jedini
+nositelj). **User kartica OSTAJE u topbaru** — taj dio A.3 obrata stoji. Neto stanje
+prema 1C: promijenjen je samo dom user kartice (sidebar footer → topbar).
+Re-verifikacija: streak @1440 = 1 (sidebar box) · @380 = 1 (topbar čip) · drawer
+otvoren @380 = 1 — `#jedan-prikaz-po-kadru` drži. Flame u level boxu nosi
+`flame-flicker` (B.4, ≤1,8 s), isti kao čip.

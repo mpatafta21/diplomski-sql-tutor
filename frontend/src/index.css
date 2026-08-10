@@ -247,8 +247,9 @@
      pikselni Δ kroz površinu R 40 · G 37 (prije R 24 · G 22; B ~5 jer pri vrhu
      gamuta B nema kamo — svojstvo svijetlog kraja, ne mana).
      Tamni tekst 11,30 / 13,73 / 16,51 · fill vs `card` isto (najgore 11,30).
-     ΔE do `tier-hard` 0,0734 na startu (čip je ~40 px iznad) — referenca: ravni
-     `--primary` ima 0,1525; guard ≥0,05 drži s rezervom. */
+     ΔE do `tier-hard` 0,1956 na startu (⟳ 2026-08-10, novi tier-hard 335;
+     prije 0,0734) — referenca: ravni `--primary` ima 0,1525; guard ≥0,05
+     drži s velikom rezervom. */
   --grad-cta: linear-gradient(
     100deg,
     oklch(0.85 0.065 280) 0%,
@@ -372,24 +373,39 @@
   --mastery-50: oklch(0.64 0.1 225);
   --mastery-75: oklch(0.75 0.11 205);
   --mastery-100: oklch(0.86 0.12 190);
-  /* Concept-tier (3) — violet 300; foreground = AA-par za tekst na fillu */
-  --tier-easy: oklch(0.6 0.1 300);
+  /* ⟳ RAZINE (korisnikova odluka, 2026-08-10): obje skale prelaze s
+     jednohuene rampe (samo L) na HUE RAMPU hladno→toplo (plavo → ljubičasto
+     → magenta) — razina se čita iz TONA, ne iz svjetline. Dvije skale se
+     više ne razdvajaju hueom (300 vs 345) nego REGISTROM: tier = svijetli
+     čip s tamnim tekstom, difficulty = TAMNI badge sa svijetlim tekstom
+     (tier×difficulty min ΔE 0,38). Guardovi (2026-08-10): susjedne razine
+     ΔE 0,059–0,124 · min prema sukorištenom skupu (verdict, -soft, mastery,
+     accent-warm, muted, card/vrh kartice, primary) ≥ 0,0597 · tekst na
+     fillu 7,60–10,58 · ΔE(cta-start, tier-hard) 0,0734 → 0,1956. */
+  /* Concept-tier (3) — hue 255→295→335, C raste s razinom („toplina") */
+  --tier-easy: oklch(0.75 0.11 255);
   --tier-easy-foreground: oklch(0.145 0 0);
-  --tier-medium: oklch(0.7 0.13 300);
+  --tier-medium: oklch(0.72 0.15 295);
   --tier-medium-foreground: oklch(0.145 0 0);
-  --tier-hard: oklch(0.8 0.11 300);
+  --tier-hard: oklch(0.74 0.19 335);
   --tier-hard-foreground: oklch(0.145 0 0);
-  /* Module-difficulty (5) — magenta 345; cross_module desaturiran (transverzalan) */
-  --difficulty-beginner: oklch(0.61 0.08 345);
-  --difficulty-beginner-foreground: oklch(0.145 0 0);
-  --difficulty-intermediate: oklch(0.66 0.11 345);
-  --difficulty-intermediate-foreground: oklch(0.145 0 0);
-  --difficulty-advanced: oklch(0.74 0.13 345);
-  --difficulty-advanced-foreground: oklch(0.145 0 0);
-  --difficulty-expert: oklch(0.82 0.105 345);
-  --difficulty-expert-foreground: oklch(0.145 0 0);
-  --difficulty-cross-module: oklch(0.68 0.03 345);
-  --difficulty-cross-module-foreground: oklch(0.145 0 0);
+  /* Module-difficulty (5) — hue 205→285→320→355, TAMNI registar;
+     cross_module desaturiran (transverzalan, izvan rampe).
+     ⟳ Početna 245 → 205 (teal): na 245 se od Srednje (285) razlikovala
+     premalo (ΔE 0,0597, korisnikov prigovor) — teal diže na 0,1027.
+     C 0,058 je NAMJERNO ispod gamut maksimuma 0,0649 na L 0,38 (tamni teal
+     ima uzak gamut; prvi kandidat 0,09 bi se tiho klampao — ERRATA #52).
+     Min prema skupu 0,0643 (mastery-0), tekst 8,49. */
+  --difficulty-beginner: oklch(0.38 0.058 205);
+  --difficulty-beginner-foreground: oklch(0.95 0.02 205);
+  --difficulty-intermediate: oklch(0.35 0.09 285);
+  --difficulty-intermediate-foreground: oklch(0.95 0.02 285);
+  --difficulty-advanced: oklch(0.34 0.1 320);
+  --difficulty-advanced-foreground: oklch(0.95 0.02 320);
+  --difficulty-expert: oklch(0.35 0.12 355);
+  --difficulty-expert-foreground: oklch(0.95 0.02 355);
+  --difficulty-cross-module: oklch(0.34 0.02 300);
+  --difficulty-cross-module-foreground: oklch(0.95 0.02 300);
 }
 
 /* ── @utility most za trajanja (N-18) ────────────────────────────────────────

@@ -189,35 +189,39 @@ salijentnost.
 
 ### 2.4 Concept-tier skala — 3 koraka (ODVOJENA od difficulty!)
 
-Backend istina: `concepts.tier ∈ {easy, medium, hard}` (`models.py:90`). **Violet, hue 300**,
-ordinalna po svjetlini/chromi.
+⟳ **2026-08-10 (korisnikova odluka):** skala prelazi s jednohuene rampe (violet 300, samo
+L/C) na **HUE RAMPU hladno→toplo** — razina se čita iz TONA. Svijetli registar (čip s
+tamnim tekstom). Backend istina nepromijenjena: `concepts.tier ∈ {easy, medium, hard}`.
 
-| Token | Light | Dark |
+| Token | Vrijednost (dark-only) | ton |
 |---|---|---|
-| `--tier-easy` | `oklch(0.72 0.09 300)` | `oklch(0.60 0.10 300)` |
-| `--tier-medium` | `oklch(0.55 0.14 300)` | `oklch(0.70 0.13 300)` |
-| `--tier-hard` | `oklch(0.45 0.18 300)` | `oklch(0.80 0.11 300)` |
+| `--tier-easy` | `oklch(0.75 0.11 255)` | plava |
+| `--tier-medium` | `oklch(0.72 0.15 295)` | ljubičasta |
+| `--tier-hard` | `oklch(0.74 0.19 335)` | magenta |
 
-Svaki korak ima `-foreground` par — **ploha je pun tier fill** (ne `card`), ≥4.5:1 verificirano
-per-tema: u lightu medium/hard nose near-white, easy near-black; u darku svi near-black.
+C raste s razinom (0,11 → 0,19 — „toplina"), L ~konstantan (ujednačena težina čipa).
+`-foreground` = tamni `oklch(0.145 0 0)` na sva tri; tekst na fillu **7,60–8,91** ✅.
+Susjedne razine ΔE **0,1011 / 0,1238**.
 
 ### 2.5 Module-difficulty skala — 5 koraka (ODVOJENA od tier!)
 
-Backend istina: `modules.difficulty ∈ {beginner, intermediate, advanced, expert, cross_module}`
-(`models.py:71`). **Magenta, hue 345**, ordinalna beginner→expert; `cross_module` je transverzalna
-kategorija (modul 0) — desaturirana, namjerno IZVAN ordinalnog niza.
+⟳ **2026-08-10 (korisnikova odluka):** ista hue logika hladno→toplo, ali **TAMNI registar**
+(badge sa svijetlim tekstom) — dvije se skale više ne razdvajaju hueom (300 vs 345) nego
+REGISTROM: tier×difficulty min ΔE **0,3754**. `cross_module` desaturiran, izvan rampe.
 
-| Token | Light | Dark |
+| Token | Vrijednost (dark-only) | ton |
 |---|---|---|
-| `--difficulty-beginner` | `oklch(0.78 0.06 345)` | `oklch(0.61 0.08 345)` |
-| `--difficulty-intermediate` | `oklch(0.68 0.10 345)` | `oklch(0.66 0.11 345)` |
-| `--difficulty-advanced` | `oklch(0.57 0.14 345)` | `oklch(0.74 0.13 345)` |
-| `--difficulty-expert` | `oklch(0.46 0.18 345)` | `oklch(0.82 0.105 345)` |
-| `--difficulty-cross-module` | `oklch(0.55 0.03 345)` | `oklch(0.68 0.03 345)` |
+| `--difficulty-beginner` | `oklch(0.38 0.058 205)` | teal (⟳ s 245: premala razlika od Srednje, ΔE 0,0597 → 0,1027; C ispod gamut maksimuma 0,0649) |
+| `--difficulty-intermediate` | `oklch(0.35 0.09 285)` | indigo |
+| `--difficulty-advanced` | `oklch(0.34 0.10 320)` | ljubičasto-magenta |
+| `--difficulty-expert` | `oklch(0.35 0.12 355)` | vruća magenta |
+| `--difficulty-cross-module` | `oklch(0.34 0.02 300)` | neutralna |
 
-Svaki korak ima `-foreground` par — **ploha je pun difficulty fill** (ne `card`), ≥4.5:1
-verificirano per-tema: u lightu advanced/expert/cross nose near-white, beginner/intermediate
-near-black; u darku svi near-black.
+`-foreground` = svijetli tint istog huea `oklch(0.95 0.02 h)`; tekst na fillu
+**8,49–10,58** ✅. Susjedne razine ΔE **0,0588–0,1102** (Početna×Srednja 0,1027). Min ΔE
+prema sukorištenom skupu (verdict + -soft, mastery ×5, accent-warm, muted, card + vrh
+kartice, primary): **0,0615** (cross vs neutral-soft; beginner vs mastery-0 0,0643 —
+sve ≥ prag 0,05).
 
 ### 2.6 Data-viz paleta (Recharts)
 
@@ -237,12 +241,15 @@ od "ne diraj postojeće"). Hue-razmaknuta, svaka serija razlučiva i po svjetlin
 ### 2.7 ⚠️ CROSS-SCALE GUARD (obavezno pravilo za sve buduće faze)
 
 1. **Tier i difficulty NE koriste** correct/incorrect hue (150/25) **ni** amber accent (70–85).
-   → tier=300 (violet), difficulty=345 (magenta) ✓
+   ⟳ 2026-08-10: → tier 255–335 i difficulty 245–355 (obje hladna strana kruga; najbliži
+   dodir semantici je tier-hard 335 vs incorrect 25 → ΔE 0,1655 ✓)
 2. **Mastery gradient hue-distinktan** od accenta i semantike → mastery 190–260 vs {25, 55, 70–85, 150} ✓
 3. **Mastery monoton po svjetlini** (CB-safe primarni kanal) ✓
 4. Nijedna nova skala/komponenta ne smije uvesti boju koja se hue-preklapa s tuđom semantikom.
-   Hue mapa sustava: **25 incorrect · 55 partial(rezerv.) · 70–85 accent · 150 correct ·
-   190–260 mastery · 300 tier · 345 difficulty**.
+   ⟳ Hue mapa sustava (2026-08-10): **25 incorrect · 55 partial(rezerv.) · 70–85 accent ·
+   150 correct · 190–260 mastery · 245–355 tier+difficulty**. Tier i difficulty dijele
+   pojas, a razdvaja ih **REGISTAR** (svijetli čip vs tamni badge, min ΔE 0,3754) —
+   hue-preklop unutar istog registra i dalje je zabranjen.
 
 ---
 
@@ -380,7 +387,7 @@ mjerenje ne opisuje ono što se renderira.
 |---|---|:---:|:---:|
 | `--grad-brand` (ikona) | `0,55 0,15` → `0,78 0,11` | 3,56 vs `sidebar` | — (skup je **prazan**) |
 | `--grad-wordmark` | `0,60 0,155` → `0,90 0,045` | 4,38 vs `sidebar` | — (skup je **prazan**) |
-| `--grad-cta` (r3 A.1) | `0,85 0,065` → `0,97 0,013` | **11,30** (tamni tekst) · 11,30 (fill vs `card`) | **0,0734** (`tier-hard`) |
+| `--grad-cta` (r3 A.1) | `0,85 0,065` → `0,97 0,013` | **11,30** (tamni tekst) · 11,30 (fill vs `card`) | **0,1956** (`tier-hard`; ⟳ 2026-08-10 novi tier-hard 335 — prije 0,0734) |
 | `--glow-a` / `--glow-b` (r3 A.1) | h280 @ 18 % / 12 % | `foreground` 18,16 → **14,40** (puna α) | — |
 | `--grad-sidebar` (r3 A.2a) | `0,155 0,04` → `0,23 0,054` (180°, tamno gore) | `muted-fg` **6,54** na svijetlom kraju · `fg` 15,60 | — (skup je **prazan**; aktivna stavka: ΔE 0,095–0,109 u nav zoni, bolje od flat 0,065) |
 | `--grad-card` (r3 A.2b) | `0,2175 0,0505` → `0,1925 0,0455` (sredina == `--card`) | `muted-fg` **6,73** na vrhu · `fg` 16,07 | min **0,20** (mastery-0); `-soft` 0,0704–0,0880; `muted` 0,0524 (vrh spušten s 0,22 zbog 0,0498) |
@@ -500,7 +507,7 @@ ne proza"** — dio dev-konzolnog glasa iz §1.
 |---|---|---|
 | **sve brojke** | `@layer base { .tabular-nums { font-family: var(--font-mono) } }` | `tabular-nums` je već posvuda gdje stoji brojka (~50 mjesta). Jedno pravilo umjesto 50 poziva → svaka **nova** brojka je dosljedna bez da se netko sjeti |
 | **nazivi koncepata** | `font-mono` na `ConceptChip`, `ConceptRow`, `MasteryHighlights` | naziv koncepta (`select_basic`, `INNER JOIN`) je identifikator gradiva |
-| **sidebar section headeri** | `-- učenje` / `-- napredak` / `-- sustav`, mono + `text-muted-foreground`, **bez uppercasea** | mala slova su dio glasa; `--` je konzolni marker |
+| ~~sidebar section headeri~~ | ~~`-- učenje` / `-- napredak` / `-- sustav`~~ ⟳ UKLONJENI (2026-08-10, korisnikov zahtjev — nepotrebni) | grupe za čitač i dalje nosi `aria-label` na `<ul>`; mono glas ostaje u level/streak labelama |
 | **SQL u editoru** | JetBrains Mono, od 4.3 | — |
 
 🔴 **Promjena obitelji fonta NE mijenja nijedan kontrastni omjer** — WCAG omjer ovisi o

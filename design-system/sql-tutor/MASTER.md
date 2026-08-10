@@ -288,7 +288,7 @@ nije utility namespace u TW v4 — do 2026-08-10 su SVE tranzicije tiho radile n
 | `--ease-reward` | `cubic-bezier(0.34, 1.25, 0.64, 1)` | XP/badge/level (blagi overshoot) |
 | `--duration-instant` | `100ms` | hover, press |
 | `--duration-fast` | `160ms` | mikrointerakcije |
-| `--duration-base` | `240ms` | paneli, fade |
+| `--duration-base` | `240ms` | paneli, fade · ⟳ i hover LIFT kartica/nav stavki (2026-08-10, korisnikova odluka: 160 ms je djelovao naglo; press ostaje trenutan) |
 | `--duration-slow` | `400ms` | page transitions |
 | `--duration-reward` | `700ms` | ⟳ **KORIŠTEN od B.5 (2026-08-10)** — točno za ono za što je rezerviran: XP count-up envelope (`useXpCountUp` čita token iz computed stylea) + `level-pulse` keyframe |
 

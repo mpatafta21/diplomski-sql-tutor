@@ -141,7 +141,8 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void } = {}) {
                       // B.1: hover lift -2px (transform u transition listi);
                       // motion-reduce neutralizira pomak, ne samo trajanje.
                       // `relative` (B.3): stavka slika IZNAD apsolutnog indikatora.
-                      "relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-[color,background-color,transform] duration-fast ease-standard hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
+                      // ⟳ glađi hover (korisnik, 2026-08-10): fast → base.
+                      "relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-[color,background-color,transform] duration-base ease-standard hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
                       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                       // B.3: pozadinu aktivne stavke crta KLIZNI indikator, ne
                       // stavka sama — ovdje ostaje samo boja teksta.
@@ -174,7 +175,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void } = {}) {
                 to="/admin"
                 end
                 onClick={onNavigate}
-                className="relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-[color,background-color,transform] duration-fast ease-standard hover:-translate-y-0.5 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:hover:translate-y-0"
+                className="relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-[color,background-color,transform] duration-base ease-standard hover:-translate-y-0.5 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:hover:translate-y-0"
               >
                 <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
                 Admin

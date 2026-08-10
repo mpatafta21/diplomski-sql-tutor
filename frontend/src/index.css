@@ -235,37 +235,49 @@
   );
   /* CTA „Otvori zadatak" (ContinueCard). Ostaje SVIJETLI fill s tamnim tekstom —
      hijerarhija se nosi svjetlinom (KORAK 0 §C.3), gradijent je unutar nje.
-     Tamni tekst 13,30 / 14,85 / 16,51 · fill vs `card` isto (najgore 13,30).
-     ΔE do `tier-hard` 0,1217 (čip je ~40 px iznad) — referenca: ravni `--primary`
-     ima 0,1525, dakle gradijent troši dio rezerve, ali ostaje daleko od 0,05. */
+     A.1 (2026-08-10): tamni kraj spušten 0.90→0.85 po kriteriju „mora se vidjeti";
+     pikselni Δ kroz površinu R 40 · G 37 (prije R 24 · G 22; B ~5 jer pri vrhu
+     gamuta B nema kamo — svojstvo svijetlog kraja, ne mana).
+     Tamni tekst 11,30 / 13,73 / 16,51 · fill vs `card` isto (najgore 11,30).
+     ΔE do `tier-hard` 0,0734 na startu (čip je ~40 px iznad) — referenca: ravni
+     `--primary` ima 0,1525; guard ≥0,05 drži s rezervom. */
   --grad-cta: linear-gradient(
     100deg,
-    oklch(0.9 0.045 280) 0%,
-    oklch(0.935 0.029 280) 50%,
+    oklch(0.85 0.065 280) 0%,
+    oklch(0.91 0.039 280) 50%,
     oklch(0.97 0.013 280) 100%
   );
-  /* Dot-grid (t.3). Jedna točka po ćeliji 24×24, iz `--border` baze, alfa 3,5 %.
-     🔴 Namjerno NIŽA alfa od glowa: mreža pokriva CIJELU plohu, pa se njezin
-     doprinos zbraja preko svakog piksela teksta, dok je glow lokalan.
-     Mjereno u najgušćoj točki, nad `background`:
-       sama mreža @ 3,5 %      `foreground` 18,16 → 17,46 · `muted-fg` 7,61 → 7,31
-       mreža + glow (najgore)  `foreground` 18,16 → 16,28 · `muted-fg` 7,61 → 6,82
-     Oba su daleko iznad AA 4,50. `-soft` plohe su neprozirne → ne dira ih. */
+  /* Dot-grid (t.3; alfa A.1, 2026-08-10). Jedna točka po ćeliji 24×24, iz
+     `--border` baze. Alfa 3,5 % → 12 %: stari kriterij je čuvao samo kontrast,
+     kriterij vidljivosti nije postojao — pikselni Δ bio je 7/7/7 (nevidljivo).
+     Sada IZMJERENO na snimci @1440 dpr1: Δ 21/21/23 po kanalu (prag ≥15).
+     Kontrast unatrag, nad `background`:
+       sama mreža @ 12 %       `foreground` 18,16 → 15,20 · `muted-fg` 7,61 → 6,37
+       mreža + glow (najgore)  `foreground` 11,31 · `muted-fg` 4,74 (konzervativno:
+       glow PUNE alfe, iako mu je centar izvan kadra; s izmjerenim faktorom
+       najjače vidljive točke 0,62 → 12,77 · 5,35)
+     AA 4,50 drži u OBJE konvencije. `-soft` plohe su neprozirne → ne dira ih. */
   --dot-grid: radial-gradient(
-    oklch(0.78 0.05 280 / 3.5%) 1px,
+    oklch(0.78 0.05 280 / 12%) 1px,
     transparent 1.4px
   );
-  /* Pozadinski glow. Alfa 6 % — `foreground` 18,16 → 17,13, `muted-foreground`
-     7,61 → 7,18. `-soft` plohe su NEPROZIRNE (alpha = 1,00, provjereno na sve
-     četiri), pa glow ispod njih fizički ne prolazi i ne može ih razbiti. */
+  /* Pozadinski glow (alfa A.1, 2026-08-10). Centar je na (85 %, −10 %) — IZVAN
+     kadra, pa najjača točka koja se uopće vidi nosi ~0,62 pune alfe (izmjereno).
+     Alfa 6 % → 18 % (glow-b drži omjer 3:2 → 12 %): na 6 % je vidljivi pikselni
+     Δ bio 4/4/7 (nevidljivo); sada IZMJERENO 13/14/21 — B kanal (nositelj h280
+     boje) iznad praga 15, R/G na granici. Sve kanale ≥15 daje tek α 24 %, ali
+     ta uz dot 12 % ruši `muted-fg` na 4,24 u konzervativnoj konvenciji — svjesno
+     odbijeno. Sam glow (puna α): `foreground` 14,40 · `muted-fg` 6,03.
+     `-soft` plohe su NEPROZIRNE (alpha = 1,00, provjereno na sve četiri), pa
+     glow ispod njih fizički ne prolazi i ne može ih razbiti. */
   --glow-a: radial-gradient(
     900px 500px at 85% -10%,
-    oklch(0.68 0.13 280 / 6%),
+    oklch(0.68 0.13 280 / 18%),
     transparent 60%
   );
   --glow-b: radial-gradient(
     700px 400px at -10% 110%,
-    oklch(0.68 0.13 280 / 4%),
+    oklch(0.68 0.13 280 / 12%),
     transparent 60%
   );
 

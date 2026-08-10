@@ -368,14 +368,20 @@ zato odbijen: prvi kraj je **ΔE 0,0345 od `tier-medium`** (sukorišteni par —
 drukčije, a sve su brojke ispod mjerene na **oklch-sredini**. Bez upisanog srednjeg stopa
 mjerenje ne opisuje ono što se renderira.
 
-### Što je izmjereno (2026-08-10, `--grad-*` u `index.css`)
+### Što je izmjereno (2026-08-10, `--grad-*` u `index.css`; CTA i glow revidirani u r3 A.1)
 
 | gradijent | raspon | najgori kontrast | ΔE do najbližeg sukorištenog |
 |---|---|:---:|:---:|
 | `--grad-brand` (ikona) | `0,55 0,15` → `0,78 0,11` | 3,56 vs `sidebar` | — (skup je **prazan**) |
 | `--grad-wordmark` | `0,60 0,155` → `0,90 0,045` | 4,38 vs `sidebar` | — (skup je **prazan**) |
-| `--grad-cta` | `0,90 0,045` → `0,97 0,013` | **13,30** (tamni tekst) · 13,30 (fill vs `card`) | **0,1217** (`tier-hard`) |
-| `--glow-a` / `--glow-b` | h280 @ 6 % / 4 % | `foreground` 18,16 → **17,13** | — |
+| `--grad-cta` (r3 A.1) | `0,85 0,065` → `0,97 0,013` | **11,30** (tamni tekst) · 11,30 (fill vs `card`) | **0,0734** (`tier-hard`) |
+| `--glow-a` / `--glow-b` (r3 A.1) | h280 @ 18 % / 12 % | `foreground` 18,16 → **14,40** (puna α) | — |
+
+⟳ **r3 A.1 (2026-08-10):** CTA start `0,90 0,045` → `0,85 0,065` po pikselnom kriteriju
+vidljivosti (§3.3): Δ kroz površinu **R 24 · G 22 → R 40 · G 37** (B ~5 — pri vrhu gamuta
+B nema kamo, v. (a) niže). Napomena poštenja: **stari CTA je prag R/G ≥ 15 već prolazio**;
+raspon je proširen odlukom o istaknutosti, ne zbog pada na pragu. ΔE do `tier-hard`
+0,1217 → 0,0734 — guard ≥ 0,05 i dalje drži (ravni `--primary`: 0,1525).
 
 **Sidebar nema nijedan semantički token** (`grep` nad `AppShell.tsx`: nav je
 `muted-foreground`, aktivna stavka `sidebar-accent`) → ondje ograničenja ΔE nema, pa brand
@@ -502,20 +508,41 @@ promjenu sheme), ne za CSS.
 
 ---
 
-## 3.3 Dot-grid i glow (Faza 4.7-r2)
+## 3.3 Dot-grid i glow (Faza 4.7-r2 · alfe revidirane u r3 A.1)
 
-`body` nosi tri sloja preko `--background`: `--dot-grid` (24×24 px, alfa 3,5 %) i dva
-radijalna glowa (6 % i 4 %), svi h280, svi `background-attachment: fixed` da ne putuju sa
-skrolom.
+`body` nosi tri sloja preko `--background`: `--dot-grid` (24×24 px, alfa 12 %) i dva
+radijalna glowa (18 % i 12 %), svi h280, svi `background-attachment: fixed` da ne putuju
+sa skrolom.
+
+⟳ **r3 A.1 (2026-08-10): alfe 3,5 % → 12 % i 6/4 % → 18/12 %.** r2 alfe birane su samo
+po kriteriju „ne smije pokvariti kontrast"; kriterij „mora se vidjeti" nije postojao.
+Zato je postavljen **pikselni kriterij vidljivosti: Δ ≥ 15 po sRGB kanalu KROZ površinu**,
+mjereno na snimci živog Dashboarda @1440 (dpr 1), ne okom. r2 vrijednosti su taj prag
+promašivale višestruko — efekt plaćen, a nevidljiv:
+
+| mjera (pikseli sa snimke) | r2 | **r3** | prag ≥15 |
+|---|:---:|:---:|---|
+| dot-grid, vrh točke, Δ R·G·B | 7·7·7 | **21·21·23** | ✓ sva tri kanala |
+| glow, najjača vidljiva točka, Δ R·G·B | 4·4·7 | **13·14·21** | ✓ na B (nositelj h280 boje); R/G na granici |
+
+🔴 **Glow ima strop, ne samo prag.** Centar (85 %, −10 %) je IZVAN kadra, pa najjača
+točka koja se uopće vidi nosi ~0,62 pune alfe (izmjereno). Sva tri kanala ≥ 15 dala bi
+tek α 24 % — ali ta uz dot 12 % ruši `muted-foreground` na 4,24 konzervativno → **svjesno
+odbijeno**. Kandidati 9/12/15 % (dot) i 12/18/24 % (glow) izmjereni su i snimljeni
+(artifact „A.1 — kandidati alfe", 2026-08-10).
+
+Kontrast unatrag (2026-08-10):
 
 | sloj | `foreground` | `muted-foreground` |
 |---|:---:|:---:|
 | čista `background` | 18,16 | 7,61 |
-| + dot-grid 3,5 % | 17,46 | 7,31 |
-| + glow 6 % | 17,13 | 7,18 |
-| **+ oboje (najgore)** | **16,28** | **6,82** |
+| + dot-grid 12 % | 15,20 | 6,37 |
+| + glow 18 % (puna α) | 14,40 | 6,03 |
+| **+ oboje, konzervativno (glow puna α)** | **11,31** | **4,74** |
+| + oboje, najgora točka U KADRU (glow × 0,62) | 12,77 | 5,35 |
 
-Oba su daleko iznad AA 4,50. 🔴 Dot-grid ima **nižu** alfu od glowa namjerno: mreža
-pokriva **cijelu** plohu, pa se njezin doprinos zbraja preko svakog piksela teksta, dok je
-glow lokalan. `-soft` plohe su neprozirne (alpha = 1,00) → pozadina ispod njih se ne vidi i
-ne može ih razbiti.
+AA 4,50 drži u **obje** konvencije. Konvencija „glow pune alfe" naslijeđena je iz r2 i
+konzervativna je: ta točka fizički nikad nije na zaslonu. 🔴 Dot-grid i dalje ima **nižu**
+alfu od glowa namjerno: mreža pokriva **cijelu** plohu, pa se njezin doprinos zbraja preko
+svakog piksela teksta, dok je glow lokalan. `-soft` plohe su neprozirne (alpha = 1,00) →
+pozadina ispod njih se ne vidi i ne može ih razbiti.

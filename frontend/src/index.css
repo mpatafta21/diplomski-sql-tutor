@@ -148,15 +148,12 @@
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
   /* KORIŠTEN — FeedbackPanel.tsx:130,169,185 (XP čip, level-up, badge unlock). */
   --ease-reward: cubic-bezier(0.34, 1.25, 0.64, 1);
-  --duration-instant: 100ms;
-  --duration-fast: 160ms;
-  --duration-base: 240ms;
-  --duration-slow: 400ms;
-  /* ⚠️ NEKORIŠTEN (provjereno grepom 2026-07-26: 0 pogodaka na `duration-reward`
-     u frontend/src). Bio je rezerviran za count-up envelope Faze 4.6 — a 4.6 je
-     REZANA, pa mu potrošač više ni ne dolazi. OSTAJE u skali radi cjelovitosti
-     ljestvice trajanja (instant→fast→base→slow→reward), ne kao najava rada. */
-  --duration-reward: 700ms;
+  /* 🔴 NALAZ N-18 (2026-08-10): `--duration-*` OVDJE u @theme NIJE utility
+     namespace u Tailwindu v4 — klase `duration-fast/base/…` se NISU generirale,
+     varijable se nisu ni emitirale (tree-shake), pa je SVAKA tranzicija u
+     aplikaciji tiho radila na TW defaultu 150 ms. Tokeni trajanja zato žive u
+     `:root` (uvijek emitirani), a klase gradi eksplicitni `@utility` most niže.
+     `--ease-*` JE prepoznati namespace i ostaje ovdje. */
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -171,6 +168,14 @@
    ══════════════════════════════════════════════════════════════════════════ */
 :root {
   --radius: 0.625rem;
+  /* ── Motion trajanja (MASTER §5; N-18: preseljena iz @theme jer ondje nisu
+     imala učinak). Ljestvica instant→fast→base→slow→reward. ── */
+  --duration-instant: 100ms;
+  --duration-fast: 160ms;
+  --duration-base: 240ms;
+  --duration-slow: 400ms;
+  /* Rezerviran za count-up envelope 4.6 — potrošač stiže u B.5 (FeedbackPanel). */
+  --duration-reward: 700ms;
   --background: oklch(0.145 0.032 280);
   --foreground: oklch(0.97 0.013 280);
   --card: oklch(0.205 0.048 280);
@@ -382,6 +387,37 @@
   --difficulty-expert-foreground: oklch(0.145 0 0);
   --difficulty-cross-module: oklch(0.68 0.03 345);
   --difficulty-cross-module-foreground: oklch(0.145 0 0);
+}
+
+/* ── @utility most za trajanja (N-18) ────────────────────────────────────────
+   Tailwind v4 nema namespace za IMENOVANA trajanja, pa `duration-<ime>` klase
+   gradimo eksplicitno. Pokrivaju TRANZICIJE i ANIMACIJE (tw-animate čita
+   `--tw-duration`), čime postojeći potrošači (sheet, nav, kartice) prvi put
+   stvarno dobivaju tokenska trajanja umjesto defaulta 150 ms. */
+@utility duration-instant {
+  --tw-duration: var(--duration-instant);
+  transition-duration: var(--duration-instant);
+  animation-duration: var(--duration-instant);
+}
+@utility duration-fast {
+  --tw-duration: var(--duration-fast);
+  transition-duration: var(--duration-fast);
+  animation-duration: var(--duration-fast);
+}
+@utility duration-base {
+  --tw-duration: var(--duration-base);
+  transition-duration: var(--duration-base);
+  animation-duration: var(--duration-base);
+}
+@utility duration-slow {
+  --tw-duration: var(--duration-slow);
+  transition-duration: var(--duration-slow);
+  animation-duration: var(--duration-slow);
+}
+@utility duration-reward {
+  --tw-duration: var(--duration-reward);
+  transition-duration: var(--duration-reward);
+  animation-duration: var(--duration-reward);
 }
 
 @layer base {

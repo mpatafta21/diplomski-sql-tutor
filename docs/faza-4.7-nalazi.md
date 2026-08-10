@@ -1052,3 +1052,43 @@ kroz hamburger); `Esc` zatvara drawer i vraća fokus na trigger (provjereno).
 
 Napomena za B t.3 (klizni nav indikator): raspored je sada konačan — `offsetTop`
 geometrija nav stavki mjeri se NAKON ovog obrata, kako je stage 3 i propisao.
+
+---
+
+## N-18 🔴 Motion trajanja bez učinka — `--duration-*` u `@theme` nije utility namespace (TW v4)
+
+**Datum:** 2026-08-10 · **otkriveno:** B.3, mjerenjem tranzicije kliznog indikatora
+
+### Simptom
+
+Klizni nav indikator deklarira `duration-base` (240 ms), izmjereno `transitionDuration:
+0.15s` — Tailwindov default. Probe nad `:root`: `--duration-base` **ne postoji** u
+runtime CSS-u; klase `duration-fast/base/slow/instant` **ne generiraju ništa**.
+
+### Uzrok
+
+`--ease-*` JE prepoznati theme namespace u Tailwindu v4 (zato easing radi), ali
+`--duration-*` s IMENOVANIM stupnjevima NIJE — klase se ne generiraju, a neiskorištene
+@theme varijable se tree-shakeaju iz emisije. Posljedica: **svaka tranzicija u
+aplikaciji od 4.1b radila je na defaultu 150 ms**, uključujući drawer čiji komentar
+(i MASTER §5) tvrdi „ulaz 240 / izlaz 160 ms" — brojke su bile SPECIFIKACIJA, ne
+izmjereno stanje.
+
+### Poučak (zrcalo `--font-heading` poučka iz r2)
+
+r2: „token koji je alias nema vidljive potrošače, ali ih ima." N-18 je obrat:
+**potrošači koji postoje u kodu nemaju učinak.** Grep po imenu klase (`duration-base`
+— 10+ pogodaka) izgleda kao dokaz da sustav radi; dokaz o UČINKU je jedino
+`getComputedStyle` nad živim elementom. Ista lekcija, drugi smjer.
+
+### Zahvat
+
+Tokeni trajanja preseljeni u `:root` (uvijek emitirani); klase gradi eksplicitni
+`@utility` most (`transition-duration` + `animation-duration` + `--tw-duration` za
+tw-animate). Izmjereno nakon zahvata: `duration-base` → 0.24s, `duration-fast` →
+0.16s ✅. Reduced-motion guard nadjačava oboje i dalje (`!important`).
+
+### Posljedica za MASTER §5
+
+Brojke u §5 od danas su i IZMJERENE, ne samo propisane. Drawer ulaz/izlaz sada
+stvarno 240/160 ms — prije je oboje bilo 150 ms.

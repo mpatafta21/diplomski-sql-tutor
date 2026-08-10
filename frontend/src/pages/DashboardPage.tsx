@@ -106,7 +106,8 @@ export function DashboardPage() {
   // Jedan zajednički page-shell za obje varijante (fresh/normal) — razlika je
   // samo copy + trailing sekcije, da promjene shella ne treba raditi dvaput.
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    // `stagger-cards` (B.2): entrance stagger direktne djece — v. index.css.
+    <div className="stagger-cards mx-auto max-w-5xl space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">
           {isFresh ? `Dobrodošao, ${user?.username}` : `Bok, ${user?.username}`}

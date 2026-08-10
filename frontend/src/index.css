@@ -429,6 +429,42 @@
     font-family: var(--font-mono);
   }
 
+  /* ── ENTRANCE STAGGER (B.2/4.6) ──────────────────────────────────────────
+     Direktna djeca označenog PAGE ROOTA ulaze fade + translateY, kaskadno po
+     `nth-child` (60 ms korak, unutar 50–90 iz specifikacije), kapa na 7.
+     `backwards` drži elemente nevidljivima TIJEKOM delaya.
+     🔴 NE primjenjuje se na Task screen — editor mora biti odmah spreman;
+     klasa stoji samo na RIJEŠENIM granama Dashboarda, Modula, Profila i
+     Ljestvice (loading/error grane ne trebaju dodatnu latenciju percepcije).
+     Reduced motion: globalni guard ruši i trajanje I delay (v. dolje). */
+  @keyframes enter-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+  .stagger-cards > * {
+    animation: enter-up var(--duration-slow) var(--ease-entrance) backwards;
+  }
+  .stagger-cards > :nth-child(2) {
+    animation-delay: 60ms;
+  }
+  .stagger-cards > :nth-child(3) {
+    animation-delay: 120ms;
+  }
+  .stagger-cards > :nth-child(4) {
+    animation-delay: 180ms;
+  }
+  .stagger-cards > :nth-child(5) {
+    animation-delay: 240ms;
+  }
+  .stagger-cards > :nth-child(6) {
+    animation-delay: 300ms;
+  }
+  .stagger-cards > :nth-child(n + 7) {
+    animation-delay: 360ms;
+  }
+
   /* MASTER.md §7: cursor-pointer na svemu klikabilnom. Tailwind v4 preflight
      buttonima daje cursor:default — globalni override, ne per-komponenta. */
   button:not(:disabled),

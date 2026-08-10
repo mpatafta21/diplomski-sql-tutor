@@ -52,7 +52,8 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    // `stagger-cards` (B.2): entrance stagger direktne djece — v. index.css.
+    <div className="stagger-cards mx-auto max-w-5xl space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Profil</h1>
         <p className="text-sm text-muted-foreground">

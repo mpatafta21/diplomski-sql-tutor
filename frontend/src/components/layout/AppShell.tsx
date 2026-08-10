@@ -80,14 +80,28 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-svh">
+      {/* Jedan <defs> za cijelu aplikaciju — lucide ikone crtaju `stroke`, pa im
+          gradijent mora doći kroz SVG referencu, ne kroz CSS `background`.
+          Srednji stop je upisan jer SVG interpolira u sRGB, a brojke su mjerene
+          na oklch-sredini (v. `--grad-brand` u index.css). */}
+      <svg width="0" height="0" aria-hidden="true" className="absolute">
+        <defs>
+          <linearGradient id="brand-grad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="oklch(0.55 0.15 280)" />
+            <stop offset="50%" stopColor="oklch(0.665 0.13 280)" />
+            <stop offset="100%" stopColor="oklch(0.78 0.11 280)" />
+          </linearGradient>
+        </defs>
+      </svg>
+
       {/* Sidebar — desktop primaran (plan §4.7); na užem ekranu skrivena, header ostaje. */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-5">
           <Database
-            className="size-5 text-accent-warm-text"
+            className="size-5 [stroke:url(#brand-grad)]"
             aria-hidden="true"
           />
-          <span className="text-base font-semibold tracking-tight">
+          <span className="bg-[image:var(--grad-wordmark)] bg-clip-text text-base font-semibold tracking-tight text-transparent">
             SQL Tutor
           </span>
         </div>
@@ -99,10 +113,12 @@ export function AppShell() {
           {/* Mobilni brand (sidebar skrivena) */}
           <div className="flex items-center gap-2 md:hidden">
             <Database
-              className="size-5 text-accent-warm-text"
+              className="size-5 [stroke:url(#brand-grad)]"
               aria-hidden="true"
             />
-            <span className="font-semibold">SQL Tutor</span>
+            <span className="bg-[image:var(--grad-wordmark)] bg-clip-text font-semibold text-transparent">
+              SQL Tutor
+            </span>
           </div>
           <div className="hidden md:block" />
 

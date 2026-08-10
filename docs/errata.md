@@ -329,3 +329,59 @@ uputa je bila „minimalno i samo ako mjerenje pokaže da treba". 🔴 **Ali kla
 ostati tiho:** `palette.py` treba upozoriti kad ulazna vrijednost izađe iz gamuta, umjesto
 da vrati brojku za boju koja nije deklarirana. To je popravak **harnessa**, ne palete, i
 zapisuje se kao stavka za stage u kojem se harness ionako dira.
+
+---
+
+## #53 🔴 `--accent-warm-text` na brand marku i još tri mjesta krši §2.1
+
+**Status:** 🔴 zatečeno · brand mark **popravljen u 4.7-r2**, ostala tri **otvorena**
+· revidirano 2026-08-10
+
+MASTER §2.1 kaže za topli amber: *„Rezerviran ISKLJUČIVO za: XP, level, streak, badge,
+progres, CTA 'sljedeći zadatak'. **Ne koristi se za dekoraciju, navigaciju ni neutralne
+akcije.**"*
+
+🔴 **Zapisuje se SAMOSTALNO iako ga na brandu popravlja tuđa promjena** (gradijent iz
+4.7-r2 t.4). Obrazac #48: nalaz koji rješava tuđa izmjena mora imati vlastiti broj, inače
+tiho nestane i vrati se neprimijećen kad se ta izmjena ikad povuče.
+
+### Puna revizija svih 19 potrošača
+
+```
+$ grep -rn "accent-warm-text" frontend/src --include=*.tsx --include=*.ts
+```
+
+| # | mjesto | što nosi | §2.1 |
+|---|---|---|:---:|
+| 1 | `AppShell.tsx:87` | **brand ikona, sidebar** | 🔴 dekoracija |
+| 2 | `AppShell.tsx:102` | **brand ikona, mobilni header** | 🔴 dekoracija |
+| 3 | `AdminPage.tsx:172` | „Poslužitelj vraća najviše 200 zapisa — suzi filtrom" | 🔴 **sistemska poruka o limitu** |
+| 4 | `AgentFlowCard.tsx:79` | čip „duplikat zabilježenog prometa" | 🔴 **oznaka anomalije podataka** |
+| 5 | `AgentFlowCard.tsx:149` | „N duplikata" | 🔴 isto |
+| 6 | `LeaderboardTable.tsx:79,86` | ikona + „(ti)" na vlastitom retku | 🟡 **granično** — ljestvica jest gamifikacija, ali „(ti)" je oznaka identiteta, ne napredak |
+| 7 | `ProgressHero.tsx:26,59` | level, streak | ✅ |
+| 8 | `FeedbackPanel.tsx:147,169` | XP čip, level-up | ✅ |
+| 9 | `AttemptRow.tsx:67` | „+N XP" | ✅ |
+| 10 | `BadgeGallery.tsx:72,96` · `BadgeStrip.tsx:51` | bedževi | ✅ |
+| 11 | `ContinueCard.tsx:93` · `TaskEntryPage.tsx:76` | `PartyPopper` kad je sve savladano | ✅ progres |
+| 12 | `ContinueCard.tsx:118` | eyebrow „POČNI OVDJE" / „NASTAVI OVDJE" nad CTA-om | ✅ CTA kontekst |
+| 13 | `ConceptCurveDetail.tsx:153` | label „prag ovladanosti" na grafu | ✅ progres |
+
+**Ukupno: 4 jasna prekršaja (2 popravljena), 1 granično, 14 ispravnih.**
+
+### Što je popravljeno, a što nije
+
+**Popravljeno (#1, #2):** brand mark sada nosi `--grad-brand` (h280), ne amber. Time
+prestaje tvrditi „ovo je napredak" na mjestu koje je čista brand identifikacija.
+
+**NIJE popravljeno (#3, #4, #5) — i to je svjesno:** sva tri su na **admin ekranu**, koji
+student nikad ne vidi, a sva tri semantički označavaju **anomaliju/upozorenje**, ne
+napredak. Ispravan token za njih ne postoji: `--partial` je verdict studentskog rada,
+`--incorrect` je greška studenta, a `--neutral`/`--neutral-soft` je ono što N-10 tek treba
+dobiti. Popravak je dakle **vezan uz N-10** (uvođenje sistemske, ne-verdict semantike) i
+ide s njim u stage 2, ne prije. Dotad je ovdje zapisano da nije previd nego odgoda.
+
+**#6 ostaje granično i NE dira se.** Boja ondje nije jedini kanal — uz nju stoje ikona i
+tekst „(ti)" (`LeaderboardTable.tsx:84-88`, s vlastitim komentarom „Tekstualni kanal —
+oznaka ne smije biti samo boja/ikona"). Ako se §2.1 ikad proširi, ovo je prvi kandidat za
+eksplicitno dopuštenje, ne za promjenu koda.

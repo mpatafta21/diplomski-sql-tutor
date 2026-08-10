@@ -197,6 +197,60 @@
   --sidebar-border: oklch(0.78 0.05 280 / 15%);
   --sidebar-ring: oklch(0.62 0 0);
 
+  /* ══ GRADIJENTI (Faza 4.7-r2, t.4) ══════════════════════════════════════════
+     🔒 GRANICA: gradijent je ZABRANJEN gdje element može čitati kao NOSITELJ
+     STATUSA (trake napretka, čipovi, bedževi, verdict plohe, bilo što uz
+     tier/mastery). Dopušten je na chromeu koji status ne nosi.
+     🔒 SVI su JEDNOHUENI (h280) — putuju samo L i C. Prelazak hue-pojasa bi ušao
+     u prostor neke skale; upravo zato mockupov par 293,5° → 214,5° NIJE ušao
+     (ΔE 0,0345 od `tier-medium`, izmjereno).
+     ⚠️ Srednji stop je UPISAN, ne prepušten: CSS interpolira u sRGB ako se ne
+     kaže drukčije, a sve su brojke ispod mjerene na oklch-sredini.
+     ⚠️ `scripts/a11y` NE mjeri gradijente (parser čita samo `--x: oklch(…)`).
+     Brojke uz svaki su izmjerene ručno; postupak je u MASTER §2.8. */
+
+  /* Brand ikona (AppShell). Sukorišteni skup je PRAZAN — u sidebaru nema nijednog
+     semantičkog tokena. Logotip je izuzet od 1.4.3/1.4.11; 3,56:1 na najtamnijem
+     kraju je mjera VIDLJIVOSTI, ne zahtjev. */
+  --grad-brand: linear-gradient(
+    135deg,
+    oklch(0.55 0.15 280) 0%,
+    oklch(0.665 0.13 280) 50%,
+    oklch(0.78 0.11 280) 100%
+  );
+  /* Wordmark „SQL Tutor". Širi raspon od ikone jer je tekst veći i nosi brand ime.
+     Najtamniji kraj 4,38:1 prema `sidebar` (referenca: `foreground` = 16,51). */
+  --grad-wordmark: linear-gradient(
+    100deg,
+    oklch(0.6 0.155 280) 0%,
+    oklch(0.75 0.1 280) 50%,
+    oklch(0.9 0.045 280) 100%
+  );
+  /* CTA „Otvori zadatak" (ContinueCard). Ostaje SVIJETLI fill s tamnim tekstom —
+     hijerarhija se nosi svjetlinom (KORAK 0 §C.3), gradijent je unutar nje.
+     Tamni tekst 13,30 / 14,85 / 16,51 · fill vs `card` isto (najgore 13,30).
+     ΔE do `tier-hard` 0,1217 (čip je ~40 px iznad) — referenca: ravni `--primary`
+     ima 0,1525, dakle gradijent troši dio rezerve, ali ostaje daleko od 0,05. */
+  --grad-cta: linear-gradient(
+    100deg,
+    oklch(0.9 0.045 280) 0%,
+    oklch(0.935 0.029 280) 50%,
+    oklch(0.97 0.013 280) 100%
+  );
+  /* Pozadinski glow. Alfa 6 % — `foreground` 18,16 → 17,13, `muted-foreground`
+     7,61 → 7,18. `-soft` plohe su NEPROZIRNE (alpha = 1,00, provjereno na sve
+     četiri), pa glow ispod njih fizički ne prolazi i ne može ih razbiti. */
+  --glow-a: radial-gradient(
+    900px 500px at 85% -10%,
+    oklch(0.68 0.13 280 / 6%),
+    transparent 60%
+  );
+  --glow-b: radial-gradient(
+    700px 400px at -10% 110%,
+    oklch(0.68 0.13 280 / 4%),
+    transparent 60%
+  );
+
   /* ═══ Prošireni tokeni (MASTER.md §2, AA-verificirano) ═══ */
   /* Semantika verdicta — partial je AKTIVAN od 4.3c (ERRATA #8 revidiran) */
   --correct: oklch(0.75 0.15 150);
@@ -268,6 +322,11 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Glow: dva radijala nad plohom. `background-attachment: fixed` drži ih uz
+       viewport, pa ne putuju sa skrolom i ne stvaraju pojas na dugim stranicama.
+       Boja ostaje `--background` kao zadnji sloj — glow je NAD njom, ne umjesto. */
+    background-image: var(--glow-a), var(--glow-b);
+    background-attachment: fixed;
   }
   html {
     @apply font-sans;

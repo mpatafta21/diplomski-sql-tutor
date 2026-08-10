@@ -341,3 +341,68 @@ brojevi = chart-2 teal, komentari = muted, funkcije = chart-3 violet.
 - [ ] Loading=skeleton / empty / error / success stanja dizajnirana
 - [ ] Dark I light provjereni (dark-first, light ravnopravan)
 - [ ] Responsive: 1440/1024 primarno, 768 upotrebljivo
+
+---
+
+## 2.8 Gradijenti — granica, i zašto je pomaknuta
+
+⟳ **Faza 4.7-r2.** Do r2 je zabrana bila globalna (KORAK 0 §R-2: „gradijent iz mockupa ne
+ulazi"). To je bilo **pretjerano**: zabranjivalo je i mjesta koja ne nose status. Granica je
+pomaknuta na pravilo koje se može provjeriti:
+
+> **Gradijent je ZABRANJEN gdje element može čitati kao NOSITELJ STATUSA.**
+> Dopušten je na chromeu koji status ne nosi.
+
+| ZABRANJENO | DOPUŠTENO |
+|---|---|
+| trake napretka · čipovi · bedževi · verdict plohe · **bilo što uz tier/mastery/verdict** | brand ikona · wordmark · pozadinski glow · hairline/separator · hover obrub kartice · aktivni nav indikator (nosi poziciju, ne status) · **CTA gumb** |
+
+### 🔒 Dvije invarijante
+
+**1. Svaki gradijent je JEDNOHUEN (h280) — putuju samo L i C.** Prelazak hue-pojasa ulazi u
+prostor neke skale. Mockupov `--grad-primary` (`#A78BFA` h≈293,5 → `#38D6F5` h≈214,5) je
+zato odbijen: prvi kraj je **ΔE 0,0345 od `tier-medium`** (sukorišteni par — Submit i
+`ConceptChip` su na istom ekranu), drugi leži unutar mastery pojasa 190–260.
+
+**2. Srednji stop se UPISUJE, ne prepušta.** CSS i SVG interpoliraju u sRGB ako se ne kaže
+drukčije, a sve su brojke ispod mjerene na **oklch-sredini**. Bez upisanog srednjeg stopa
+mjerenje ne opisuje ono što se renderira.
+
+### Što je izmjereno (2026-08-10, `--grad-*` u `index.css`)
+
+| gradijent | raspon | najgori kontrast | ΔE do najbližeg sukorištenog |
+|---|---|:---:|:---:|
+| `--grad-brand` (ikona) | `0,55 0,15` → `0,78 0,11` | 3,56 vs `sidebar` | — (skup je **prazan**) |
+| `--grad-wordmark` | `0,60 0,155` → `0,90 0,045` | 4,38 vs `sidebar` | — (skup je **prazan**) |
+| `--grad-cta` | `0,90 0,045` → `0,97 0,013` | **13,30** (tamni tekst) · 13,30 (fill vs `card`) | **0,1217** (`tier-hard`) |
+| `--glow-a` / `--glow-b` | h280 @ 6 % / 4 % | `foreground` 18,16 → **17,13** | — |
+
+**Sidebar nema nijedan semantički token** (`grep` nad `AppShell.tsx`: nav je
+`muted-foreground`, aktivna stavka `sidebar-accent`) → ondje ograničenja ΔE nema, pa brand
+smije biti pun i vidljiv. Logotip je uz to **izuzet od 1.4.3/1.4.11**; 3,56:1 je mjera
+vidljivosti, ne zahtjev.
+
+### 🔴 Tri stvari koje su gradijente OBLIKOVALE, a nisu očite
+
+**(a) sRGB gamut na h280 se ruši prema bijelom.** `C max` = 0,102 @ L 0,80 → 0,049 @ L 0,90
+→ **0,014 @ L 0,97**. Zato svijetli CTA gradijent ne može biti jako obojen; prvi predloženi
+(`0,88 0,06 → 0,97 0,02`) bio je **izvan gamuta na oba kraja**.
+
+**(b) Postoji mrtvi pojas svjetline L 0,557–0,606 u kojem NIJEDAN tekst ne prolazi AA** na
+h280 fillu: svijetli `foreground` pada ispod 4,50 iznad L 0,557, tamni `primary-foreground`
+ispod 4,50 ispod L 0,606. Gradijent koji taj pojas presijeca nema upotrebljivu boju teksta.
+Prvi predloženi CTA (`0,45 → 0,68`) presijecao ga je po sredini.
+
+**(c) Tamni CTA je odbijen zbog SC 1.4.11, ne zbog ΔE.** Ispunjen gumb se identificira
+ispunom, pa mu granica prema plohi traži 3:1; tamni raspon `0,47 → 0,55` daje **2,43 vs
+`card`**. Uz to bi degradirao hijerarhiju: današnji CTA je najsvjetliji element na kartici.
+**Zato CTA ostaje SVIJETLI fill s tamnim tekstom — gradijent živi unutar te svjetline.**
+
+### Što NIJE dobilo gradijent, i zašto
+
+**Vlastito ime u naslovu** („Bok, **admin**"). Ime je **sadržaj** → traži AA 4,50 na
+najtamnijem kraju, što pri h280 znači L ≥ 0,584. Ali pretraga cijelog prostora
+(L 0,60–0,95 × C 0,08–0,18) daje **nula kandidata** koji istovremeno drže AA i ΔE ≥ 0,10
+prema tier skali — svaki dovoljno svijetao ton je preblizu `tier-hard` (`0,80 0,11 300`).
+Jedina prohodna varijanta bila je tint 0,90 → 0,97, efekt koji se ne vidi. **Ime ostaje
+puni `foreground`.** Proračun je umjesto toga otišao u wordmark, gdje ograničenja nema.

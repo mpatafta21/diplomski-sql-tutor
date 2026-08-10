@@ -3,7 +3,7 @@
  * Vuče 4.1b tokene (sidebar-* set); od 4.7 je aplikacija dark-only. Nav NIJE skica — sve su stavke
  * prave rute od 4.6-evala (vidi NAV_ITEMS ispod). Admin stavka je role-gated.
  */
-import { useState } from "react"
+import { useLayoutEffect, useRef, useState } from "react"
 import { NavLink, Outlet, useLocation } from "react-router-dom"
 import {
   BookOpen,
@@ -71,12 +71,58 @@ const SECTION_HEADER =
  */
 function SidebarNav({ onNavigate }: { onNavigate?: () => void } = {}) {
   const { user } = useAuth()
+  const location = useLocation()
+  const navRef = useRef<HTMLElement>(null)
+  // Klizni aktivni indikator (B.3/4.6): pozicija se MJERI iz DOM-a
+  // (`offsetTop`/`offsetHeight` aktivne stavke), kao u 1C — ne izvodi se iz
+  // indeksa. `visible: false` dok prvo mjerenje ne prođe; prvi kadar se
+  // postavlja BEZ tranzicije da pill ne doleti s vrha pri mountu (bitno i za
+  // drawer, koji se mounta pri svakom otvaranju).
+  const [pill, setPill] = useState({ top: 0, height: 0, visible: false })
+  const measuredOnce = useRef(false)
+
+  useLayoutEffect(() => {
+    const active = navRef.current?.querySelector<HTMLAnchorElement>(
+      'a[aria-current="page"]',
+    )
+    if (!active) {
+      measuredOnce.current = false
+      setPill((p) => ({ ...p, visible: false }))
+      return
+    }
+    setPill({
+      top: active.offsetTop,
+      height: active.offsetHeight,
+      visible: true,
+    })
+    // Tranzicija se uključuje tek NAKON kadra s prvim mjerenjem.
+    const raf = requestAnimationFrame(() => {
+      measuredOnce.current = true
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [location.pathname, user?.role])
 
   return (
     <nav
+      ref={navRef}
       aria-label="Glavna navigacija"
-      className="flex flex-1 flex-col gap-1 p-3"
+      className="relative flex flex-1 flex-col gap-1 p-3"
     >
+      {/* Indikator je ISPOD stavki (stavke su `relative`), izvan tab-reda i
+          čitača (`aria-hidden`, `pointer-events-none`) — fokus-trap drawera i
+          tab-red ostaju netaknuti. Globalni reduced-motion guard ruši trajanje
+          tranzicije; ciljna pozicija je ista, pa dodatni guard ne treba. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-3 w-[calc(100%-1.5rem)] rounded-lg bg-sidebar-accent transition-[transform,height] duration-base ease-standard"
+        style={{
+          transform: `translateY(${pill.top}px)`,
+          height: pill.height,
+          top: 0,
+          opacity: pill.visible ? 1 : 0,
+          transitionProperty: measuredOnce.current ? undefined : "none",
+        }}
+      />
       {NAV_GROUPS.map((group) => (
         <div key={group.label}>
           <div className={SECTION_HEADER} aria-hidden="true">
@@ -94,10 +140,13 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void } = {}) {
                       // Invarijanta (WCAG 2.5.5): h-11 = 44px touch target po stavci.
                       // B.1: hover lift -2px (transform u transition listi);
                       // motion-reduce neutralizira pomak, ne samo trajanje.
-                      "flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-[color,background-color,transform] duration-fast ease-standard hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
+                      // `relative` (B.3): stavka slika IZNAD apsolutnog indikatora.
+                      "relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-[color,background-color,transform] duration-fast ease-standard hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
                       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                      // B.3: pozadinu aktivne stavke crta KLIZNI indikator, ne
+                      // stavka sama — ovdje ostaje samo boja teksta.
                       isActive
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        ? "text-sidebar-accent-foreground"
                         : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
                     )
                   }
@@ -125,7 +174,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void } = {}) {
                 to="/admin"
                 end
                 onClick={onNavigate}
-                className="flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-[color,background-color,transform] duration-fast ease-standard hover:-translate-y-0.5 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:hover:translate-y-0"
+                className="relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-[color,background-color,transform] duration-fast ease-standard hover:-translate-y-0.5 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:hover:translate-y-0"
               >
                 <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
                 Admin

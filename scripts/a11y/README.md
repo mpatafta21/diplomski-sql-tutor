@@ -26,7 +26,12 @@ python3 scripts/a11y/contrast_matrix.py --pair muted-foreground incorrect-soft
 python3 scripts/a11y/contrast_matrix.py --pair accent-warm-text accent-warm/20
 
 # samo jedna tema
-python3 scripts/a11y/contrast_matrix.py --theme light
+python3 scripts/a11y/contrast_matrix.py --theme dark
+
+# ΔE nad SUKORIŠTENIM parovima — cross-scale guard (MASTER §2.7)
+# izlazni kod 1 ako ima neprihvaćene kolizije
+python3 scripts/a11y/contrast_matrix.py --delta-e
+python3 scripts/a11y/contrast_matrix.py --delta-e --md   # sve, i ✅ retke
 
 # je li Monaco tema još u skladu s tokenima
 python3 scripts/a11y/monaco_check.py
@@ -38,9 +43,9 @@ Bez dependencyja — čisti Python 3.11 iz standardne biblioteke.
 
 | Datoteka | Uloga |
 | --- | --- |
-| `palette.py` | oklch → sRGB, WCAG omjer, **parser `index.css`**, samotest konvertora |
-| `pairs.py` | **podaci**: plohe, stvarni parovi s citatima, čipovi, pragovi |
-| `contrast_matrix.py` | CLI: puna matrica / jedan par / markdown |
+| `palette.py` | oklch → sRGB, WCAG omjer, **ΔE (Oklab)**, gamut-upozorenje, **parser `index.css`**, samotest konvertora |
+| `pairs.py` | **podaci**: plohe, stvarni parovi s citatima, čipovi, pragovi, **sukorišteni skup** |
+| `contrast_matrix.py` | CLI: puna matrica / jedan par / **ΔE** / markdown |
 | `monaco_check.py` | drift između `monaco-theme.ts` (hex kopija) i tokena |
 
 ## Tri pravila koja alat utjelovljuje
@@ -87,12 +92,85 @@ dokaza je ista klasa kao tvrdnja bez plohe.
 Ako je „tekst" zapravo **ikona** (nema glifova), upiši par u `GRAPHIC_ONLY` → prag postaje
 3,00 umjesto 4,50.
 
+## Druga mjera: ΔE nad sukorištenim parovima
+
+**Kontrast i ΔE odgovaraju na različita pitanja.** Kontrast: *„vidi li se ovo na ovome?"*
+ΔE: *„razlikuju li se ovo dvoje?"* Druga mjera postoji zbog cross-scale guarda
+(MASTER §2.7): kroma-token (`ring`, `primary`, ploha…) **ne smije se čitati kao član
+semantičke skale** — inače tier-čip i gumb postanu ista boja i skala prestane značiti.
+
+### 🔴 Mjeri se SAMO sukorišteni par (NALAZ N-12)
+
+Prva verzija računala je ΔE do **najbližeg semantičkog tokena uopće**. To je pogrešna
+mjera i dala je **obrnut odgovor**: `--ring` je pod njom ispao lošiji kao akromatski
+(0,067) nego kao tintan (0,102), jer mu je „najbliži" bio `difficulty-cross-module` — a
+`DifficultyChip` **nije ni na jednom fokusabilnom elementu**, pa se s prstenom nikad ne
+renderira zajedno.
+
+**Sukorišten = renderira se na istom elementu ili mu je neposredno susjedan.**
+
+| izvor | što daje |
+| --- | --- |
+| `PAIRS` (izvedeno) | tekst na plohi ⇒ sukorišten je s tom plohom **i** s ostalim tekstom na njoj |
+| `CO_USED_EXTRA["ring"]` | što god živi **unutar** fokusabilnog elementa (PAIRS ne poznaje fokus) |
+| `CO_USED_EXTRA["primary"]` | gumb: tier čipovi na istom ekranu, `-soft` ploha ispod CTA-a |
+| `MONACO` | svi tokeni editora — dijele jedan pravokutnik, pa su svi sa svima |
+
+⚠️ **Susjedstvo prekida visokokontrastna ploha.** `primary-foreground` (tekst u gumbu)
+**ne** nasljeđuje skup od `primary` (fill gumba): između teksta i `-soft` plohe iza gumba
+stoji pun `primary` fill (14,24:1). Prvi pokušaj ga je nasljedio i odmah dao lažni pozitiv
+(`primary-foreground × incorrect-soft` = 0,0495). Isti poučak kao #50.
+
+### Pragovi
+
+| ΔE | oznaka | značenje |
+| --- | :---: | --- |
+| < 0,05 | 🔴 | jedva razlučivo — kroma-token se **može čitati kao član skale** |
+| < 0,10 | 🟡 | blizu — dopušteno uz obrazloženje (oblik ili kontekst razdvajaju) |
+| ≥ 0,10 | ✅ | jasno različito |
+| — | 🟨 | u `DE_ACCEPTED`: ispod praga, ali **svjesno prihvaćeno s razlogom** |
+
+### Kako dopuniti skup kad nastane novi fokusabilni element
+
+```bash
+grep -rn "outline-ring\|ring-ring" frontend/src --include=*.tsx
+```
+
+Za svaki **novi** pogodak pročitaj što je unutar tog elementa i neposredno uz njega, pa
+svaki semantički token upiši u `CO_USED_EXTRA["ring"]` **s citatom**. Isto za nov gumb
+(`CO_USED_EXTRA["primary"]`) i za nov Monaco token (`MONACO`). Zatim:
+
+```bash
+python3 scripts/a11y/contrast_matrix.py --delta-e
+```
+
+🔴 **Bez ove dopune sljedeći prolaz mjeri stari skup i dobiva drugi odgovor.**
+
+## Gamut: klampanje se prijavljuje, ne prešućuje
+
+`_lin_to_srgb` klampa na `[0,1]`. Vrijednost izvan sRGB gamuta zato **ne bi pukla** — alat
+bi vratio brojku za boju koja **nije deklarirana**. Zato `palette.py` pri svakom čitanju
+CSS-a ispisuje upozorenje s imenom tokena i **veličinom viška chrome**:
+
+```
+⚠️  IZVAN sRGB GAMUTA — `_lin_to_srgb` klampa, mjeri se KLAMPANA boja:
+   • --destructive: oklch(0.704 0.191 22.216) — višak chrome +0.0033 …
+```
+
+Ne prekida izvođenje (kod nas su svi viškovi ≤ 0,01, dakle ΔE ≤ 0,009 — ispod praga
+vidljivosti), ali razlika mora biti **vidljiva**, ne prešućena. ⚠️ Uz to: preglednik radi
+**vlastito** gamut-mapiranje (CSS Color 4 smanjuje chromu), koje nije isto što i naš
+klamp po kanalu — pa je izmjereni hex za takav token približan, ne točan.
+
 ## Što alat NE mjeri
 
 - **Vizualnu hijerarhiju.** Izračun mjeri element, snimka mjeri kompoziciju. Token može
   proći AA i pritom se stopiti sa susjedom (poučak iz 4.7-1a: pomoć uz `username` prolazila
   je 4,73:1 a bila je najslabiji tekst na ekranu).
-- **Međusobnu razlučivost boja sintakse** u Monacu (keyword vs string vs number).
+- ~~**Međusobnu razlučivost boja sintakse** u Monacu~~ — **sad mjeri**, kroz `--delta-e`
+  (`MONACO` u `pairs.py`). Prvi nalaz te provjere: `rules[comment]` (`--muted-foreground`)
+  i `rules[operator]` (`--neutral`) su na **ΔE 0,0233** — komentar i operator su u editoru
+  gotovo iste boje. Zatečeno, ne uzrokovano redizajnom.
 - **Stvarni routing** — mjeri tokene, ne renderirane ekrane. Živa verifikacija ostaje
   zaseban korak.
 - **Deuteranopiju/protanopiju.** Za to je postojala zasebna analiza u 4.3c (ΔE + simulacija).

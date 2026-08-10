@@ -623,3 +623,111 @@ izmjeren je na **2,59:1** u light temi — snimka to ne otkriva. Zato oboje.
 
 Vezano uz 🔒 DOC politiku (#33): brojka i datum su nužni, ali nisu dovoljni — treba i
 naznaka **u kojem kontekstu** je mjereno.
+
+---
+
+## N-12 🔴 `tier` čip ŽIVI unutar fokusabilnog elementa — argument „različit oblik" pada
+
+**Status:** 🔴 ulazni uvjet za redizajn stage 1 · mjereno i grepano 2026-08-10
+
+U `faza-4.7-redizajn-korak-0.md` §C.4 prihvaćen je prsten `oklch(0.62 0.04 280)` uz ΔE_ok
+**0,067** prema `--tier-easy`, s obrazloženjem: *„`tier-easy` se renderira isključivo kao
+ispunjen čip s tamnim tekstom, `--ring` isključivo kao 2px obris — ne dijele nijedan
+oblik."* **To obrazloženje je NETOČNO.**
+
+```
+$ grep -rn "ConceptChip" frontend/src --include=*.tsx
+components/modules/ConceptRow.tsx:75     ← unutar <Link> :113-120
+components/dashboard/ContinueCard.tsx:125
+pages/TaskPage.tsx:277, :306
+```
+
+[ConceptRow.tsx:112-120](frontend/src/components/modules/ConceptRow.tsx#L112-L120) —
+kad je koncept klikabilan, **cijeli `body` (uključujući `<ConceptChip>` s `bg-tier-*`) je
+DIJETE `<Link>`a** koji nosi `focus-visible:outline-2 focus-visible:outline-offset-2
+focus-visible:outline-ring`. Pri fokusu tipkovnicom prsten **okružuje** tier čip: dvije
+gotovo iste boje, istovremeno, na istom elementu. Isti obrazac vrijedi i za `MasteryBar`
+(mastery-0..100) unutar istog linka.
+
+**Nije jedino mjesto.** Popis tokena koji su unutar fokusabilnog elementa ili mu neposredno
+susjedni, izveden iz `grep -rn "outline-ring|ring-ring"` + čitanjem svakog pogotka:
+
+| fokusabilno | semantički tokeni unutra |
+| --- | --- |
+| `ConceptRow.tsx:117` `<Link>` | 🔴 **tier-easy/medium/hard**, mastery-0..100, correct, mastery-50 |
+| `MasteryHighlights.tsx:81` `<Link>` | mastery-0..100, correct |
+| `ConceptCurveCard.tsx:60` `<button>` | correct, mastery stroke |
+| `TaskPage.tsx:327` `focus-within` kontejner | chart-1/2/3, correct, accent-warm, neutral (Monaco) |
+| `TaskPage.tsx:254` breadcrumb `<Link>` | susjedan tier čipu :277 — **isto ime koncepta**, ~20 px razmaka |
+| FeedbackPanel CTA (`ui/button`) | accent-warm XP čip, `-soft` ploha |
+
+`DifficultyChip` **nije** ni na jednom takvom mjestu ([ModuleCard.tsx:52](frontend/src/components/modules/ModuleCard.tsx#L52)
+je u `CardAction`, [ModulesPage.tsx:199](frontend/src/pages/ModulesPage.tsx#L199) uz `<h2>`)
+→ `difficulty-*` je dokazano NE-sukorišten s prstenom.
+
+### Posljedica za mjeru
+
+Metrika „udaljenost do najbližeg semantičkog tokena" je za `--ring` **pogrešna mjera** —
+kažnjava ga zbog boja koje se s prstenom nikad ne pojave zajedno. Premjereno prema
+**sukorištenom** skupu (tier ×3, mastery ×5, correct, accent-warm(-text), chart-1/2/3,
+neutral), uz tvrdi uvjet ≥3,00:1 prema **svih 11 ploha** na kojima se prsten pojavljuje:
+
+| kandidat | hex | ΔE(sukorišteni) | najbliži | min. kontrast (ploha) |
+| --- | --- | :---: | --- | :---: |
+| zatečeno `oklch(0.556 0 0)` | `#737373` | 0,084 | mastery-25 | 3,21 (`muted`) |
+| KORAK 0 `oklch(0.62 0.04 280)` | `#81849e` | **0,067** | tier-easy | 4,15 (`muted`) |
+| **`oklch(0.62 0 0)`** ⬅ | `#868686` | **0,102** | mastery-50 | **4,18** (`muted`) |
+| `oklch(0.60 0 0)` | `#808080` | 0,100 | tier-easy | 3,85 (`muted`) |
+
+🔴 **Tinta na prstenu ne kupuje ništa, a plaća koliziju.** Ista svjetlina bez krome diže
+ΔE s 0,067 na **0,102 (+52 %)** uz jednak kontrast (4,15 → 4,18). Razlog je strukturni:
+tier skala se u dark temi proteže `L 0.60 → 0.80 @ hue 300`, pa svaki kromatski prsten u
+upotrebljivom pojasu svjetline ulazi u njezin prostor. Akromatski prsten je **po
+konstrukciji** izvan svih skala — sve su kromatske (C ≥ 0,03).
+
+**Presuda:** `--ring` i `--sidebar-ring` → **`oklch(0.62 0 0)`**. Ploha ostaje ink-indigo;
+prsten ne mora nositi identitet palete, nego mora biti razlučiv **od svega što okružuje**.
+
+⚠️ **Ograničenje mjere, pošteno:** ΔE prema *punom* skupu za `oklch(0.62 0 0)` iznosi 0,067
+(`difficulty-cross-module`, `oklch(0.68 0.03 345)`). Taj je token namjerno desaturiran, pa
+mu je svaki sivi blizu — i dokazano **nije sukorišten** (v. tablica gore). Ta se brojka
+zapisuje da se kasnije ne „otkrije" kao prešućena.
+
+---
+
+## N-13 🟡 `--neutral` ima 0 potrošača, a `pairs.py` ga je mjerio na temelju netočnog citata
+
+**Status:** 🟡 ispravak harnessa izveden 2026-08-10 · vrijednost tokena NEDIRANA
+
+`scripts/a11y/pairs.py` sadržavao je par `PAIRS["card"]["neutral"] = "○ ConceptChip"`.
+Citat je netočan:
+
+```tsx
+// components/ConceptChip.tsx:32-33
+// Nepoznat tier (buduća migracija) → neutralan chip, ne kriva skala.
+TIER_CLASS[tier] ?? "bg-muted text-muted-foreground",
+```
+
+Riječ „neutralan" opisuje **namjeru**, ne token. `grep -rn "neutral" frontend/src` daje 12
+pogodaka i **nijedan** nije Tailwind klasa `text-neutral`/`bg-neutral` — sve su deklaracije
+u `index.css`, hrvatska riječ u komentarima, ili komentar u `monaco-theme.ts`.
+
+**Izvedeno:** par uklonjen iz `pairs.py` uz obrazloženje u kodu. Vrijednost `--neutral` je
+**nedirnuta** (zamrznuta semantika). Matrica time gubi jedan redak koji je mjerio par koji
+se nikad ne renderira — prekršaj vlastitog pravila `pairs.py`-ja („bez citata se par NE
+dodaje"), jer je citat postojao ali je bio kriv.
+
+### 🔴 Veza s N-10 — ispravak ranijeg zaključka
+
+U N-10 je zapisano: *„Ispravak vlastite pretpostavke: `--neutral-soft` NE POSTOJI (grep → 0),
+pa popravak nije 'prebaci na postojeći token'."* To i dalje vrijedi za `-soft` plohu, ali
+**nepotpuno opisuje zatečeno stanje**: `--neutral` (bez `-soft`) **postoji**, ima
+vrijednost u obje teme, i ima **nula potrošača**.
+
+`ErrorState` posuđuje `incorrect-soft`/`incorrect` za **sistemsku** grešku, čime student ne
+razlikuje vlastiti neuspjeh od kvara aplikacije (20 upotreba, 12 datoteka). Ako se u
+STAGEU 2 traži ne-verdict ploha, `--neutral` je **već postojeći, neiskorišteni kandidat za
+dom** — treba mu samo `-soft` par. To je jeftinije od uvođenja dva nova tokena.
+
+**NE popravlja se ovdje.** Zapisano da se pri STAGEU 2 ne krene od krive premise da
+neutralnog tokena uopće nema.

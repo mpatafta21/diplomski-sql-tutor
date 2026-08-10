@@ -271,3 +271,61 @@ Opcije ispod ostaju zapisane radi traga odlučivanja:
 **Preporuka:** (i) za evaluaciju — dokumentirati kao poznatu limitaciju i izvijestiti 0 %,
 identično kao #24. Strukturni uzrok (`right_join` ima jedan jedini zadatak) je stvar
 task banka, a on je zamrznut i verzioniran.
+
+---
+
+## #52 🟡 `--destructive` je bio nemjeren — sad je mjeren, i pada (3:1), ali NIJE regresija
+
+**Status:** 🟡 zapisan, **ne popravlja se u redizajn-stageu 1** · izmjereno 2026-08-10 (dark)
+
+Do danas `--destructive` nije imao **nijedan redak** u matrici (`scripts/a11y/pairs.py`),
+premda ga `grep` nalazi na **18 mjesta**. Klasa problema #33: nitko o njemu ništa nije
+tvrdio jer ga nitko nije mjerio.
+
+### Što je od tih 18 zapravo dosežno — **samo jedan render**
+
+| mjesto | dosežno? | dokaz |
+|---|---|---|
+| `ui/button.tsx:19-20` — `variant="destructive"` | **NE** | `grep -rn 'variant="destructive"' frontend/src` → **0 pogodaka**. Mrtav kod |
+| `ui/field.tsx:53,217` — `data-invalid`, `FieldError` | **NE** | `grep -rn 'from "@/components/ui/field"'` → **0 importa**. Cijela datoteka je neupotrijebljena |
+| `ui/button.tsx:8` — `aria-invalid:*` na gumbu | **NE** | nijedan `<Button>` u aplikaciji ne dobiva `aria-invalid` |
+| **`ui/input.tsx:12` — `aria-invalid:*`** | **DA** | 5 upotreba: `LoginPage.tsx:77,93` · `RegisterPage.tsx:148,177,193` |
+
+U dark temi na to polje padaju `dark:aria-invalid:border-destructive/50` (obrub) i
+`dark:aria-invalid:ring-destructive/40` (3px halo). Oboje je **ne-tekst**, prag **3,00:1**
+(SC 1.4.11 — indikator stanja „polje nije valjano").
+
+### Mjerenje
+
+| par | zatečeno | predloženo (ink-indigo) | prag |
+|---|:---:|:---:|:---:|
+| obrub `destructive/50` vs vlastita ploha (`input/30`) | **2,34** ❌ | 2,35 ❌ | 3,00 |
+| obrub `destructive/50` vs okolina (`card`) | **2,43** ❌ | 2,42 ❌ | 3,00 |
+| halo `destructive/40` vs `card` | **1,98** ❌ | 1,97 ❌ | 3,00 |
+
+🔴 **Pada danas, jednako pada i nakon redizajna** (razlika ≤ 0,01). **Nije regresija** —
+nova paleta ovo stanje ne uzrokuje niti ga mjerljivo mijenja.
+
+**Zašto se ne popravlja ovdje:** boja nije jedini kanal. Nevaljano polje uz obrub nosi i
+tekst greške s `role="alert"` (`LoginPage.tsx:80-84`), a taj je `text-incorrect` na `card`
+= **6,18:1 ✅**. Isto rezoniranje kao #51 i #33: tint je pojačanje, ne nosilac. Popravak
+(pojačati alfu obruba na ~48 %) mijenja vizualni jezik svih polja i **jest dizajnerska
+odluka**, ne korekcija palete.
+
+**Izvedeno:** sva tri para dodana u `pairs.py` (`SURFACE_VS_SURROUND`) da tvrdnja više ne
+može živjeti nemjerena. Uz njih dodano i **7 parova obruba** (`border`/`input`/
+`sidebar-border` nad `background`/`card`/`muted`, 1,25–1,62 — v. #33: docstring je tvrdio
+„≥3:1", stvarnost je bila upola manja).
+
+### Usputno: `--destructive` je izvan sRGB gamuta
+
+`oklch(0.704 0.191 22.216)` → linearni R = **1,0127**. `palette.py` ga **tiho klampa**.
+Izmjereno: maksimalna chroma u gamutu na toj svjetlini i hueu je **0,1877**, dakle višak je
+**0,0033**. Renderirano `#ff6467`; ispravljena vrijednost `oklch(0.704 0.188 22.216)` daje
+`#ff6568` — razlika **1/255 na dva kanala**.
+
+**Presuda: vrijednost se NE mijenja** — mjerenje pokazuje da vizualne potrebe nema, a
+uputa je bila „minimalno i samo ako mjerenje pokaže da treba". 🔴 **Ali klampanje ne smije
+ostati tiho:** `palette.py` treba upozoriti kad ulazna vrijednost izađe iz gamuta, umjesto
+da vrati brojku za boju koja nije deklarirana. To je popravak **harnessa**, ne palete, i
+zapisuje se kao stavka za stage u kojem se harness ionako dira.

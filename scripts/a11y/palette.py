@@ -45,6 +45,38 @@ def _srgb_to_lin(c: float) -> float:
     return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
 
 
+# ── gamut: klampanje se PRIJAVLJUJE, ne prešućuje ─────────────────────────
+
+#: {(ime, L, C, h): C_max_u_gamutu} — puni se pri parsiranju CSS-a.
+#: 🔴 Ključ MORA nositi i vrijednosti: isti token ima različitu vrijednost po temi, a
+#: dedupliciranje samo po imenu sakrilo bi drugu (light `--destructive` je sakrio dark).
+GAMUT_WARNINGS: dict[tuple[str, float, float, float], float] = {}
+
+
+def max_chroma_in_gamut(L: float, h: float, hi: float = 0.5) -> float:
+    """Najveća chroma koja na (L, h) još stane u sRGB. Bisekcija, 60 koraka."""
+    lo = 0.0
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        if all(-1e-9 <= v <= 1 + 1e-9 for v in _oklch_to_linear(L, mid, h)):
+            lo = mid
+        else:
+            hi = mid
+    return lo
+
+
+def _check_gamut(L: float, C: float, h: float, name: str) -> None:
+    """🔴 `_lin_to_srgb` tiho klampa na [0,1]. Boja izvan gamuta zato NE bi pukla —
+    vratila bi brojku za boju koja NIJE deklarirana. Alat koji tiho laže gori je od
+    alata koji ne postoji (isti poučak kao #39: guard netestiran u oba smjera)."""
+    key = (name, L, C, h)
+    if not name or key in GAMUT_WARNINGS:
+        return
+    if all(-1e-9 <= v <= 1 + 1e-9 for v in _oklch_to_linear(L, C, h)):
+        return
+    GAMUT_WARNINGS[key] = max_chroma_in_gamut(L, h)
+
+
 class Color:
     """sRGB boja u rasponu 0..1 + alpha."""
 
@@ -55,6 +87,7 @@ class Color:
 
     @classmethod
     def oklch(cls, L: float, C: float = 0.0, h: float = 0.0, alpha: float = 1.0, name: str = ""):
+        _check_gamut(L, C, h, name)
         return cls(tuple(_lin_to_srgb(v) for v in _oklch_to_linear(L, C, h)), alpha, name)
 
     def over(self, bg: "Color", name: str | None = None) -> "Color":
@@ -92,6 +125,30 @@ def fmt(x: float) -> str:
     return f"{x:.2f}".replace(".", ",")
 
 
+def oklab(c: Color) -> tuple[float, float, float]:
+    """sRGB → Oklab (L, a, b). Ulaz mora biti NEPROZIRAN (kompozitiraj prije)."""
+    lr, lg, lb = (_srgb_to_lin(v) for v in c.rgb)
+    l = 0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb
+    m = 0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb
+    s = 0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb
+    l_, m_, s_ = l ** (1 / 3), m ** (1 / 3), s ** (1 / 3)
+    return (
+        0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+        1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+        0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_,
+    )
+
+
+def delta_e(a: Color, b: Color) -> float:
+    """ΔE_ok — euklidska udaljenost u Oklabu.
+
+    🔴 Odgovara na DRUGO pitanje nego `contrast()`: ne „vidi li se ovo na ovome" nego
+    „razlikuju li se ovo dvoje". Koristi se za cross-scale guard (MASTER §2.7), i to
+    ISKLJUČIVO nad sukorištenim parovima — v. `pairs.CO_USED_EXTRA` i NALAZ N-12.
+    """
+    return math.dist(oklab(a), oklab(b))
+
+
 # ── čitanje tokena iz index.css ───────────────────────────────────────────
 
 _OKLCH = re.compile(
@@ -127,10 +184,31 @@ def load_tokens(css_path: Path = CSS) -> dict[str, dict[str, Color]]:
             f"nije nađen (offseti {root}/{dark}/{base}). Struktura CSS-a se promijenila — "
             f"provjeri parser prije nego vjeruješ brojkama."
         )
-    return {
+    out = {
         "light": _parse_block(css, root, dark),
         "dark": _parse_block(css, dark, base),
     }
+    report_gamut()
+    return out
+
+
+def report_gamut(stream=sys.stderr) -> int:
+    """Glasno prijavi svaki token izvan sRGB gamuta. Vrati broj takvih tokena.
+
+    NE prekida izvođenje: brojke su i dalje upotrebljive (razlika je ispod praga
+    vidljivosti), ali tvrdnja „izmjereno na vrijednosti X" prestaje biti točna, pa se
+    razlika mora vidjeti. Tiho klampanje je isto što i nemjerenje.
+    """
+    if not GAMUT_WARNINGS:
+        return 0
+    print("\n⚠️  IZVAN sRGB GAMUTA — `_lin_to_srgb` klampa, mjeri se KLAMPANA boja:",
+          file=stream)
+    for (name, L, C, h), cmax in sorted(GAMUT_WARNINGS.items()):
+        print(f"   • --{name}: oklch({L} {C} {h}) — višak chrome {C - cmax:+.4f} "
+              f"(maksimum u gamutu na toj svjetlini i hueu: {cmax:.4f})", file=stream)
+    print("   Ili spusti chromu na navedeni maksimum, ili svjesno prihvati razliku —\n"
+          "   ali je ne prešućuj (v. ERRATA #52).", file=stream)
+    return len(GAMUT_WARNINGS)
 
 
 # ── samotest konvertora ───────────────────────────────────────────────────

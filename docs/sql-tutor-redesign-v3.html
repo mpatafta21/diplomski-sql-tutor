@@ -1,0 +1,754 @@
+
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL Tutor — Redesign v3 (v1 upgraded)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN TOKENS — v1 "Syntax theme" paleta (nepromijenjena)
+   ============================================================ */
+:root{
+  --bg:        #0B0E1A;
+  --bg-soft:   #0F1326;
+  --surface:   #141936;
+  --surface-2: #1A2148;
+  --line:      rgba(148,163,255,.12);
+  --line-soft: rgba(148,163,255,.07);
+
+  --text:      #E7EAFB;
+  --text-dim:  #9AA1C7;
+  --text-mute: #626A93;
+
+  --kw:  #A78BFA;
+  --fn:  #38D6F5;
+  --str: #FFC24B;
+  --num: #4ADE80;
+  --err: #FB7185;
+
+  --grad-primary: linear-gradient(135deg,#A78BFA 0%,#38D6F5 100%);
+  --grad-xp:      linear-gradient(90deg,#FFC24B 0%,#FF9F43 100%);
+
+  --font-display:'Bricolage Grotesque',system-ui,sans-serif;
+  --font-body:'Inter',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,monospace;
+
+  --r-sm:8px; --r-md:12px; --r-lg:16px;
+  --sidebar-w:264px;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:var(--font-body);
+  /* UPGRADE: dot-grid canvas (iz v2) + postojeći radial glowovi */
+  background:
+    radial-gradient(rgba(148,163,255,.055) 1px, transparent 1.4px) 0 0/24px 24px,
+    radial-gradient(900px 500px at 85% -10%, rgba(167,139,250,.09), transparent 60%),
+    radial-gradient(700px 400px at -10% 110%, rgba(56,214,245,.07), transparent 60%),
+    var(--bg);
+  color:var(--text);
+  overflow-x:hidden;
+}
+
+.app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;min-height:100vh}
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+.sidebar{
+  position:sticky;top:0;height:100vh;
+  display:flex;flex-direction:column;
+  background:linear-gradient(180deg,rgba(15,19,38,.92),rgba(11,14,26,.92));
+  backdrop-filter:blur(6px);
+  border-right:1px solid var(--line-soft);
+  padding:18px 14px;
+  gap:6px;
+}
+
+/* UPGRADE: klizni aktivni indikator (jedan element, JS ga pomiče) */
+.nav-indicator{
+  position:absolute;left:0;width:3px;height:28px;top:0;
+  border-radius:0 3px 3px 0;background:var(--grad-primary);
+  box-shadow:0 0 12px rgba(167,139,250,.6);
+  transition:top .38s cubic-bezier(.34,1.4,.44,1),height .38s cubic-bezier(.34,1.4,.44,1);
+  pointer-events:none;
+}
+
+.brand{display:flex;align-items:center;gap:11px;padding:4px 8px 16px}
+.brand-icon{
+  width:36px;height:36px;border-radius:10px;
+  background:var(--grad-primary);
+  display:grid;place-items:center;flex-shrink:0;
+  box-shadow:0 4px 18px rgba(167,139,250,.35);
+}
+.brand-icon svg{width:19px;height:19px;stroke:#0B0E1A}
+.brand-name{font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-.02em}
+.brand-tag{
+  font-family:var(--font-mono);font-size:10px;color:var(--fn);
+  border:1px solid rgba(56,214,245,.3);border-radius:5px;
+  padding:1px 5px;margin-left:2px;
+}
+
+.cmdk{
+  display:flex;align-items:center;gap:9px;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-sm);padding:8px 10px;margin:0 4px 14px;
+  color:var(--text-mute);font-size:13px;cursor:pointer;
+  transition:border-color .18s ease,background .18s ease,box-shadow .18s ease;
+}
+.cmdk:hover{border-color:rgba(167,139,250,.45);background:var(--surface-2);box-shadow:0 0 0 3px rgba(167,139,250,.08)}
+.cmdk svg{width:14px;height:14px;stroke:var(--text-mute)}
+.cmdk .kbd{margin-left:auto}
+.kbd{
+  font-family:var(--font-mono);font-size:10px;color:var(--text-dim);
+  background:var(--bg);border:1px solid var(--line);border-bottom-width:2px;
+  border-radius:5px;padding:2px 6px;
+}
+
+.nav-section{margin-top:10px}
+.nav-label{
+  font-family:var(--font-mono);font-size:10.5px;font-weight:500;
+  color:var(--text-mute);letter-spacing:.06em;
+  padding:0 12px 7px;user-select:none;
+}
+.nav-label::before{content:'-- ';opacity:.7}
+
+.nav-item{
+  position:relative;display:flex;align-items:center;gap:11px;
+  padding:9px 12px;margin:1px 0;border-radius:var(--r-sm);
+  color:var(--text-dim);font-size:13.5px;font-weight:500;
+  cursor:pointer;text-decoration:none;
+  transition:color .16s ease,background .16s ease,transform .16s ease;
+}
+.nav-item svg{width:17px;height:17px;stroke:currentColor;flex-shrink:0;transition:transform .16s ease}
+.nav-item:hover{color:var(--text);background:rgba(148,163,255,.06);transform:translateX(2px)}
+.nav-item:hover svg{transform:scale(1.08)}
+.nav-item:focus-visible{outline:2px solid var(--kw);outline-offset:2px}
+
+.nav-item.active{
+  color:var(--text);
+  background:linear-gradient(90deg,rgba(167,139,250,.16),rgba(56,214,245,.05) 70%,transparent);
+}
+.nav-item.active svg{stroke:var(--kw)}
+.nav-item.active .caret{
+  display:inline-block;width:2px;height:14px;margin-left:2px;
+  background:var(--fn);animation:blink 1.1s steps(1) infinite;
+}
+.nav-item .caret{display:none}
+@keyframes blink{50%{opacity:0}}
+
+.badge{
+  margin-left:auto;font-family:var(--font-mono);font-size:10.5px;
+  padding:1.5px 7px;border-radius:20px;
+  background:var(--surface-2);color:var(--text-dim);
+  border:1px solid var(--line);
+}
+.badge.new{background:rgba(74,222,128,.12);color:var(--num);border-color:rgba(74,222,128,.3)}
+.badge.hot{background:rgba(251,113,133,.12);color:var(--err);border-color:rgba(251,113,133,.3)}
+
+.sidebar-footer{margin-top:auto;display:flex;flex-direction:column;gap:10px}
+.xp-card{
+  display:flex;align-items:center;gap:12px;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);padding:12px;
+}
+.ring{position:relative;width:46px;height:46px;flex-shrink:0}
+.ring svg{transform:rotate(-90deg)}
+.ring .track{fill:none;stroke:var(--surface-2);stroke-width:4}
+.ring .bar{
+  fill:none;stroke:url(#ringGrad);stroke-width:4;stroke-linecap:round;
+  stroke-dasharray:126;stroke-dashoffset:126;
+  animation:ringFill 1.2s .4s cubic-bezier(.22,1,.36,1) forwards;
+}
+@keyframes ringFill{to{stroke-dashoffset:113.4}}
+.ring .lvl{
+  position:absolute;inset:0;display:grid;place-items:center;
+  font-family:var(--font-mono);font-weight:700;font-size:15px;color:var(--str);
+}
+.xp-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.xp-meta .t{font-size:12.5px;font-weight:600}
+.xp-meta .s{font-family:var(--font-mono);font-size:11px;color:var(--text-dim)}
+.streak-mini{margin-left:auto;display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--str)}
+.flame{display:inline-block;animation:flicker 1.6s ease-in-out infinite;transform-origin:50% 90%}
+@keyframes flicker{
+  0%,100%{transform:scale(1) rotate(-1.5deg)}
+  30%{transform:scale(1.12) rotate(2deg)}
+  60%{transform:scale(.95) rotate(-2deg)}
+}
+
+.user-row{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:var(--r-md);
+  border:1px solid transparent;cursor:pointer;
+  transition:background .16s ease,border-color .16s ease;
+}
+.user-row:hover{background:var(--surface);border-color:var(--line)}
+.avatar{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--grad-primary);
+  display:grid;place-items:center;
+  font-family:var(--font-mono);font-weight:700;font-size:13px;color:#0B0E1A;
+  box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px rgba(167,139,250,.5);
+}
+.user-meta{display:flex;flex-direction:column;min-width:0}
+.user-meta .n{font-size:13px;font-weight:600}
+.user-meta .r{font-family:var(--font-mono);font-size:10.5px;color:var(--kw)}
+.user-row > svg{width:16px;height:16px;stroke:var(--text-mute);margin-left:auto;transition:stroke .16s}
+.user-row:hover > svg{stroke:var(--err)}
+
+/* ============================================================
+   TOPBAR
+   ============================================================ */
+.main{display:flex;flex-direction:column;min-width:0}
+.topbar{
+  position:sticky;top:0;z-index:10;
+  display:flex;align-items:center;gap:14px;
+  padding:14px 32px;
+  background:rgba(11,14,26,.72);
+  backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line-soft);
+}
+.crumbs{font-family:var(--font-mono);font-size:12.5px;color:var(--text-mute)}
+.crumbs b{color:var(--fn);font-weight:500}
+.crumbs .dot{padding:0 2px}
+
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.chip{
+  display:flex;align-items:center;gap:6px;
+  font-family:var(--font-mono);font-size:12.5px;font-weight:500;
+  padding:6px 11px;border-radius:20px;
+  background:var(--surface);border:1px solid var(--line);
+  color:var(--text-dim);cursor:default;
+  transition:transform .16s ease,border-color .16s ease;
+}
+.chip:hover{transform:translateY(-1px)}
+.chip.xp{color:var(--str);border-color:rgba(255,194,75,.25)}
+.chip.streak{color:var(--err);border-color:rgba(251,113,133,.25)}
+.icon-btn{
+  position:relative;width:34px;height:34px;border-radius:9px;
+  display:grid;place-items:center;cursor:pointer;
+  background:var(--surface);border:1px solid var(--line);
+  transition:border-color .16s ease,transform .16s ease;
+}
+.icon-btn:hover{border-color:rgba(167,139,250,.4);transform:translateY(-1px)}
+.icon-btn svg{width:16px;height:16px;stroke:var(--text-dim)}
+.icon-btn .dot-notif{
+  position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;
+  background:var(--err);box-shadow:0 0 0 2.5px var(--bg);
+  animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{50%{transform:scale(1.35);opacity:.7}}
+.divider{width:1px;height:22px;background:var(--line)}
+
+/* ============================================================
+   COMMAND PALETTE (UPGRADE — funkcionalan ⌘K)
+   ============================================================ */
+.palette-backdrop{
+  position:fixed;inset:0;z-index:90;
+  background:rgba(6,8,16,.6);backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;transition:opacity .18s ease;
+}
+.palette-backdrop.open{opacity:1;pointer-events:auto}
+.palette{
+  position:fixed;z-index:91;left:50%;top:18%;
+  width:min(560px,92vw);
+  transform:translateX(-50%) scale(.96) translateY(-8px);
+  opacity:0;pointer-events:none;
+  background:var(--bg-soft);border:1px solid var(--line);
+  border-radius:14px;overflow:hidden;
+  box-shadow:0 24px 70px rgba(0,0,0,.6),0 0 0 1px rgba(167,139,250,.08);
+  transition:transform .2s cubic-bezier(.22,1,.36,1),opacity .18s ease;
+}
+.palette.open{transform:translateX(-50%) scale(1) translateY(0);opacity:1;pointer-events:auto}
+.palette-input{
+  display:flex;align-items:center;gap:11px;
+  padding:15px 17px;border-bottom:1px solid var(--line-soft);
+}
+.palette-input svg{width:16px;height:16px;stroke:var(--kw)}
+.palette-input input{
+  flex:1;background:none;border:none;outline:none;
+  color:var(--text);font-family:var(--font-body);font-size:14.5px;
+}
+.palette-input input::placeholder{color:var(--text-mute)}
+.palette-list{max-height:300px;overflow-y:auto;padding:7px}
+.palette-item{
+  display:flex;align-items:center;gap:11px;
+  padding:10px 12px;border-radius:9px;cursor:pointer;
+  font-size:13.5px;color:var(--text-dim);
+}
+.palette-item svg{width:15px;height:15px;stroke:currentColor}
+.palette-item:hover,.palette-item.sel{background:rgba(167,139,250,.12);color:var(--text)}
+.palette-item:hover svg,.palette-item.sel svg{stroke:var(--kw)}
+.palette-item .kbd{margin-left:auto}
+.palette-item .cat{margin-left:auto;font-family:var(--font-mono);font-size:10.5px;color:var(--text-mute)}
+.palette-empty{padding:22px;text-align:center;font-size:13px;color:var(--text-mute)}
+
+/* ============================================================
+   SADRŽAJ
+   ============================================================ */
+.content{padding:34px 32px 60px;max-width:1180px;width:100%;margin:0 auto}
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.hero h1{
+  font-family:var(--font-display);font-weight:800;font-size:36px;
+  letter-spacing:-.03em;line-height:1.1;
+}
+.hero h1 .grad{
+  background:var(--grad-primary);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hero p{color:var(--text-dim);font-size:14px;margin-top:6px}
+.hero p code{font-family:var(--font-mono);font-size:12.5px;color:var(--fn)}
+
+/* UPGRADE: dnevni cilj chip */
+.daily-goal{
+  display:flex;flex-direction:column;gap:7px;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);padding:12px 16px;min-width:190px;
+}
+.daily-goal .row{display:flex;justify-content:space-between;align-items:baseline}
+.daily-goal .t{font-size:11.5px;font-weight:600;color:var(--text-dim)}
+.daily-goal .v{font-family:var(--font-mono);font-size:12.5px;font-weight:700;color:var(--num)}
+.mini-pbar{height:5px;border-radius:5px;background:var(--bg);overflow:hidden}
+.mini-pbar .fill{height:100%;width:0;border-radius:5px;background:linear-gradient(90deg,#4ADE80,#38D6F5);transition:width 1s .5s cubic-bezier(.22,1,.36,1)}
+
+.rise{opacity:0;transform:translateY(14px);animation:rise .55s cubic-bezier(.22,1,.36,1) forwards}
+.d1{animation-delay:.05s}.d2{animation-delay:.14s}.d3{animation-delay:.23s}.d4{animation-delay:.32s}
+@keyframes rise{to{opacity:1;transform:none}}
+
+.card{
+  position:relative;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-lg);padding:22px;
+  transition:border-color .2s ease,transform .2s ease,box-shadow .2s ease;
+}
+/* UPGRADE: gradient hairline na vrhu kartice pri hoveru */
+.card::before{
+  content:'';position:absolute;top:-1px;left:14%;right:14%;height:1px;
+  background:var(--grad-primary);opacity:0;border-radius:2px;
+  transition:opacity .25s ease;
+}
+.card:hover{border-color:rgba(148,163,255,.22);transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.3)}
+.card:hover::before{opacity:.7}
+
+/* Level kartica + sparkline */
+.level-card{margin-top:26px;display:flex;align-items:center;gap:26px;flex-wrap:wrap}
+.level-num{
+  font-family:var(--font-display);font-weight:800;font-size:52px;line-height:1;
+  color:var(--str);text-shadow:0 0 26px rgba(255,194,75,.35);
+}
+.level-info{flex:1;min-width:260px}
+.level-info .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
+.level-info .xp-now{font-family:var(--font-mono);font-size:15px;font-weight:700}
+.level-info .xp-now span{color:var(--text-mute);font-weight:400}
+.level-info .next{font-family:var(--font-mono);font-size:11.5px;color:var(--text-mute)}
+.pbar{height:8px;border-radius:8px;background:var(--bg);overflow:hidden;position:relative}
+.pbar .fill{
+  height:100%;width:0;border-radius:8px;background:var(--grad-xp);
+  box-shadow:0 0 14px rgba(255,194,75,.4);
+  transition:width 1.2s cubic-bezier(.22,1,.36,1);
+}
+.pbar .fill::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);
+  animation:shimmer 2.4s 1.4s ease-in-out infinite;
+}
+@keyframes shimmer{0%{transform:translateX(-100%)}60%,100%{transform:translateX(100%)}}
+
+/* UPGRADE: XP sparkline (zadnjih 7 dana) */
+.spark{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
+.spark .lbl{font-family:var(--font-mono);font-size:10.5px;color:var(--text-mute)}
+.spark svg{overflow:visible}
+.spark .area{fill:url(#sparkArea);opacity:0;animation:fadeIn .6s 1.3s forwards}
+.spark .line{
+  fill:none;stroke:url(#sparkGrad);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+  stroke-dasharray:220;stroke-dashoffset:220;
+  animation:draw 1.3s .5s cubic-bezier(.22,1,.36,1) forwards;
+}
+.spark .pt{fill:var(--fn);opacity:0;animation:fadeIn .4s 1.6s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes fadeIn{to{opacity:1}}
+
+/* Nastavi ovdje */
+.continue-card{margin-top:18px;overflow:hidden}
+.continue-card::after{
+  content:'';position:absolute;inset:-1px;pointer-events:none;border-radius:inherit;
+  background:radial-gradient(500px 180px at 12% 0%,rgba(167,139,250,.14),transparent 65%);
+}
+.eyebrow{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;
+  color:var(--fn);margin-bottom:9px;
+}
+.eyebrow::before{content:'▸ ';}
+.continue-card h2{font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:-.02em}
+/* UPGRADE: meta red zadatka */
+.task-meta{display:flex;align-items:center;gap:8px;margin:13px 0 6px;flex-wrap:wrap}
+.tag{
+  font-family:var(--font-mono);font-size:11.5px;font-weight:500;
+  padding:4px 10px;border-radius:6px;
+}
+.tag.kw{background:rgba(167,139,250,.14);color:var(--kw);border:1px solid rgba(167,139,250,.35)}
+.meta-chip{
+  display:flex;align-items:center;gap:5px;
+  font-family:var(--font-mono);font-size:11px;color:var(--text-dim);
+  background:var(--bg);border:1px solid var(--line-soft);
+  padding:4px 9px;border-radius:6px;
+}
+.meta-chip svg{width:12px;height:12px;stroke:var(--text-mute)}
+.meta-chip.xp{color:var(--str);border-color:rgba(255,194,75,.25)}
+.continue-card .desc{font-size:13px;color:var(--text-dim);margin:4px 0 18px}
+.btn-primary{
+  position:relative;display:inline-flex;align-items:center;gap:9px;
+  font-family:var(--font-body);font-weight:600;font-size:14px;
+  color:#0B0E1A;background:var(--grad-primary);
+  border:none;border-radius:10px;padding:11px 20px;cursor:pointer;
+  box-shadow:0 6px 22px rgba(96,165,250,.3);
+  transition:transform .16s ease,box-shadow .16s ease;
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(96,165,250,.4)}
+.btn-primary svg{width:15px;height:15px;stroke:#0B0E1A;transition:transform .16s ease}
+.btn-primary:hover svg{transform:translateX(3px)}
+
+/* Koncepti */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+.card h3{font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-.01em}
+.card .sub{font-size:12.5px;color:var(--text-dim);margin:5px 0 16px}
+.concept{margin-bottom:15px}
+.concept .head{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.concept .name{font-family:var(--font-mono);font-size:13px;font-weight:500}
+/* UPGRADE: trend indikator */
+.trend{font-family:var(--font-mono);font-size:10.5px;font-weight:600;padding:1px 6px;border-radius:4px}
+.trend.up{color:var(--num);background:rgba(74,222,128,.1)}
+.trend.down{color:var(--err);background:rgba(251,113,133,.1)}
+.concept .pct{margin-left:auto;font-family:var(--font-mono);font-size:12px;color:var(--text-dim)}
+.cbar{height:6px;border-radius:6px;background:var(--bg);overflow:hidden}
+.cbar .f{height:100%;width:0;border-radius:6px;transition:width 1s cubic-bezier(.22,1,.36,1)}
+.f.weak{background:linear-gradient(90deg,#FB7185,#FFC24B)}
+.f.done{background:linear-gradient(90deg,#38D6F5,#4ADE80)}
+.check{width:15px;height:15px;stroke:var(--num)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .rise{opacity:1;transform:none}
+  .spark .line{stroke-dashoffset:0}
+  .spark .area,.spark .pt{opacity:1}
+}
+@media (max-width:960px){.grid-2{grid-template-columns:1fr}.app{grid-template-columns:1fr}.sidebar{display:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#FFC24B"/><stop offset="100%" stop-color="#FF9F43"/>
+  </linearGradient>
+  <linearGradient id="sparkGrad" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%" stop-color="#A78BFA"/><stop offset="100%" stop-color="#38D6F5"/>
+  </linearGradient>
+  <linearGradient id="sparkArea" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="rgba(56,214,245,.25)"/><stop offset="100%" stop-color="rgba(56,214,245,0)"/>
+  </linearGradient>
+</defs></svg>
+
+<div class="app">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="nav-indicator" id="navIndicator"></div>
+
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round">
+          <ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>
+        </svg>
+      </div>
+      <span class="brand-name">SQL Tutor</span>
+      <span class="brand-tag">v2</span>
+    </div>
+
+    <div class="cmdk" role="button" tabindex="0" id="cmdkTrigger">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      Pretraži…
+      <span class="kbd">⌘K</span>
+    </div>
+
+    <nav class="nav-section">
+      <div class="nav-label">učenje</div>
+      <a class="nav-item active" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Dashboard<span class="caret"></span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Moduli<span class="badge">12</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        Zadatak<span class="badge new">novo</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a5 5 0 1 0 3 3L21 6l-3-3-3.3 3.3z"/><circle cx="9.5" cy="14.5" r="1"/></svg>
+        Vježbaonica
+      </a>
+    </nav>
+
+    <nav class="nav-section">
+      <div class="nav-label">napredak</div>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+        Profil
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M6 3h12v6a6 6 0 0 1-12 0V3z"/><path d="M6 6H3.5a1.5 1.5 0 0 0 0 3H6"/><path d="M18 6h2.5a1.5 1.5 0 0 1 0 3H18"/></svg>
+        Ljestvica<span class="badge hot">#14</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="9" r="6"/><path d="M9 14.5 7.5 22l4.5-2.5L16.5 22 15 14.5"/></svg>
+        Postignuća<span class="badge new">3</span>
+      </a>
+    </nav>
+
+    <nav class="nav-section">
+      <div class="nav-label">sustav</div>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 3l7 4v5c0 4.5-3 8-7 9-4-1-7-4.5-7-9V7l7-4z"/></svg>
+        Admin
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>
+        Postavke
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="xp-card">
+        <div class="ring">
+          <svg width="46" height="46"><circle class="track" cx="23" cy="23" r="20"/><circle class="bar" cx="23" cy="23" r="20"/></svg>
+          <div class="lvl">2</div>
+        </div>
+        <div class="xp-meta">
+          <span class="t">Level 2</span>
+          <span class="s"><span id="xpCount">0</span> / 100 XP</span>
+        </div>
+        <div class="streak-mini"><span class="flame">🔥</span>1</div>
+      </div>
+
+      <div class="user-row">
+        <div class="avatar">A</div>
+        <div class="user-meta">
+          <span class="n">admin</span>
+          <span class="r">admin</span>
+        </div>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <div class="main">
+    <header class="topbar">
+      <span class="crumbs">sql_tutor<span class="dot">.</span><b>dashboard</b></span>
+      <div class="topbar-right">
+        <div class="chip streak"><span class="flame">🔥</span>1 dan</div>
+        <div class="chip xp">⚡ 110 XP</div>
+        <div class="divider"></div>
+        <div class="icon-btn" title="Obavijesti">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <span class="dot-notif"></span>
+        </div>
+        <div class="icon-btn" title="Tema">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+        </div>
+        <div class="avatar" style="width:34px;height:34px">A</div>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="hero rise d1">
+        <div>
+          <h1>Bok, <span class="grad">admin</span> 👋</h1>
+          <p>Pregled tvog napretka i sljedeći korak. Danas na redu: <code>INNER JOIN</code></p>
+        </div>
+        <div class="daily-goal">
+          <div class="row"><span class="t">Dnevni cilj</span><span class="v">2 / 3 zadatka</span></div>
+          <div class="mini-pbar"><div class="fill" id="goalFill"></div></div>
+        </div>
+      </div>
+
+      <div class="card level-card rise d2">
+        <div class="level-num">2</div>
+        <div class="level-info">
+          <div class="row">
+            <span class="xp-now">10 <span>/ 100 XP u levelu</span></span>
+            <span class="next">još 90 XP do levela 3 · ukupno 110 XP</span>
+          </div>
+          <div class="pbar"><div class="fill" id="levelFill"></div></div>
+        </div>
+        <div class="spark">
+          <span class="lbl">XP · zadnjih 7 dana</span>
+          <svg width="140" height="40" viewBox="0 0 140 40">
+            <path class="area" d="M4,32 L26,16 L48,24 L70,36 L92,10 L114,20 L136,8 L136,40 L4,40 Z"/>
+            <polyline class="line" points="4,32 26,16 48,24 70,36 92,10 114,20 136,8"/>
+            <circle class="pt" cx="136" cy="8" r="3"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="card continue-card rise d3">
+        <div class="eyebrow">NASTAVI OVDJE</div>
+        <h2>Ukupan broj proizvoda s dodijeljenom kategorijom</h2>
+        <div class="task-meta">
+          <span class="tag kw">INNER JOIN</span>
+          <span class="meta-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+            srednje
+          </span>
+          <span class="meta-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
+            ~5 min
+          </span>
+          <span class="meta-chip xp">+20 XP</span>
+        </div>
+        <p class="desc">Ovaj koncept ti je trenutno najslabiji, a preduvjete već imaš — vrijeme je da ga ojačaš.</p>
+        <button class="btn-primary">
+          Otvori zadatak
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </div>
+
+      <div class="grid-2 rise d4">
+        <div class="card">
+          <h3>Za ojačati</h3>
+          <p class="sub">Koncepti s najnižom procjenom znanja — klikni za zadatak.</p>
+          <div class="concept">
+            <div class="head">
+              <span class="name" style="color:var(--err)">INSERT</span>
+              <span class="trend down">▼ 3%</span>
+              <span class="pct">46 %</span>
+            </div>
+            <div class="cbar"><div class="f weak" data-w="46%"></div></div>
+          </div>
+          <div class="concept">
+            <div class="head">
+              <span class="name" style="color:var(--kw)">INNER JOIN</span>
+              <span class="trend up">▲ 4%</span>
+              <span class="pct">52 %</span>
+            </div>
+            <div class="cbar"><div class="f weak" data-w="52%"></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Savladani koncepti</h3>
+          <p class="sub">Ovdje ti model znanja daje najviše povjerenja.</p>
+          <div class="concept">
+            <div class="head">
+              <span class="name" style="color:var(--fn)">Osnovni SELECT</span>
+              <svg class="check" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="8.5 12.5 11 15 15.5 9.5"/></svg>
+              <span class="pct">100 %</span>
+            </div>
+            <div class="cbar"><div class="f done" data-w="100%"></div></div>
+          </div>
+          <div class="concept">
+            <div class="head">
+              <span class="name" style="color:var(--fn)">FROM klauzula</span>
+              <svg class="check" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="8.5 12.5 11 15 15.5 9.5"/></svg>
+              <span class="pct">100 %</span>
+            </div>
+            <div class="cbar"><div class="f done" data-w="100%"></div></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Command palette -->
+<div class="palette-backdrop" id="paletteBackdrop"></div>
+<div class="palette" id="palette" role="dialog" aria-label="Command palette">
+  <div class="palette-input">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <input id="paletteInput" type="text" placeholder="Traži zadatke, koncepte, stranice…" autocomplete="off">
+    <span class="kbd">esc</span>
+  </div>
+  <div class="palette-list" id="paletteList"></div>
+</div>
+
+<script>
+/* ===== Klizni nav indikator (u Reactu: framer-motion layoutId) ===== */
+const sidebar=document.getElementById('sidebar');
+const indicator=document.getElementById('navIndicator');
+const items=[...document.querySelectorAll('.nav-item')];
+function moveIndicator(el,instant){
+  const sr=sidebar.getBoundingClientRect(), ir=el.getBoundingClientRect();
+  const h=ir.height*0.66;
+  if(instant)indicator.style.transition='none';
+  indicator.style.top=(ir.top-sr.top+(ir.height-h)/2)+'px';
+  indicator.style.height=h+'px';
+  if(instant)requestAnimationFrame(()=>indicator.style.transition='');
+}
+items.forEach(it=>it.addEventListener('click',e=>{
+  e.preventDefault();
+  items.forEach(x=>x.classList.remove('active'));
+  it.classList.add('active');
+  moveIndicator(it);
+}));
+window.addEventListener('load',()=>moveIndicator(document.querySelector('.nav-item.active'),true));
+window.addEventListener('resize',()=>moveIndicator(document.querySelector('.nav-item.active'),true));
+
+/* ===== Command palette (u Reactu: cmdk library) ===== */
+const commands=[
+  {t:'Otvori današnji zadatak',c:'zadatak',i:'M13 2 3 14h7l-1 8 10-12h-7l1-8z'},
+  {t:'Nastavi: INNER JOIN',c:'koncept',i:'M4 17 10 11 4 5M12 19h8'},
+  {t:'Idi na Module',c:'stranica',i:'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'},
+  {t:'Idi na Ljestvicu',c:'stranica',i:'M8 21h8M12 17v4M6 3h12v6a6 6 0 0 1-12 0V3z'},
+  {t:'Moj profil',c:'stranica',i:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5'},
+  {t:'Pretraži koncept: SELECT',c:'koncept',i:'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-4.3-4.3'},
+  {t:'Promijeni temu',c:'akcija',i:'M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z'},
+];
+const backdrop=document.getElementById('paletteBackdrop');
+const palette=document.getElementById('palette');
+const pInput=document.getElementById('paletteInput');
+const pList=document.getElementById('paletteList');
+function renderList(q=''){
+  const f=commands.filter(c=>c.t.toLowerCase().includes(q.toLowerCase()));
+  pList.innerHTML=f.length?f.map((c,i)=>`
+    <div class="palette-item${i===0?' sel':''}">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="${c.i}"/></svg>
+      ${c.t}<span class="cat">${c.c}</span>
+    </div>`).join('')
+  :`<div class="palette-empty">Nema rezultata za "${q}"</div>`;
+}
+function openPalette(){backdrop.classList.add('open');palette.classList.add('open');renderList();pInput.value='';setTimeout(()=>pInput.focus(),60);}
+function closePalette(){backdrop.classList.remove('open');palette.classList.remove('open');}
+document.getElementById('cmdkTrigger').addEventListener('click',openPalette);
+backdrop.addEventListener('click',closePalette);
+pInput.addEventListener('input',e=>renderList(e.target.value));
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openPalette();}
+  if(e.key==='Escape')closePalette();
+});
+
+/* ===== Bar fillovi + count-up ===== */
+requestAnimationFrame(()=>{ setTimeout(()=>{
+  document.getElementById('levelFill').style.width='10%';
+  document.getElementById('goalFill').style.width='66%';
+  document.querySelectorAll('.cbar .f').forEach(el=>{ el.style.width=el.dataset.w; });
+},350); });
+
+const target=110, el=document.getElementById('xpCount');
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+if(reduced){ el.textContent=target; }
+else{
+  let start=null;
+  function step(ts){ if(!start)start=ts;
+    const p=Math.min((ts-start)/900,1), ease=1-Math.pow(1-p,3);
+    el.textContent=Math.round(ease*target);
+    if(p<1)requestAnimationFrame(step);
+  }
+  setTimeout(()=>requestAnimationFrame(step),400);
+}
+</script>
+</body>
+</html>

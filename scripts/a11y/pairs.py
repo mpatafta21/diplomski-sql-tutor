@@ -18,6 +18,12 @@ KAKO DODATI NOVI PAR
   4. pokreni `python3 scripts/a11y/contrast_matrix.py` i provjeri da je izlaz očekivan.
 
 Bez citata se par NE dodaje — tvrdnja bez dokaza je ista klasa kao tvrdnja bez plohe.
+
+DVIJE MJERE, DVA PITANJA — v. `CO_USED_EXTRA` na dnu
+  Kontrast (WCAG)  odgovara: „vidi li se ovo na ovome?"  → PAIRS
+  ΔE (Oklab)       odgovara: „razlikuju li se ovo dvoje?" → CO_USED
+Druga mjera postoji zbog cross-scale guarda (MASTER §2.7): kroma-token ne smije se čitati
+kao član semantičke skale. Mjeri se SAMO nad sukorištenim parom — v. NALAZ N-12.
 """
 
 #: Plohe. Vrijednost je ili ime tokena, ili (token, alpha, ploha-ispod) za kompozit.
@@ -45,6 +51,24 @@ SURFACES: dict[str, object] = {
     "accent-warm/10": ("accent-warm", 0.10, "card"),
     "accent-warm/20": ("accent-warm", 0.20, "card"),
     "incorrect/10": ("incorrect", 0.10, "card"),
+    # ── `--destructive` (ERRATA #52) ────────────────────────────────────────
+    # JEDINI dosežni render je nevaljano polje: `ui/input.tsx:12`
+    # `dark:aria-invalid:border-destructive/50` + `dark:aria-invalid:ring-destructive/40`.
+    # `variant="destructive"` (ui/button.tsx:19-20) i `ui/field.tsx` NEMAJU ijednog
+    # potrošača (grep 2026-08-10) — mrtav kod, ne mjeri se.
+    # `under` je ovdje DRUGA PLOHA, ne token: obrub se kompozitira nad VLASTITOM
+    # pozadinom polja (`bg-input/30`), ne nad karticom ispod nje.
+    "destructive/50@input": ("destructive", 0.50, "input/30"),
+    "destructive/50": ("destructive", 0.50, "card"),
+    "destructive/40": ("destructive", 0.40, "card"),
+    # ── obrubi: alpha 1.0 znači „zadrži vlastitu alfu tokena”, samo kompozitiraj ──
+    "border@card": ("border", 1.0, "card"),
+    "border@background": ("border", 1.0, "background"),
+    "border@muted": ("border", 1.0, "muted"),
+    "input@card": ("input", 1.0, "card"),
+    "input@background": ("input", 1.0, "background"),
+    "input@muted": ("input", 1.0, "muted"),
+    "sidebar-border@sidebar": ("sidebar-border", 1.0, "sidebar"),
 }
 
 #: Gdje se ploha koristi — ide u izlaznu tablicu da se brojka može smjestiti.
@@ -72,6 +96,16 @@ SURFACE_USE: dict[str, str] = {
     "accent-warm/10": "BadgeStrip, ContinueCard, ljestvica „ja”",
     "accent-warm/20": "BadgeGallery — osvojen bedž",
     "incorrect/10": "ErrorState — krug ikone",
+    "destructive/50@input": "obrub nevaljanog polja, unutarnji rub",
+    "destructive/50": "obrub nevaljanog polja, vanjski rub",
+    "destructive/40": "halo nevaljanog polja (ring-3)",
+    "border@card": "obrub kartica, gumba, mono blokova",
+    "border@background": "obrub na plohi stranice",
+    "border@muted": "obrub na muted plohi",
+    "input@card": "obrub polja (Login/Register)",
+    "input@background": "obrub polja na plohi stranice",
+    "input@muted": "obrub polja na muted plohi",
+    "sidebar-border@sidebar": "granica sidebara (AppShell.tsx:88,89)",
 }
 
 #: ploha → {tekst-token: dokaz}
@@ -84,7 +118,12 @@ PAIRS: dict[str, dict[str, str]] = {
         "correct": "○ ConceptRow",
         "incorrect": "○ AttemptRow",
         "partial": "○ StatsSummary.tsx:69",
-        "neutral": "○ ConceptChip",
+        # ⚠️ UKLONJEN par `neutral` (dokaz je glasio „○ ConceptChip") — v. nalaz R-5.
+        # `ConceptChip.tsx:33` za nepoznat tier renderira `text-muted-foreground`, NE
+        # `text-neutral`. Riječ „neutralan" u komentaru :32 opisuje NAMJERU, ne token.
+        # `grep -rn "neutral" frontend/src` → 0 Tailwind klasa. `--neutral` ima 0
+        # potrošača u komponentama; jedini izvedeni potrošač je `monaco-theme.ts`
+        # `rules[operator]`, a to je vrijednosna kopija koju mjeri `monaco_check.py`.
     },
     "popover": {"foreground": "○ ui/popover", "muted-foreground": "○ ui/popover"},
     "sidebar": {"muted-foreground": "● AppShell.tsx:71", "accent-warm-text": "○ AppShell"},
@@ -164,7 +203,118 @@ SURFACE_VS_SURROUND: list[tuple[str, str]] = [
     ("accent-warm/10", "card"),
     ("accent-warm/20", "card"),
     ("muted/40", "card"),
+    # ── obrubi: SC 1.4.11 traži 3:1 za „granicu komponente” ──────────────────
+    # 🔴 Poučak #33: docstring je tvrdio „border ≥3:1", izmjereno je 1,25–1,62.
+    # Ovi se retci zapisuju da tvrdnja više ne može živjeti nemjerena.
+    ("border@card", "card"),
+    ("border@background", "background"),
+    ("border@muted", "muted"),
+    ("input@card", "card"),
+    ("input@background", "background"),
+    ("input@muted", "muted"),
+    ("sidebar-border@sidebar", "sidebar"),
+    # ── nevaljano polje (ERRATA #52) ────────────────────────────────────────
+    ("destructive/50@input", "input/30"),
+    ("destructive/50", "card"),
+    ("destructive/40", "card"),
 ]
 
 AA_TEXT = 4.50
 AA_NON_TEXT = 3.00
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  SUKORIŠTENI SKUP — ulaz za ΔE provjeru cross-scale guarda (MASTER §2.7)
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# 🔴 ZAŠTO POSTOJI (NALAZ N-12). ΔE „do najbližeg semantičkog tokena" nad PUNIM skupom je
+# pogrešna mjera: kažnjava kroma-token zbog boja koje se s njim nikad ne renderiraju
+# zajedno. Pod tom je mjerom `--ring` ispao lošiji kao akromatski (0,067) nego kao tintan
+# (0,102) — obrnuto od istine, jer je „najbliži" bio `difficulty-cross-module`, a
+# `DifficultyChip` nije ni na jednom fokusabilnom elementu.
+#
+# SUKORIŠTEN = renderira se na ISTOM elementu ili mu je neposredno susjedan.
+#
+# Većina skupa IZVODI SE IZ `PAIRS` (tekst na plohi ⇒ sukorišten s tom plohom i s ostalim
+# tekstom na njoj) — v. `co_used_map()` u `contrast_matrix.py`. Ovdje su samo dopune koje
+# `PAIRS` ne može izraziti, jer `PAIRS` poznaje plohe, a ne fokus ni sadržaj editora.
+#
+# KAKO DOPUNITI KAD NASTANE NOVI FOKUSABILNI ELEMENT
+#   1. `grep -rn "outline-ring\|ring-ring" frontend/src --include=*.tsx`
+#   2. za svaki NOVI pogodak pročitaj što je UNUTAR tog elementa (i neposredno uz njega);
+#   3. svaki semantički token koji ondje živi upiši u `CO_USED_EXTRA["ring"]` S CITATOM;
+#   4. `python3 scripts/a11y/contrast_matrix.py --delta-e` i provjeri da nema 🔴.
+# Isto vrijedi za nov gumb (`CO_USED_EXTRA["primary"]`) i za nov Monaco token (`MONACO`).
+
+#: Pragovi ΔE (Oklab, euklidski). Nisu WCAG — orijentacija za razlučivost boja.
+DE_COLLISION = 0.05   # 🔴 jedva razlučivo → kroma-token može se čitati kao član skale
+DE_CLOSE = 0.10       # 🟡 blizu — dopušteno samo uz obrazloženje (oblik/kontekst razdvaja)
+
+#: Monaco: SVI ovi tokeni dijele jedan pravokutnik (`TaskPage.tsx:327`, focus-within
+#: kontejner), pa su međusobno sukorišteni SVI SA SVIMA. `monaco_check.py` mjeri samo
+#: drift prema tokenu, a izrijekom NE mjeri razlučivost sintaksnih boja međusobno.
+MONACO: dict[str, str] = {
+    "foreground": "rules[''] / editor.foreground",
+    "muted-foreground": "rules[comment] + editorLineNumber.foreground",
+    "neutral": "rules[operator] + rules[delimiter]",
+    "correct": "rules[string]",
+    "chart-1": "rules[keyword]",
+    "chart-2": "rules[number]",
+    "chart-3": "rules[predefined]",
+    "accent-warm": "editorCursor + editorLineNumber.activeForeground",
+    "card": "editor.background",
+}
+
+#: kroma-token → {semantički token: citat}. Samo ono što PAIRS ne vidi.
+CO_USED_EXTRA: dict[str, dict[str, str]] = {
+    # ── fokus: prsten OKRUŽUJE sadržaj, pa mu je sve unutra sukorišteno ──
+    "ring": {
+        "tier-easy": "ConceptRow.tsx:75 (ConceptChip) unutar <Link> ConceptRow.tsx:117",
+        "tier-medium": "isto — TIER_CLASS pokriva sva tri tiera",
+        "tier-hard": "isto",
+        "mastery-0": "MasteryBar ConceptRow.tsx:90 / MasteryHighlights.tsx:66, oba unutar <Link>",
+        "mastery-25": "isto",
+        "mastery-50": "isto + ikona stanja `text-mastery-50` ConceptRow.tsx:40",
+        "mastery-75": "isto",
+        "mastery-100": "isto",
+        "correct": "CheckCircle2 ConceptRow.tsx:45 / MasteryHighlights.tsx:49 / ConceptCurveCard.tsx:64",
+        "accent-warm": "XP čip FeedbackPanel.tsx:130 u istom flex redu kao CTA gumb",
+        "accent-warm-text": "ConceptRow.tsx:110 deep-link flash na fokusiranom retku",
+        "chart-1": "Monaco keyword unutar focus-within kontejnera TaskPage.tsx:327",
+        "chart-2": "Monaco number, isto",
+        "chart-3": "Monaco predefined, isto",
+        "neutral": "Monaco operator, isto",
+    },
+    # ── primarni gumb: dijeli ekran s tier čipom i stoji NA verdict plohama ──
+    "primary": {
+        "tier-easy": "Submit gumb TaskPage.tsx:340 i ConceptChip TaskPage.tsx:277 — isti ekran",
+        "tier-medium": "isto",
+        "tier-hard": "isto",
+        "accent-warm": "CTA i XP čip u istom redu, FeedbackPanel.tsx:130",
+        "correct-soft": "CTA `Sljedeći zadatak` leži NA verdict plohi",
+        "incorrect-soft": "isto",
+        "partial-soft": "isto",
+    },
+}
+CO_USED_EXTRA["sidebar-ring"] = CO_USED_EXTRA["ring"]
+
+# 🔴 `primary-foreground` NAMJERNO NE nasljeđuje skup od `primary`. Prvi pokušaj ga je
+# nasljedio i odmah dao LAŽNI POZITIV: `primary-foreground × incorrect-soft` = 0,0495 →
+# „kolizija". Nije. `primary-foreground` je tekst UNUTAR gumba, a `-soft` je ploha IZA
+# gumba; između njih stoji pun `primary` fill (14,24:1). Sukorištenost traži isti element
+# ili NEPOSREDNU susjednost — visokokontrastna ploha između njih to prekida.
+# Isti poučak kao #50: provjera koja utopi prave nalaze u lažnima neupotrebljiva je kao i
+# ona koje nema. Zato: bez unosa (PAIRS mu ionako ne daje nijedan semantički susjed).
+
+#: Parovi koji SU sukorišteni i JESU blizu, ali su svjesno prihvaćeni — s razlogom.
+#: Bez ovoga bi provjera vikala na svakom pokretanju i prestala se čitati.
+DE_ACCEPTED: dict[tuple[str, str], str] = {
+    ("muted-foreground", "neutral"):
+        "Monaco: komentar × operator. Zatečeno 0,0233 → predloženo 0,0213 — NIJE regresija "
+        "palete nego posljedica toga što je `--neutral` (0 potrošača u komponentama) "
+        "definiran gotovo kao `--muted-foreground`. Popravak je izbor DRUGOG tokena za "
+        "`rules[operator]`, dizajnerska odluka o sintaksnim bojama — v. N-13 i #52.",
+    ("correct", "chart-2"):
+        "Monaco: string × number, 0,0861. Zatečeno i nepromijenjeno — obje su "
+        "SEMANTIČKE (zamrznute), redizajn palete ih ne dira.",
+}

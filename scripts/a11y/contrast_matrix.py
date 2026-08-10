@@ -22,23 +22,45 @@ from pairs import (  # noqa: E402
     AA_NON_TEXT,
     AA_TEXT,
     CHIPS,
+    CO_USED_EXTRA,
+    DE_ACCEPTED,
+    DE_CLOSE,
+    DE_COLLISION,
     GRAPHIC_ONLY,
+    MONACO,
     PAIRS,
     SURFACE_USE,
     SURFACE_VS_SURROUND,
     SURFACES,
 )
-from palette import Color, contrast, fmt, load_tokens, self_test  # noqa: E402
+from palette import Color, contrast, delta_e, fmt, load_tokens, self_test  # noqa: E402
+
+#: Semantički (zamrznuti) tokeni — druga strana svakog ΔE para.
+SEMANTIC = {
+    "correct", "correct-soft", "incorrect", "incorrect-soft", "partial", "partial-soft",
+    "neutral", "accent-warm", "accent-warm-text", "accent-warm-foreground",
+    *(f"mastery-{k}" for k in (0, 25, 50, 75, 100)),
+    *(f"tier-{k}" for k in ("easy", "medium", "hard")),
+    *(f"difficulty-{k}" for k in
+      ("beginner", "intermediate", "advanced", "expert", "cross-module")),
+    *(f"chart-{k}" for k in range(1, 6)),
+}
 
 CMD = "python3 scripts/a11y/contrast_matrix.py"
 
 
 def resolve_surface(spec, tokens: dict[str, Color]) -> Color:
-    """Ime tokena → Color; (token, alpha, ploha) → kompozit nad plohom."""
+    """Ime tokena → Color; (token, alpha, ploha) → kompozit nad plohom.
+
+    `under` smije biti i DRUGA PLOHA iz SURFACES, ne samo gol token: obrub nevaljanog
+    polja leži nad `input/30` (vlastita pozadina polja), a ta je i sama kompozit.
+    Bez toga se stvaran par ne može izraziti, pa bi se mjerio pogrešan (#50).
+    """
     if isinstance(spec, str):
         return tokens[spec]
     tok, alpha, under = spec
-    return tokens[tok].with_alpha(alpha).over(tokens[under])
+    base = resolve_surface(SURFACES[under], tokens) if under in SURFACES else tokens[under]
+    return tokens[tok].with_alpha(alpha).over(base)
 
 
 def build(theme: str, tokens_all) -> tuple[list[tuple], list[tuple]]:
@@ -81,9 +103,105 @@ def surround_rows(theme: str, tokens_all):
     out = []
     for sname, under in SURFACE_VS_SURROUND:
         surf = resolve_surface(SURFACES[sname], t)
-        r = contrast(surf, t[under])
+        base = resolve_surface(SURFACES[under], t) if under in SURFACES else t[under]
+        r = contrast(surf, base)
         out.append((sname, under, r, r >= AA_NON_TEXT))
     return out
+
+
+def co_used_map() -> dict[str, dict[str, str]]:
+    """kroma-token → {semantički token: citat}. Izvedeno iz PAIRS + CO_USED_EXTRA.
+
+    Iz PAIRS: tekst na plohi ⇒ sukorišten je i s tom plohom i s ostalim tekstom na njoj.
+    To pokriva sve što se vidi „na plohi"; fokus i sadržaj Monaca PAIRS ne vidi, pa ih
+    donosi CO_USED_EXTRA (v. N-12).
+    """
+    out: dict[str, dict[str, str]] = {}
+
+    def add(kroma: str, sem: str, why: str) -> None:
+        if kroma != sem and sem in SEMANTIC and kroma not in SEMANTIC:
+            out.setdefault(kroma, {}).setdefault(sem, why)
+
+    for surf, texts in PAIRS.items():
+        base = surf.split("/")[0].split("@")[0]
+        sem_here = [t for t in texts if t in SEMANTIC]
+        for text_tok in texts:
+            for s in sem_here:
+                add(base, s, f"PAIRS[{surf}] — `{s}` se renderira na toj plohi")
+                add(text_tok, s, f"PAIRS[{surf}] — `{text_tok}` i `{s}` dijele plohu")
+            if base in SEMANTIC:
+                add(text_tok, base, f"PAIRS[{surf}] — `{text_tok}` stoji NA `{base}`")
+    # obrub okružuje element na plohi → nasljeđuje njezino susjedstvo
+    for b in ("border", "input", "sidebar-border"):
+        for s, why in out.get("card", {}).items():
+            add(b, s, f"obrub elementa na `card` — {why}")
+    # Monaco: svi tokeni dijele jedan pravokutnik → svi sa svima
+    for a in MONACO:
+        for b in MONACO:
+            add(a, b, f"Monaco — `{a}` ({MONACO[a]}) × `{b}` ({MONACO[b]})")
+    for kroma, sems in CO_USED_EXTRA.items():
+        for s, why in sems.items():
+            add(kroma, s, why)
+    return out
+
+
+def delta_e_rows(theme: str, tokens_all) -> list[tuple]:
+    """(ΔE, kroma, semantički, citat, oznaka) — sortirano od najbližeg."""
+    t = tokens_all[theme]
+    card = t.get("card")
+    rows = []
+    for kroma, sems in co_used_map().items():
+        if kroma not in t:
+            continue
+        a = t[kroma].over(card) if t[kroma].alpha < 1 else t[kroma]
+        for sem, why in sems.items():
+            if sem not in t:
+                continue
+            b = t[sem].over(card) if t[sem].alpha < 1 else t[sem]
+            d = delta_e(a, b)
+            key = (kroma, sem) if (kroma, sem) in DE_ACCEPTED else (sem, kroma)
+            if d < DE_COLLISION:
+                mark = "PRIHVAĆENO" if key in DE_ACCEPTED else "KOLIZIJA"
+            elif d < DE_CLOSE:
+                mark = "BLIZU"
+            else:
+                mark = "OK"
+            rows.append((d, kroma, sem, why, mark))
+    rows.sort()
+    return rows
+
+
+def run_delta_e(themes, tokens, md: bool) -> int:
+    """ΔE provjera cross-scale guarda. Izlazni kod 1 ako ima neprihvaćene kolizije."""
+    bad = 0
+    for th in themes:
+        rows = delta_e_rows(th, tokens)
+        if md:
+            print(f"\n### {th.upper()} — ΔE nad sukorištenim parovima\n")
+            print("| ΔE | kroma token | semantički token | dokaz sukorištenosti | |")
+            print("|---|---|---|---|---|")
+        else:
+            print(f"\n{'=' * 72}\n{th.upper()} — ΔE (Oklab) nad SUKORIŠTENIM parovima")
+            print(f"pragovi: 🔴 < {DE_COLLISION} kolizija · 🟡 < {DE_CLOSE} blizu · ✅ iznad")
+            print("=" * 72)
+        icon = {"KOLIZIJA": "🔴", "PRIHVAĆENO": "🟨", "BLIZU": "🟡", "OK": "✅"}
+        for d, kroma, sem, why, mark in rows:
+            if mark == "OK" and not md:
+                continue  # terminal: prikaži samo ono što traži pažnju
+            if md:
+                print(f"| {d:.4f} | `{kroma}` | `{sem}` | {why} | {icon[mark]} |")
+            else:
+                print(f"  {icon[mark]} {d:.4f}  {kroma:<20} × {sem:<22} {why}")
+            if mark == "KOLIZIJA":
+                bad += 1
+        if not md:
+            worst = rows[0] if rows else None
+            print(f"  ── {len(rows)} sukorištenih parova · najbliži "
+                  f"{worst[0]:.4f} ({worst[1]} × {worst[2]})" if worst else "  ── nema parova")
+    if bad:
+        print(f"\n🔴 NEPRIHVAĆENIH KOLIZIJA: {bad}. Ili pomakni kroma-token, ili upiši par u "
+              f"`DE_ACCEPTED` (pairs.py) S RAZLOGOM.")
+    return 1 if bad else 0
 
 
 def main() -> int:
@@ -91,13 +209,18 @@ def main() -> int:
     ap.add_argument("--md", action="store_true", help="markdown umjesto terminalskog ispisa")
     ap.add_argument("--theme", choices=["light", "dark"], help="samo jedna tema")
     ap.add_argument("--pair", nargs=2, metavar=("TEKST", "PLOHA"), help="jedan par")
+    ap.add_argument("--delta-e", action="store_true",
+                    help="ΔE nad SUKORIŠTENIM parovima (cross-scale guard, MASTER §2.7)")
     ap.add_argument("--quiet-selftest", action="store_true")
     a = ap.parse_args()
 
     tokens = load_tokens()
     self_test(tokens, verbose=not a.quiet_selftest and not a.md)
 
-    themes = [a.theme] if a.theme else ["light", "dark"]
+    themes = [a.theme] if a.theme else list(tokens)
+
+    if a.delta_e:
+        return run_delta_e(themes, tokens, a.md)
 
     if a.pair:
         text_tok, sname = a.pair

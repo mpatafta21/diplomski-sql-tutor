@@ -484,3 +484,56 @@ nije razlog zbog kojeg aplikacija postoji. Ne dira se `staleTime`.
 
 ⚠️ Isto vrijedi, u manjoj mjeri, za `agent_messages_log` (N-3): i on raste bez studentove
 akcije, samo mu je uzrok drugi (nema `user_id`, pa ga nijedan cleanup ne dohvaća).
+
+---
+
+## 🔒 DOC — dopuna politike (2026-08-10, 1C-zatvaranje)
+
+### Tvrdnja „X nema potrošača" mora biti dokaz o UČINKU, ne o imenu
+
+**Grep po imenu tokena je nepotpun dokaz** kad token može biti posredovan:
+
+| posredovanje | primjer |
+|---|---|
+| **alias** | `--font-heading: var(--font-sans)` — potrošač piše `font-heading`, a token koji stvarno djeluje je `--font-sans` |
+| `@theme` / `@theme inline` mapiranje | `--color-neutral: var(--neutral)` → utility se zove `text-neutral`, deklaracija `--neutral` |
+| shadcn registry setup | komponenta iz paketa nosi klasu koju projekt nikad nije napisao |
+| dinamičan pristup | `VERDICT_META[verdict].soft`, `buttonVariants({ variant })` s varijablom |
+
+**Povod.** U 4.7 je zapisano da `--font-heading` ima **nula potrošača**. Netočno — imao ih
+je **dva** (`ProgressHero.tsx:26`, `ui/card.tsx:41`). Nisu se vidjeli jer je token bio
+**alias** za `--font-sans`, pa nije imao **učinak**; grep po imenu ih je promašio. Čim je
+alias dobio vlastitu vrijednost, display font se automatski proširio na sve naslove
+kartica — širi doseg nego što je commit tvrdio.
+
+🔴 **Ista klasa kao #39** (guard netestiran u oba smjera): alat kalibriran za jedan smjer
+ne štiti. Grep po imenu nalazi ono što se **zove** kao token, a ne ono što ga **doseže**.
+
+### Što se traži kao dokaz
+
+1. **Za živ token:** izgrađeni CSS (`frontend/dist/assets/index-*.css`) — postoji li
+   `var(--token)` uporaba i je li generirana ijedna utility klasa. Tailwind emitira
+   utility samo ako je niska u izvoru, pa odsutnost klase **jest** dokaz.
+2. **Za obrisanu stavku:** `git show <commit>^:<put>` → izvuci **svaki** identifikator koji
+   je nosila (izvozi, `data-slot`, `group/`, `peer/`), pa `git log -S` po svakom kroz
+   **cijelu** povijest.
+3. **Za dinamičan pristup:** pročitati sva mjesta koja objekt konzumiraju i provjeriti
+   ima li spreada, destrukturiranja ili računatog ključa.
+
+⚠️ **Prisutnost klase u `dist` NIJE dokaz dosežnosti koda.** Tailwind emitira klasu čim je
+niska u izvoru — i iz mrtvog koda. `.bg-correct-soft` je u `dist`, ali dolazi iz
+`FeedbackPanel`/`TaskPage`, ne iz `verdict-ui.ts` `soft` polja, koje i dalje nitko ne čita.
+
+### Re-verifikacija cijele 4.7 ovom metodom (2026-08-10)
+
+| stavka | metoda | ishod |
+|---|---|---|
+| `--sidebar-primary` (+`-foreground`), **obrisan** | `git log -S` kroz cijelu povijest | niska `sidebar-primary` **nikad** nije postojala izvan `index.css` (3 commita, svi samo `index.css`) → brisanje ispravno ✅ |
+| `ui/field.tsx`, **obrisan** | `git show` + 15 identifikatora (10 izvoza, `data-slot`, `group/`, `peer/`) | svi postoje **samo** u toj datoteci, od `eae9967` do brisanja; 0 `data-slot="field*"` i 0 `group/field` izvan nje → brisanje ispravno ✅ |
+| `--neutral`, `--neutral-soft` | `dist` CSS | 1 deklaracija, **0** `var()`, **0** utility ✅ |
+| `--duration-reward` | `dist` CSS | 1 deklaracija, **0** utility ✅ |
+| `verdict-ui.ts` `soft` | čitanje jedinog konzumenta | `AttemptRow.tsx:35-52` čita `icon`, `border`, `chip`, `label` — **nikad `soft`**; nema spreada ni računatog ključa ✅ |
+| `variant="destructive"` | `buttonVariants` indirekcija | izvezen, ali **nigdje importan** izvan `button.tsx`; `variant` je tipiziran `VariantProps`, pa bi potrošač morao napisati literal — 0 pogodaka ✅ |
+| `--accent`, `--accent-foreground`, `--sidebar-foreground`, `--chart-3/4/5` | `dist` CSS | svi: 1 deklaracija, **0** `var()`, **0** utility ✅ |
+
+**Nijedna obrisana stavka nije imala stvarnog potrošača.** Revert nije potreban.

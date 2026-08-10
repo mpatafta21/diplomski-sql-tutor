@@ -191,6 +191,16 @@ klamp po kanalu — pa je izmjereni hex za takav token približan, ne točan.
   prestaje biti jedina obojena stvar u kadru. Za to nema brojke u ovom alatu; ima je samo
   snimka. Ako netko ikad opet pojača kromu ploha, **provjera je snimka, ne `--delta-e`.**
 
+- 🔴 **Postojanje potrošača.** Alat mjeri **vrijednosti**, ne dosežnost. Tvrdnja „token
+  nema potrošača" ne smije se izvesti grepom po **imenu**: token može biti posredovan
+  **aliasom** (`--font-heading: var(--font-sans)`), `@theme` mapiranjem, shadcn registry
+  setupom ili dinamičnim pristupom. Povod: u 4.7 je `--font-heading` prijavljen kao „0
+  potrošača", a imao ih je dva — nisu se vidjeli jer alias nije imao **učinak**.
+  Dokaz mora biti o učinku: `var(--token)` i generirane utility klase u
+  `frontend/dist/assets/index-*.css`, a za obrisane stavke `git log -S` po **svakom**
+  identifikatoru koji su nosile. ⚠️ Prisutnost klase u `dist` NIJE dokaz dosežnosti koda —
+  Tailwind je emitira i iz mrtvog koda. Puna politika: 🔒 DOC u `docs/errata.md`.
+
 - **Vizualnu hijerarhiju.** Izračun mjeri element, snimka mjeri kompoziciju. Token može
   proći AA i pritom se stopiti sa susjedom (poučak iz 4.7-1a: pomoć uz `username` prolazila
   je 4,73:1 a bila je najslabiji tekst na ekranu).

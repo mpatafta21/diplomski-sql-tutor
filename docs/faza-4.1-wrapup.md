@@ -90,6 +90,11 @@ anon→/login redirect · register→shell · login→shell · logout→token cl
 > upotrijebili za **druga pravila** nego što ovdje piše. Od 4.7 kod referencira invarijante
 > **opisno, bez broja** (17 mjesta u 18 datoteka). Isti obrazac i isti razlog kao ispravak
 > `#49` u `docs/errata.md` — v. ondje konvenciju o prostoru imena.
+>
+> ⟳ **KONSOLIDIRANO (2026-08-10, 1C-zatvaranje): kanonski popis je sada
+> `docs/invarijante.md`.** Sve tri invarijante ispod ondje su prenesene s opisnim
+> naslovima i stabilnim sidrima, uz hazard i presedan. **Ovaj odjeljak ostaje
+> nepromijenjen kao povijesni zapis** — ne ažurira se više.
 
 - **Invarijanta #1 — 401 runtime:** security dep nije u OpenAPI shemi → NIKAD hvatati auth greške kroz tipiziranu `error` granu (ona je `never`); uvijek `response.ok` + middleware. Vrijedi za SVE zaštićene pozive.
 - **Invarijanta #2 — TS6 `erasableSyntaxOnly`:** bez parameter-properties (class polja eksplicitno).

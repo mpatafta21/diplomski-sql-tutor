@@ -403,9 +403,18 @@ preglednik**, ne `curl`-om (curl ne provodi CORS pa uspijeva i kad preglednik ne
 
 ---
 
-## N-8 🔴 Prostor imena „invarijanta" je NEKOHERENTAN — isti broj nosi dva različita pravila
+## N-8 ✅ Prostor imena „invarijanta" je NEKOHERENTAN — isti broj nosi dva različita pravila
 
-**Status:** 🔴 otvoren · **konsolidacija čeka odluku korisnika** · pun search 2026-08-10
+**Status:** ✅ **ZATVOREN 2026-08-10 (1C-zatvaranje)** — konsolidirano u **`docs/invarijante.md`**,
+referencirano iz `CLAUDE.md`. Brojevi su **napušteni**, ne preslagani: opisni naslovi +
+stabilna sidra (`#xp-autoritativni-izvor`). `docs/faza-4.1-wrapup.md:85-87` ostaje
+nepromijenjen kao povijesni zapis, uz pokazivač.
+
+🔴 **XP invarijanta je pritom RAZDVOJENA na dvije** — `#xp-autoritativni-izvor` (hazard:
+neusklađene brojke, tvrd i mjerljiv) i `#jedan-prikaz-po-kadru` (hazard: redundancija,
+dizajnerski i podložan iznimci). Spojene bi se čitale preširoko.
+
+*Izvorni nalaz (pun search 2026-08-10):*
 
 Hipoteza je bila da su invarijante **raspršene** po wrapupima (nije rupa, samo nije na
 jednom mjestu). **Pun search je pokazao nešto drugo — i gore.**

@@ -91,6 +91,20 @@ Checklist pri kreiranju novog agenta:
 4. **Implementacija** — koristiti `superpowers:executing-plans` skill za praćenje napretka
 5. **Review** — koristiti `code-review` plugin prije finalnog commita faze
 
+## 🔴 Invarijante
+
+Kanonski popis: **`docs/invarijante.md`**. Ondje su definirane, kod ih referencira
+**opisno + sidrom**, nikad brojem:
+
+```ts
+// Invarijanta: prag iz /profile (docs/invarijante.md#prag-iz-profila)
+```
+
+Brojevi su napušteni jer su bili uzrok NALAZA N-8 (dva broja postala dvoznačna, jedno
+pravilo nosilo dva broja). Prije nego dodaš invarijantu pročitaj „Kako dodati invarijantu"
+na dnu tog dokumenta — posebno pravilo da se invarijanta s dva različita hazarda
+**razdvaja na dvije**.
+
 ## 🔴 Pravila rada s datotekama
 
 **Untracked datoteka se NIKAD ne prepisuje ni ne briše.** Git ne čuva povijest untracked

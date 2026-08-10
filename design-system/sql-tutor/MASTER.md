@@ -272,11 +272,13 @@ od "ne diraj postojeće"). Hue-razmaknuta, svaka serija razlučiva i po svjetlin
 
 ## 5. Motion
 
-Tokeni u `@theme` — **samo vrijednosti**. Motion lib (`framer-motion`/`motion`) **nije u
-`package.json` i ne dolazi**: Faza 4.6 (motion + WebSocket) je REZANA (v. `docs/errata.md`,
-§„Opseg implementacije — REZANE faze" + revizija 2026-08-09). Sav motion u aplikaciji je
-CSS — `tw-animate-css` (`animate-in`, `fade-in`, `slide-in-*`) + ovi tokeni. Dodavanje
-motion liba traži izričitu odluku, nije zatečeni plan:
+⟳ **4.6 se IZVODI unutar 4.7 (stage 3, DIO B; 2026-08-10)** — prijašnja formulacija „4.6
+je REZANA" vrijedi još samo za WebSocket i ⌘K paletu (v. errata §REZANE faze, 4. revizija).
+`framer-motion`/`motion` i dalje **ne dolaze** — sav 4.6 motion je CSS + minimalni JS kroz
+ove tokene. Jedina nova ovisnost: `canvas-confetti` (~7 kB gzip, dinamički import → nije u
+initial bundleu), samo za level-up burst (B.5).
+⚠️ Trajanja rade kroz `@utility` most u `index.css`, ne kroz `@theme` (N-18: `--duration-*`
+nije utility namespace u TW v4 — do 2026-08-10 su SVE tranzicije tiho radile na 150 ms):
 
 | Token | Vrijednost | Namjena |
 |---|---|---|
@@ -288,18 +290,20 @@ motion liba traži izričitu odluku, nije zatečeni plan:
 | `--duration-fast` | `160ms` | mikrointerakcije |
 | `--duration-base` | `240ms` | paneli, fade |
 | `--duration-slow` | `400ms` | page transitions |
-| `--duration-reward` | `700ms` | ⚠️ **NEKORIŠTEN** — bio rezerviran za count-up envelope NEIZVEDENE Faze 4.6 (provjereno grepom 2026-07-26: 0 pogodaka na `duration-reward` u `frontend/src`). OSTAJE radi cjelovitosti ljestvice instant→fast→base→slow→reward, ne kao najava rada |
+| `--duration-reward` | `700ms` | ⟳ **KORIŠTEN od B.5 (2026-08-10)** — točno za ono za što je rezerviran: XP count-up envelope (`useXpCountUp` čita token iz computed stylea) + `level-pulse` keyframe |
 
 Pravila: sve animacije poštuju `prefers-reduced-motion` · bez layout-shift hovera (translateY max 1–2px,
 nikad scale koji pomiče susjede) · reward animacije SAMO na accent-warm događajima · svaka animacija
 prolazi `/review-animations` gate.
 
-⚠️ **Doseg gatea, zatečeno stanje:** `/review-animations` je stvarno pokrenut **samo nad
-Task screenom** (4.3). Faza 4.6, koja ga je trebala pokrenuti globalno, je REZANA →
-globalni prolaz **nikad se nije dogodio** i ne planira se. `prefers-reduced-motion` je
-pokriven **univerzalnim** guardom u `index.css` (`@media (prefers-reduced-motion: reduce)`
-nad `*`), ne per-komponentnim opt-inom, pa pravilo vrijedi i bez gatea. Za svaku NOVU
-animiranu površinu gate ostaje obavezan.
+⚠️ **Doseg gatea:** `/review-animations` je stvarno pokrenut samo nad Task screenom (4.3).
+⟳ B/4.6 (2026-08-10): skupine B.1–B.6 prošle su **ručni review po istim kriterijima**
+(tokeni · reduced-motion · 2.2.2 · podaci nedirnuti) jer `/review-animations` nije bio
+dostupan u sesiji — svaki commit skupine nosi checklist. `prefers-reduced-motion` je
+pokriven **univerzalnim** guardom u `index.css` (trajanje I delay), a komponente s hover
+POMAKOM dodaju vlastite `motion-reduce:` klase (guard ruši trajanje, ne ciljno stanje).
+Za svaku NOVU animiranu površinu gate (ili njegov dokumentirani ručni ekvivalent) ostaje
+obavezan.
 
 ---
 
@@ -327,7 +331,9 @@ brojevi = chart-2 teal, komentari = muted, funkcije = chart-3 violet.
 - ❌ Boje mimo token sustava; miješanje skala (tier boja na difficulty i obratno)
 - ❌ `partial` verdikt prenesen SAMO bojom (aktivan od 4.3c — ikona+tekst obavezni; vidi §2.2)
 - ❌ Emoji kao ikone; nevidljivi fokus; instant state-change bez tranzicije; layout-shift hover
-- ❌ Sjene kao elevacija u dark temi; `shadow-xl+` bilo gdje
+- ❌ Sjene kao STATIČKA elevacija u dark temi; `shadow-xl+` bilo gdje. ⟳ B.1 (2026-08-10):
+  prolazna hover sjena na kartici (`hover:shadow-lg`, uz lift −2px) je svjesna iznimka —
+  mikrointerakcija, ne elevacijski sustav
 - ❌ Google Fonts CDN import (sve self-hosted)
 
 ## 9. Pre-delivery checklist (svaka komponenta, 4.2–4.7)

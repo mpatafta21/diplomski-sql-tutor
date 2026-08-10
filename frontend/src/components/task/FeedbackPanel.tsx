@@ -14,11 +14,17 @@
  *  - new_badges su KOZMETIKA (flag #3) — unlock prikaz odavde, autoritativno
  *    stanje bedževa čita /profile (invalidiran u useSubmitAttempt)
  *
- * Motion: jedino mjesto gdje motion nosi nagradu (MASTER §5 — suzdržano, bez
- * konfeta): pop-in ulaz panela + reward-ease na XP/badge čipovima, sve kroz
- * tokene i s motion-reduce guardom.
+ * Motion: jedino mjesto gdje motion nosi nagradu — pop-in ulaz panela,
+ * reward-ease na čipovima, XP count-up, level-up puls + konfeti, badge-pop.
+ * ⟳ B.5/4.6 (2026-08-10): odluka „nula konfeta" iz 4.3 wrapupa SVJESNO
+ * povučena — 4.6 dovršava stup istaknutosti povratne sprege (obrazloženje i
+ * datum u errata revizji §REZANE faze). Konfeti SAMO na level-up (jedan
+ * burst, ograničen trajanjem — WCAG 2.2.2), ne po svakom točnom odgovoru;
+ * anti-pattern „konfeti-spam" (MASTER §8) i dalje vrijedi.
+ * 🔴 Nijedna animacija ne mijenja PODATKE ni redoslijed dohvata: count-up
+ * animira PRIKAZ brojke (#xp-autoritativni-izvor), izvor je `attempt.xp`.
  */
-import { memo } from "react"
+import { memo, useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import {
   ArrowRight,
@@ -72,6 +78,71 @@ const VERDICT_UI: Record<
   },
 }
 
+/**
+ * Count-up PRIKAZA ukupnog XP-a (B.5/4.6): od (xp − delta) do xp.
+ * Envelope IZ TOKENA — trajanje `--duration-reward` i krivulja `--ease-reward`
+ * čitaju se iz computed stylea (token ostaje jedini izvor; promjena tokena
+ * mijenja i count-up bez diranja koda).
+ * 🔴 Overshoot reward krivulje (y > 1) se KLAMPA: autoritativna brojka ne
+ * smije ni na trenutak pokazati VIŠE od stvarnog stanja. Reduced motion ili
+ * delta ≤ 0 → odmah konačna vrijednost.
+ */
+function useXpCountUp(target: number, delta: number): number {
+  const [shown, setShown] = useState(() =>
+    delta > 0 ? target - delta : target,
+  )
+  useEffect(() => {
+    if (delta <= 0) {
+      setShown(target)
+      return
+    }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setShown(target)
+      return
+    }
+    const cs = getComputedStyle(document.documentElement)
+    const rawDur = cs.getPropertyValue("--duration-reward").trim()
+    const parsed = parseFloat(rawDur)
+    const dur =
+      (rawDur.endsWith("ms") ? parsed : parsed * 1000) > 0
+        ? rawDur.endsWith("ms")
+          ? parsed
+          : parsed * 1000
+        : 700
+    const bez = cs
+      .getPropertyValue("--ease-reward")
+      .match(/-?[\d.]+/g)
+      ?.map(Number)
+    /** y(x) kubične Bézier krivulje; t se traži bisekcijom (x(t) je monotona). */
+    const bezierY = (x: number): number => {
+      if (!bez || bez.length !== 4) return x
+      const [x1, y1, x2, y2] = bez
+      let lo = 0
+      let hi = 1
+      for (let i = 0; i < 24; i++) {
+        const t = (lo + hi) / 2
+        const xt = 3 * (1 - t) ** 2 * t * x1 + 3 * (1 - t) * t * t * x2 + t ** 3
+        if (xt < x) lo = t
+        else hi = t
+      }
+      const t = (lo + hi) / 2
+      return 3 * (1 - t) ** 2 * t * y1 + 3 * (1 - t) * t * t * y2 + t ** 3
+    }
+    const from = target - delta
+    const start = performance.now()
+    let raf = 0
+    const frame = (now: number) => {
+      const x = Math.min((now - start) / dur, 1)
+      setShown(Math.min(from + Math.round(delta * bezierY(x)), target))
+      if (x < 1) raf = requestAnimationFrame(frame)
+      else setShown(target)
+    }
+    raf = requestAnimationFrame(frame)
+    return () => cancelAnimationFrame(raf)
+  }, [target, delta])
+  return shown
+}
+
 interface FeedbackPanelProps {
   attempt: AttemptResponse
   /** Deriviran u TaskView (nema flaga u odgovoru); false i na cache-miss. */
@@ -102,6 +173,43 @@ export const FeedbackPanel = memo(function FeedbackPanel({
   const rec = attempt.recommendation
   const recKind = recommendationKind(rec)
   const nextConcept = conceptName(rec.concept)
+  const xpShown = useXpCountUp(attempt.xp, attempt.xp_delta)
+
+  // Level-up konfeti (B.5/4.6) — JEDAN burst, dinamički import (zaseban chunk,
+  // initial bundle netaknut). Boje IZ TOKENA u runtimeu: accent-warm
+  // (gamifikacija, §2.1) + chart kategorijska skala (jedina nesemantička).
+  // `ticks` ograničava život čestica — 2.2.2 riješen TRAJANJEM;
+  // `disableForReducedMotion` + rani izlaz pokrivaju reduced motion dvaput.
+  useEffect(() => {
+    if (!levelUp) return
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    let cancelled = false
+    void import("canvas-confetti").then((m) => {
+      if (cancelled) return
+      const cs = getComputedStyle(document.documentElement)
+      const colors = [
+        "--accent-warm",
+        "--chart-1",
+        "--chart-2",
+        "--chart-3",
+        "--chart-4",
+      ]
+        .map((t) => cs.getPropertyValue(t).trim())
+        .filter(Boolean)
+      void m.default({
+        particleCount: 90,
+        spread: 75,
+        startVelocity: 32,
+        origin: { y: 0.65 },
+        colors,
+        ticks: 180,
+        disableForReducedMotion: true,
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [levelUp])
 
   return (
     <section
@@ -140,8 +248,10 @@ export const FeedbackPanel = memo(function FeedbackPanel({
               Već riješeno · bez XP
             </span>
           )}
+          {/* Count-up animira PRIKAZ (useXpCountUp klampan na attempt.xp);
+              izvor brojke je i dalje isključivo odgovor (#xp-autoritativni-izvor). */}
           <span className="text-xs text-muted-foreground tabular-nums">
-            Ukupno {attempt.xp} XP · Level {attempt.level}
+            Ukupno {xpShown} XP · Level {attempt.level}
           </span>
           {attempt.current_streak > 1 && (
             <span className="inline-flex items-center gap-1 text-xs text-accent-warm-text tabular-nums">
@@ -166,7 +276,8 @@ export const FeedbackPanel = memo(function FeedbackPanel({
       )}
 
       {levelUp && (
-        <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-accent-warm-text duration-base ease-reward animate-in fade-in slide-in-from-bottom-1 motion-reduce:animate-none">
+        // `level-pulse` (B.5): puls na duration-reward/ease-reward — v. index.css.
+        <p className="level-pulse mt-3 flex items-center gap-1.5 text-sm font-semibold text-accent-warm-text motion-reduce:animate-none">
           <Award aria-hidden="true" className="size-4" />
           Novi level — {attempt.level}!
         </p>
@@ -182,7 +293,8 @@ export const FeedbackPanel = memo(function FeedbackPanel({
             return (
               <span
                 key={code}
-                className="inline-flex items-center gap-1 rounded-md bg-accent-warm px-2 py-0.5 text-xs font-medium text-accent-warm-foreground duration-base ease-reward animate-in zoom-in-90 fill-mode-backwards motion-reduce:animate-none"
+                // `badge-pop` (B.5): unlock keyframe s overshootom — v. index.css.
+                className="badge-pop inline-flex items-center gap-1 rounded-md bg-accent-warm px-2 py-0.5 text-xs font-medium text-accent-warm-foreground motion-reduce:animate-none"
                 style={{ animationDelay: `${i * 60}ms` }}
               >
                 <BadgeIcon aria-hidden="true" className="size-3.5" />

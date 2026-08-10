@@ -13,7 +13,16 @@
 import { useCallback, useMemo, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "react-router-dom"
-import { CheckCircle2, ChevronRight, Clock, Play, Send } from "lucide-react"
+import {
+  BookOpen,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  LayoutDashboard,
+  MonitorSmartphone,
+  Play,
+  Send,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Kbd } from "@/components/ui/kbd"
@@ -318,8 +327,57 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
         </Card>
       </div>
 
-      {/* ── Desni panel: Monaco editor + Run/Submit ────────────────── */}
-      <Card className="min-w-0 self-start">
+      {/* ── <768px: rješavanje traži veći zaslon (1C t.4) ────────────
+          🔴 ADITIVNO. Ne dira `TaskView` logiku, keying ni registraciju hotkeya —
+          samo dva wrappera oko postojećeg desnog panela. Opis, koncepti i shema
+          (lijevi stupac) ostaju čitljivi i dostupni. */}
+      <Card className="min-w-0 self-start md:hidden">
+        <CardContent className="space-y-3 p-4">
+          <div className="flex items-start gap-3">
+            <MonitorSmartphone
+              className="mt-0.5 size-5 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <div className="space-y-2">
+              <h2 className="text-base font-medium">
+                Rješavanje traži veći zaslon
+              </h2>
+              {/* 🔴 ISKRENA poruka: ne „uskoro" i ne „nije podržano", nego RAZLOG.
+                  SQL editor traži tipkovnicu, a kratice koje pokreću i predaju upit
+                  (Ctrl/Cmd+Enter, Shift+Enter) na telefonu ne postoje. */}
+              <p className="text-sm text-muted-foreground">
+                SQL editor traži tipkovnicu — a kratice kojima se upit pokreće i
+                predaje (<Kbd aria-hidden="true">{RUN_KBD}</Kbd> i{" "}
+                <Kbd aria-hidden="true">Shift ↵</Kbd>) na telefonu ne postoje.
+                Opis zadatka i shema baze iznad su ti dostupni; za pisanje upita
+                otvori isti zadatak na računalu.
+              </p>
+            </div>
+          </div>
+          {/* Poruka mora imati IZLAZ — inače je slijepa ulica. */}
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link to="/">
+                <LayoutDashboard data-icon="inline-start" aria-hidden="true" />
+                Dashboard
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/modules">
+                <BookOpen data-icon="inline-start" aria-hidden="true" />
+                Moduli
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Desni panel: Monaco editor + Run/Submit ──────────────────
+          `hidden md:block` (ne uvjetni render): komponenta OSTAJE MONTIRANA, pa
+          `SqlEditor` mount-time registracija Ctrl/Shift+Enter i `keying` rade
+          nepromijenjeno. `display:none` ju usput miče iz tab-reda i od čitača
+          ekrana, što je na mobitelu i ispravno — editor ondje nije upotrebljiv. */}
+      <Card className="hidden min-w-0 self-start md:block">
         <CardContent className="space-y-3 p-4">
           {/* focus-within prsten: Monaco fokus mora biti vidljiv i na kontejneru (MASTER §7). */}
           <div className="h-[420px] overflow-hidden rounded-md border border-border transition-[border-color,box-shadow] duration-fast ease-standard focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40 motion-reduce:transition-none xl:h-[520px]">

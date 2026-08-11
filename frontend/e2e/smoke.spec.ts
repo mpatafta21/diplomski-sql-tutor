@@ -88,19 +88,38 @@ test("student happy path: registracija → zadatak → Run → Submit → sljede
   )
   await expect(verdict.first()).toBeVisible({ timeout: 45_000 })
 
-  // ── 7. CTA vodi na (sljedeći) zadatak ───────────────────────────────────
+  // ── 7. CTA nastavlja rad — DVIJE legitimne grane (N-11 riješen 2026-08-11) ──
   // 🔴 NE tvrdimo da je ID različit. Pri netočnoj predaji preporučivač legitimno vraća
-  // ISTI koncept, pa i isti zadatak — izmjereno u prvom runu (/task/15 → /task/15).
-  // Smoke provjerava da CTA POSTOJI, da je link na rutu zadatka i da nas ostavlja na
-  // valjanoj stranici zadatka. Da isti ID znači da CTA vizualno ne radi ništa
-  // zabilježeno je kao nalaz (N-11), nije stvar ovog testa.
-  const next = page.getByRole("link", { name: /Sljedeći zadatak/i })
-  await expect(next).toBeVisible()
-  await expect(next).toHaveAttribute("href", /\/task\/\d+/)
-  await next.click()
-  await expect(page).toHaveURL(/\/task\/\d+/)
-  console.log(
-    `   ℹ️  prvi zadatak: ${firstTaskUrl}\n   ℹ️  nakon CTA:    ${page.url()}` +
-      (page.url() === firstTaskUrl ? "  (ISTI — v. N-11)" : ""),
-  )
+  // ISTI koncept, pa i isti zadatak — izmjereno (/task/15 → /task/15).
+  //
+  // ⟳ Do popravka N-11 CTA je i u tom slučaju bio `Link` na istu rutu, pa klik nije
+  // radio NIŠTA (keyed `TaskView` se ne remounta). Test je tada tvrdio samo da link
+  // postoji — dakle kodirao je pokvareno ponašanje. Sada su grane dvije i test
+  // provjerava OBJE, ovisno o tome što je preporučivač vratio:
+  //   • drugi zadatak → `link` „Sljedeći zadatak" → navigacija na /task/:id
+  //   • isti zadatak  → `button` „Pokušaj ponovno" → panel s ocjenom NESTAJE,
+  //                     ruta ostaje ista (nastavak rada bez navigacije)
+  const nextLink = page.getByRole("link", { name: /Sljedeći zadatak/i })
+  const retryBtn = page.getByRole("button", { name: /Pokušaj ponovno/i })
+  const verdictPanel = page.getByRole("status", { name: "Ocjena rješenja" })
+
+  if (await retryBtn.count()) {
+    await expect(retryBtn).toBeVisible()
+    await retryBtn.click()
+    // Vidljiv učinak: panel s ocjenom nestaje, a ostajemo na istom zadatku.
+    await expect(verdictPanel).toHaveCount(0)
+    await expect(page).toHaveURL(firstTaskUrl)
+    console.log(
+      `   ℹ️  preporuka = ISTI zadatak → „Pokušaj ponovno" (N-11 grana)\n` +
+        `   ℹ️  panel očišćen, ruta ostala: ${page.url()}`,
+    )
+  } else {
+    await expect(nextLink).toBeVisible()
+    await expect(nextLink).toHaveAttribute("href", /\/task\/\d+/)
+    await nextLink.click()
+    await expect(page).toHaveURL(/\/task\/\d+/)
+    console.log(
+      `   ℹ️  prvi zadatak: ${firstTaskUrl}\n   ℹ️  nakon CTA:    ${page.url()}`,
+    )
+  }
 })

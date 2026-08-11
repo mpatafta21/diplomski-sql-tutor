@@ -303,6 +303,28 @@ Pravila: sve animacije poštuju `prefers-reduced-motion` · bez layout-shift hov
 nikad scale koji pomiče susjede) · reward animacije SAMO na accent-warm događajima · svaka animacija
 prolazi `/review-animations` gate.
 
+### 🔴 Pravilo: svaki `transition-*` dobiva EKSPLICITNO trajanje I easing
+
+Provjera (mora vraćati 0 u oba smjera):
+```bash
+grep -rn 'transition-' frontend/src --include='*.tsx' | grep -v 'duration-'
+grep -rn 'transition-' frontend/src --include='*.tsx' | grep -v 'ease-' | grep -v 'transition-none'
+```
+
+**Izmjerena asimetrija u Tailwindu v4 (2026-08-11) — zašto pravilo traži oboje iako curi
+samo jedno.** Tranzicijski lanac koristi točno dvije custom propertyje:
+
+| varijabla | `@property` registracija | nasljeđuje se? | dokaz |
+|---|---|:---:|---|
+| `--tw-ease` | `inherits: false` | **NE** | probe bez `ease-*` unutar kartice: `--tw-ease` = *(nema)*, timing = TW default |
+| `--tw-duration` | **nije registrirana** | **DA** | isti probe: `--tw-duration` = `240ms`, `transitionDuration` = 0,24 s |
+| `--tw-delay` | ne postoji u lancu | — | `grep transition-delay:var(--tw-` u buildu → 0 pogodaka |
+
+`tw-animate-css` svoje varijable (`--tw-animation-*`) registrira s `inherits: false` → ni
+animacijski lanac ne curi. **Klasa je dakle točno jedna varijabla**, ali pravilo traži oboje
+jer registracija je uzvodna odluka koju projekt ne kontrolira: da Tailwind sutra makne
+`@property --tw-ease`, easing bi počeo curiti bez ijedne izmjene u ovom repozitoriju.
+
 🔴 **`--tw-duration` JE NASLJEDNA — trajanje curi u djecu.** Posljedica N-18 popravka:
 `@utility duration-*` postavlja `--tw-duration`, a custom propertyji se nasljeđuju. Svaki
 element s `transition-*` **bez vlastite** klase trajanja unutar kartice (`duration-base`)
@@ -388,11 +410,27 @@ pomaknuta na pravilo koje se može provjeriti:
 |---|---|
 | ~~trake napretka~~ · čipovi · bedževi · verdict plohe · **bilo što uz tier/mastery/verdict** | brand ikona · wordmark · pozadinski glow · hairline/separator · hover obrub kartice · aktivni nav indikator (nosi poziciju, ne status) · **CTA gumb** · **XP bar** (v. iznimku) |
 
-⟳ **IZNIMKA ZA XP BAR (korisnikova odluka, 2026-08-10).** „Trake napretka" ostaju
-zabranjene kao skupina, ali XP bar iz njih **izlazi**: on nije statusna skala nego
-**reward domena** (`accent-warm`, MASTER §2.1) — ne kodira mastery ni verdict, nego napredak
-prema idućem levelu. Mastery trake (`MasteryBar` u `ConceptRow`, `MasteryHighlights`,
-`ModuleCard`) i dalje su **bez gradijenta**, jer njihova boja JEST skala.
+⟳ **IZNIMKA ZA XP BAR (korisnikova odluka, 2026-08-10; razlog zapisan 2026-08-11).**
+„Trake napretka" ostaju zabranjene kao skupina, ali XP bar iz njih **izlazi**.
+
+**Razlog nije estetski nego semantički: XP i mastery nisu iste vrste mjere.**
+XP je **gamifikacijski brojač** — monotono raste, mjeri KOLIKO je rada uloženo i potpuno je
+pod kontrolom korisnika. Mastery je **procjena modela znanja** (BKT P(L)) — može i pasti,
+mjeri KOLIKO SUSTAV VJERUJE da je koncept savladan i nije izravno „zarađena" vrijednost.
+Dok su dijelile isti vizualni jezik (ista traka, ista obitelj boja), sučelje je sugeriralo
+da su ista klasa mjere — što je za rad o modeliranju znanja pogrešna poruka. Gradijent na
+XP traci ih razdvaja na prvi pogled: **nagrada teče, procjena se očitava.**
+
+Mastery trake (`MasteryBar` u `ConceptRow`, `MasteryHighlights`, `ModuleCard`) i dalje su
+**bez gradijenta**, jer njihova boja JEST skala.
+
+🔒 **Dokaz da razdvajanje drži** (izmjereno u živoj aplikaciji, 2026-08-11): gradijent i
+zraka ulaze isključivo kroz POSTOJEĆE propove `MasteryBara` (`fillClass`, `className`) i
+primijenjeni su samo u `ProgressHero`. `MasteryBar` nije cijepan i nema paralelnu
+komponentu. Mjereno na Dashboardu i Modulima, na svakoj mastery traci:
+`background-image: none` · `animation-name: none` · boja iz mastery skale
+(`oklch(0.42 0.05 260)`, `oklch(0.53 0.08 245)`, `oklch(0.75 0.11 205)`).
+Invarijanta `#mastery-bar` time nije zaobiđena — nije ni dirnuta.
 
 ### 🔒 Dvije invarijante
 

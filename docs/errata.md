@@ -623,3 +623,143 @@ implementacije navodi se da je projekt imao mjerni instrument za jednu dimenziju
 nijedan za ostale (vrijeme, dosežnost, izvršenje), te da su upravo u tim dimenzijama
 kvarovi preživjeli najdulje — po tri faze. To je provjerljiva, samokritična tvrdnja s tri
 primjerka, a ne opće mjesto o „važnosti testiranja".
+
+---
+
+## #56 🟡 ΔE prag za skale razina: 0,05 je projektni, 0,10 je bio ad hoc
+
+**Status:** 🟡 odlučeno 2026-08-11 (zatvaranje 4.7) · **odluka: zadržavaju se sadašnje
+hue rampe uz dokumentirani prag 0,05** · klasa: 🔒 DOC
+
+### Što je bilo sporno
+
+U recenzijskom prolazu postavljen je kriterij **ΔE ≥ 0,10** za svaku točku tier i
+difficulty rampe prema svim ostalim skalama. Pri mjerenju je šest parova palo ispod njega.
+🔴 **Taj prag NIJE projektni.** Dokumentirani prag kolizije u ovom sustavu je **0,05**
+(MASTER §2.7, `pairs.py`, sve dosadašnje odluke o paletama). Prag 0,10 pojavio se prvi put
+u toj recenziji, kao ad hoc kriterij, i primijenjen je retroaktivno na skalu koju nijedna
+ranija faza nije po njemu mjerila.
+
+### Zamrznuta skala nije prolazila ni taj prag
+
+Izmjereno nad skalom **prije** rampi (jednohuena, 4.1b → 4.7-r2):
+
+| | zamrznuta skala | sadašnje rampe |
+|---|:---:|:---:|
+| min ΔE prema skalama | 0,1101 (`tier-easy × mastery-25`) | **0,0643** (`difficulty-beginner × mastery-0`) |
+| min ΔE susjednih razina | **0,0583** | 0,0588 |
+| parova ispod 0,10 | **3** | 6 |
+
+Dakle prag 0,10 nikad nije bio svojstvo ovog sustava; zamrznuta skala je i sama imala tri
+para ispod njega i susjede na 0,0583.
+
+### 🔴 Regresija se ne prešućuje
+
+Rampe **jesu lošije na osi „prema skalama"**: `difficulty-beginner × mastery-0` pao je s
+**0,1101 na 0,0643**. Zauzvrat su bolje na osi „susjedne razine" (razina se sada čita iz
+tona, ne iz svjetline) i unakrsno tier×difficulty (**0,3754** zbog razdvajanja registrom).
+Sve je iznad projektnog praga 0,05.
+
+### Kolizija je uz to teško dosežna na zaslonu (mjereno)
+
+`mastery-0` je pojas p(L) < 0,125. Iz BKT parametara po tieru (`bkt/parameters.py`) donja
+granica p(L) uz uzastopne netočne odgovore je:
+
+| tier | P(L₀) | donja granica | `mastery-0` dosežan? |
+|---|:---:|:---:|:---:|
+| easy | 0,30 | **0,3358** | ne |
+| medium | 0,15 | **0,2286** | ne |
+| hard | 0,05 | **0,1200** | da (usko) |
+
+A `difficulty-beginner` badge nosi **isključivo modul „Osnove SELECT-a"**, koji ima **samo
+easy koncepte** (upit nad `modules × concepts`). Agregatna traka kartice je pri 0/N
+nevidljiva (fill je izvan trake), a već pri 1/7 = 0,143 prelazi u `mastery-25`.
+**Zaključak: taj par se ne može pojaviti unutar iste kartice.** Na istom zaslonu je moguć
+samo kao tanka traka u drugoj, proširenoj kartici — v. presudu t.1 u wrapupu.
+
+### PRIJEDLOG F — izračunat kandidat za Fazu 6 (da se ne izvodi ponovno)
+
+Pretragom prostora (uz uvjete: monotone rampe, očuvan registar, hue izvan chrome pojasa
+272–288, `hard` ostaje magenta a ne crvena, sve u sRGB gamutu, tekst na fillu ≥ 4,5) nađen
+je skup u kojem **svi parovi prolaze ΔE ≥ 0,10**, minimum **0,1023**:
+
+```css
+--tier-easy:                oklch(0.80 0.100 255);  /* tamni tekst 10,62 */
+--tier-medium:              oklch(0.70 0.160 300);  /* tamni tekst  6,99 */
+--tier-hard:                oklch(0.74 0.190 335);  /* tamni tekst  7,85 */
+--difficulty-beginner:      oklch(0.25 0.040 205);  /* svijetli tekst 13,60 */
+--difficulty-intermediate:  oklch(0.32 0.100 285);  /* svijetli tekst 11,26 */
+--difficulty-advanced:      oklch(0.41 0.130 320);  /* svijetli tekst  8,13 */
+--difficulty-expert:        oklch(0.50 0.155 355);  /* svijetli tekst  5,63 */
+--difficulty-cross-module:  oklch(0.22 0.020 300);  /* svijetli tekst 14,95 */
+```
+
+Susjedne razine: tier 0,1516 / 0,1162 · difficulty 0,1229 / 0,1171 / 0,1265.
+Najbliža skala: `tier-easy × mastery-75` 0,1023 · `difficulty-beginner × mastery-0` 0,1656.
+**Ne primjenjuje se u 4.7** (pred deploymentom se paleta ne dira), nego stoji kao gotov
+kandidat za Fazu 6.
+
+---
+
+## #57 🔴 STRUKTURNI: test pisan prema PROMATRANOM ponašanju zaključava kvar kao specifikaciju
+
+**Status:** 🔴 zatečeno · otkriveno 2026-08-11 pri popravku N-11 · klasa: 🔒 DOC +
+**nalaz za rad**
+
+### Što se dogodilo
+
+Smoke suite (1B) tvrdio je da CTA nakon predaje **mora biti `link` „Sljedeći zadatak"**.
+Ta je tvrdnja bila točan opis onoga što je aplikacija radila — i **istovremeno opis kvara**:
+kad preporučivač vrati isti zadatak, `Link` na istu rutu ne remounta keyed `TaskView`, pa
+klik ne radi ništa (**N-11**). Isti prolaz (1B) koji je N-11 **otkrio** i zapisao kao nalaz,
+**zaključao ga je kao očekivano ponašanje** u asertaciji. Popravak N-11 zato je oborio
+vlastiti smoke test — i to je bio jedini razlog zbog kojeg se kvar više nije mogao tiho
+vratiti.
+
+### Uzrok
+
+Suite je pisan **promatranjem** onoga što aplikacija radi, a ne izvođenjem iz onoga što bi
+trebala raditi. Za smoke test to je djelomično legitiman postupak (cilj mu je „lanac je
+prošao", ne „ponašanje je ispravno") — ali granica je prijeđena kad je promatrana
+implementacijska činjenica (*„CTA je element `a` s atributom `href`"*) postala asertacija.
+
+### Ista klasa, četvrti primjerak
+
+Uz #55 (`--font-heading`, `--duration-*`, #23) ovo je četvrti primjerak istog obrasca:
+
+> 🔴 **Instrument kalibriran prema zatečenom stanju potvrđuje zatečeno stanje.**
+
+- **#39** — guard testiran samo u jednom smjeru: test je potvrđivao da radi ono što radi.
+- **N-18** — `/review-animations` proveden nad sustavom na 150 ms: gate je odobrio ono što
+  je zatekao, a ne ono što je dokument propisivao.
+- **`--font-heading`** — grep po imenu potvrdio je ime, ne učinak.
+- **ovaj nalaz** — asertacija je snimila zatečeni DOM kao ugovor.
+
+### Za rad
+
+U raspravi o metodologiji: automatizirana provjera **nije neovisan svjedok** ako je njezino
+očekivanje izvedeno iz promatranja sustava koji ispituje. Razlika je operativna, ne
+filozofska — provjerljiva je pitanjem *„je li ovo očekivanje izvedeno iz zahtjeva ili
+prepisano s ekrana?"*. Test sada provjerava **obje grane ishoda** (drugi zadatak → link i
+navigacija; isti zadatak → gumb i vidljivo čišćenje panela), dakle ugovor, ne zatečeni DOM.
+
+---
+
+## #58 🟡 VALJANOST: retry bez trenja može promijeniti raspodjelu uzastopnih predaja
+
+**Status:** 🟡 zabilježeno 2026-08-11 · **ponašanje se NE mijenja** · stavka za analizu evala
+
+Popravak N-11 uklonio je trenje iz ponovnog pokušaja na istom zadatku: umjesto navigacije
+koja ne radi ništa, korisnik dobiva gumb koji čisti panel, a **SQL ostaje u editoru**
+(svjesna odluka — v. N-11). Posljedica koju treba očekivati u podacima:
+
+- više **uzastopnih predaja istog zadatka** po korisniku,
+- više BKT ažuriranja iz **istog dokaza** (ista pogreška predana više puta),
+- veći `attempt_number` → **manji XP bonus** (`FIRST_ATTEMPT_BONUS` pada na bazu),
+- interakcija s **#29** (evaluacija je rezultat-bazirana i ne razlikuje ekvivalentne
+  formulacije) i **#16** (saturacija P(L)).
+
+**Za analizu:** izračunati udio identičnih uzastopnih `submitted_query` po korisniku i
+usporediti ga s brojem različitih pokušaja; ako je udio visok, interpretacija „broj
+pokušaja do rješenja" mora to uzeti u obzir. **Ponašanje se ne mijenja** — trenje u
+sučelju nije prihvatljiv način prikupljanja čišćih podataka.

@@ -142,7 +142,7 @@ export function LeaderboardPage() {
             <>
               <div
                 className={cn(
-                  "transition-opacity duration-fast",
+                  "transition-opacity duration-fast ease-standard",
                   query.isPlaceholderData && "opacity-60",
                 )}
                 aria-busy={query.isFetching}

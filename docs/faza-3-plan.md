@@ -237,7 +237,7 @@ evaluator.py     # EvaluatorAgent (CyclicBehaviour)
 
 ## Opcionalno / deferrabilno (ako rok pritisne)
 
-- **HintAgent (6. agent)** — `USE_LLM_HINTS` feature flag, GPT-4o-mini. Defer ako kasniš; rule-based `hints` tablica je fallback.
+- **HintAgent (6. agent)** — `USE_LLM_HINTS` feature flag, ~~GPT-4o-mini~~ **Anthropic `claude-haiku-4-5`** (ispravljeno u Fazi 5.0 — v. `docs/errata.md` #59). Defer ako kasniš; rule-based `hints` tablica je fallback.
 - **Leaderboard, WebSocket** (`app/api/ws.py`) — nice-to-have za demo, ne za eval.
 - **BKT kalibracija** na prvim studentskim podacima — to je **istraživački doprinos rada**, radi se u Fazi 4 (eval), ne u 3.
 

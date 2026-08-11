@@ -32,6 +32,7 @@ import {
   CheckCircle2,
   CircleAlert,
   Flame,
+  RotateCcw,
   TriangleAlert,
   XCircle,
 } from "lucide-react"
@@ -151,6 +152,10 @@ interface FeedbackPanelProps {
   badgeCatalog: BadgeCatalogItem[] | undefined
   /** code→ime koncepta za CTA ("Sljedeći zadatak · <koncept>"). */
   conceptName: (code: string | null | undefined) => string | undefined
+  /** ID zadatka koji je OTVOREN — za N-11 granu (preporuka == tekući). */
+  currentTaskId: number
+  /** N-11: čisti feedback i rezultat bez navigacije (isti zadatak). */
+  onRetrySameTask: () => void
 }
 
 export const FeedbackPanel = memo(function FeedbackPanel({
@@ -158,6 +163,8 @@ export const FeedbackPanel = memo(function FeedbackPanel({
   levelUp,
   badgeCatalog,
   conceptName,
+  currentTaskId,
+  onRetrySameTask,
 }: FeedbackPanelProps) {
   const verdict = deriveVerdict(
     attempt.feedback.is_correct,
@@ -310,20 +317,35 @@ export const FeedbackPanel = memo(function FeedbackPanel({
         <p className="text-xs text-muted-foreground">
           {reasonText(rec.reason)}
         </p>
-        {recKind === "task" && rec.task_id != null && (
-          <Button
-            asChild
-            variant={verdict === "correct" ? "default" : "outline"}
-          >
-            <Link to={`/task/${rec.task_id}`}>
-              Sljedeći zadatak
-              {nextConcept && (
-                <span className="text-xs opacity-80">· {nextConcept}</span>
-              )}
-              <ArrowRight data-icon="inline-end" aria-hidden="true" />
-            </Link>
-          </Button>
-        )}
+        {recKind === "task" &&
+          rec.task_id != null &&
+          (rec.task_id === currentTaskId ? (
+            /* 🔴 N-11: preporuka je ISTI zadatak → `Link` na istu rutu ne bi
+               remountao keyed `TaskView`, pa se klikom ne bi dogodilo NIŠTA
+               („aplikacija je zaglavila", i to baš studentu koji je pogriješio).
+               Ista grana pokriva i #44 (breadth-first vrati isti koncept) i #16
+               (P(L) saturira). Bez nove rute — samo čišćenje stanja. */
+            <Button
+              variant={verdict === "correct" ? "default" : "outline"}
+              onClick={onRetrySameTask}
+            >
+              Pokušaj ponovno
+              <RotateCcw data-icon="inline-end" aria-hidden="true" />
+            </Button>
+          ) : (
+            <Button
+              asChild
+              variant={verdict === "correct" ? "default" : "outline"}
+            >
+              <Link to={`/task/${rec.task_id}`}>
+                Sljedeći zadatak
+                {nextConcept && (
+                  <span className="text-xs opacity-80">· {nextConcept}</span>
+                )}
+                <ArrowRight data-icon="inline-end" aria-hidden="true" />
+              </Link>
+            </Button>
+          ))}
         {recKind === "done" && (
           <span className="text-sm font-medium">
             Nema daljnjih zadataka za sada — odlično odrađeno!

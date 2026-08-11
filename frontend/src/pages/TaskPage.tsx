@@ -194,6 +194,31 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
     if (q.trim()) submitQuery(q)
   }
 
+  /**
+   * 🔴 N-11 — preporuka vraća ISTI zadatak (netočna predaja, #44 breadth-first,
+   * #16 saturiran P(L)). `Link` na istu rutu ne remounta keyed `TaskView`, pa
+   * klik na CTA nije radio NIŠTA. Ovdje se ekran vraća u stanje „prije predaje"
+   * BEZ navigacije: feedback i Run rezultat se čiste, editor se vraća u fokus.
+   *
+   * 🔴 SQL U EDITORU SE NAMJERNO NE BRIŠE (odstupanje od doslovnog „resetira
+   * editor"): student koji je upravo pogriješio obično je blizu rješenja, a
+   * brisanje njegova upita kaznilo bi upravo onoga koga ovaj popravak štiti.
+   * Vidljiva promjena (panel nestaje, Submit se vraća) je ono što je N-11
+   * tražio. Puni reset editora je jedna linija ako se odluka promijeni.
+   *
+   * `useCallback` — `FeedbackPanel` je `memo`, nestabilan callback bi ga
+   * rerenderao na svaki keystroke u editoru.
+   */
+  const retrySameTask = useCallback(() => {
+    setLastAttempt(undefined)
+    setLevelUp(false)
+    setLastResult(undefined)
+    submittedQueryRef.current = ""
+    document
+      .querySelector(".monaco-editor")
+      ?.scrollIntoView({ block: "center", behavior: "smooth" })
+  }, [])
+
   // Točno jedan slot renderira: v5 status je enum (isError ⇒ !isPending).
   // 504 (agent pipeline ne odgovara) ≠ error_type:"timeout" (200, SQL predug).
   const submitSlot = submitM.isPending
@@ -440,6 +465,8 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
               levelUp={levelUp}
               badgeCatalog={badgesQ.data}
               conceptName={conceptName}
+              currentTaskId={task.id}
+              onRetrySameTask={retrySameTask}
             />
           )}
           <RunResultPanel

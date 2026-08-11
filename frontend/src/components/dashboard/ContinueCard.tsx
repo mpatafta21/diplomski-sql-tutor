@@ -147,7 +147,7 @@ export function ContinueCard({
             drugi gradijent bio bi druga mjerena površina. */}
         <Button
           asChild
-          className="bg-[image:var(--grad-cta)] transition-opacity hover:bg-primary hover:opacity-90"
+          className="bg-[image:var(--grad-cta)] transition-opacity duration-fast ease-standard hover:bg-primary hover:opacity-90"
         >
           <Link to={`/task/${rec.task_id}`}>
             {onboarding ? "Riješi prvi zadatak" : "Otvori zadatak"}

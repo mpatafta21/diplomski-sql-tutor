@@ -293,7 +293,7 @@ nije utility namespace u TW v4 — do 2026-08-10 su SVE tranzicije tiho radile n
 | `--ease-entrance` | `cubic-bezier(0.16, 1, 0.3, 1)` | ulazi panela/kartica (decelerate-settle) |
 | `--ease-exit` | `cubic-bezier(0.4, 0, 1, 1)` | izlazi (brzi accelerate-out) |
 | `--ease-reward` | `cubic-bezier(0.34, 1.25, 0.64, 1)` | XP/badge/level (blagi overshoot) |
-| `--duration-instant` | `100ms` | hover, press |
+| `--duration-instant` | `100ms` | hover, press · ⟳ **eksplicitno na `ui/button`** od 2026-08-11 (v. upozorenje ispod) |
 | `--duration-fast` | `160ms` | mikrointerakcije |
 | `--duration-base` | `240ms` | paneli, fade · ⟳ i hover kartica (2026-08-10, po mockupu `.card:hover`: 240 ms + CSS `ease` + sjena 0 10px 30px; nav stavke: 160 ms + `ease`, translateX(2px) + scale ikone 1.08). 🔴 U tranzicijskim listama stoji **`translate`/`scale`**, ne `transform` — TW v4 translate/scale utilityji pišu ta svojstva; s `transform` u listi pomak je TRENUTAN (uzrok „trzaja" 4.6 B.1, otkriven i popravljen 2026-08-10) |
 | `--duration-slow` | `400ms` | page transitions |
@@ -302,6 +302,15 @@ nije utility namespace u TW v4 — do 2026-08-10 su SVE tranzicije tiho radile n
 Pravila: sve animacije poštuju `prefers-reduced-motion` · bez layout-shift hovera (translateY max 1–2px,
 nikad scale koji pomiče susjede) · reward animacije SAMO na accent-warm događajima · svaka animacija
 prolazi `/review-animations` gate.
+
+🔴 **`--tw-duration` JE NASLJEDNA — trajanje curi u djecu.** Posljedica N-18 popravka:
+`@utility duration-*` postavlja `--tw-duration`, a custom propertyji se nasljeđuju. Svaki
+element s `transition-*` **bez vlastite** klase trajanja unutar kartice (`duration-base`)
+naslijedi 240 ms. Izmjereno 2026-08-11: gumb bez ijedne klase trajanja imao je
+`transitionDuration: 0,24 s`, pa je press feedback (`active:translate-y-px`) bio trom.
+**Pravilo: svaki `transition-*` dobiva EKSPLICITNO trajanje.** Popravljeno na četiri
+mjesta (`ui/button` → instant, `ui/input` → fast, CTA opacity → fast, `ConceptCurveCard`
+→ fast); provjera je `grep -rn 'transition-' frontend/src | grep -v duration-`.
 
 ⚠️ **JEDNA BESKONAČNA PETLJA — `bar-shimmer` na XP baru** (zraka koja prolazi kroz traku,
 ciklus 2 s: prolaz 1,3 s + stanka 0,7 s). Sve ostale animacije poštuju obrazac „pokret dulji

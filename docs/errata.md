@@ -576,3 +576,50 @@ niska u izvoru — i iz mrtvog koda. `.bg-correct-soft` je u `dist`, ali dolazi 
 | `--accent`, `--accent-foreground`, `--sidebar-foreground`, `--chart-3/4/5` | `dist` CSS | svi: 1 deklaracija, **0** `var()`, **0** utility ✅ |
 
 **Nijedna obrisana stavka nije imala stvarnog potrošača.** Revert nije potreban.
+
+---
+
+## #55 🔴 STRUKTURNI: projekt ima instrument za VRIJEDNOSTI, ne za UČINAK
+
+**Status:** 🔴 zatečeno, strukturno · zapisano 2026-08-11 (zatvaranje 4.7) ·
+klasa: 🔒 DOC + **nalaz za rad**
+
+### Tvrdnja
+
+`scripts/a11y/` mjeri **boje i kontraste** — i to dobro, do razine ΔE i alpha-kompozita.
+**Ništa u projektu nikad nije mjerilo vrijeme, dosežnost ni izvršenje.** Zato su tri
+kvara iste klase preživjela po nekoliko faza: svaki je bio *deklariran ispravno* i
+*neprovjeren u učinku*.
+
+| # | što je deklarirano | što se stvarno događalo | koliko dugo |
+|---|---|---|---|
+| `--font-heading` (4.7-r2) | „token ima 0 potrošača" | imao ih je **dva**; alias `var(--font-sans)` nije imao **učinak**, pa ga grep po imenu nije vidio | od uvođenja do 1C t.0a |
+| `--duration-*` (**N-18**, 4.1b → 4.7) | tokeni 160 / 240 / 400 / 700 ms + klase `duration-*` na ~10 mjesta | klase se **nisu generirale** (imenovana trajanja nisu TW v4 namespace), varijable su tree-shakeane → **svaka tranzicija je radila na TW defaultu 150 ms** | **tri faze** |
+| **#23** `dml=False` (Faza 2 → 4.4-0d) | evaluator podržava DML | hardkodirana zastavica → svaki INSERT/UPDATE/DELETE „permission denied"; **nikad pokriveno testom** | tri faze |
+
+### Zajednički obrazac
+
+U sva tri slučaja **izvor je bio točan, a izlaz nije postojao**. Alat koji čita `index.css`
+i računa kontrast po definiciji ne može uhvatiti nijedan od njih: on gleda *što piše*, ne
+*što se izvrši*. Grep po imenu identifikatora nasljeđuje istu slabost — nalazi deklaraciju,
+ne učinak.
+
+**Dokaz učinka ima tri oblika, i nijedan nije grep:**
+`getComputedStyle` nad živim elementom (vrijeme, primijenjena svojstva) · pikselno mjerenje
+snimke (vidljivost) · test koji izvrši put (dosežnost, #23).
+
+### 🔴 Posljedica za sve dosadašnje motion gateove
+
+`/review-animations` je do 2026-08-10 pokretan nad sustavom u kojem su **sva trajanja bila
+150 ms**. Svaki raniji prolaz (4.3, Task screen) odobrio je dakle *drugi* sustav od onoga
+koji je bio dokumentiran. Ponovljena provjera nakon N-18 popravka (2026-08-11) mjeri
+stvarne vrijednosti: nav 0,16 s · kartica 0,24 s · ulazna animacija 0,40 s · panel ocjene
+0,24 s · XP zraka 2 s.
+
+### Za rad
+
+Ovo je nalaz o **metodologiji verifikacije**, ne o CSS-u. U raspravi o ograničenjima
+implementacije navodi se da je projekt imao mjerni instrument za jednu dimenziju (boja) i
+nijedan za ostale (vrijeme, dosežnost, izvršenje), te da su upravo u tim dimenzijama
+kvarovi preživjeli najdulje — po tri faze. To je provjerljiva, samokritična tvrdnja s tri
+primjerka, a ne opće mjesto o „važnosti testiranja".

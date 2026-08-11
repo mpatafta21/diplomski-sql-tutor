@@ -211,3 +211,14 @@ klamp po kanalu — pa je izmjereni hex za takav token približan, ne točan.
 - **Stvarni routing** — mjeri tokene, ne renderirane ekrane. Živa verifikacija ostaje
   zaseban korak.
 - **Deuteranopiju/protanopiju.** Za to je postojala zasebna analiza u 4.3c (ΔE + simulacija).
+- 🔴 **Kompozite iza `backdrop-filter`** (novo, 2026-08-11). Matrica mjeri **deklarirane
+  plohe** kao konstante. Otkad sidebar i drawer koriste `backdrop-filter` (staklo), njihova
+  stvarna ploha **nije konstanta** — ona je kompozit onoga što je iza njih. Zato ih matrica
+  mjeri kao `--sidebar`, a na zaslonu je nešto drugo.
+  **Kako se to mjeri:** dvije snimke iste plohe — normalna i ona s `color: transparent` na
+  svemu; u drugoj je svaki piksel unutar okvira teksta doista njegova podloga, pa se
+  najgori slučaj čita iz piksela (`scratchpad/glass3.cjs` + analiza). Izmjereno
+  2026-08-11: desktop sidebar najgori 6,86 (`Moduli` nad plohom rgb(21,22,38)), drawer nad
+  najsvjetlijim sadržajem (CTA gumb, L 0,922) + scrim najgori 5,86 (`student` badge) —
+  svi tekstovi prolaze AA. **Ne dodavati te parove u `pairs.py`**: ondje bi bili lažna
+  konstanta.

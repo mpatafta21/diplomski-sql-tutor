@@ -16,6 +16,12 @@
  *  - pozivanje na konkretne članke GDPR-a — nemam osnovu za takvu tvrdnju
  *  - tvrdnja o anonimnosti — username i e-adresa SE spremaju, pa bi „anonimno"
  *    bilo netočno. Pseudonimizacija se odnosi na PRIKAZ u radu, ne na pohranu.
+ *  - 🔴 tvrdnja da o studentovom radu NIŠTA ne izlazi izvan sustava — od Faze 5
+ *    to bi bilo netočno. Tekst upita ne izlazi, ali BROJČANI POKAZATELJI izlaze
+ *    (vrsta greške, broj redaka, procjena znanja koncepta) — i to samo kad
+ *    student sam zatraži savjet. Odlomak o savjetu (indeks 2) izriče granicu;
+ *    ne smije se skratiti na „ništa se ne šalje" jer bi obećao više nego što
+ *    sustav radi (ERRATA #59).
  *  - checkbox suglasnosti — bilježena suglasnost traži novu kolonu, dakle
  *    backend izmjenu; backend je zamrznut (🔒 errata) → Faza 5, ne 4.7.
  *    Zato je nosilac pristanka ČIN registracije, i to je izrečeno.
@@ -33,12 +39,20 @@ export const SUDJELOVANJE_NASLOV = "O sustavu i sudjelovanju"
 
 /**
  * Odlomci info bloka, po jednoj tvrdnji — svaki je zamjenjiv pojedinačno.
- * Redoslijed je namjeran: što je → što se bilježi → kako se prikazuje →
- * dobrovoljnost → kontakt.
+ * Redoslijed je namjeran: što je → što se bilježi → što izlazi izvan sustava →
+ * kako se prikazuje → dobrovoljnost → kontakt.
  */
 export const SUDJELOVANJE_ODLOMCI = [
   "SQL Tutor je sustav za vježbanje SQL-a izrađen kao dio diplomskog rada na Fakultetu organizacije i informatike.",
   "Dok rješavaš zadatke, sustav bilježi tvoje SQL upite, ishode pokušaja i procjenu znanja po konceptu, vezano uz tvoj račun.",
+  // 🔴 Odlomak o vanjskoj usluzi (Faza 5, ERRATA #59) — odobren tekst, mijenja se
+  // samo odlukom. Stoji ODMAH iza bilježenja jer odgovara na pitanje koje to
+  // bilježenje otvara: izlazi li išta od toga izvan sustava.
+  //
+  // 🔴 Granica je izrečena u OBA smjera i oba su provjerena mjerenjem (§A1 plana
+  // 5.0): tekst upita NE izlazi, brojčani pokazatelji IZLAZE. Ne skraćivati —
+  // „ne šalje se ništa" bi bilo obećanje veće od onoga što sustav radi.
+  "Kad zatražiš savjet, sustav šalje vanjskoj usluzi umjetne inteligencije (Anthropic, Claude API) opis zadatka, koncept koji vježbaš, vrstu greške i njezine brojčane pokazatelje — na primjer koliko je redaka vratio tvoj upit — te procjenu tvog znanja tog koncepta. Tekst tvog upita se ne šalje. Bez zahtjeva za savjetom ništa se ne šalje izvan sustava.",
   "U diplomskom radu ti se podaci prikazuju pseudonimizirano — bez korisničkog imena i bez e-adrese.",
   // 🔴 Odlomak o roku čuvanja — odluka korisnika 2026-07-26. PODLOŽAN PROMJENI
   // ako FOI zatraži formalni obrazac informiranog pristanka: tada rok, pravna

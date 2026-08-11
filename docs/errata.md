@@ -766,6 +766,57 @@ sučelju nije prihvatljiv način prikupljanja čišćih podataka.
 
 ---
 
+## #59 🔴 VALJANOST: informacija sudionika ne pokriva slanje podataka vanjskoj usluzi
+
+**Status:** 🔴 otvoren, zabilježen 2026-08-11 · **blokator za puštanje hinta u eval** ·
+**nije blokator** za gradnju iza `USE_LLM_HINTS=false`
+
+Tekst koji sudionik vidi prije registracije (`participation.ts`) opisivao je što se
+**bilježi** — SQL upiti, ishodi pokušaja, procjena znanja — ali ni jednom riječju nije
+spominjao da bi išta od toga moglo **napustiti sustav**. Do Faze 5 to je bilo točno:
+jedini LLM poziv bio je offline generiranje zadataka, bez ijednog studentovog podatka.
+
+HintAgent to mijenja. Zahtjev za savjetom šalje podatke o studentovom pokušaju vanjskoj
+usluzi (Anthropic, Claude API). Sudionik koji je pristao na tekst bez te tvrdnje **nije
+pristao na to**.
+
+### Što je učinjeno
+
+Umetnut odlomak (indeks 2, odmah iza bilježenja) koji granicu izriče u **oba** smjera:
+
+- **ne izlazi:** tekst upita,
+- **izlazi:** opis zadatka, koncept, vrsta greške i njezini **brojčani pokazatelji**
+  (npr. broj vraćenih redaka), procjena znanja koncepta,
+- **ne izlazi ništa** bez izričitog zahtjeva za savjetom.
+
+Granica nije nagađana — izmjerena je nad živom bazom (§A1 plana 5.0). Mjerenje je i
+suzilo prvotnu namjeru: `execution_error` `detail` nosi **doslovni redak upita** (jedan
+uzorak sadrži i zaostali komentar iz editora), a `wrong_columns` nabraja **studentove
+aliase**. Oba su izbačena iz onoga što se šalje.
+
+### Zašto ostaje otvoren
+
+Odlomak informira, ali **ne bilježi suglasnost**. Nosilac pristanka je i dalje čin
+registracije, kao i dosad. Prije nego hint proradi u evalu treba odluka: je li informacija
+dovoljna ili traži zaseban, bilježen pristanak (nova kolona → migracija).
+
+### Srodno
+
+- **#46** — brisanje pojedinog sudionika nije dokazano izvedivo; sada mu se pridružuje
+  pitanje što je s podacima koji su već otišli vanjskoj usluzi.
+- **#37**, **#40** — ista obitelj: obećanje prema sudioniku šire je od dokazanog
+  ponašanja sustava.
+
+### Za rad
+
+Nalaz je primjer općenitijeg obrasca: **tekst suglasnosti stari zajedno s arhitekturom.**
+Tvrdnja „sustav bilježi X" bila je potpuna dok je sustav bio zatvoren; dodavanje jednog
+vanjskog poziva učinilo ju je nepotpunom a da nijedan njezin znak nije promijenjen.
+Provjera „je li informacija sudionika još istinita?" mora biti stavka pri svakoj izmjeni
+koja otvara novi izlazni kanal, ne pri ponovnom čitanju teksta.
+
+---
+
 ## #60 🔴 STRUKTURNI: preporuka koncepta ovisila je o fizičkom poretku redaka u heapu
 
 **Status:** 🔴 popravljeno · grana `fix-recommender-determinizam` · blokator za **deployment**

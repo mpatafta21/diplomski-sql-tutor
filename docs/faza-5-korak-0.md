@@ -2498,6 +2498,33 @@ znači **prazan editor**. Dva različita pojma pod istim imenom — ista zamka n
 [feedback.ts:11-13](frontend/src/lib/feedback.ts#L11-L13) već upozorava. U 5.1 se ne smiju
 pomiješati.
 
+### 🔴 C.6a — kolona postoji, NITKO je ne piše: obrazac `hint_requested`
+
+Izmjereno, `grep` po cijelom backendu bez `.venv`: **`sqlstate` nema nijednog pisca.**
+Pojavljuje se samo u modelu, migraciji i shemskom testu. U bazi: **0 od 35 pokušaja ima
+vrijednost.**
+
+To je točno obrazac koji `attempts.hint_requested` nosi od Faze 1: kolona postoji u shemi
+od inicijalne migracije, `persist_attempt` je **tvrdo kodira na `False`**
+([persistence.py:78](backend/agents/persistence.py#L78)), nitko je nikad ne postavi na
+`true`, a `/attempts` je i dalje serviraju
+([routes.py:590](backend/app/api/routes.py#L590)) i `export_eval_data.py` je izvozi
+([:87](backend/scripts/export_eval_data.py#L87)). U bazi: **0 od 35 `true`.** Stupac koji
+u izvozu izgleda kao podatak, a mjeri isključivo činjenicu da ga nitko ne piše.
+
+**Razlika koja `sqlstate` čini prihvatljivim, a `hint_requested` ne:** `sqlstate` ima
+**imenovanog pisca i rok** — 5.1, lanac `sandbox_runner → EvaluationOutcome →
+persist_attempt`. Dok se to ne dogodi, kolona je **prazna obveza, ne podatak.**
+
+🔴 **Uvjet:** ako 5.1 ne popuni `sqlstate`, kolona se **briše**, ne ostavlja. Prazan
+stupac u shemi je skuplji od nepostojećeg jer se pojavljuje u izvozu i u `\d attempts`, pa
+sljedeći čitatelj pretpostavi da nešto znači. `hint_requested` je dokaz da se ta
+pretpostavka doista dogodi.
+
+**Presuda za bijelu listu selektivnog B+:** `sqlstate` **IDE** — zatvoren šifrarnik, bez
+ijednog studentovog znaka, jedini signal za `execution_error`. Uvjetovano gornjim
+rokom.
+
 ## C.7 Guard §G2.3 — izuzeće za `wrong_columns` (A1-dop-2)
 Pod rekonstrukcijom LLM dobiva `task.expected_result[0].keys()`. Guard mora propustiti
 **ključeve**, nikad **vrijednosti**. Dvodijelno, strukturni dio je primarni:

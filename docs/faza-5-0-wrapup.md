@@ -3,8 +3,8 @@
 Grana `faza-5-hintagent`. Plan: [`faza-5-korak-0.md`](faza-5-korak-0.md).
 Commiti: `b083ed8` (sekcija B), `bd07c2d` (sekcija C).
 
-**Status: sekcije A, A1-dop, B, C isporučene. Sekcija D (tekst suglasnosti) ČEKA
-potvrdu — tag `faza-5-0-preduvjeti` zato NIJE postavljen.**
+**Status: sekcije A, A1-dop, B, C, D, D-dop i E isporučene. Tag `faza-5-0-preduvjeti`
+postavljen.**
 
 ---
 
@@ -92,6 +92,19 @@ lokalno", i posljedica joj je provjera u ruti (§C.3), a ne zaključak „prozor
 
 ---
 
+### D — tekst suglasnosti
+Odobreni odlomak umetnut na indeks 2 `SUDJELOVANJE_ODLOMCI`, odmah iza bilježenja.
+Izmjereno renderom (Playwright), ne grepom: **350 znakova, znak-po-znak identično** na
+`/register` i na Profilu → jedan izvor, ne dvije kopije. `npm run e2e` zelen.
+
+🔴 **Zvjezdice iz odobrenog teksta su uklonjene.** Oba mjesta renderiraju odlomak kao
+`<p>{odlomak}</p>` bez markdown parsera, pa bi `**Tekst tvog upita se ne šalje.**` prikazao
+doslovne zvjezdice. Riječi su prenesene doslovno, podebljanje nije. Ako je naglasak
+potreban, traži strukturnu izmjenu u oba renderera — v. §5.6.
+
+Zaglavlje `participation.ts` dopunjeno: popis „namjerno nije ovdje" sada izrijekom kaže da
+se **ne** tvrdi kako o studentovom radu ništa ne izlazi — brojčani pokazatelji izlaze.
+
 ## 4. Odstupanja od plana, sva namjerna
 
 1. **`attempts.sqlstate` nije bio u planu §B.** Dodan na temelju A1-dop-1, uz izričitu
@@ -101,8 +114,15 @@ lokalno", i posljedica joj je provjera u ruti (§C.3), a ne zaključak „prozor
    i iz ASC indeksa — btree se skenira u oba smjera. Forma, ne dobitak; zapisano u modelu.
 3. **`hints` nije dobio UNIQUE nad `(error_type, concept_id)`** jer plan traži jednu
    reviziju. Jedinstvenost drži seeder, provjerava je test. Kandidat za 5.1 (§C.8).
-4. **`feedback.ts:26` nije ispravljen** iako citira zastarjeli redak — 5.0 ne dira
-   `frontend/src/`. Za 5.2.
+4. **`feedback.ts:26` nije ispravljen** iako citira zastarjeli redak — sitnica u komentaru,
+   nije dirana uz izmjenu teksta suglasnosti da diff ostane čitljiv. Za 5.2.
+5. **Podebljanje u tekstu suglasnosti nije izvedeno** (v. §D gore) — riječi doslovno,
+   markup ne.
+6. **Tvrdnja „plan §2.5 kaže da se Anthropic SDK ne koristi u runtime sustavu" nije
+   pronađena** ni u `faza-3-plan.md` (koji nema numerirane sekcije) ni igdje drugdje u
+   `docs/`. Ispravljen je ekvivalentan netočan navod koji **postoji** — `CLAUDE.md:17`,
+   gdje je Claude API bio opisan kao „offline task gen". Ako je mišljen neki drugi redak,
+   nije izmijenjen jer nije nađen.
 
 ---
 
@@ -129,13 +149,31 @@ Padaju `test_recommender_logic::test_advanced_recommends_inner_join` i
 pa je svaka nova shemska invarijanta odmah i produkcijska. Isti korijen kao ERRATA #40/#46.
 Nalaz 5.1 gore je izravna posljedica tog rizika.
 
-### 5.3 Sekcija D — tekst suglasnosti
-ERRATA #59 i dopuna `participation.ts` čekaju potvrdu. Blokator za puštanje hinta u eval,
-**ne** za gradnju iza `USE_LLM_HINTS=false`.
+### 5.3 ERRATA #59 ostaje otvorena
+Odlomak o vanjskoj usluzi **informira**, ali suglasnost se i dalje **ne bilježi** —
+nosilac pristanka je čin registracije. Prije puštanja hinta u eval treba odluka: je li
+informacija dovoljna ili traži zaseban, bilježen pristanak (nova kolona → migracija).
+**Nije blokator** za gradnju iza `USE_LLM_HINTS=false`.
 
-### 5.4 Sekcija E — usklađivanje dokumenata s odlukom o provideru
-`CLAUDE.md:17` i `faza-3-plan.md:240` još tvrde OpenAI/GPT-4o-mini. Nije izvedeno u ovom
-prolazu.
+### 5.4 🔴 `attempts.sqlstate` je prazna obveza dok je 5.1 ne popuni
+Izmjereno: kolona **nema nijednog pisca**, 0 od 35 pokušaja ima vrijednost. Isti obrazac
+kao `hint_requested` (tvrdo kodiran na `False` od Faze 1, 0 `true` u bazi, a i dalje se
+servira kroz `/attempts` i izvozi u `export_eval_data.py`).
+
+Razlika je što `sqlstate` ima **imenovanog pisca i rok**: 5.1, lanac
+`sandbox_runner → EvaluationOutcome → persist_attempt`. **Ako ga 5.1 ne popuni, kolona se
+briše, ne ostavlja.** Detalji: [§C.6a plana](faza-5-korak-0.md).
+
+### 5.6 Naglasak u ključnoj rečenici suglasnosti
+„Tekst tvog upita se ne šalje." stoji kao obična rečenica. `SUDJELOVANJE_ODLOMCI` je polje
+plain stringova koje oba renderera mapiraju identično, pa podebljanje traži strukturnu
+izmjenu na obje površine. Odluka korisnika je li vrijedna.
+
+### 5.5 `admin` (user_id 1) skuplja retke iz testova
+Zapaženo usput: `attempts` je narastao s 34 na 35, `skill_mastery` 13 → 14, `streaks`
+4 → 5, i svi novi redci pripadaju useru `admin`. Nijedan nije siroče — neki test koristi
+zatečenog `admin` usera umjesto vlastitog i ne čisti za sobom. Izravna posljedica rizika
+iz §5.2. Nije istraženo do kraja jer je izvan opsega 5.0.
 
 ---
 

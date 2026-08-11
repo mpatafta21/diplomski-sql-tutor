@@ -1,20 +1,26 @@
 # Slike za diplomski rad
 
-> 🔴 **SVIH 9 SNIMKI JE NEVAŽEĆE od 2026-08-10** (Faza 4.7 redizajn, stage 1).
-> Dva odvojena razloga:
-> 1. **Paleta.** Aplikacija je prebojena u ink-indigo (hue 280); svih 9 snimki prikazuje
->    staru neutralno-sivu paletu.
-> 2. **Tema.** `08-fipa-agent-log-light.png` i `09-profil-bkt-krivulje-light.png` su u
->    **light temi, koja više ne postoji**. One se ne presnimavaju nego **brišu** — postoje
->    samo da pokažu „isto, svijetla tema" uz `07` odnosno `03`, pa bez light teme nemaju
->    ni sadržaj ni svrhu.
+> ✅ **SVIH 7 SNIMKI PRESNIMLJENO 2026-08-11** (zatvaranje Faze 4.7). Prethodni set od 9
+> bio je nevažeći od 2026-08-10 (stara neutralno-siva paleta), a dvije light snimke
+> (`08-fipa-agent-log-light.png`, `09-profil-bkt-krivulje-light.png`) **obrisane su**, ne
+> presnimljene — light tema više ne postoji, pa nemaju ni sadržaj ni svrhu.
 >
-> **Presnimavanje ide JEDNOM, na kraju svih vizualnih stageova** (redizajn stage 2,
-> display font, stage 1C mobilna navigacija) — ne nakon svakog. Uz snimanje se bilježi
-> `COUNT(*)` tablice `agent_messages_log` prije i poslije (NALAZ N-3): snimanje ide kroz
-> žive agente i ostavlja promet koji nijedan cleanup po korisniku ne dohvaća.
+> **Metoda snimanja (2026-08-11):** Playwright, 1440×900, `deviceScaleFactor: 2`,
+> `reducedMotion: "reduce"` (determinizam — bez animacija uhvaćenih u letu).
+> Podaci: `demo44_student` iz `scripts/seed_demo_user.py` (27 attempta kroz PRAVI
+> `POST /attempt`, dakle stvarne BKT krivulje), **purgan odmah nakon snimanja**
+> (`scripts/purge_demo_users.py`: users 1, attempts 28, skill_mastery_history 79, xp_log 9).
 >
-> ⚠️ Popis ispod opisuje **što snimke prikazuju**, ne kako aplikacija danas izgleda.
+> **N-3 — trag u `agent_messages_log`:** prije seeda **2664** → nakon seeda i snimanja
+> **3021** (+357). Ti zapisi nemaju `user_id` pa ih purge ne dohvaća; brišu se isključivo
+> `TRUNCATE`-om u `prepare_eval_baseline.py` prije evaluacije.
+>
+> **Rola na snimkama:** figure `01`–`06` prikazuju **studentski** tijek i u topbaru nose
+> rolu `student` (provjereno programski pri snimanju). Figura `07` prikazuje **admin**
+> ekran jer FIPA log ondje i živi — to je poglavlje o arhitekturi agenata, ne o
+> studentskom tijeku, pa je admin rola ondje točna, a ne propust.
+>
+> 🔴 **Presnimavanje ide JEDNOM, na kraju vizualnih faza.** Ovo je bio taj put.
 
 Snimke zaslona koje ilustriraju implementirani sustav. **Pod verzijom su namjerno**
 (NALAZ #38): do Faze 4.6-eval artefakti rada živjeli su u scratchpadu, koji nije

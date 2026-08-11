@@ -655,6 +655,16 @@
        808/810 px) → izlazi. */
     animation: bar-shimmer 2s linear 0.6s infinite;
   }
+  /* 🔴 Pod reduced-motion zraka se mora UGASITI, ne zaustaviti: globalni guard
+     ruši trajanje na 0,01 ms i iteraciju na 1, pa animacija odmah završi i
+     element se vrati u BAZNO stanje (bez transforma) — a ondje svijetli pojas
+     stoji na sredini trake kao trajna mrlja. Otkriveno pri snimanju figura
+     (koje se snimaju s reduced-motion radi determinizma), 2026-08-11. */
+  @media (prefers-reduced-motion: reduce) {
+    .bar-shimmer::after {
+      display: none;
+    }
+  }
 
   /* ── LIQUID GLASS (korisnik, 2026-08-10) — iOS/visionOS materijal ─────────
      Tri sastojka povrh prozirne `--grad-sidebar` plohe (alfe se štimaju TAMO,

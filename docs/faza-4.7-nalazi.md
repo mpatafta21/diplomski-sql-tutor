@@ -1102,3 +1102,27 @@ prema 1C: promijenjen je samo dom user kartice (sidebar footer → topbar).
 Re-verifikacija: streak @1440 = 1 (sidebar box) · @380 = 1 (topbar čip) · drawer
 otvoren @380 = 1 — `#jedan-prikaz-po-kadru` drži. Flame u level boxu nosi
 `flame-flicker` (B.4, ≤1,8 s), isti kao čip.
+
+---
+
+## ✅ N-11 RIJEŠEN (2026-08-11) — mrtvi CTA nakon predaje
+
+Kad `recommend_next` vrati ISTI zadatak, `Link` na istu rutu nije remountao keyed
+`TaskView` → klik na „Sljedeći zadatak" nije radio ništa. Popravak: grana
+`rec.task_id === currentTaskId` → gumb **„Pokušaj ponovno"** koji čisti feedback i Run
+rezultat bez navigacije (`TaskPage.tsx` `retrySameTask`).
+
+🔴 **SQL u editoru se namjerno NE briše** — odstupanje od doslovnog „resetira editor":
+student koji je pogriješio obično je blizu rješenja. Vidljiva promjena (panel nestaje,
+Submit se vraća) jest ono što je nalaz tražio.
+
+Verificirano na živoj aplikaciji: panel nestao ✅ · Run rezultat očišćen ✅ · URL
+nepromijenjen (`/task/15`) ✅ · SQL ostao ✅ · Submit dostupan ✅. Grana se aktivirala i
+kod **netočne** i kod **djelomične** predaje (obje su vratile isti zadatak).
+
+## ✅ N-10 RIJEŠEN (2026-08-11) — ErrorState više ne posuđuje verdict plohu
+
+Ploha `incorrect-soft` → `neutral-soft`, ikona i obrub → `neutral` (tokeni iz r1, dotad
+0 potrošača). Izmjereno: naslov 13,36 · poruka 5,60 · ikona 5,88 · ΔE prema
+`incorrect-soft` 0,0635. Verificirano nad blokiranim backend pozivom na dva ekrana
+(Dashboard, Moduli): ploha `oklch(0.28 0.02 260)` ✅.

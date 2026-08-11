@@ -1,7 +1,12 @@
 /**
  * ErrorState (Faza 4.1c, §3.4) — oporavljivo error stanje s retry akcijom.
- * Vuče semantičke tokene (incorrect/-soft, MASTER.md §2.2). Za mrežne greške
- * (TanStack Query error) i kao ErrorBoundary fallback.
+ * Za mrežne greške (TanStack Query error) i kao ErrorBoundary fallback.
+ *
+ * ⟳ N-10 RIJEŠEN (2026-08-11): ploha je bila `incorrect-soft`, ista kao panel
+ * netočnog odgovora — student na 20 mjesta nije mogao razlučiti VLASTITI
+ * neuspjeh od KVARA APLIKACIJE. Sada `neutral-soft`/`neutral`, tokeni uvedeni
+ * u r1 upravo za ovu namjenu (dotad 0 potrošača).
+ * 🔴 `incorrect` ostaje isključivo semantika VERDIKTA (MASTER §2.2).
  */
 import { AlertTriangle, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -25,12 +30,12 @@ export function ErrorState({
     <div
       role="alert"
       className={cn(
-        "flex w-full flex-col items-center justify-center gap-3 rounded-xl border border-incorrect/30 bg-incorrect-soft px-6 py-12 text-center",
+        "flex w-full flex-col items-center justify-center gap-3 rounded-xl border border-neutral/30 bg-neutral-soft px-6 py-12 text-center",
         className,
       )}
     >
-      <div className="flex size-12 items-center justify-center rounded-full bg-incorrect/10">
-        <AlertTriangle className="size-6 text-incorrect" aria-hidden="true" />
+      <div className="flex size-12 items-center justify-center rounded-full bg-neutral/10">
+        <AlertTriangle className="size-6 text-neutral" aria-hidden="true" />
       </div>
       <div className="space-y-1">
         <h3 className="text-base font-semibold">{title}</h3>

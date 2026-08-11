@@ -1,7 +1,7 @@
 /**
  * ModulesPage (Faza 4.2b) — Module overview: 6 modul-kartica (order_index) +
  * ODVOJENA transverzalna sekcija (odluka C — modul 0 nije ravnopravna kartica).
- * Sve iz /modules × /profile joina; prag iz mastery_threshold (invarijanta #2).
+ * Sve iz /modules × /profile joina; prag iz mastery_threshold (invarijanta: prag iz /profile, nikad hardkodiran 0.85).
  */
 import { useEffect, useMemo } from "react"
 import { Link, useLocation } from "react-router-dom"
@@ -141,7 +141,8 @@ export function ModulesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    // `stagger-cards` (B.2): entrance stagger direktne djece — v. index.css.
+    <div className="stagger-cards mx-auto max-w-5xl space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Moduli</h1>
         <p className="text-sm text-muted-foreground">

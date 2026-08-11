@@ -1,5 +1,27 @@
 # Slike za diplomski rad
 
+> ✅ **SVIH 7 SNIMKI PRESNIMLJENO 2026-08-11** (zatvaranje Faze 4.7). Prethodni set od 9
+> bio je nevažeći od 2026-08-10 (stara neutralno-siva paleta), a dvije light snimke
+> (`08-fipa-agent-log-light.png`, `09-profil-bkt-krivulje-light.png`) **obrisane su**, ne
+> presnimljene — light tema više ne postoji, pa nemaju ni sadržaj ni svrhu.
+>
+> **Metoda snimanja (2026-08-11):** Playwright, 1440×900, `deviceScaleFactor: 2`,
+> `reducedMotion: "reduce"` (determinizam — bez animacija uhvaćenih u letu).
+> Podaci: `demo44_student` iz `scripts/seed_demo_user.py` (27 attempta kroz PRAVI
+> `POST /attempt`, dakle stvarne BKT krivulje), **purgan odmah nakon snimanja**
+> (`scripts/purge_demo_users.py`: users 1, attempts 28, skill_mastery_history 79, xp_log 9).
+>
+> **N-3 — trag u `agent_messages_log`:** prije seeda **2664** → nakon seeda i snimanja
+> **3021** (+357). Ti zapisi nemaju `user_id` pa ih purge ne dohvaća; brišu se isključivo
+> `TRUNCATE`-om u `prepare_eval_baseline.py` prije evaluacije.
+>
+> **Rola na snimkama:** figure `01`–`06` prikazuju **studentski** tijek i u topbaru nose
+> rolu `student` (provjereno programski pri snimanju). Figura `07` prikazuje **admin**
+> ekran jer FIPA log ondje i živi — to je poglavlje o arhitekturi agenata, ne o
+> studentskom tijeku, pa je admin rola ondje točna, a ne propust.
+>
+> 🔴 **Presnimavanje ide JEDNOM, na kraju vizualnih faza.** Ovo je bio taj put.
+
 Snimke zaslona koje ilustriraju implementirani sustav. **Pod verzijom su namjerno**
 (NALAZ #38): do Faze 4.6-eval artefakti rada živjeli su u scratchpadu, koji nije
 repozitorij — ista klasa problema kao NALAZ #17, #20 i #26.
@@ -15,8 +37,6 @@ repozitorij — ista klasa problema kao NALAZ #17, #20 i #26.
 | `05-zadatak-feedback-dark.png` | **Feedback nakon točnog rješenja**: „Točno", +10 XP, preporuka | poglavlje o evaluaciji i igrifikaciji |
 | `06-ljestvica-dark.png` | Ljestvica (global scope) | poglavlje o igrifikaciji |
 | `07-fipa-agent-log-dark.png` | **FIPA tok** — puni ciklus attempta, svih 6 agenata | poglavlje o agentskoj arhitekturi |
-| `08-fipa-agent-log-light.png` | isto, svijetla tema | isto |
-| `09-profil-bkt-krivulje-light.png` | Profil s BKT krivuljama, svijetla tema | isto kao 03 |
 
 Sve su snimljene na **1440×900 CSS px pri `deviceScaleFactor: 2`** (dakle 2880×1800
 efektivnih piksela i više za duge stranice) — dovoljno za tisak.
@@ -43,9 +63,15 @@ zamijeniti pseudonimima — vidi `docs/eval-runbook.md`.
 
 ## Kako su nastale
 
-Bez Playwrighta (**NALAZ #17** — nije u `package.json`, e2e suite i dalje ne
-postoji): goli `chrome-headless-shell` vođen preko CDP-a iz scratchpad skripte,
-isti pristup kao ručne verifikacije u fazama 4.1–4.5.
+Bez Playwrighta (**NALAZ #17** — tada nije bio u `package.json`): goli
+`chrome-headless-shell` vođen preko CDP-a iz scratchpad skripte, isti pristup kao ručne
+verifikacije u fazama 4.1–4.5.
+
+> ⟳ **Za presnimavanje NE ponavljati taj put.** Playwright je u repou od `7f7c9aa`
+> (`frontend/e2e/`, `@playwright/test`), s gotovim `globalSetup`/`globalTeardown` koji
+> broje i vraćaju bazu na baseline. Snimanje u redizajn-stageu 1 (t.4) išlo je tim putem i
+> radi — v. NALAZ N-15. Dvije zamke ispod vrijede i dalje, `e2e/smoke.spec.ts:28-40` ih je
+> neovisno potvrdio.
 
 Dvije zamke koje su usput otkrivene i koje vrijedi zapamtiti pri sljedećem snimanju:
 

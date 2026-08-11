@@ -2,8 +2,8 @@
  * Izvod stanja koncepata i modula za Module overview (Faza 4.2b).
  *
  * 4 stanja koncepta (odluka B): nije-započeto · zaključan · u-tijeku · savladan.
- * Prag "savladano" DOLAZI iz /profile.mastery_threshold (invarijanta #2 — nikad
- * lokalna konstanta). Netaknuti koncepti NEMAJU p_l (prior se NE prikazuje).
+ * Prag "savladano" DOLAZI iz /profile.mastery_threshold (invarijanta: prag iz
+ * /profile, nikad lokalna konstanta). Netaknuti koncepti NEMAJU p_l (prior se NE prikazuje).
  *
  * UNLOCK (odluka A + dokumentirano odstupanje): prereq je zadovoljen ako je
  * savladan sirovim p_l ILI ako je TRANSVERZALNI (modul 0) čvor čiji su SVI

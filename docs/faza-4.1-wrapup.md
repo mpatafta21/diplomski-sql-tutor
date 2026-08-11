@@ -82,6 +82,20 @@ anon→/login redirect · register→shell · login→shell · logout→token cl
 
 ## 5. Zaključane odluke / napomene za nasljednike
 
+> ⟳ **NUMERACIJA NAPUŠTENA (2026-08-10, Faza 4.7 / NALAZ N-8).** Popis ispod ostaje
+> **nepromijenjen kao povijesni zapis** — sadržaj sve tri invarijante i dalje vrijedi.
+> Napušteni su **brojevi**, ne pravila. Razlog: numeracija je ostala neodržavana (kasniji
+> wrapupi — 4.2 §5, 4.3 §5, 4.4b — nabrajaju invarijante u istom odjeljku **bez brojeva**),
+> pa su komentari u kodu naknadno izmislili `#4` i `#6` kojih ovdje nema, a `#1` i `#2`
+> upotrijebili za **druga pravila** nego što ovdje piše. Od 4.7 kod referencira invarijante
+> **opisno, bez broja** (17 mjesta u 18 datoteka). Isti obrazac i isti razlog kao ispravak
+> `#49` u `docs/errata.md` — v. ondje konvenciju o prostoru imena.
+>
+> ⟳ **KONSOLIDIRANO (2026-08-10, 1C-zatvaranje): kanonski popis je sada
+> `docs/invarijante.md`.** Sve tri invarijante ispod ondje su prenesene s opisnim
+> naslovima i stabilnim sidrima, uz hazard i presedan. **Ovaj odjeljak ostaje
+> nepromijenjen kao povijesni zapis** — ne ažurira se više.
+
 - **Invarijanta #1 — 401 runtime:** security dep nije u OpenAPI shemi → NIKAD hvatati auth greške kroz tipiziranu `error` granu (ona je `never`); uvijek `response.ok` + middleware. Vrijedi za SVE zaštićene pozive.
 - **Invarijanta #2 — TS6 `erasableSyntaxOnly`:** bez parameter-properties (class polja eksplicitno).
 - **Invarijanta #3 — 44px touch-targeti (WCAG 2.5.5):** shadcn Nova je kompaktan (h-8!) → vendorani defaulti bumpani: button `default h-11 / lg h-12 / icon size-11`, input `h-11`. `xs/sm` varijante = svjesni escape-hatch za gusti sekundarni UI, NE za primarne akcije.

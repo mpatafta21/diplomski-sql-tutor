@@ -2,7 +2,7 @@
  * ProgressHero (Faza 4.2) — level + XP progres + streak. Amber accent je
  * REZERVIRAN za gamifikaciju (MASTER.md §2.1) — ovdje je doma.
  * XP progres: ISKLJUČIVO xp_in_level/level_step/xp_to_next iz /profile
- * (invarijanta #6 — nula lokalnih konstanti).
+ * (invarijanta: backend konstante iz /profile, nula lokalnih).
  */
 import { Flame } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,12 +19,19 @@ export function ProgressHero({ profile }: ProgressHeroProps) {
   return (
     <Card>
       <CardContent className="grid gap-6 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+        {/* Bočni stupci su ZRCALNI (label · display brojka · sitni podatak) —
+            zato brojke dijele visinu uz items-center; „Ukupno X XP" preseljen
+            iz sredine upravo radi te simetrije (korisnikov nalaz: brojka
+            levela je sjedila niže od streakove). */}
         <div className="flex items-baseline gap-2 sm:flex-col sm:gap-0">
           <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             Level
           </span>
-          <span className="text-4xl font-semibold tracking-tight text-accent-warm-text tabular-nums">
+          <span className="font-heading text-4xl font-semibold tracking-tight text-accent-warm-text tabular-nums">
             {level}
+          </span>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            ukupno {xp} XP
           </span>
         </div>
 
@@ -41,14 +48,16 @@ export function ProgressHero({ profile }: ProgressHeroProps) {
               još {xp_to_next} XP do levela {level + 1}
             </span>
           </div>
+          {/* `xp-fill` (gradijent žuto→crveno, korisnikova odluka — guardovi
+              u index.css uz --grad-xp) + `bar-shimmer` zraka NA TRACKU
+              (svake 2 s, rub-do-ruba). Sve kroz postojeće propove —
+              MasteryBar netaknut. */}
           <MasteryBar
             value={xp_in_level / level_step}
-            fillClass="bg-accent-warm"
+            fillClass="xp-fill"
+            className="bar-shimmer"
             label={`XP napredak: ${xp_in_level} od ${level_step} u trenutnom levelu`}
           />
-          <p className="text-xs text-muted-foreground">
-            Ukupno <span className="tabular-nums">{xp}</span> XP
-          </p>
         </div>
 
         <div className="flex items-center gap-3 sm:flex-col sm:items-end sm:gap-0">
@@ -63,7 +72,9 @@ export function ProgressHero({ profile }: ProgressHeroProps) {
             />
             Streak
           </span>
-          <span className="text-4xl font-semibold tracking-tight tabular-nums">
+          {/* `font-heading` kao i level — hero numerali dijele display font
+              (MASTER §3.1), inače im se baseline razilazi (mono vs display). */}
+          <span className="font-heading text-4xl font-semibold tracking-tight tabular-nums">
             {profile.current_streak}
           </span>
           <span className="text-xs text-muted-foreground tabular-nums">

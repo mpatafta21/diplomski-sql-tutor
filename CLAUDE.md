@@ -91,6 +91,37 @@ Checklist pri kreiranju novog agenta:
 4. **Implementacija** — koristiti `superpowers:executing-plans` skill za praćenje napretka
 5. **Review** — koristiti `code-review` plugin prije finalnog commita faze
 
+## 🔴 Invarijante
+
+Kanonski popis: **`docs/invarijante.md`**. Ondje su definirane, kod ih referencira
+**opisno + sidrom**, nikad brojem:
+
+```ts
+// Invarijanta: prag iz /profile (docs/invarijante.md#prag-iz-profila)
+```
+
+Brojevi su napušteni jer su bili uzrok NALAZA N-8 (dva broja postala dvoznačna, jedno
+pravilo nosilo dva broja). Prije nego dodaš invarijantu pročitaj „Kako dodati invarijantu"
+na dnu tog dokumenta — posebno pravilo da se invarijanta s dva različita hazarda
+**razdvaja na dvije**.
+
+## 🔴 Pravila rada s datotekama
+
+**Untracked datoteka se NIKAD ne prepisuje ni ne briše.** Git ne čuva povijest untracked
+datoteka — nema `git checkout`, nema `git stash`, nema undo. Prepisivanje je nepovratno
+uništenje sadržaja koji nitko nije ni vidio.
+
+- Prije pisanja u datoteku koju nisi ti stvorio u ovoj sesiji: `git status` ili
+  `test -e <put>`. Ako postoji a nije praćena → **novo ime**, ne prepisivanje.
+- Privremeni artefakti (dijagnostičke skripte, harnessi) idu u **scratchpad**, ili u repo
+  pod imenom koje ne može kolidirati (`_diag_<tema>_<faza>.ts`), i brišu se nakon nalaza.
+- Vrijedi i za `mv`, `cp` i `>` preusmjeravanje, ne samo za uređivanje.
+
+**Povod:** 2026-08-10 prepisana je untracked `frontend/e2e/_shots.spec.ts` skriptom za
+snimanje. Sadržaj je nepovratno izgubljen; jedini posredni trag je da je `npm run e2e`
+prije toga javljao „Running 1 test", pa je datoteka vjerojatno bila prazna — ali to je
+zaključak, ne dokaz.
+
 ## Known pitfalls
 
 Stvari koje su nas zeznule (bilježiti ovdje da ne ponovimo istu grešku):

@@ -13,7 +13,16 @@
 import { useCallback, useMemo, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "react-router-dom"
-import { CheckCircle2, ChevronRight, Clock, Play, Send } from "lucide-react"
+import {
+  BookOpen,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  LayoutDashboard,
+  MonitorSmartphone,
+  Play,
+  Send,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Kbd } from "@/components/ui/kbd"
@@ -32,7 +41,6 @@ import { useModules } from "@/hooks/useModules"
 import { useRun } from "@/hooks/useRun"
 import { useSubmitAttempt } from "@/hooks/useSubmitAttempt"
 import { useTask } from "@/hooks/useTask"
-import { useTheme } from "@/hooks/useTheme"
 import type {
   AttemptResponse,
   ProfileResponse,
@@ -118,7 +126,6 @@ interface TaskViewProps {
 }
 
 function TaskView({ task, conceptIndex }: TaskViewProps) {
-  const { dark } = useTheme()
   const runM = useRun(task.id)
   const { mutate } = runM // v5: mutate je referencijski stabilan
   const [query, setQuery] = useState(INITIAL_QUERY)
@@ -186,6 +193,31 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
     const q = submittedQueryRef.current
     if (q.trim()) submitQuery(q)
   }
+
+  /**
+   * 🔴 N-11 — preporuka vraća ISTI zadatak (netočna predaja, #44 breadth-first,
+   * #16 saturiran P(L)). `Link` na istu rutu ne remounta keyed `TaskView`, pa
+   * klik na CTA nije radio NIŠTA. Ovdje se ekran vraća u stanje „prije predaje"
+   * BEZ navigacije: feedback i Run rezultat se čiste, editor se vraća u fokus.
+   *
+   * 🔴 SQL U EDITORU SE NAMJERNO NE BRIŠE (odstupanje od doslovnog „resetira
+   * editor"): student koji je upravo pogriješio obično je blizu rješenja, a
+   * brisanje njegova upita kaznilo bi upravo onoga koga ovaj popravak štiti.
+   * Vidljiva promjena (panel nestaje, Submit se vraća) je ono što je N-11
+   * tražio. Puni reset editora je jedna linija ako se odluka promijeni.
+   *
+   * `useCallback` — `FeedbackPanel` je `memo`, nestabilan callback bi ga
+   * rerenderao na svaki keystroke u editoru.
+   */
+  const retrySameTask = useCallback(() => {
+    setLastAttempt(undefined)
+    setLevelUp(false)
+    setLastResult(undefined)
+    submittedQueryRef.current = ""
+    document
+      .querySelector(".monaco-editor")
+      ?.scrollIntoView({ block: "center", behavior: "smooth" })
+  }, [])
 
   // Točno jedan slot renderira: v5 status je enum (isError ⇒ !isPending).
   // 504 (agent pipeline ne odgovara) ≠ error_type:"timeout" (200, SQL predug).
@@ -320,8 +352,57 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
         </Card>
       </div>
 
-      {/* ── Desni panel: Monaco editor + Run/Submit ────────────────── */}
-      <Card className="min-w-0 self-start">
+      {/* ── <768px: rješavanje traži veći zaslon (1C t.4) ────────────
+          🔴 ADITIVNO. Ne dira `TaskView` logiku, keying ni registraciju hotkeya —
+          samo dva wrappera oko postojećeg desnog panela. Opis, koncepti i shema
+          (lijevi stupac) ostaju čitljivi i dostupni. */}
+      <Card className="min-w-0 self-start md:hidden">
+        <CardContent className="space-y-3 p-4">
+          <div className="flex items-start gap-3">
+            <MonitorSmartphone
+              className="mt-0.5 size-5 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <div className="space-y-2">
+              <h2 className="text-base font-medium">
+                Rješavanje traži veći zaslon
+              </h2>
+              {/* 🔴 ISKRENA poruka: ne „uskoro" i ne „nije podržano", nego RAZLOG.
+                  SQL editor traži tipkovnicu, a kratice koje pokreću i predaju upit
+                  (Ctrl/Cmd+Enter, Shift+Enter) na telefonu ne postoje. */}
+              <p className="text-sm text-muted-foreground">
+                SQL editor traži tipkovnicu — a kratice kojima se upit pokreće i
+                predaje (<Kbd aria-hidden="true">{RUN_KBD}</Kbd> i{" "}
+                <Kbd aria-hidden="true">Shift ↵</Kbd>) na telefonu ne postoje.
+                Opis zadatka i shema baze iznad su ti dostupni; za pisanje upita
+                otvori isti zadatak na računalu.
+              </p>
+            </div>
+          </div>
+          {/* Poruka mora imati IZLAZ — inače je slijepa ulica. */}
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link to="/">
+                <LayoutDashboard data-icon="inline-start" aria-hidden="true" />
+                Dashboard
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/modules">
+                <BookOpen data-icon="inline-start" aria-hidden="true" />
+                Moduli
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Desni panel: Monaco editor + Run/Submit ──────────────────
+          `hidden md:block` (ne uvjetni render): komponenta OSTAJE MONTIRANA, pa
+          `SqlEditor` mount-time registracija Ctrl/Shift+Enter i `keying` rade
+          nepromijenjeno. `display:none` ju usput miče iz tab-reda i od čitača
+          ekrana, što je na mobitelu i ispravno — editor ondje nije upotrebljiv. */}
+      <Card className="hidden min-w-0 self-start md:block">
         <CardContent className="space-y-3 p-4">
           {/* focus-within prsten: Monaco fokus mora biti vidljiv i na kontejneru (MASTER §7). */}
           <div className="h-[420px] overflow-hidden rounded-md border border-border transition-[border-color,box-shadow] duration-fast ease-standard focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40 motion-reduce:transition-none xl:h-[520px]">
@@ -329,7 +410,6 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
             <SqlEditor
               value={query}
               onChange={setQuery}
-              dark={dark}
               onRun={handleRun}
               onSubmit={handleSubmit}
             />
@@ -385,6 +465,8 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
               levelUp={levelUp}
               badgeCatalog={badgesQ.data}
               conceptName={conceptName}
+              currentTaskId={task.id}
+              onRetrySameTask={retrySameTask}
             />
           )}
           <RunResultPanel

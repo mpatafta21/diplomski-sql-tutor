@@ -1,7 +1,7 @@
 /**
  * ConceptRow (Faza 4.2b) — jedan koncept u detalju modula: 4 stanja (odluka B),
  * razlučena IKONOM + TEKSTOM + bojom (nikad samo bojom — a11y).
- * Progres isključivo kroz MasteryBar (invarijanta #1); p_l se prikazuje SAMO
+ * Progres isključivo kroz MasteryBar (invarijanta: nema drugog progres-renderera); p_l se prikazuje SAMO
  * ako je koncept diran (netaknut ≠ prior) — uključujući i zaključan-a-diran
  * (regresija preduvjeta ne smije sakriti zabilježeni napredak).
  */
@@ -71,7 +71,7 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
     <>
       <div className="flex flex-wrap items-center gap-2">
         <Icon className={cn("size-4 shrink-0", iconClass)} aria-hidden="true" />
-        <span className="text-sm font-medium">{concept.name}</span>
+        <span className="font-mono text-sm font-medium">{concept.name}</span>
         <ConceptChip
           name={TIER_LABEL[concept.tier] ?? concept.tier}
           tier={concept.tier}

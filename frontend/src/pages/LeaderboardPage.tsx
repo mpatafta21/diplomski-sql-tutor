@@ -15,8 +15,8 @@
  * 🔴 WEEKLY PROZOR: backend računa „zadnjih 7 dana, cutoff TZ-aware
  * (Europe/Zagreb)" (routes.py:614), ali granicu NE vraća u odgovoru. Zato
  * generički tekst — klijentski izračunat datum mogao bi promašiti backend
- * definiciju za sat ili dan i lagati korisniku (ista logika kao invarijanta #6:
- * backend konstante se ne rekonstruiraju na klijentu).
+ * definiciju za sat ili dan i lagati korisniku (ista logika kao invarijanta
+ * o backend konstantama: ne rekonstruiraju se na klijentu).
  */
 import { useState } from "react"
 import { Trophy } from "lucide-react"
@@ -74,7 +74,8 @@ export function LeaderboardPage() {
     items.some((item) => item.username === currentUsername)
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    // `stagger-cards` (B.2): entrance stagger direktne djece — v. index.css.
+    <div className="stagger-cards mx-auto max-w-4xl space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Ljestvica</h1>
         <p className="text-sm text-muted-foreground">
@@ -141,7 +142,7 @@ export function LeaderboardPage() {
             <>
               <div
                 className={cn(
-                  "transition-opacity duration-fast",
+                  "transition-opacity duration-fast ease-standard",
                   query.isPlaceholderData && "opacity-60",
                 )}
                 aria-busy={query.isFetching}

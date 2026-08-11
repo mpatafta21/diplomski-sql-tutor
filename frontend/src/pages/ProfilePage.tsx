@@ -8,6 +8,7 @@
  * (autoritativno). StatsSummary NE prikazuje XP (vidi njegov docstring).
  */
 import { Card, CardContent } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import { LoadingState } from "@/components/state/LoadingState"
 import { ErrorState } from "@/components/state/ErrorState"
 import { ProgressHero } from "@/components/dashboard/ProgressHero"
@@ -15,6 +16,7 @@ import { StatsSummary } from "@/components/profile/StatsSummary"
 import { BadgeGallery } from "@/components/profile/BadgeGallery"
 import { AttemptHistory } from "@/components/profile/AttemptHistory"
 import { MasteryCurves } from "@/components/profile/MasteryCurves"
+import { ParticipationSection } from "@/components/profile/ParticipationSection"
 import { useAuth } from "@/hooks/useAuth"
 import { useProfile } from "@/hooks/useProfile"
 import { useBadges } from "@/hooks/useBadges"
@@ -50,7 +52,8 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    // `stagger-cards` (B.2): entrance stagger direktne djece — v. index.css.
+    <div className="stagger-cards mx-auto max-w-5xl space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Profil</h1>
         <p className="text-sm text-muted-foreground">
@@ -89,6 +92,18 @@ export function ProfilePage() {
           scroll-mt drži naslov ispod sticky headera nakon skoka. */}
       <div id="povijest" className="scroll-mt-20">
         <AttemptHistory />
+      </div>
+
+      {/* Separator je OBAVEZAN, ne ukras: bez njega sadržaj iza kontrole
+          paginacije povijesti čita se kao njezin rep, a ne kao zaseban blok. */}
+      <Separator />
+
+      {/* Informacija o sudjelovanju — prijavljeni korisnik do nje inače NEMA
+          puta (PublicOnlyRoute ga s /register vraća na /). Zadnja je namjerno:
+          referentni sadržaj, ne dnevni. `username` dolazi iz `useAuth` gore —
+          bez novog querya. */}
+      <div id="sudjelovanje" className="scroll-mt-20">
+        <ParticipationSection username={user?.username} />
       </div>
     </div>
   )

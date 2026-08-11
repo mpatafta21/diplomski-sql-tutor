@@ -56,7 +56,7 @@ export function ConceptCurveCard({
       aria-controls={selected ? detailId : undefined}
       className={cn(
         // min-h-11 => 44px touch target (WCAG 2.5.5).
-        "flex min-h-11 w-full flex-col gap-2 rounded-lg border p-3 text-left transition-colors",
+        "flex min-h-11 w-full flex-col gap-2 rounded-lg border p-3 text-left transition-colors duration-fast ease-standard",
         "hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         selected ? "border-ring bg-muted/40" : "border-border",
       )}

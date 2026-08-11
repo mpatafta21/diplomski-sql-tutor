@@ -1,0 +1,1175 @@
+# Faza 4.7 — nalazi nađeni usput, NEPOPRAVLJENI
+
+Nalazi koji su izašli tijekom 4.7 polisha a **nisu 4.7 opseg**. Ovdje se bilježe, ne
+popravljaju. Po 🔒 DOC politici svaka tvrdnja „X ne postoji" nosi citat pretrage.
+
+---
+
+## N-1 🔴 BLOKATOR PRIJE SLANJA LINKA — brisanje pojedinog sudionika nije dokazano izvedivo
+
+**Status:** 🔴 blokator **prije nego link ode studentima** · **nije 4.7** · nađeno 2026-07-26
+(stage 1A-dopuna) · ⟳ **PROMOVIRAN U ERRATU KAO #46** (2026-08-09)
+
+> 📌 **Kanonski zapis je od 2026-08-09 `docs/errata.md` #46.** Ovaj odjeljak ostaje kao
+> radni trag s punim dokazima; errata nosi status, izmjerenu brojku i ekstrapolaciju na
+> eval volumen. Razlog promocije: ovo nije radna bilješka nego **obveza prema sudioniku**
+> koja trajno stoji na Profilu. Ako se tekst obećanja ikad mijenja, mijenja se **#46**.
+
+> ⚠️ **PRIORITET PODIGNUT** (odluka korisnika, 2026-07-26, stage 1A-dopuna t.3): prvotno je
+> ovo bilo zabilježeno kao „blokator deploymenta". Nakon što je informacija o sudjelovanju
+> dodana i na **Profil**, obećanje o brisanju podataka prikazuje se **trajno svakom
+> prijavljenom korisniku**, na ekranu koji posjećuje tijekom cijelog sudjelovanja — ne samo
+> jednom prije registracije. Procedura brisanja pojedinog sudionika mora zato postojati
+> **prije nego link ode studentima**, ne tek prije deploya. Obećanje koje stoji na ekranu
+> mjesecima, a nije izvedivo, teže je opravdati od jednokratne rečenice.
+
+### Tvrdnja
+
+Informacija sudionika na `/register` (Faza 4.7-1a) obećava dvije stvari:
+
+> „Za pitanja ili zahtjev za brisanje podataka: mpatafta21@student.foi.hr"
+> „Podaci se čuvaju do obrane rada, nakon čega se brišu."
+
+`agent_messages_log` **nema `user_id` kolonu** (#40), pa ga nijedan postojeći cleanup ne
+dohvaća po korisniku, a `submitted_query` u njegovom `content`-u je vezan uz korisnika
+(4.5b README, sekcija o osobnim podacima). **Brisanje jednog sudionika na zahtjev
+trenutno NIJE dokazano izvedivo do kraja.**
+
+### Dokaz 1 — tablica nema `user_id`
+
+`backend/app/db/models.py:394-409`, cijeli popis stupaca:
+
+```python
+class AgentMessageLog(Base):
+    __tablename__ = "agent_messages_log"
+    __table_args__ = (
+        Index("idx_agent_messages_correlation", "correlation_id"),
+        Index("idx_agent_messages_created", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    sender: Mapped[str] = mapped_column(String(50), nullable=False)
+    receiver: Mapped[str] = mapped_column(String(50), nullable=False)
+    performative: Mapped[str] = mapped_column(String(30), nullable=False)
+    content: Mapped[dict | None] = mapped_column(JSONB)
+    correlation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+```
+
+Sedam stupaca, **nijedan ne referencira korisnika**. Nema ni FK na `users`, pa ni CASCADE
+ne pomaže. To potvrđuje i sam `prepare_eval_baseline.py:43`:
+
+> `agent_messages_log` nema `user_id` (provjereno u shemi) → brisanje usera
+
+### Dokaz 2 — po korisniku ga NE briše nijedno mjesto (citat pretrage)
+
+```
+$ grep -rn "agent_messages_log" --include=*.py --include=*.sh --include=*.sql \
+    --include=Makefile . | grep -v "^./docs/"
+scripts/backup_eval_data.sh:32:VERIFY_TABLES=(users attempts skill_mastery … agent_messages_log)
+backend/app/db/models.py:395:    __tablename__ = "agent_messages_log"
+backend/tests/test_agents_smoke.py:1,200,201,224   (testovi — čitaju/asertiraju)
+backend/tests/test_db_schema.py:25,105,106         (testovi — shema)
+backend/agents/recommender_agent.py:18             (komentar)
+backend/agents/base.py:9,72                        (log_message — UPIS)
+backend/alembic/versions/ac6a5eeac6e5_…:24,34,35,273,274,275  (migracija)
+backend/scripts/prepare_eval_baseline.py:22,43,238,292,390,394,399,435,436
+```
+
+**Jedino mjesto koje ga uopće briše** je `prepare_eval_baseline.py:435`:
+
+```python
+session.execute(text("TRUNCATE TABLE agent_messages_log RESTART IDENTITY"))
+```
+
+To je **TRUNCATE cijele tablice** iza `--confirm` — sve ili ništa. Nema klauzule, nema
+filtera, nema puta do „samo ovaj sudionik".
+
+```
+$ grep -rn "agent_messages_log" backend/scripts/
+→ pogodci SAMO u prepare_eval_baseline.py (gore); nijedna druga skripta je ne dira
+```
+
+### Dokaz 3 — `purge_demo_users.py` je najbliža stvar per-user brisanju, i ne pokriva logove
+
+`backend/scripts/purge_demo_users.py:61-75`:
+
+```python
+counts["skill_mastery_history"] = session.execute(
+    delete(SkillMasteryHistory).where(SkillMasteryHistory.user_id.in_(ids))).rowcount
+counts["xp_log"]   = session.execute(delete(XpLog).where(XpLog.user_id.in_(ids))).rowcount
+counts["attempts"] = session.execute(delete(Attempt).where(Attempt.user_id.in_(ids))).rowcount
+# users → CASCADE pokriva misconceptions, recommendations_log,
+# skill_mastery, streaks, user_badges.
+counts["users"]    = session.execute(delete(User).where(User.id.in_(ids))).rowcount
+```
+
+Pokriva 9 tablica (3 eksplicitno + 5 kroz CASCADE + `users`). **`agent_messages_log` nije
+među njima** — i ne može biti, jer nema po čemu filtrirati. Uz to skripta hvata samo
+`demo44_` prefiks, dakle nije ni namijenjena stvarnom sudioniku.
+
+### Zašto to nije samo higijena
+
+`content` je `JSONB` i nosi `submitted_query` studenta (4.5b README to izrijekom navodi kao
+osobni podatak). Dakle nakon „brisanja" sudionika u bazi ostaje njegov SQL kod. Veza na
+osobu nije u tablici, ali je **rekonstruktibilna** kroz `correlation_id` → `attempt_id`
+u onim porukama koje ga nose (#40: 5 od 12 poruka po attemptu nosi `attempt_id`) — a i bez
+toga sadržaj upita sam po sebi može biti prepoznatljiv.
+
+### Što treba prije deploya (NIJE 4.7)
+
+Procedura brisanja **pojedinog** sudionika, uključujući FIPA logove, **verificirana u oba
+smjera** (dokazano da briše kad treba I da ne briše kad ne treba — poučak iz #39). Mogući
+put bez izmjene sheme: prikupiti `correlation_id`-eve iz `attempts` tog korisnika PRIJE
+brisanja attempta, pa obrisati logove po tom skupu — ali to je **backend/ops posao**,
+mora se izmjeriti i testirati, i ne pokriva poruke bez `correlation_id`.
+
+**Do tada je tvrdnja o brisanju na zahtjev djelomično nepokrivena.** Odluka je korisnikova:
+(a) izgraditi proceduru prije deploya, ili (b) preformulirati odlomak u informaciji
+sudionika da ne obećava više od onoga što je dokazano izvedivo.
+
+**Srodno:** #37 (nenadoknadivi eval podaci), #40 (`pytest` ostavlja FIPA promet koji
+nijedan cleanup ne dohvaća), 4.5b README (osobni podaci u logovima).
+
+---
+
+## N-2 🟡 `og:image` je RELATIVNA putanja — scraperi traže apsolutnu URL
+
+**Status:** 🟡 deployment stavka · **nije 4.7** · 2026-07-26 (stage 1A-dopuna, točka 4)
+
+`og:image` **je izrađen** (1200×630 PNG, `public/og-image.png`, izvor `public/og-image.svg`)
+i uveden u `index.html` uz `og:image:width/height/alt` i
+`twitter:card=summary_large_image`.
+
+**Ali:** vrijednost je `/og-image.png`, dakle **relativna**. Open Graph scraperi (Slack,
+Facebook, iMessage, WhatsApp) dohvaćaju sliku iz odvojenog zahtjeva i **zahtijevaju
+apsolutnu URL** — relativnu većina ne razriješi. Domena je poznata tek pri deployu, pa se
+ovdje ne može upisati.
+
+**Prije objave linka sudionicima:** zamijeniti `/og-image.png` s
+`https://<domena>/og-image.png`. Dokazati preview alatom platforme kojom se link šalje
+(npr. Slack unfurl / Facebook Sharing Debugger), ne pretpostavkom.
+
+Do tada preview i dalje nosi `og:title` + `og:description` (dokazano u buildu), što je
+bitno bolje od gole domene — samo bez slike.
+
+**Napomena o formatu:** slika je PNG namjerno. Slack/Facebook/iMessage **ne** renderiraju
+SVG kao `og:image`, pa bi SVG bio isto što i nemati sliku. SVG je zadržan u `public/` kao
+izvor za ponovnu rasterizaciju.
+
+---
+
+## N-3 🟡 Snimanje ekrana za dokumentaciju zaprlja `agent_messages_log` — ista klasa kao #40
+
+**Status:** 🟡 proceduralno · zabilježeno · 2026-07-26 (stage 1A-dopuna, točka 6)
+
+Za snimke prijavljenog stanja u stage 1A-dopuni registriran je privremeni korisnik
+`demo44_shot` i otvoren Dashboard. **Dashboard poziva `/next-task`, a to prolazi kroz pun
+agentski lanac** (XMPP → Prolog → Recommender) → svaki poziv **upisuje FIPA poruke u
+`agent_messages_log`**.
+
+Korisnik je uredno obrisan (`purge_demo_users` → `users_matched: 1`, `users: 1`; provjereno
+`SELECT`-om, ostao je samo `admin`), **ali logovi nisu** — po N-1 se i ne mogu obrisati po
+korisniku.
+
+Izmjereno nakon čišćenja: `attempts` = 12, `agent_messages_log` = **351**.
+⚠️ **Ne mogu tvrditi koliki je moj doprinos** — nisam zabilježio baseline PRIJE snimanja.
+`attempts` = 12 nisu moji (nijedan Submit nije izvršen), a dio od 351 zapisa je.
+
+**Praktična posljedica: nikakva za eval**, jer pred-eval slijed iz `docs/eval-runbook.md`
+(`pytest → baseline --confirm → preflight → backup`) radi `TRUNCATE agent_messages_log`
+(`prepare_eval_baseline.py:435`) pa ovo nestaje prije prve stvarne sesije.
+
+**Poučak za dalje:** svaka radnja koja dira živi backend radi dokumentacije (snimke,
+demonstracije, ručne provjere) treba **zabilježiti brojače prije i poslije**, isto kao što
+runbook to traži za `make smoke`. Bez baseline brojke tvrdnja „ništa nisam zaprljao" nije
+provjerljiva — a ovaj nalaz je dokaz koliko je lako.
+
+### Dopuna — poučak PRIMIJENJEN, i sad ima brojku (2026-07-26, stage 1A-dopuna t.3)
+
+Za snimke Profila s punom stranicom pokušaja trebao je račun s poviješću →
+`seed_demo_user` (27 attempta kroz **pravi** `POST /attempt`, dakle pun agentski lanac).
+Ovaj put su brojači zabilježeni PRIJE:
+
+| tablica                 | prije | poslije (nakon `purge_demo_users`) | Δ           |
+| ----------------------- | ----- | ---------------------------------- | ----------- |
+| `users`                 | 1     | 1                                  | **0** ✅    |
+| `attempts`              | 12    | 12                                 | **0** ✅    |
+| `skill_mastery_history` | 22    | 22                                 | **0** ✅    |
+| `agent_messages_log`    | 363   | **696**                            | **+333** ❌ |
+
+`purge_demo_users` je uredno vratio sve što može (`skill_mastery_history: 77`, `xp_log: 9`,
+`attempts: 27`, `users: 1`) i sve tri tablice su **točno** na baselineu. `agent_messages_log`
+je narastao za **333 zapisa** i nema ga čime obrisati po korisniku — to je **N-1 izmjeren,
+ne pretpostavljen** (27 attempta × ~12 poruka ≈ 324, plus `/next-task` i `/profile` pozivi).
+
+**Preporuka za `docs/eval-runbook.md` (NE mijenjati sad):** prije snimanja artefakata za rad
+(uklj. `docs/figures/`, #38) i prije svake demonstracije nad živim sustavom zabilježiti
+`COUNT(*)` iz `agent_messages_log`, i tretirati snimanje kao **zahvat nad bazom**, ne kao
+čitanje. Dashboard sam po sebi povlači `/next-task` → pun agentski lanac → upis.
+
+**Srodno:** #40 (`pytest` ostavlja 87 redaka), N-1 (nema per-user brisanja logova), #38.
+
+---
+
+## N-4 🟡 Prsten fokusa — ISPRAVLJEN KRITERIJ i PREMJEREN prema OBJE susjedne boje
+
+**Status:** 🟡 token-level a11y · **nije 4.7** (tokeni zamrznuti) · prvo mjerenje
+2026-07-26, **ispravak kriterija i puno premjeravanje 2026-08-09**
+
+### ⟳ ISPRAVAK VLASTITE TVRDNJE — krivi kriterij i premala mjerna baza
+
+Izvorni zapis glasio je „2,59:1 u light temi — ispod 3:1 (**WCAG 2.2 SC 2.4.11**)".
+**Oboje je trebalo popraviti:**
+
+1. 🔴 **Krivi kriterij.** SC **2.4.11 u WCAG 2.2 je „Focus Not Obscured (Minimum)"** — o
+   tome da fokusirani element nije **prekriven** autorskim sadržajem; s kontrastom nema
+   veze. U **WCAG 2.1, koji je baseline projekta** (plan §3.5), SC 2.4.11 **uopće ne
+   postoji**. Zahtjev **≥ 3:1 za vidljivost indikatora** dolazi iz **SC 1.4.11 Non-text
+   Contrast (AA, WCAG 2.1)**, koji pokriva „vizualne informacije potrebne za identifikaciju
+   komponenata sučelja **i njihovih stanja**" — fokus je stanje. Kontrast **i veličina
+   zajedno** su SC **2.4.13 Focus Appearance (WCAG 2.2)**, a to je **AAA** — izvan
+   baselinea, navodi se samo informativno.
+2. 🔴 **Premala mjerna baza.** Prsten graniči s **dvije** boje: plohom oko sebe i
+   komponentom koju okružuje. Brojka 2,59:1 mjerila je **samo jedan par** (`ring` vs
+   `card`) i prikazana je kao cijela slika. Premjeravanje pokazuje da to **podcjenjuje**
+   jedan slučaj (ispunjeni gumb, 6,91:1) i **precjenjuje ujednačenost** ostalih.
+
+### Kako je mjereno
+
+Konvertor oklch → sRGB → relativna luminancija, alpha **kompozitirana** nad navedenom
+plohom. Prije upotrebe **validiran na šest već objavljenih brojki** projekta (`ring` vs
+`card` 2,59 / 3,79; `muted-foreground` vs `card` 4,73 / 6,91; `foreground` vs `card`
+19,79 / 17,16) — sve reproducirane na dvije decimale, pa su nove brojke usporedive sa
+starima. Vrijednosti tokena: `--ring` light `oklch(0.708 0 0)` = `#a1a1a1`, dark
+`oklch(0.556 0 0)` = `#737373`.
+
+Geometrija je pročitana **iz živog DOM-a** (CDP, dev server, `/register`), ne iz koda:
+`outline-style: solid`, `outline-width: 2px`, `outline-offset: 2px`,
+`outline-color: oklch(0.708 0 0)` light / `oklch(0.556 0 0)` dark, uz
+`matches(":focus-visible") === true`.
+
+### Mehanizam A — `outline-2 outline-offset-2 outline-ring`
+
+Poveznice, nav stavke, `ConceptRow`, `MasteryRow`, mailto u sekciji sudjelovanja.
+
+🔴 **Ključna posljedica `outline-offset: 2px`:** razmak od 2px pokazuje **plohu ispod**, pa
+su **obje** susjedne boje prstena ista ploha. Ovdje **nema druge boje koja bi indikator
+spasila** — za razliku od mehanizma B.
+
+| Ploha ispod                                    |     light     |    dark     |
+| ---------------------------------------------- | :-----------: | :---------: |
+| `card` (kartice, Profil)                       | **2,59:1** ❌ | 3,79:1 ✅   |
+| `background` (ploha stranice)                  | **2,59:1** ❌ | 4,18:1 ✅   |
+| `sidebar` (nav — glavna tipkovnička površina)  | **2,48:1** ❌ | 3,79:1 ✅   |
+| `bg-muted/40` nad `card` (info blok /register) | **2,51:1** ❌ | 3,56:1 ✅   |
+
+### Mehanizam B — `focus-visible:border-ring` + `ring-3 ring-ring/50`
+
+Shadcn baza za `Input` i `Button`. Tri granice: prsten-rub prema **ispuni komponente**,
+prsten-rub prema **halou** (`ring/50` kompozitiran nad plohom), halo prema **plohi**.
+
+| Komponenta                | granica                                  |     light     |    dark     |
+| ------------------------- | ---------------------------------------- | :-----------: | :---------: |
+| **Input**                 | rub(ring) vs ispuna (light `bg-transparent`→`card`; dark `bg-input/30`) | **2,59:1** ❌ | 3,38:1 ✅ |
+|                           | rub(ring) vs halo                        |    1,68:1     |   2,02:1    |
+|                           | halo vs ploha                            |    1,54:1     |   1,87:1    |
+| **Button default**        | rub(ring) vs `primary` (ispuna gumba)    |  **6,91:1** ✅ | 3,76:1 ✅  |
+|                           | rub(ring) vs halo                        |    1,68:1     |   2,02:1    |
+| **Button outline** (paginacija) | rub(ring) vs ispuna                |  **2,59:1** ❌ | 3,38:1 ✅  |
+
+Uz to, kontrast **promjene stanja** (rub u mirovanju `--input` → rub u fokusu `--ring`):
+**2,06:1** light / **2,41:1** dark — relevantno samo za AAA čitanje (2.4.13), navodi se
+radi potpunosti.
+
+### PRIJEDLOG PRESUDE — 🔴 ČEKA OK (t.3c)
+
+Pod **SC 1.4.11 (AA, WCAG 2.1)**, prag ≥ 3:1 prema susjednoj boji:
+
+- **DARK tema PROLAZI** na svakoj izmjerenoj granici komponente (3,38–4,18:1).
+- **LIGHT tema PADA** za mehanizam A (2,48–2,59:1 prema **jedinoj** susjednoj boji) te za
+  `Input` i `Button outline` (2,59:1). To pogađa nav, poveznice, koncept-retke, inpute i
+  paginaciju — dakle **većinu tipkovničkog puta**.
+- **LIGHT tema PROLAZI** samo za ispunjeni `Button default` — 6,91:1 prema vlastitoj
+  tamnoj ispuni. Ta je granica ono što gumb čini razlučivim; vanjska granica ga ne nosi.
+- **Halo (`ring/50`) nikad ne dosegne 3:1** prema plohi (1,54 light / 1,87 dark) → on je
+  **ukras, ne indikator**; nositelj je 1px/2px rub.
+
+Prethodna formulacija „prsten je 2,59:1" time nije bila netočna za par koji je izmjerila,
+ali **jest bila nepotpuna kao presuda o aplikaciji**.
+
+### Što se NE radi sada
+
+🔴 **Nijedan token nije mijenjan** (`--ring` ni bilo koji drugi) — potvrđeno u diffu.
+Popravak je token-level i dira svaku fokusabilnu površinu, što je globalnim pravilima 4.7
+zabranjeno.
+
+**Prijedlog za Fazu 6 — kao ZASEBAN nalaz, odvojeno od #13 i #33.** Spajanje nalaza u
+`c12ec31` je i dovelo do toga da #13 ostane bez vlastite presude; ovaj se ne smješta u isti
+paket. Smjerovi (ni jedan nije odabran, svi traže remjeru):
+podignuti tamnoću `--ring` u light temi; ili dodati drugi, kontrastni sloj prstena
+(vanjski svijetli + unutarnji tamni) čime prestaje ovisiti o jednoj plohi; ili ukinuti
+`outline-offset` ondje gdje prsten leži na ispuni komponente.
+
+**Ublažavajuće, ali NE opravdanje:** poveznice u sekciji sudjelovanja su **trajno
+podcrtane** (v. N-7), pa fokus nije jedini signal njihove interaktivnosti. To ne mijenja
+izmjerenu brojku indikatora.
+
+---
+
+## N-7 ✅ Poveznica u `ParticipationSection` — 1.4.1 PROVJEREN IZ DOM-a, prolazi
+
+**Status:** ✅ provjereno, **bez izmjene koda** · 2026-08-09
+
+Prethodni zapis naveo je **jednu** brojku (19,79:1) za „tekst sekcije **i** poveznicu".
+Ista brojka za dva elementa znači **istu boju** — a ako je boja jedini razlikovni kanal,
+to je prekršaj **SC 1.4.1 Use of Color**. Provjereno je **iz računatog stila živog DOM-a**
+(CDP, `/register`, gdje je niz klasa **byte-identičan** onome u
+`ParticipationSection.tsx:68`), obje teme:
+
+| svojstvo                 | poveznica                  | okolni `<p>`               |
+| ------------------------ | -------------------------- | -------------------------- |
+| `color` (light)          | `oklch(0.145 0 0)`         | `oklch(0.145 0 0)` — ISTA  |
+| `color` (dark)           | `oklch(0.985 0 0)`         | `oklch(0.985 0 0)` — ISTA  |
+| `text-decoration-line`   | **`underline`**            | `none`                     |
+| `text-underline-offset`  | `4px`                      | `auto`                     |
+| `font-weight`            | **500**                    | 400                        |
+
+**Presuda: 1.4.1 nije prekršen — i to ne granično.** Boja **uopće nije kanal** (identična
+je), pa se razlikovanje u cijelosti oslanja na **podcrtavanje + težinu fonta**, dva
+ne-bojna kanala. Jedna brojka za oba elementa bila je **posljedica** te odluke, ne simptom
+propusta. **Nikakav popravak nije potreban** — `underline underline-offset-4 font-medium`
+već stoji u komponenti.
+
+**Fokus-vidljivost te poveznice, mjerena zasebno** (traženo uz ovu provjeru): outline
+2px, offset 2px, boja `--ring` → **2,59:1 light / 3,79:1 dark** na `card` (Profil) i
+**2,51:1 / 3,56:1** na `bg-muted/40` (/register). Light pada pod 1.4.11 — to je N-4,
+naslijeđeno i app-wide, ne svojstvo ove komponente.
+
+**Usput uočeno, NE dirano (nije 4.7 opseg, nije prekršaj):** poveznica „Prijavi se"
+(`RegisterPage.tsx:220-227`) razlikuje se od okolnog teksta bojom (`text-foreground` vs
+`text-muted-foreground`) i težinom (500 vs 400), a podcrtava se **tek na hover**
+(`hover:underline`). Težina fonta jest ne-bojni kanal pa 1.4.1 formalno drži, ali je
+kanal slabiji nego kod mailto poveznice. Kandidat za dosljednost, ne za popravak.
+
+---
+
+## N-5 🔴 Stage 1C dobiva izlazni kriterij: mobilni drawer MORA imati stavku Profil
+
+**Status:** 🔴 ulazni uvjet za stage 1C · 2026-07-26
+
+Informacija o sudjelovanju je od stage 1A-dopune **na Profilu** (`/profile#sudjelovanje`).
+Ispod 768px sidebar je `hidden … md:flex` (`AppShell.tsx:88`) i **nema zamjenske
+navigacije** — dakle prijavljen korisnik na telefonu **nema puta** do te informacije:
+`/register` mu je zatvoren (`PublicOnlyRoute` → `Navigate to="/"`), a Profil nedosežan.
+
+**Izlazni kriterij za 1C:** mobilni drawer mora sadržavati stavku **Profil**. Bez nje je
+tekst o sudjelovanju, kontaktu i brisanju podataka nedostupan cijeloj klasi korisnika.
+
+⚠️ **ISPRAVAK vlastite tvrdnje:** u izvještaju report gatea 1b napisao sam da „stage 1C ne
+mora ništa replicirati (nije nav stavka)". To je bilo **netočno** — vrijedilo bi samo da
+sekcija nije vezana na ekran koji se dosiže navigacijom. Vezana je.
+
+---
+
+## N-6 🟡 `CORS_ORIGINS` default pokriva samo `:5173` — kriv origin izgleda kao pad aplikacije
+
+**Status:** 🟡 deployment stavka · **nije 4.7** · empirijski potvrđeno 2026-07-26
+
+`backend/app/core/config.py:77-79`:
+
+```python
+CORS_ORIGINS: list[str] = _list(
+    "CORS_ORIGINS",
+    ["http://localhost:5173", "http://127.0.0.1:5173"],
+)
+```
+
+**Kako se manifestira:** pri snimanju u stage 1A-dopuni dev server je bio dignut na `:5199`.
+Token je bio valjan — `curl -H "Authorization: Bearer …" /me` vraća **200** s ispravnim
+korisnikom — ali je preglednik odbio odgovor zbog CORS-a, `AuthProvider` je pao u
+`status='anon'` i `ProtectedRoute` je preusmjerio na `/login`. **Simptom je izgledao kao
+neispravna prijava**, a bio je konfiguracija origina. Nijedna poruka u UI-ju to ne razlučuje.
+
+**Zašto je to deployment rizik, ne kurioznost:** na javnom VPS-u frontend ide s domene, ne s
+`localhost:5173`. Ako `CORS_ORIGINS` nije postavljen kroz env, **svi** studenti dobiju
+uspješnu prijavu koja se odmah vrati na `/login` — dakle sustav izgleda potpuno slomljen,
+a backend je zdrav.
+
+**Prije deploya:** `CORS_ORIGINS` postaviti na stvarnu domenu i dokazati **prijavom kroz
+preglednik**, ne `curl`-om (curl ne provodi CORS pa uspijeva i kad preglednik ne bi).
+
+---
+
+## N-8 ✅ Prostor imena „invarijanta" je NEKOHERENTAN — isti broj nosi dva različita pravila
+
+**Status:** ✅ **ZATVOREN 2026-08-10 (1C-zatvaranje)** — konsolidirano u **`docs/invarijante.md`**,
+referencirano iz `CLAUDE.md`. Brojevi su **napušteni**, ne preslagani: opisni naslovi +
+stabilna sidra (`#xp-autoritativni-izvor`). `docs/faza-4.1-wrapup.md:85-87` ostaje
+nepromijenjen kao povijesni zapis, uz pokazivač.
+
+🔴 **XP invarijanta je pritom RAZDVOJENA na dvije** — `#xp-autoritativni-izvor` (hazard:
+neusklađene brojke, tvrd i mjerljiv) i `#jedan-prikaz-po-kadru` (hazard: redundancija,
+dizajnerski i podložan iznimci). Spojene bi se čitale preširoko.
+
+*Izvorni nalaz (pun search 2026-08-10):*
+
+Hipoteza je bila da su invarijante **raspršene** po wrapupima (nije rupa, samo nije na
+jednom mjestu). **Pun search je pokazao nešto drugo — i gore.**
+
+### Citat pretrage — jedino mjesto koje ih NUMERIRA
+
+```
+$ grep -rniE "invarijant[a-zšćžđč]* #[0-9]+ *[—–-]" docs/
+docs/faza-4.1-wrapup.md:85: - **Invarijanta #1 — 401 runtime:** …
+docs/faza-4.1-wrapup.md:86: - **Invarijanta #2 — TS6 `erasableSyntaxOnly`:** …
+docs/faza-4.1-wrapup.md:87: - **Invarijanta #3 — 44px touch-targeti (WCAG 2.5.5):** …
+
+$ grep -rniE "invarijant" docs/faza-4-plan.md CLAUDE.md .claude/ design-system/
+(nula pogodaka)
+```
+
+Kasniji wrapupi (4.2 §5, 4.3 §5, 4.4b) **imaju isti odjeljak** „Zaključane odluke /
+napomene za nasljednike" i u njemu **nabrajaju invarijante — ali BEZ brojeva**, kao obične
+natuknice. **Numerirana su samo tri, i to sva tri u 4.1.**
+
+### 🔴 Zato ovo nije „rupa na #5" nego KOLIZIJA
+
+Kod referencira **#1, #2, #3, #4, #6**. Usporedba s jedinim definicijama:
+
+| broj | definicija (`faza-4.1-wrapup.md`) | kod koji se SLAŽE | kod koji PROTURJEČI |
+| :---: | --- | --- | --- |
+| **#1** | 401 runtime (tipizirana `error` grana je `never`) | `guards.tsx:4` ✅ | 🔴 `MasteryBar.tsx:5,51,58` i `ConceptRow.tsx:4` — koriste #1 za **„border-ani track / progres isključivo kroz MasteryBar"** |
+| **#2** | TS6 `erasableSyntaxOnly`, bez parameter-properties | `ErrorBoundary.tsx:5` ✅ | 🔴 `progress.ts:5` i `ModulesPage.tsx:4` — koriste #2 za **„prag iz `/profile.mastery_threshold`"** |
+| **#3** | 44px touch-targeti (WCAG 2.5.5) | `pagination.tsx:46` ✅ | — |
+| **#4** | **nema definicije** | — | `LoginPage.tsx:2`, `RegisterPage.tsx:2` — „prijava po USERNAME, NE email" |
+| **#6** | **nema definicije** | — | `useProfile.ts:4`, `mastery.ts:6`, `MasteryHighlights.tsx:4`, `MasteryCurves.tsx:12`, `ProgressHero.tsx:5`, `LeaderboardPage.tsx:18` — „prag iz `/profile.mastery_threshold`" |
+
+**Dva su broja dvoznačna u samom kodu** (#1 i #2), a **isto pravilo** („prag dolazi iz
+`/profile`") nosi **dva različita broja** — #2 na dva mjesta i #6 na šest.
+
+**„#5 je nedodijeljen" je time kriv okvir.** Numeracija nije niz s rupom nego **tri
+definirana broja plus četiri naknadno izmišljena**, od kojih dva gaze postojeće. `#5`
+doista nigdje ne postoji (ni definicija ni referenca), ali to je posljedica, ne uzrok.
+
+### 🔴 Zašto NISAM konsolidirao
+
+Uputa je predviđala raspršenost → „konsolidiraj, nula izmjena komentara u kodu". Pri
+koliziji to **nije izvedivo bez diranja komentara**: konsolidirani popis mora odlučiti
+**kome pripada #1 i #2**, a koji god izbor padne, **8 datoteka** nosi suprotno značenje.
+Tri puta:
+
+1. **Definicije 4.1 su autoritativne** → prenumerirati kolidirajuće komentare
+   (`MasteryBar`, `ConceptRow`, `progress.ts`, `ModulesPage`) i dodijeliti #4/#6 brojeve.
+   Dira 8 datoteka, ali samo komentare.
+2. **Ukinuti brojeve** → komentari referenciraju pravilo opisno („invarijanta: prag iz
+   `/profile`"), popis ostaje neimenovan. Najotpornije na ponavljanje, dira istih 8.
+3. **Konsolidirati popis, komentare ostaviti** → popis bi tada **dokumentirao koliziju**
+   umjesto da je riješi. Najjeftinije, ali ostavlja dvoznačnost u kodu.
+
+**Preporuka: (2).** Prostor imena je već jednom pukao (errata → #49, v. konvencija u
+`errata.md`); brojevi bez jednog vlasnika pucaju opet. Opisna referenca nema što slomiti.
+**Odluka je korisnikova** — svaka od tri opcija mijenja frontend komentare, što je izvan
+onoga što je uputa dopuštala.
+
+### ⟳ DOPUNA (2026-08-10, 1C t.2) — PETA neimenovana invarijanta, i prvi put da je NEŠTO ZAUSTAVILA
+
+🔴 **Odgovor na pitanje „gdje je kanonski popis": NE POSTOJI.** N-8 je i dalje otvoren,
+konsolidacija čeka odluku. Zato se ova invarijanta upisuje OVDJE — na mjesto gdje će se o
+prostoru imena odlučivati — a ne u popis koji bi trebalo izmisliti da bi je se imalo gdje
+staviti.
+
+**Invarijanta o jednoznačnosti XP-a.** Živi u DVA docstringa, bez broja, bez ijedne
+reference iz drugog koda:
+
+```
+frontend/src/pages/ProfilePage.tsx:7-8
+   „XP JE JEDNOZNAČAN: hero (ProgressHero) je JEDINO mjesto s XP-om, iz /profile
+    (autoritativno). StatsSummary NE prikazuje XP (vidi njegov docstring)."
+
+frontend/src/components/profile/StatsSummary.tsx:8-10
+   „NE sumira `xp_awarded` i NE prikazuje XP (badge XP ide kroz xp_log s
+    attempt_id=NULL → Σ delti < /profile.xp; autoritativni XP je SAMO /profile,
+    prikazuje ga ProgressHero). Dvije XP brojke na ekranu = bug."
+```
+
+**PRESEDAN:** u 1C t.2 ta je invarijanta **zaustavila zadanu izmjenu**. Plan je tražio
+level/XP karticu u sidebaru; sidebar je persistentan, pa bi na Dashboardu i Profilu — gdje
+`ProgressHero` već stoji — dao dvije XP brojke u istom kadru. Kartica je zato izvedena kao
+**level + streak, bez XP-a** (varijanta C). To je prvi zabilježen slučaj da je neka od ovih
+invarijanti promijenila ishod, a ne samo stajala u komentaru.
+
+🔴 **NIJANSA koju treba zapisati da se pravilo ne protumači ni preširoko ni preusko.**
+Izvorni hazard iz `StatsSummary` bio je **IZVEDENA vs AUTORITATIVNA** brojka: `Σ xp_awarded`
+po pokušajima je **manje** od `/profile.xp`, jer bedž-XP ulazi u `xp_log` s
+`attempt_id = NULL`. Dvije brojke bi se **razilazile**.
+
+U slučaju sidebar kartice izvor bi bio **identičan** (`/profile`, isti `queryKey`, isti
+cache) — brojke se **ne bi mogle** razići. Invarijanta je dakle poštovana **po slovu**, a
+ne zato što je prijetila neusklađenost.
+
+Vrijedi li onda uopće? **Da**, ali iz drugog razloga: dvije jednake brojke u istom kadru
+tjeraju čitatelja da traži razliku koje nema. To je problem čitljivosti, ne točnosti.
+Ako se invarijanta ikad formalizira, ta dva razloga treba **razdvojiti** — jer prvi
+(neusklađenost) je tvrd i mjerljiv, a drugi (redundancija) je dizajnerski i podložan
+iznimci.
+
+**Za konsolidaciju:** ovo je četvrto pravilo koje se ponaša kao invarijanta a nema broj
+(uz „prijava po username", „prag iz `/profile`", „progres isključivo kroz `MasteryBar`").
+Broj **ne dodjeljujem** — dodjela je upravo ono što N-8 traži da se odluči odjednom, a ne
+usput.
+
+---
+
+## N-9 📌 Zaključak za Fazu 6 — higijena komentara u gamifikaciji je SUSTAVNA, ne slučajna
+
+**Status:** 📌 preporuka za Fazu 6 · 2026-08-10
+
+Dva nalaza iz ovog prolaza **nisu dva nepovezana pogotka** — oba su ista klasa defekta, u
+istim datotekama:
+
+1. **Netočan docstring** (`gamification_logic.py:43-45`) tvrdi da je streak odvojen od
+   XP-a, dok mehanizam kojim se to opravdava (`streak_7` bedž) upravo tu odvojenost
+   poništava — **ERRATA #45**. Ispravak je pripremljen i **odgođen** (pun `pytest` +
+   `preflight` po politici zamrznutog backenda, a `pytest` zaprlja živu bazu — #40).
+2. **Dvije reference na nepostojeći dokument** — „3D nalaz #6" u
+   `gamification_logic.py:88` i `gamification_persistence.py:138`. Citat pretrage:
+   `grep -rn "3D nalaz" docs/` → **0 pogodaka**; popis nalaza Faze 3D u repou ne postoji
+   (`docs/` ima samo `faza-3-plan.md`, bez wrapupa). Backend zamrznut → **nije dirano**.
+
+### Obrazac je poznat — #23 ga je već pokazao
+
+`#23` (DML rupa, `evaluation.py` hardkodirao `dml=False`) preživio je **tri faze** jer
+**nikad nije bio pokriven testom**. Ista dinamika vrijedi za dokumentaciju: moduli nastali
+**prije Faze 4** imali su **slabiji nadzor komentara i dokumentacije** od frontenda —
+frontend je od 4.1 nadalje prolazio kroz inventare (KORAK 0), `/code-review` i 🔒 DOC
+politiku, a `backend/agents/` nije prošao nijedan takav prolaz otkad je napisan u Fazi 3.
+Otud i to da su **obje** ove netočnosti nađene **uzgred**, dok se tražilo nešto treće — a
+ne kroz namjenski prolaz.
+
+### Preporuka
+
+Faza 6 radi **ciljani prolaz nad komentarima i docstringovima**, ne nasumce, nad:
+
+- **`backend/agents/`** — `gamification_logic.py`, `gamification_persistence.py`,
+  `evaluation.py`, `persistence.py`, `recommender_agent.py`, `base.py`
+- **`backend/bkt/`** — isti period nastanka, ista izloženost
+- **`backend/prolog/`** — `badges.pl` je deklarativni mirror koji se **ne konzultira**
+  (izrijekom navedeno u zaglavlju); mirror koji nitko ne izvršava tiho zastarijeva
+
+⚠️ **Ispravak putanje iz naloga:** traženo je `backend/app/agents/` i `backend/app/logic/`
+— **ni jedna ne postoji**. Stvarne su `backend/agents/` i `backend/bkt/`
+(`ls backend/` → `agents alembic app bkt config prolog scripts tests`; `backend/app/`
+sadrži `api bridge core db prolog schemas`, bez `logic`). Prolaz bi promašio cilj.
+
+**Kriterij prolaza:** svaka tvrdnja u komentaru koja se može provjeriti — provjeri se; ono
+što ne stoji ili se ispravlja ili se označi kao zastarjelo. Isti postupak kao stage 0 ovog
+polisha nad `index.css`, samo nad backendom.
+
+---
+
+## N-10 🔴 `ErrorState` posuđuje VERDICT semantiku za sistemsku grešku — stavka za STAGE 2
+
+**Status:** 🔴 otvoren · **nije 4c** (dira komponentu, ne token) · nađeno 2026-08-10
+
+[ErrorState.tsx:28](frontend/src/components/state/ErrorState.tsx#L28) renderira se na
+**`bg-incorrect-soft`** uz `border-incorrect/30` i `text-incorrect` ikonu — dakle na plohi
+koja u ovom dizajn-sustavu znači **„tvoj odgovor je netočan"** (MASTER §2.2, semantika
+verdicta). Ali `ErrorState` ne govori o odgovoru nego o **sustavu**: „Dashboard nije
+dostupan", „Ljestvica nije dostupna", „Preporuka nije dostupna".
+
+### Zašto to nije kozmetika pod nenadziranim evalom
+
+Student koji vidi **istu crvenu plohu** za „tvoj SQL je pogrešan" i za „backend je pao"
+nema kanal kojim bi razlikovao **vlastiti neuspjeh** od **kvara aplikacije**. Pod
+nadzorom bi pitao; asinkrono zaključi da griješi, pa odustane. To ne kvari samo doživljaj
+— kvari **podatke**: odustajanje uzrokovano kvarom ulazi u analizu kao slab učinak.
+
+### Doseg — svaki ekran, ne jedan
+
+```
+$ grep -rn "<ErrorState" frontend/src --include=*.tsx | cut -d: -f1 | sort | uniq -c
+   4 pages/TaskPage.tsx          2 pages/AdminPage.tsx        1 components/task/RunResultPanel.tsx
+   3 components/ErrorBoundary.tsx 1 pages/TaskEntryPage.tsx    1 components/profile/MasteryCurves.tsx
+   2 pages/ProfilePage.tsx        1 pages/ModulesPage.tsx      1 components/profile/AttemptHistory.tsx
+   2 pages/DashboardPage.tsx      1 pages/LeaderboardPage.tsx  1 components/dashboard/ContinueCard.tsx
+```
+
+**20 upotreba u 12 datoteka** — Dashboard, Moduli, Profil, Ljestvica, Admin, Task,
+TaskEntry, plus `ErrorBoundary` (render crash, bilo gdje). Nema ekrana koji ga ne koristi.
+
+### Popravak postoji i nema potrošača
+
+`--neutral` i **`--neutral-soft`**… ⚠️ **provjereno:** `--neutral` postoji
+(`index.css:195` light / `:268` dark), ali **`--neutral-soft` NE postoji** — citat
+pretrage: `grep -n "neutral-soft" frontend/src/index.css` → **0 pogodaka**. Postoji samo
+`--neutral`. Dakle popravak nije „prebaci na postojeći token" nego **ili** uvesti
+`--neutral-soft` (nova vrijednost + mjerenje), **ili** koristiti `bg-muted` +
+`border-border` (postojeći neutralni par, `VERDICT_UI.unknown` već tako izgleda:
+`FeedbackPanel.tsx:69-71`).
+
+🔴 **Ispravljam vlastitu pretpostavku iz naloga** („`--neutral-soft` postoji i nema
+potrošača") — polovica je točna: potrošača nema jer **ni token ne postoji**.
+
+**Zašto ne u 4c:** dira `ErrorState.tsx` (komponentu), a 4c je token-only. Ide u
+**STAGE 2 (oporavak od greške)**, gdje se ionako dira `ErrorState` zbog kontakta i
+poruke za trajni pad. Tamo se rješava jednim potezom.
+
+---
+
+## N-11 🟡 „Sljedeći zadatak" nakon netočne predaje vodi na ISTI zadatak — CTA izgleda mrtvo
+
+**Status:** 🟡 otvoren · **nije 1B** (smoke ga je našao, ne uzrokovao) · 2026-08-10
+
+Nađeno pokretanjem Playwright smokea (1B), ne čitanjem koda. Ispis runa:
+
+```
+ℹ️  prvi zadatak: http://localhost:5173/task/15
+ℹ️  nakon CTA:    http://localhost:5173/task/15  (ISTI)
+```
+
+**Mehanizam je ispravan, doživljaj nije.** Nakon **netočne** predaje BKT za taj koncept
+ostaje nizak, pa `recommend_next` legitimno vraća **isti koncept** — a `entry_task`/
+`next-task` onda i **isti zadatak**. To je ZPD ponašanje, ne bug (srodno #44).
+
+🔴 **Ali:** CTA je `<Link to={/task/${rec.task_id}}>`. Klik na link koji vodi na **trenutnu**
+rutu ne mijenja `:taskId`, pa se **keyed `TaskView` ne remounta** (invarijanta iz
+`faza-4.7-korak-0.md` §C.1). Posljedica: SQL u editoru, rezultat i feedback panel
+**ostaju kakvi jesu**, a URL se ne mijenja → za studenta **klik na primarnu akciju ne radi
+ništa vidljivo**.
+
+**Zašto to nije kozmetika pod nenadziranim evalom:** „Sljedeći zadatak" je jedina
+napredujuća akcija na ekranu. Student koji klikne i ne vidi promjenu zaključi da je
+aplikacija zaglavila — pa ili odustane ili počne klikati u prazno. Nema nikoga da kaže
+„to je namjerno, riješi ovaj isti zadatak ponovno".
+
+**Nije popravljeno** — popravak dira `FeedbackPanel` CTA granu i/ili `TaskPage` reset
+logiku, dakle **eval-verificirani** put, a 1B je testni stage. Mogući smjerovi (nijedan
+odabran): CTA mijenja tekst kad je `rec.task_id === trenutni` („Pokušaj ponovno ovaj
+zadatak"); ili resetira editor bez navigacije; ili se preporuka prikaže bez linka uz
+objašnjenje. Odluka je dizajnerska.
+
+**Srodno:** #44 (breadth-first ZPD), §C.1 (keyed `TaskView` je jedini mehanizam resetiranja).
+
+---
+
+## Metodološka bilješka za wrapup i rad — izračun mjeri element, snimka mjeri hijerarhiju
+
+**Zabilježeno 2026-07-26 (stage 1A + 1A-dopuna).**
+
+Pomoć uz polje `username` na `/register` prošla je kontrastni izračun: `text-muted-foreground`
+na `card` = **4,73:1 light / 6,91:1 dark** (izmjereno 2026-07-26, alpha-kompozitirano),
+dakle **iznad** WCAG AA praga 4,5:1. U izolaciji je izgledala uredno.
+
+Na **snimci** je bila najslabiji tekst na ekranu — i to je postala **tek nakon** što je
+susjedni blok (informacija sudionika) podignut s `text-xs`/`muted-foreground` na
+`text-sm`/`foreground` (19,13:1 / 15,97:1). Nijedan element nije pao ispod praga; pala je
+**relativna hijerarhija**, a to nijedan per-element izračun ne mjeri.
+
+**Poučak:** kontrastni izračun i vizualna provjera nisu redundantni, nego mjere različite
+stvari — izračun **usklađenost pojedinog elementa**, snimka **relativnu težinu u
+kompoziciji**. Uz to: promjena jednog elementa može pogoršati čitljivost **drugog,
+nedirnutog** elementa, pa provjera nakon izmjene ne smije biti ograničena na izmijenjeni
+element.
+
+Isti poučak vrijedi i u drugom smjeru: prsten fokusa (N-4) izgleda uredno na snimci, a
+izmjeren je na **2,59:1** u light temi — snimka to ne otkriva. Zato oboje.
+
+Vezano uz 🔒 DOC politiku (#33): brojka i datum su nužni, ali nisu dovoljni — treba i
+naznaka **u kojem kontekstu** je mjereno.
+
+---
+
+## N-12 🔴 `tier` čip ŽIVI unutar fokusabilnog elementa — argument „različit oblik" pada
+
+**Status:** 🔴 ulazni uvjet za redizajn stage 1 · mjereno i grepano 2026-08-10
+
+U `faza-4.7-redizajn-korak-0.md` §C.4 prihvaćen je prsten `oklch(0.62 0.04 280)` uz ΔE_ok
+**0,067** prema `--tier-easy`, s obrazloženjem: *„`tier-easy` se renderira isključivo kao
+ispunjen čip s tamnim tekstom, `--ring` isključivo kao 2px obris — ne dijele nijedan
+oblik."* **To obrazloženje je NETOČNO.**
+
+```
+$ grep -rn "ConceptChip" frontend/src --include=*.tsx
+components/modules/ConceptRow.tsx:75     ← unutar <Link> :113-120
+components/dashboard/ContinueCard.tsx:125
+pages/TaskPage.tsx:277, :306
+```
+
+[ConceptRow.tsx:112-120](frontend/src/components/modules/ConceptRow.tsx#L112-L120) —
+kad je koncept klikabilan, **cijeli `body` (uključujući `<ConceptChip>` s `bg-tier-*`) je
+DIJETE `<Link>`a** koji nosi `focus-visible:outline-2 focus-visible:outline-offset-2
+focus-visible:outline-ring`. Pri fokusu tipkovnicom prsten **okružuje** tier čip: dvije
+gotovo iste boje, istovremeno, na istom elementu. Isti obrazac vrijedi i za `MasteryBar`
+(mastery-0..100) unutar istog linka.
+
+**Nije jedino mjesto.** Popis tokena koji su unutar fokusabilnog elementa ili mu neposredno
+susjedni, izveden iz `grep -rn "outline-ring|ring-ring"` + čitanjem svakog pogotka:
+
+| fokusabilno | semantički tokeni unutra |
+| --- | --- |
+| `ConceptRow.tsx:117` `<Link>` | 🔴 **tier-easy/medium/hard**, mastery-0..100, correct, mastery-50 |
+| `MasteryHighlights.tsx:81` `<Link>` | mastery-0..100, correct |
+| `ConceptCurveCard.tsx:60` `<button>` | correct, mastery stroke |
+| `TaskPage.tsx:327` `focus-within` kontejner | chart-1/2/3, correct, accent-warm, neutral (Monaco) |
+| `TaskPage.tsx:254` breadcrumb `<Link>` | susjedan tier čipu :277 — **isto ime koncepta**, ~20 px razmaka |
+| FeedbackPanel CTA (`ui/button`) | accent-warm XP čip, `-soft` ploha |
+
+`DifficultyChip` **nije** ni na jednom takvom mjestu ([ModuleCard.tsx:52](frontend/src/components/modules/ModuleCard.tsx#L52)
+je u `CardAction`, [ModulesPage.tsx:199](frontend/src/pages/ModulesPage.tsx#L199) uz `<h2>`)
+→ `difficulty-*` je dokazano NE-sukorišten s prstenom.
+
+### Posljedica za mjeru
+
+Metrika „udaljenost do najbližeg semantičkog tokena" je za `--ring` **pogrešna mjera** —
+kažnjava ga zbog boja koje se s prstenom nikad ne pojave zajedno. Premjereno prema
+**sukorištenom** skupu (tier ×3, mastery ×5, correct, accent-warm(-text), chart-1/2/3,
+neutral), uz tvrdi uvjet ≥3,00:1 prema **svih 11 ploha** na kojima se prsten pojavljuje:
+
+| kandidat | hex | ΔE(sukorišteni) | najbliži | min. kontrast (ploha) |
+| --- | --- | :---: | --- | :---: |
+| zatečeno `oklch(0.556 0 0)` | `#737373` | 0,084 | mastery-25 | 3,21 (`muted`) |
+| KORAK 0 `oklch(0.62 0.04 280)` | `#81849e` | **0,067** | tier-easy | 4,15 (`muted`) |
+| **`oklch(0.62 0 0)`** ⬅ | `#868686` | **0,102** | mastery-50 | **4,18** (`muted`) |
+| `oklch(0.60 0 0)` | `#808080` | 0,100 | tier-easy | 3,85 (`muted`) |
+
+🔴 **Tinta na prstenu ne kupuje ništa, a plaća koliziju.** Ista svjetlina bez krome diže
+ΔE s 0,067 na **0,102 (+52 %)** uz jednak kontrast (4,15 → 4,18). Razlog je strukturni:
+tier skala se u dark temi proteže `L 0.60 → 0.80 @ hue 300`, pa svaki kromatski prsten u
+upotrebljivom pojasu svjetline ulazi u njezin prostor. Akromatski prsten je **po
+konstrukciji** izvan svih skala — sve su kromatske (C ≥ 0,03).
+
+**Presuda:** `--ring` i `--sidebar-ring` → **`oklch(0.62 0 0)`**. Ploha ostaje ink-indigo;
+prsten ne mora nositi identitet palete, nego mora biti razlučiv **od svega što okružuje**.
+
+⚠️ **Ograničenje mjere, pošteno:** ΔE prema *punom* skupu za `oklch(0.62 0 0)` iznosi 0,067
+(`difficulty-cross-module`, `oklch(0.68 0.03 345)`). Taj je token namjerno desaturiran, pa
+mu je svaki sivi blizu — i dokazano **nije sukorišten** (v. tablica gore). Ta se brojka
+zapisuje da se kasnije ne „otkrije" kao prešućena.
+
+---
+
+## N-13 🟡 `--neutral` ima 0 potrošača, a `pairs.py` ga je mjerio na temelju netočnog citata
+
+**Status:** 🟡 ispravak harnessa izveden 2026-08-10 · vrijednost tokena NEDIRANA
+
+`scripts/a11y/pairs.py` sadržavao je par `PAIRS["card"]["neutral"] = "○ ConceptChip"`.
+Citat je netočan:
+
+```tsx
+// components/ConceptChip.tsx:32-33
+// Nepoznat tier (buduća migracija) → neutralan chip, ne kriva skala.
+TIER_CLASS[tier] ?? "bg-muted text-muted-foreground",
+```
+
+Riječ „neutralan" opisuje **namjeru**, ne token. `grep -rn "neutral" frontend/src` daje 12
+pogodaka i **nijedan** nije Tailwind klasa `text-neutral`/`bg-neutral` — sve su deklaracije
+u `index.css`, hrvatska riječ u komentarima, ili komentar u `monaco-theme.ts`.
+
+**Izvedeno:** par uklonjen iz `pairs.py` uz obrazloženje u kodu. Vrijednost `--neutral` je
+**nedirnuta** (zamrznuta semantika). Matrica time gubi jedan redak koji je mjerio par koji
+se nikad ne renderira — prekršaj vlastitog pravila `pairs.py`-ja („bez citata se par NE
+dodaje"), jer je citat postojao ali je bio kriv.
+
+### 🔴 Veza s N-10 — ispravak ranijeg zaključka
+
+U N-10 je zapisano: *„Ispravak vlastite pretpostavke: `--neutral-soft` NE POSTOJI (grep → 0),
+pa popravak nije 'prebaci na postojeći token'."* To i dalje vrijedi za `-soft` plohu, ali
+**nepotpuno opisuje zatečeno stanje**: `--neutral` (bez `-soft`) **postoji**, ima
+vrijednost u obje teme, i ima **nula potrošača**.
+
+`ErrorState` posuđuje `incorrect-soft`/`incorrect` za **sistemsku** grešku, čime student ne
+razlikuje vlastiti neuspjeh od kvara aplikacije (20 upotreba, 12 datoteka). Ako se u
+STAGEU 2 traži ne-verdict ploha, `--neutral` je **već postojeći, neiskorišteni kandidat za
+dom** — treba mu samo `-soft` par. To je jeftinije od uvođenja dva nova tokena.
+
+**NE popravlja se ovdje.** Zapisano da se pri STAGEU 2 ne krene od krive premise da
+neutralnog tokena uopće nema.
+
+---
+
+## N-14 📌 Registar MRTVOG KODA koji svjesno ostaje (i jednog koji je otišao)
+
+**Status:** 📌 zapis, ne zadatak · 2026-08-10, redizajn stage 1
+
+Projekt ima obrazac: **cjelovitost skupa nije najava rada.** Nekorišten član ljestvice ostaje
+ako bi njegovo brisanje ljestvicu učinilo nepotpunom. Da se to ne bi svaki put ponovno
+raspravljalo, evo popisa na jednom mjestu — sa **datumom provjere** i **razlogom**.
+
+| stavka | potrošača | ostaje? | razlog |
+| --- | :---: | :---: | --- |
+| `--duration-reward` | 0 | **DA** | cjelovitost ljestvice trajanja (instant→fast→base→slow→reward) |
+| `verdict-ui.ts` `soft` | 0 | **DA** | cjelovitost oblika verdikta (ERRATA #10b) |
+| `--neutral` | 0 u komponentama | **DA** | zamrznuta semantika; jedini izvedeni potrošač je `monaco-theme.ts` `rules[operator]` |
+| `--neutral-soft` | 0 | **DA** | uveden u 4.7 kao dom za N-10; žičenje je stage 2 |
+| `--chart-3` / `-4` / `-5` | 0 / 0 / 0 | **DA** | skala od 5 mora imati svih 5 članova (`chart-3` ipak je izvor za Monaco `rules[predefined]`) |
+| `--accent`, `--accent-foreground`, `--sidebar-foreground` | 0 | **DA** | shadcn ugovor — `ui/*` ih smije zatražiti |
+| `ui/button.tsx` `variant="destructive"` | **0** | **DA** | cjelovitost skupa varijanti (`default`/`outline`/`secondary`/`ghost`/`destructive`/`link`) |
+| `--sidebar-primary` (+ `-foreground`) | 0 | 🔴 **NE — OBRISAN** | v. niže |
+| `ui/field.tsx` (10 izvoza) | **0** | 🔴 **NE — OBRISAN** | v. niže |
+
+### Zašto su ta dva otišla, a ostalo je ostalo
+
+Kriterij nije „ima li potrošača" nego **„čini li odsutnost skup nepotpunim, i je li prisutnost
+bezopasna"**. Kod ova dva odgovor je bio ne na oba pitanja:
+
+**`--sidebar-primary` = `oklch(0.488 0.243 264.376)`** — nije član nikakve ljestvice (nema
+`sidebar-secondary` ni `sidebar-tertiary`), a chroma **0,243** je najviša u cijeloj paleti (sljedeća
+je `--incorrect` 0,19) na hueu **264,4°**, tj. **4,4° od gornjeg ruba mastery skale**. Bio je jedini
+KROMA token koji ulazi u semantički prostor. Prisutnost dakle **nije** bezopasna: da ga netko ikad
+upotrijebi, sidebar bi dobio boju koja čita kao mastery signal.
+
+**`ui/field.tsx`** — shadcn stub koji je izvozio 10 komponenti, a nijednu nitko nije importao.
+Dokaz **prije** brisanja:
+
+```
+$ git grep -n "ui/field" -- 'frontend/*'                                    → 0
+$ git grep -n "Field|FieldError|FieldLabel|…" -- 'frontend/src/**'          → 0 izvan same datoteke
+```
+
+Nije ljestvica nego cijela neupotrijebljena datoteka; k tome je nosila 2 od 6 `dark:` prefiksa
+koje je stage 1 morao razriješiti — brisanjem su otpali umjesto da budu prevedeni.
+
+### 🔴 Poučak koji vrijedi zapisati
+
+`variant="destructive"` **ostaje**, ali s izmjerenim stanjem: `--destructive` mu je izvor, a taj
+token danas **pada 3:1 na jedinom mjestu gdje se stvarno renderira** (obrub nevaljanog polja,
+2,33–2,42; ERRATA #52). Mrtva varijanta koja se ikad probudi probudit će se **s tim nalazom**.
+Zato mrtav kod nosi bilješku, a ne samo tišinu.
+
+---
+
+## N-15 ✅ Presuda po snimkama nakon ink-indigo palete (redizajn stage 1, t.4)
+
+**Datum:** 2026-08-10 · **metoda:** Playwright nad **živom** aplikacijom (backend :8000,
+docker compose gore), 1440×900, ključni kadrovi na `deviceScaleFactor: 3`.
+
+🔴 Ovo je **prvi put** da se vizualna provjera radi nad stvarnim routingom, a ne nad
+harnessom s izgrađenim CSS-om (usporedi metodu commita `5994107`, koja je izrijekom
+priznavala ograničenje „mjeri render tokena, ne stvarni routing"). Playwright je u
+međuvremenu ušao u repo (#17), pa je ograničenje otpalo.
+
+### Odgovor na zadano pitanje: čita li akromatski prsten `#868686` **mrtvo** na ink-indigo plohi?
+
+**NE. Čita kao namjerna sistemska boja, ne kao previd.** Presuda po kadru
+`ConceptRow` s fokusom postavljenim **tipkovnicom** (`focus-visible`), uz tier čip
+unutar prstena — dakle točno kadar zbog kojeg N-12 postoji.
+
+Tri razloga, redom po težini:
+
+1. **Prsten i tier čip su nedvojbeno različite boje.** Sivi obrub i violet ispuna
+   („Lako") ne dijele obitelj. Tintani kandidat (`oklch(0.62 0.04 280)` = `#81849e`) bio
+   bi vidljivo bliži toj violeti — mjereno ΔE 0,067 vs 0,102. Snimka to **potvrđuje**,
+   ne opovrgava.
+2. **Odsutnost tinte čita se kao „ovo je UI, ne sadržaj".** Sve ostalo na ekranu nosi
+   hue 280; prsten je jedina ploha koja ga nema, i baš time se čita kao **furnitura**, a
+   ne kao još jedan podatak u boji. Ista logika kojom je siva bila ispravna i prije
+   redizajna — samo sada ima i razlog, ne samo naslijeđe.
+3. **Ne djeluje toplo ni hladno, nego neutralno.** Bojazan je bila da će akromatski sivi
+   uz indigo skliznuti u žućkasto (simultani kontrast). Na snimci ne sklizne — razlika u
+   svjetlini (prsten 0,62 vs ploha 0,205) dominira nad razlikom u kromi.
+
+⚠️ **Ograničenje presude, pošteno:** jedan promatrač, jedan zaslon, bez kalibracije. Ovo
+je presuda o **kompoziciji**, ne mjerenje — i vrijedi točno onoliko koliko i svaka takva
+(v. metodološka bilješka uz N-4/N-7: izračun mjeri element, snimka mjeri hijerarhiju).
+Brojčani dio (ΔE 0,102, kontrast 4,18–5,44) stoji neovisno o njoj.
+
+### Hijerarhija — je li išta izgubilo relativnu težinu?
+
+| kadar | provjereno | ishod |
+| --- | --- | --- |
+| Dashboard | h1 `foreground` vs podnaslov `muted-foreground` vs amber eyebrow „POČNI OVDJE" | ✅ tri jasne razine, redoslijed nepromijenjen |
+| Moduli | tier čipovi (violet) vs difficulty čipovi (magenta) **na istom ekranu** | ✅ ostaju dvije različite skale; indigo ploha nijednu ne posuđuje |
+| Task screen | naslov · čipovi · opis · shema · Monaco · Run/Submit | ✅ Submit (`primary`, gotovo bijel) i dalje čita kao primarna akcija; Run (`outline`) kao sekundarna |
+| FeedbackPanel ×3 | `correct-soft` / `partial-soft` / `incorrect-soft` na novoj `card` plohi | ✅ **bolje odvojeni nego prije** — ΔE prema `card` porastao s 0,0495–0,0532 na 0,0624–0,0746, jer se ploha odmaknula prema indigu, a verdikti su ostali zeleni/amber/crveni |
+| Monaco | 7 sintaksnih boja na `--card` pozadini | ✅ čitljive; keyword-plava, string-zelena, number-teal i predefined-violet ostaju razlučivi |
+| `/register` | obrub polja, fokus polja, **nevaljano polje** | 🟡 obrub nevaljanog polja je vidljiv, ali slab — brojka to potvrđuje (2,33–2,42, ispod 3:1, ERRATA #52). Poruku nosi tekst uz polje, ne obrub |
+
+### Snimljena 4 stanja FeedbackPanela — sva na živim podacima
+
+| stanje | kako je dobiveno | što nosi |
+| --- | --- | --- |
+| **Točno** | `expected_query` iz `tasks` (harness smije znati rješenje; smoke suite ne smije) | ✅ zeleni panel, `+20 XP` amber čip, bedž „Prvi uspjeh", CTA |
+| **Djelomično** | isti stupci, `LIMIT 2` umjesto `LIMIT 3` → `row_mismatch` | ⚠️ ikona + **riječ „Djelomično"** (obavezan ne-bojni kanal, ERRATA #13), `+10 XP`, mono blok „Row count mismatch: actual=2 vs expected=3" |
+| **Netočno** | `SELECT 1 AS nema_veze;` | ⊗ crveni panel |
+| **Netočno / SQL greška** | namjerno neispravan SQL | ⊗ crveni panel + mono blok s porukom PostgreSQL-a na `background/60` |
+
+### ~~🔴 Usput otkriveno, NIJE 4.7 opseg~~ → 🔴 **POVUČENO 2026-08-10 (r2, t.0a)**
+
+> **Tvrdnja je bila NETOČNA i ovdje se povlači, ne briše.**
+>
+> Zapisao sam da `Collapsible.Trigger asChild` (`ModuleCard.tsx:85-101`) ne otvara
+> koncepte klikom. **Ne stoji.** Provjereno u 14 pokušaja kroz četiri uvjeta:
+>
+> | provjera | ishod |
+> | --- | --- |
+> | `locator.click()` (trusted input kroz CDP) | ✅ `aria-expanded` false→true, 9 redaka, 1 klikabilan |
+> | `page.mouse.down/up` na koordinatama | ✅ |
+> | tipkovnica **Enter** | ✅ toggla (zatvara) |
+> | tipkovnica **Space** | ✅ toggla (otvara) |
+> | klik nakon 0 / 150 / 300 / 600 / 900 / 1500 ms od navigacije | ✅ **svih šest** — trke nema |
+> | `fullPage` snimka neposredno prije klika (hipoteza da je kriv harness) | ✅ i sa i bez |
+>
+> `aria-controls` pokazuje na postojeći element, `data-state` prati stanje, trigger je
+> pravi `<button type="button">`. Komponenta je ispravna, uključujući tipkovnicu.
+>
+> ⚠️ **Izvorni promašaj ostaje NEOBJAŠNJEN i nije reproduciran.** Najbliži kontekst: taj
+> je prolaz bio prvi nakon što su docker kontejneri i backend pali usred sesije i bili
+> ponovno dignuti. To je nagađanje, ne nalaz — zapisujem ga kao takvo.
+>
+> **Poučak koji ostaje:** jedan neuspio prolaz harnessa nije nalaz o aplikaciji. Prije
+> nego se kvar pripiše proizvodnom kodu, mora se **reproducirati** — inače se u
+> `nalazi.md` upisuje šum, a on je skuplji od šutnje jer se čita kao dug.
+>
+> ⚠️ Snimanje je i dalje išlo deep-linkom `/modules#module-<n>` (`defaultOpen`,
+> `ModulesPage.tsx:177`) — to je legitiman put i radi, ali NIJE bio nužan.
+
+---
+
+## N-16 ✅ Stage 1C — mjerenja pristupa i rasporeda (verifikacija)
+
+**Datum:** 2026-08-10 · **metoda:** Playwright nad živom aplikacijom, 1440×900 i 380×780,
+ključni kadrovi na `deviceScaleFactor: 3`.
+
+### N-5 je ZATVOREN
+
+Mobilni drawer sadrži **Profil** i **Odjavu**. Time prijavljen korisnik na telefonu
+prvi put ima put do `/profile#sudjelovanje` — informacije o sudjelovanju, kontaktu i
+brisanju podataka.
+
+| provjera | @380 |
+|---|---|
+| hamburger target | **44×44** ✅ |
+| nav stavka target | **295×44** ✅ |
+| Zatvori target | **44×44** ✅ |
+| `aria-expanded` | false → **true** ✅ |
+| pozadina `aria-hidden` dok je otvoren | ✅ |
+| fokus-trap nakon **12** Tabova | fokus **još u draweru** ✅ |
+| `Esc` zatvara | ✅ |
+| fokus vraćen na trigger | ✅ |
+| klik na stavku zatvara drawer | ✅ |
+| **Admin za studenta** | **skriven** ✅ |
+| tab-red izvan drawera (zatvoren) | neporemećen ✅ |
+
+### Tab-red @1440 (iz DOM-a, ne izveden)
+
+```
+a:Dashboard → a:Moduli → a:Zadatak → a:Profil → a:Ljestvica → button:Odjava
+→ a:Otvori zadatak → a:Otvori zadatak za koncept … → body
+```
+
+Sidebar prije glavnog sadržaja, redoslijedom dokumenta. Targeti: nav **215×44**,
+Odjava **215×44** ✅.
+
+### 🔴 Legibilnost mono na najmanjem tekstu (#51) — čitljivost, ne WCAG omjer
+
+Na Dashboardu je **13 niski u monou na ≤ 12,9 px**, najmanja **10,2 px**:
+
+| px | niska | mjesto |
+|---|---|---|
+| 10,2 | `-- učenje`, `-- napredak` | sidebar section headeri |
+| 10,2 | `level`, `streak` | sidebar kartica |
+| 10,2 | `student` | rola-badge |
+| 10,2 | `sql_tutor` `.` `dashboard` | topbar breadcrumb |
+| 10,2 | `još 70 XP do levela 2` | ProgressHero |
+| 12,8 | `30`, `100`, `1` | XP i level brojke |
+
+**Presuda: čitljivo.** Provjereno na snimci pri 3× DPI. JetBrains Mono ima velik x-height
+i otvorene kontrapunktove, pa na 10,2 px drži oblik bolje nego Geist na istoj veličini.
+⚠️ Ovo je presuda o **čitljivosti**, ne o kontrastu — kontrast tih niski je u matrici
+(`muted-foreground × sidebar` 6,92, `muted-foreground × background` 7,60).
+⚠️ Ograničenje: jedan promatrač, jedan zaslon, bez kalibracije — ista klasa kao N-15.
+
+### Task screen @380
+
+Ostaje čitljivo: breadcrumb ×2, naslov, čipovi, opis, „Usput vježba", **cijela shema baze
+(8 tablica)**. Zamijenjeno: editor + Run/Submit → kartica s razlogom i dva izlaza.
+`.monaco-editor` nije vidljiv, `textarea.offsetParent === null` → **izvan tab-reda**.
+
+### Što se renderira dok Monaco stiže
+
+Presretač je svaki monaco zahtjev odgodio 3 s (5 presretnutih); stanja anketirana svakih
+120 ms kroz 4 s:
+
+```
+role=status aria-label="Provjera prijave"
+role=status aria-label="Tražim tvoj sljedeći zadatak"
+role=status aria-label="Učitavanje zadatka"     ← router.tsx Suspense
+```
+
+**Nije prazno.** 🔴 Nusprodukt: `SqlEditor.tsx:79`
+`loading={<LoadingState label="Učitavanje editora" />}` **nije viđen nijednom** — jer je
+`monaco-setup.ts` statički import, pa je monaco u modulnom grafu TaskPage chunka i
+Suspense granica pokriva cijelo čekanje. Praktički mrtav kod (klasa N-14); **ne uklanja se**
+jer bi pri prelasku na dinamički import opet bio jedina obrana.
+
+### Dvije brojke u istom kadru — provjereno
+
+`Dashboard @1440`: XP niske u kadru = **1**, i to u `<main>` (`ProgressHero`).
+U `<aside>`: **0**. Invarijanta o jednoznačnosti XP-a (v. dopunu N-8) drži.
+Streak: sidebar kartica @≥768px, topbar čip @<768px — **nikad oboje**.
+
+---
+
+## N-17 ⟳ OBRAT odluke 1C t.2 — user kartica u topbar, streak trade (stage 3, A.3)
+
+**Datum:** 2026-08-10 · **odluka:** stage 3 redizajn, DIO A t.3 · **status:** proveden
+
+### Što je bilo, što je sad
+
+| element | 1C t.2 (varijanta C) | A.3 (sad) |
+|---|---|---|
+| username + rola + Odjava | sidebar footer (≥768) · drawer (<768) | **topbar** (≥768) · drawer (<768, nepromijenjeno) |
+| streak | sidebar level kartica (≥768) · topbar čip `md:hidden` (<768) | **topbar čip, SVE širine** |
+| level | sidebar level kartica | sidebar level kartica (nepromijenjeno) |
+| XP | samo `ProgressHero` | samo `ProgressHero` (čip u topbar NE ide) |
+
+### Zašto obrat — da povijest ne laže
+
+1C t.2 je user karticu smjestio u sidebar footer jer je topbar tada bio breadcrumb-only
+i jer je streak već imao dom u level kartici. Stage 3 mijenja oba uvjeta:
+- **topbar dobiva desnu stranu** koja je na ≥768 bila prazna — identitet korisnika i
+  odjava su standardno topbar sadržaj i oslobađaju sidebar footer;
+- **streak mora biti UVIJEK vidljiv** (4.6: gamifikacija kao istaknutost povratne
+  sprege, ne tihe brojke) — a jedino mjesto koje postoji na svim širinama je topbar;
+- da je streak ostao i u level kartici, na ≥768 bila bi DVA prikaza u kadru →
+  `#jedan-prikaz-po-kadru` bi pao. Zato TRADE: level kartica predaje streak čipu.
+
+Ovo je PREMJEŠTANJE, ne dodavanje — nijedan podatak nije dobio drugi prikaz.
+
+### Verifikacija (Playwright, živa aplikacija, DOM brojanje vidljivih čvorova)
+
+| kadar | streak | level | username | Odjava | XP |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Dashboard @1440 | **1** (topbar) | **1** (sidebar) | **1** (topbar) | **1** (topbar) | **1** (`ProgressHero`) |
+| @380, drawer zatvoren | **1** (topbar) | 0 | 0 | 0¹ | 1 |
+| @380, **drawer otvoren + topbar vidljiv** | **1** (topbar) | 0 | **1** (drawer) | **1** (drawer) | 1 |
+
+¹ Odjava @380 živi u draweru (1C izlazni kriterij drži — dostupna u svakom međukoraku
+kroz hamburger); `Esc` zatvara drawer i vraća fokus na trigger (provjereno).
+
+Napomena za B t.3 (klizni nav indikator): raspored je sada konačan — `offsetTop`
+geometrija nav stavki mjeri se NAKON ovog obrata, kako je stage 3 i propisao.
+
+---
+
+## N-18 🔴 Motion trajanja bez učinka — `--duration-*` u `@theme` nije utility namespace (TW v4)
+
+**Datum:** 2026-08-10 · **otkriveno:** B.3, mjerenjem tranzicije kliznog indikatora
+
+### Simptom
+
+Klizni nav indikator deklarira `duration-base` (240 ms), izmjereno `transitionDuration:
+0.15s` — Tailwindov default. Probe nad `:root`: `--duration-base` **ne postoji** u
+runtime CSS-u; klase `duration-fast/base/slow/instant` **ne generiraju ništa**.
+
+### Uzrok
+
+`--ease-*` JE prepoznati theme namespace u Tailwindu v4 (zato easing radi), ali
+`--duration-*` s IMENOVANIM stupnjevima NIJE — klase se ne generiraju, a neiskorištene
+@theme varijable se tree-shakeaju iz emisije. Posljedica: **svaka tranzicija u
+aplikaciji od 4.1b radila je na defaultu 150 ms**, uključujući drawer čiji komentar
+(i MASTER §5) tvrdi „ulaz 240 / izlaz 160 ms" — brojke su bile SPECIFIKACIJA, ne
+izmjereno stanje.
+
+### Poučak (zrcalo `--font-heading` poučka iz r2)
+
+r2: „token koji je alias nema vidljive potrošače, ali ih ima." N-18 je obrat:
+**potrošači koji postoje u kodu nemaju učinak.** Grep po imenu klase (`duration-base`
+— 10+ pogodaka) izgleda kao dokaz da sustav radi; dokaz o UČINKU je jedino
+`getComputedStyle` nad živim elementom. Ista lekcija, drugi smjer.
+
+### Zahvat
+
+Tokeni trajanja preseljeni u `:root` (uvijek emitirani); klase gradi eksplicitni
+`@utility` most (`transition-duration` + `animation-duration` + `--tw-duration` za
+tw-animate). Izmjereno nakon zahvata: `duration-base` → 0.24s, `duration-fast` →
+0.16s ✅. Reduced-motion guard nadjačava oboje i dalje (`!important`).
+
+### Posljedica za MASTER §5
+
+Brojke u §5 od danas su i IZMJERENE, ne samo propisane. Drawer ulaz/izlaz sada
+stvarno 240/160 ms — prije je oboje bilo 150 ms.
+
+### ⟳ N-17 korekcija (2026-08-10, isti dan) — streak VRAĆEN u sidebar level box
+
+Korisnikova odluka nakon pregleda: **streak se vraća u sidebar level box** (level +
+streak zajedno, kao u 1C t.2), topbar čip ponovno `md:hidden` (<768 px jedini
+nositelj). **User kartica OSTAJE u topbaru** — taj dio A.3 obrata stoji. Neto stanje
+prema 1C: promijenjen je samo dom user kartice (sidebar footer → topbar).
+Re-verifikacija: streak @1440 = 1 (sidebar box) · @380 = 1 (topbar čip) · drawer
+otvoren @380 = 1 — `#jedan-prikaz-po-kadru` drži. Flame u level boxu nosi
+`flame-flicker` (B.4, ≤1,8 s), isti kao čip.
+
+---
+
+## ✅ N-11 RIJEŠEN (2026-08-11) — mrtvi CTA nakon predaje
+
+Kad `recommend_next` vrati ISTI zadatak, `Link` na istu rutu nije remountao keyed
+`TaskView` → klik na „Sljedeći zadatak" nije radio ništa. Popravak: grana
+`rec.task_id === currentTaskId` → gumb **„Pokušaj ponovno"** koji čisti feedback i Run
+rezultat bez navigacije (`TaskPage.tsx` `retrySameTask`).
+
+🔴 **SQL u editoru se namjerno NE briše** — odstupanje od doslovnog „resetira editor":
+student koji je pogriješio obično je blizu rješenja. Vidljiva promjena (panel nestaje,
+Submit se vraća) jest ono što je nalaz tražio.
+
+Verificirano na živoj aplikaciji: panel nestao ✅ · Run rezultat očišćen ✅ · URL
+nepromijenjen (`/task/15`) ✅ · SQL ostao ✅ · Submit dostupan ✅. Grana se aktivirala i
+kod **netočne** i kod **djelomične** predaje (obje su vratile isti zadatak).
+
+## ✅ N-10 RIJEŠEN (2026-08-11) — ErrorState više ne posuđuje verdict plohu
+
+Ploha `incorrect-soft` → `neutral-soft`, ikona i obrub → `neutral` (tokeni iz r1, dotad
+0 potrošača). Izmjereno: naslov 13,36 · poruka 5,60 · ikona 5,88 · ΔE prema
+`incorrect-soft` 0,0635. Verificirano nad blokiranim backend pozivom na dva ekrana
+(Dashboard, Moduli): ploha `oklch(0.28 0.02 260)` ✅.
+
+---
+
+## N-19 🟡 Level i streak prikazuju se DVAPUT u istom kadru (Dashboard, Profil)
+
+**Status:** 🟡 zatečeno, **nije popravljeno** · otkriveno 2026-08-11 pri snimanju figura ·
+odluka o rasporedu je korisnikova
+
+### Mjerenje
+
+Programsko brojanje vidljivih čvorova s istom vrijednošću, Dashboard @1440
+(`demo44_student`, level 5, streak 1):
+
+| vrijednost | sidebar | main (`ProgressHero`) | ukupno u kadru |
+|---|:---:|:---:|:---:|
+| level `5` | 1 | 1 | **2** |
+| streak `1` | 1 | 1 | **2** |
+
+Isto vrijedi za Profil — ondje `ProgressHero` također stoji.
+
+### Zašto je to prekršaj
+
+`docs/invarijante.md#jedan-prikaz-po-kadru`: „jedna autoritativna vrijednost prikazuje se
+samo jednom u istom kadru; **persistentni sidebar/topbar računaju se u kadar svake rute**".
+Level i streak zadovoljavaju definiciju autoritativne vrijednosti jednako kao XP.
+
+### 🔴 Nije uzrokovano stageom 3 — zatečeno je od 1C t.2
+
+Sidebar level kartica uvedena je u 1C t.2, dok je `ProgressHero` već postojao. Provjera u
+N-16 tada je brojala **samo XP** („XP niske u kadru = 1") i streak **sidebar vs topbar**;
+par *sidebar × hero* nije provjeren ni za level ni za streak. Korekcija A.3 (streak natrag
+u sidebar) nije stvorila prekršaj — prije nje je streak bio u topbaru, koji je jednako
+persistentan, pa je duplikat postojao i tada.
+
+**Poučak je isti kao #57:** provjera je bila napisana prema paru koji se tada mijenjao
+(sidebar vs topbar), pa je previdjela par koji se nije mijenjao (chrome vs hero).
+
+### Moguća razrješenja (odluka korisnika, NE izvedeno)
+
+1. Sidebar box prikazuje level/streak **samo na rutama bez `ProgressHero`** — chrome
+   postaje uvjetovan rutom, što je novo ponašanje pred deploymentom.
+2. `ProgressHero` ispušta level/streak i zadržava samo XP progres — mijenja ekran koji je
+   već snimljen kao figura `01` i `03`.
+3. Prihvatiti kao svjesnu iznimku i **suziti invarijantu** na XP (jedina vrijednost za koju
+   je jednoznačnost izvorno i postavljena), uz zapis razloga.
+
+Do odluke ostaje zabilježeno; figure `01` i `03` prikazuju zatečeno stanje.

@@ -5,3 +5,9 @@ src/components/ui
 # Generirani artefakti (openapi-typescript) — ne formatirati ručno
 src/lib/api/schema.d.ts
 openapi.json
+
+# Playwright artefakti (ignorira i .gitignore)
+test-results/
+playwright-report/
+blob-report/
+e2e/.baseline.json

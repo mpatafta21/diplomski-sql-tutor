@@ -8,8 +8,11 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
       type={type}
       data-slot="input"
       className={cn(
-        // Invarijanta #3 (WCAG 2.5.5): input ≥44px visine.
-        "h-11 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        // Invarijanta (WCAG 2.5.5): input ≥44px visine.
+        // 4.7 dark-only: `bg-transparent` je bila LIGHT vrijednost koju je
+        // `dark:bg-input/30` gazila; ostaje samo dark grana. Isto `disabled:bg-input/50`
+        // (light) → `disabled:bg-input/80` (dark).
+        "h-11 w-full min-w-0 rounded-lg border border-input bg-input/30 px-3 py-1 text-base transition-colors duration-fast ease-standard outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/80 disabled:opacity-50 aria-invalid:border-destructive/50 aria-invalid:ring-3 aria-invalid:ring-destructive/40 md:text-sm",
         className
       )}
       {...props}

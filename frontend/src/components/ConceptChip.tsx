@@ -28,7 +28,8 @@ export function ConceptChip({ name, tier, className }: ConceptChipProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
+        // 4.7-r2: naziv koncepta je IDENTIFIKATOR gradiva, ne proza → mono (MASTER §3.2).
+        "inline-flex items-center rounded-md px-2 py-0.5 font-mono text-xs font-medium",
         // Nepoznat tier (buduća migracija) → neutralan chip, ne kriva skala.
         TIER_CLASS[tier] ?? "bg-muted text-muted-foreground",
         className,

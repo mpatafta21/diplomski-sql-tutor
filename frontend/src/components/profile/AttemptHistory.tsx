@@ -87,7 +87,7 @@ export function AttemptHistory() {
       <CardContent className="space-y-4">
         <ul
           className={cn(
-            "space-y-2 transition-opacity duration-fast",
+            "space-y-2 transition-opacity duration-fast ease-standard",
             // keepPreviousData: pri prelasku stranice suptilno zatamni stare retke
             query.isPlaceholderData && "opacity-60",
           )}

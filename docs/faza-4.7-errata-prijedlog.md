@@ -1,0 +1,725 @@
+# Faza 4.7 — PRIJEDLOZI TEKSTA ZA `errata.md` (čekaju odobrenje)
+
+**`docs/errata.md` NIJE MIJENJAN.** Ovaj dokument sadrži samo predložene tekstove.
+Datum pripreme: 2026-07-26 · grana `faza-4-7-polish`
+
+Tri prijedloga:
+
+1. **§„Opseg implementacije — REZANE faze"** — revizijska bilješka (uklj. opseg motiona, 4d)
+2. **#13** — zatvaranje kao limitacija, VLASTITIM obrazloženjem (neovisno o #33)
+3. **#24** — revizija: pretpostavka „0 %" pala je s prelaskom na asinkronu evaluaciju (4e)
+
+---
+
+## PRIJEDLOG 1 — revizija §„Opseg implementacije — REZANE faze"
+
+**Gdje:** `docs/errata.md`, **ISPOD** postojećeg odjeljka (linije 62–79). Postojeći tekst
+**ostaje nepromijenjen** — trag odlučivanja se ne prepisuje, isti obrazac kao
+§„~~Odluke koje čekaju~~".
+
+```markdown
+### ⟳ REVIZIJA (2026-07-26) — Faza 4.7 je OŽIVLJENA, 4.6 ostaje rezana
+
+**Što se mijenja:** odjeljak iznad točno opisuje odluku od 2026-07-20, ali je u dijelu koji
+se tiče **4.7** nadglasan. Faza 4.7 (visual QA / a11y / responsive / hardening) **više nije
+rezana**. Faza 4.6 (motion + WebSocket) **ostaje rezana** i neizmijenjena; umjesto nje je
+izvedena 4.6-eval (#37, #38, #39).
+
+**Razlog — promjena strategije evaluacije s NADZIRANE LABORATORIJSKE na ASINKRONU JAVNU.**
+Odluka od 2026-07-20 pretpostavljala je nadziranu sesiju: pripremljeni računi, usmene upute
+i prisutan autor koji pomaže kad nešto pukne. Evaluacija se sada izvodi na **javnom URL-u**,
+sa **samostalnom registracijom** i **bez nadzora**. Nenadzirano sučelje na javnom URL-u nosi
+drukčiji rizik nego sučelje kojim se rukuje uz prisutnog autora, pa se mijenja i _što je_
+polish:
+
+- Put `/register → prvi login → prazna stanja → prvi zadatak` prestaje biti kozmetika i
+  postaje **jedini kanal uputa** — nema usmenog objašnjenja koje bi ga nadomjestilo.
+- Oporavak od greške prestaje biti ugodnost i postaje **uvjet da sudionik završi** — nema
+  nikoga da ga izvuče.
+- Obrazloženje preporuke (#44) više se ne može dati uživo; ako ga UI ne nosi, sudionik ga
+  ne dobiva.
+- Nepoznat preglednik i nepoznata širina zaslona postaju stvaran rizik (u labosu su bili
+  poznati).
+- Informiranje sudionika i kontakt postaju obveza sučelja, a ne razgovora.
+
+**Opseg motiona u 4.7 (da se ne pročita kao tiho oživljavanje 4.6):**
+4.6 ostaje rezana. Jedina animirana površina dodana u 4.7 je **mobilni navigacijski
+drawer**, i to kao posljedica zahtjeva **pristupačnosti** (ispod 768px nije postojala
+nikakva navigacija), ne kao motion polish. Gamifikacijski motion (XP count-up, level-up
+celebration, badge-unlock, streak flame), page tranzicije, ⌘K paleta i WebSocket **ostaju
+neizvedeni**. `framer-motion`/`motion` nisu u `package.json`; sav motion u aplikaciji je
+CSS (`tw-animate-css` + motion tokeni iz 4.1b).
+
+**Što ostaje istinito iz odluke 2026-07-20:** obrazloženje da polish ne otključava novu
+funkcionalnost i ne utječe na mjerenje vrijedi za **estetski** dio 4.7 (razmaci, poravnanja,
+motion). Taj dio je i dalje najniži prioritet i reže se prvi ako rok pritisne. Ono što je
+4.7 dobila natrag je **operativna upotrebljivost bez nadzora**, ne uglađivanje.
+
+**Kako se prijavljuje u radu:** u odjeljku o opsegu implementacije navodi se da je 4.6
+(motion/WS) rezana svjesno i obrazloženo, a da je 4.7 izvedena u **suženom,
+prioritiziranom** obliku vođenom zahtjevima asinkrone javne evaluacije — ne kao puni
+vizualni QA prolaz iz plana §4.7. Popis stvarno izvedenog vodi `docs/faza-4.7-korak-0.md` §9
+i wrapup 4.7; nepopravljeni nalazi su u `docs/faza-4.7-nalazi.md`.
+```
+
+**Uz to traži ispravak (isti diff, uz odobrenje):**
+`docs/faza-4-plan.md:18` — „prva se reže 4.6/4.7 polish" → bilješka da 4.7 nije rezana.
+
+---
+
+## PRIJEDLOG 2 — #13 se zatvara kao limitacija, VLASTITIM obrazloženjem
+
+**Gdje:** `docs/errata.md`, red #13 (linija 24). Zamjena statusa i bilješke.
+
+> 🔴 **Kritično za trag odlučivanja:** #13 se **NE** zatvara nasljeđivanjem dokaza iz #33.
+> Commit `c12ec31` (4.4b) ih je bio spojio jednom rečenicom — „Token-level, ide uz
+> rekalibraciju palete zajedno s partial hue 60→45" — iako s #33 nema veze: #33 je o
+> **mastery gradijentu** (kontrast donjih stopova), #13 je o **hue blizini partiala i
+> accenta**. Kad je #33 odbačen matematičkim dokazom, #13 je otišao s njim bez vlastite
+> presude. Ovo je ispravlja.
+
+```markdown
+| #13 | Partial hue 55–60 preblizu accent-warm 70–85 | 📌 **prihvaćeno kao limitacija (4.7)** | **Zatvoreno VLASTITIM obrazloženjem, neovisno o #33** — v. bilješku niže |
+```
+
+Bilješka (ide u tijelo errate, ispod tablice ili kao podnožje reda):
+
+```markdown
+**#13 — zašto se korekcija hue→45 NE izvodi (odluka 4.7, 2026-07-26)**
+
+1. **Mitigacija je izmjerena i drži.** Ikona + tekstualna oznaka su OBAVEZAN kanal
+   (MASTER §2.2), pa boja **nije nosilac informacije** nego pojačanje. Izmjereno
+   2026-07-26 (alpha-kompozitirano): `text-partial` u svom STVARNOM kontekstu
+   (`bg-partial-soft` u FeedbackPanelu) daje **4,86:1 light / 8,03:1 dark**; vs `card`
+   **5,48:1 / 8,68:1**. Oboje prolazi WCAG AA. Verdict „Djelomično" nosi `TriangleAlert`
+   ikonu i tekstualnu oznaku u svakoj grani (`FeedbackPanel.tsx`, `verdict-ui.ts`).
+
+2. **Korekcija je izvediva, ali ne besplatna.** Pomak na hue 45 dira **4 datoteke i
+   0 komponenata** (`index.css` ×4 vrijednosti, `MASTER.md` §2.2 + §2.7, errata) —
+   komponente vuku `text-partial`/`bg-partial-soft`/`border-partial` pa promjena tokena
+   propagira sama. Hue udaljenosti bi se popravile prema accentu i pogoršale prema
+   `incorrect`: light 55→45 znači Δ do accenta 15→**25**, a Δ do `incorrect` 30→**20**;
+   dark 60→45 znači Δ do accenta 20→**35**, Δ do `incorrect` 35→**20**.
+
+3. **Cijena je ponovno otvaranje SSOT-a neposredno pred deploy.** MASTER §2.7 točka 4
+   propisuje hue mapu sustava (**25 incorrect · 55 partial · 70–85 accent · 150 correct ·
+   190–260 mastery · 300 tier · 345 difficulty**). Pomak partiala prepisuje tu mapu, a
+   po 🔒 DOC politici traži **novo mjerenje cijele skale** u obje teme, ne samo partiala.
+
+4. **Korist je neprimjetna.** Boja ionako nije jedini kanal (t. 1), pa se korisniku ništa
+   ne mijenja. Uz to se partial prikazuje na **eval-verificiranom** FeedbackPanelu (4.3c,
+   živo verificiran) — dodir bez funkcionalne koristi je čisti regresijski rizik.
+
+**Status: 📌 prihvaćeno kao limitacija.** Nijedna vrijednost tokena nije mijenjana.
+Kandidat za Fazu 6 uz punu remjeru palete, zajedno s #33 i N-4 (prsten fokusa 2,59:1 light) —
+ali kao **tri odvojena nalaza s odvojenim obrazloženjima**, ne kao jedan paket. Spajanje je i
+dovelo do ovog propusta.
+```
+
+---
+
+## PRIJEDLOG 3 — #24 TRAŽI REVIZIJU (asinkrona evaluacija mijenja pretpostavku)
+
+### 3.1 Stvarni kriterij — pročitan iz koda, ne iz errate
+
+**`streak_7` traži `current_streak >= 7`**, gdje je `current_streak` **broj uzastopnih
+KALENDARSKIH dana s barem jednim pokušajem, koji završava danas**.
+
+`backend/agents/gamification_logic.py:241`:
+
+```python
+if facts.current_streak >= 7:
+    earned.add("streak_7")
+```
+
+`backend/agents/gamification_logic.py:186-191` (`streak_from_active_dates`):
+
+```python
+# current: brojimo unatrag od danas dok su dani uzastopni.
+current = 0
+cursor = today
+while cursor in active_dates:
+    current += 1
+    cursor -= timedelta(days=1)
+```
+
+`active_dates` = skup datuma s barem jednim pokušajem, u zoni **Europe/Zagreb**
+(docstring: „Datumi su VEĆ u ciljnoj zoni (Europe/Zagreb)"). Deklarativni mirror u
+`backend/prolog/badges.pl:22-23` govori isto:
+
+```prolog
+user_badge(UserID, streak_7) :-
+    current_streak(UserID, N), N >= 7.
+```
+
+Seed tekst (`app/db/seed_data.py`): „7 uzastopnih dana aktivnosti.", `xp_reward: 30`.
+
+✅ **Opis kriterija u #24 je TOČAN.** Ono što pada je **zaključak** o dostižnosti.
+
+### 3.2 Svi bedževi s vremenskom komponentom
+
+Pun katalog je **5 bedževa** (`seed_data.py:177-240`, `eval_badges()` u
+`gamification_logic.py:226-247`):
+
+| Bedž            | Kriterij (iz koda)                                             | Vremenska komponenta               | Bila vezana na model „jedna sesija"?                                                  |
+| --------------- | -------------------------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------- |
+| `first_correct` | `facts.has_correct` — bilo koji točan pokušaj                  | **nema**                           | ne                                                                                    |
+| `join_master`   | `{inner_join, left_join, right_join} ⊆ mastered` (P(L) ≥ 0.85) | **nema**                           | ne — problem je bio **podatkovni** (#25/#27, `right_join` subfloor), riješen u 4.4-0h |
+| **`streak_7`**  | `current_streak >= 7` — **7 uzastopnih kalendarskih dana**     | **DA, kalendarski dani**           | 🔴 **DA — jedini**                                                                    |
+| `null_ninja`    | `"null_handling" in mastered`                                  | **nema**                           | ne                                                                                    |
+| `explorer`      | `evaluable_modules ⊆ attempted_modules`                        | **nema** (broj modula, ne vrijeme) | ne — ali v. 3.3                                                                       |
+
+**Nijedan drugi kriterij nije implicitno vezan na trajanje sesije.** `streak_7` je jedini
+koji mjeri **kalendarsko vrijeme**; ostala četiri mjere **ishode** (točnost, ovladanost,
+pokrivenost modula) koji ne poznaju pojam dana.
+
+Provjera po tragu #22 (`explorer` je već jednom bio nedostižan zbog hardkodirane
+pretpostavke `{1..6}`): kriterij je od 4.4-0f **dinamičan** — `evaluable_modules` su moduli
+(≠0) koji stvarno imaju aktivne zadatke, uz fail-closed guard na prazan skup
+(`gamification_logic.py:244-246`). Nema fiksne brojke koja bi mogla ostariti.
+
+### 3.3 Empirijski podatak (mjereno 2026-07-26)
+
+`seed_demo_user` odradio je **27 attempta u JEDNOM danu** (streak 1/1) → osvojeno
+**`['first_correct', 'explorer']`**, dakle 2 od 5.
+
+- `explorer` je osvojen **unutar jednog dana** → potvrđeno da NIJE vezan na trajanje.
+- `streak_7` nije osvojen, kako i mora biti pri streaku 1.
+- `join_master` i `null_ninja` nisu osvojeni — ovladanost, ne vrijeme.
+
+Zanimljiva veza: `explorer` traži pokušaj u **svakom** evaluabilnom modulu, a preporučivač
+je **breadth-first** (#44 — skače među temama). Ta dva se poklapaju: ponašanje koje
+studentu izgleda kao nepovezan skok upravo je ono što `explorer` čini lako dostižnim.
+
+### 3.4 Predložena revizija #24
+
+```markdown
+| #24 | `streak_7` traži 7 KALENDARSKIH dana | 📌 **dizajn — REVIDIRAN 2026-07-26** | Kriterij nepromijenjen; **pretpostavka o dostižnosti je revidirana** uz prelazak na asinkronu evaluaciju. V. bilješku |
+```
+
+Bilješka:
+
+```markdown
+**#24 — revizija pretpostavke (2026-07-26)**
+
+Izvorni zapis tvrdio je „horizont bedža je dulji od trajanja evaluacijske sesije →
+**očekivana stopa osvajanja 0 %**". Ta je tvrdnja bila točna **pod modelom nadzirane
+jednokratne laboratorijske sesije**, gdje sudionik sustav vidi jedan dan. **Taj model više
+ne vrijedi:** evaluacija se izvodi asinkrono preko javnog linka, sudionici rade u vlastitom
+ritmu kroz dane ili tjedne. Time `streak_7` prestaje biti nedostižan **po konstrukciji**.
+
+**Kriterij se NE mijenja** (backend zamrznut — 🔒 politika, **nema broj**; i nema potrebe).
+Mijenja se **status u
+analizi gamifikacije**:
+
+- prije: 0 % je bila **predvidljiva posljedica dizajna eksperimenta**, izvještavala se kao
+  takva, bez informacijske vrijednosti;
+- sada: stopa osvajanja je **mjerena varijabla** — pokazatelj _održanog_ angažmana kroz
+  dane, a ne trenutne aktivnosti. To je jedini bedž u katalogu koji to mjeri (v. tablicu
+  vremenskih komponenti — ostala četiri mjere ishode, ne vrijeme).
+
+⚠️ **Dostižan ≠ vjerojatan.** Kriterij je strog: 7 **uzastopnih** dana, **bez ijednog
+propuštenog**, svaki s barem jednim pokušajem. Sudionik koji odradi studiju kroz dva tjedna
+s prekidima ne osvaja bedž. Očekivana stopa ostaje **niska**, ali je sada **empirijsko
+pitanje**, ne unaprijed poznat nula. U radu se izvještava izmjerena stopa uz ovu napomenu o
+strogosti kriterija.
+
+⚠️ **Prijetnja usporedivosti (novo, posljedica revizije):** `streak_7` nosi 30 XP
+(`seed_data.py`), a XP ulazi u level i u ljestvicu. Dva sudionika s **identičnim** brojem
+točnih rješenja mogu se razlikovati u XP-u samo po tome je li rad raspoređen na 7 uzastopnih
+dana ili zbijen u jedan. Pod jednokratnom sesijom taj efekt nije postojao (nitko nije mogao
+osvojiti bedž). Pri usporedbi sudionika i pri interpretaciji ljestvice XP treba čitati uz
+badge-strukturu, ne kao čistu mjeru uspješnosti. Srodno #9 (kohortna izolacija) i
+🔒 politici da se XP autoritativno čita iz `/profile`.
+
+**Ostaje netaknuto:** `streak_7` je i dalje svjestan dugoročni retention element, ne defekt.
+Bedž se ne mijenja.
+```
+
+---
+
+## PRIJEDLOG 4 — `MASTER.md` §5 Motion: tri zastarjele najave rezane Faze 4.6
+
+**Status prijedloga 1–3: PRIMIJENJENI** 2026-08-09 (commitovi `docs(4.7): #46 …` i
+`docs(4.7): revizija opsega, #13 …`). Ovaj prijedlog **NIJE primijenjen** —
+`design-system/sql-tutor/MASTER.md` je **nedirnut**, čeka OK.
+
+### Zašto se ovo ne može otpisati kao „posljedica iste odluke"
+
+U commitu `e05c6de` (stage 4c) ista je klasa netočnosti popravljena u `index.css`, a
+MASTER.md je tada **ostavljen** uz obrazloženje „posljedica iste odluke, ne zaseban
+defekt". **To obrazloženje ne stoji.** `index.css` čita razvijač koji već radi na
+datoteci; **`MASTER.md` je SSOT dizajn-sustava koji CC čita na početku svake sljedeće
+faze** (Faza 5, deployment). Zastarjela najava u SSOT-u nije komentar nego **uputa
+budućem izvođaču**: „bez framer-motion **do 4.6**" čita se kao „u 4.6 dolazi", pa budući
+izvođač očekuje motion lib koji nikad ne dolazi i `/review-animations` gate koji nikad
+nije bio globalno pokrenut.
+
+Pristup je **isti kao kod `index.css:139`**: vrijednost/token **ostaje**, mijenja se samo
+opis — iz najave rada u opis zatečenog stanja.
+
+### Zatečeno → predloženo, doslovno
+
+**Linija 181** — uvodna rečenica tablice motion tokena.
+
+Zatečeno:
+
+```markdown
+Tokeni u `@theme` (vrijednosti; bez framer-motion do 4.6):
+```
+
+Predloženo:
+
+```markdown
+Tokeni u `@theme` — **samo vrijednosti**. Motion lib (`framer-motion`/`motion`) **nije u
+`package.json` i ne dolazi**: Faza 4.6 (motion + WebSocket) je REZANA (v. `docs/errata.md`,
+§„Opseg implementacije — REZANE faze" + revizija 2026-08-09). Sav motion u aplikaciji je
+CSS — `tw-animate-css` (`animate-in`, `fade-in`, `slide-in-*`) + ovi tokeni. Dodavanje
+motion liba traži izričitu odluku, nije zatečeni plan:
+```
+
+**Linija 193** — redak `--duration-reward` u tablici.
+
+Zatečeno:
+
+```markdown
+| `--duration-reward` | `700ms` | gamifikacijski momenti (count-up envelope) |
+```
+
+Predloženo:
+
+```markdown
+| `--duration-reward` | `700ms` | ⚠️ **NEKORIŠTEN** — bio rezerviran za count-up envelope NEIZVEDENE Faze 4.6 (provjereno grepom 2026-07-26: 0 pogodaka na `duration-reward` u `frontend/src`). OSTAJE radi cjelovitosti ljestvice instant→fast→base→slow→reward, ne kao najava rada |
+```
+
+> Napomena: `--ease-reward` (linija 188) se **NE** dira — on **jest** korišten
+> (`FeedbackPanel.tsx:130` XP čip, `:169` level-up, `:185` badge unlock). Redak ostaje
+> kakav jest da se ta dva tokena ne zamijene.
+
+**Linija 197** — završetak rečenice o pravilima.
+
+Zatečeno:
+
+```markdown
+Pravila: sve animacije poštuju `prefers-reduced-motion` · bez layout-shift hovera (translateY max 1–2px,
+nikad scale koji pomiče susjede) · reward animacije SAMO na accent-warm događajima · svaka animacija
+prolazi `/review-animations` gate (4.3/4.6).
+```
+
+Predloženo:
+
+```markdown
+Pravila: sve animacije poštuju `prefers-reduced-motion` · bez layout-shift hovera (translateY max 1–2px,
+nikad scale koji pomiče susjede) · reward animacije SAMO na accent-warm događajima · svaka animacija
+prolazi `/review-animations` gate.
+
+⚠️ **Doseg gatea, zatečeno stanje:** `/review-animations` je stvarno pokrenut **samo nad
+Task screenom** (4.3). Faza 4.6, koja ga je trebala pokrenuti globalno, je REZANA →
+globalni prolaz **nikad se nije dogodio** i ne planira se. `prefers-reduced-motion` je
+pokriven **univerzalnim** guardom u `index.css` (`@media (prefers-reduced-motion: reduce)`
+nad `*`), ne per-komponentnim opt-inom, pa pravilo vrijedi i bez gatea. Za svaku NOVU
+animiranu površinu gate ostaje obavezan.
+```
+
+### Opseg i rizik
+
+| | |
+| --- | --- |
+| Datoteka | `design-system/sql-tutor/MASTER.md` — **jedna** |
+| Linije | 181, 193, 197 (+ jedan dodani odlomak uz 197) |
+| Izmjena vrijednosti tokena | **NULA** — mijenjaju se samo opisi |
+| Rizik nad eval-verificiranim putem | 🟢 **NULA** — dokument se ne kompajlira ni ne servira |
+
+---
+
+## PRIJEDLOG 5 — docstring `gamification_logic.py:43-45` (BACKEND, čeka OK)
+
+🔴 **NIJE primijenjeno. Backend je zamrznut** — ovo je pripremljen diff, ništa više.
+
+**Vrijedi li ispravak? Smatram da da**, iz jednog razloga: to nije zastarjeli komentar
+nego **netočna tvrdnja** koja se nalazi **točno na mjestu gdje bi je budući čitatelj
+provjeravao**. Tko otvori `gamification_logic.py` da vidi ovisi li XP o vremenu, pročita
+„streak NAMJERNO ne množi XP" i **stane** — a odgovor je u drugoj datoteci
+(`gamification_persistence.py:283-297`). Ista klasa kao netočni `MasteryBar` docstring iz
+#33 i kao `index.css` komentari iz stage 0.
+
+**Protuargument koji priznajem:** #45 je sada zapisan u errati, pa tvrdnja **više nije
+nezabilježena**. Ako je politika da se zamrznuti backend ne dira ni radi komentara, ovo
+legitimno čeka Fazu 6 — errata nosi istinu.
+
+**Diff (nula izmjena ponašanja, samo komentar):**
+
+```diff
+-# Nota: streak NAMJERNO ne množi XP — XP ostaje čist proxy za učinak-u-učenju
+-# (streak se nagrađuje kroz streak_7 badge). Badge XP (seed_data.py xp_reward)
+-# se u persistenceu STAKUJE u isti xp_delta kao attempt XP.
++# Nota: streak NAMJERNO ne ulazi u FORMULU XP-a — compute_xp ima tri ulaza
++# (difficulty, verdict, attempt_number) i nijedan nije vremenski.
++#
++# ⚠️ ALI UKUPAN XP NIJE VREMENSKI NEUTRALAN: streak se nagrađuje bedžom
++# streak_7, čiji xp_reward (30, seed_data.py) persistence STAKUJE u isti
++# xp_delta kao attempt XP, pribraja ga user.xp i uračunava u level
++# (gamification_persistence.py:283-297), a level i XP ulaze u global ljestvicu.
++# Tvrdnja „XP je čist proxy za učinak-u-učenju" zato vrijedi SAMO za compute_xp,
++# ne za ukupan XP. Vidi ERRATA #45 (prijetnja valjanosti). Pravilo se NE mijenja
++# — mijenja se samo tvrdnja o njemu.
+```
+
+**Opseg:** 1 datoteka, 3 linije komentara → 10. **Nula izvršnog koda**, nula testova,
+nula migracija. Ako se odobri, ide s `pytest` prolazom po politici zamrznutog backenda.
+
+---
+
+## `--ring` — INVENTAR POTROŠAČA (read-only, 2026-08-10)
+
+🔴 **Nijedna vrijednost nije mijenjana.** Ovo je istraga; presuda (limitacija vs
+jednovrijednosna korekcija) je korisnikova.
+
+**Zašto se ne smije naslijediti presuda #13/#33:** #33 je odbačen dokazom da **skala**
+kolabira (tri donja stopa mastery gradijenta u rasponu 0.035 L), #13 zato što pomak
+prepisuje **hue mapu** MASTER §2.7. `--ring` **nema ni skalu ni hue susjede** — nije ista
+klasa problema i ne smije dijeliti presudu. To je isti poučak kao `c12ec31`.
+
+### a) Svi potrošači — koristi li se za išta osim fokusa?
+
+**DA, dva ne-fokusna potrošača.**
+
+🔴 **1. Stanje „odabrano", ne fokus** — [ConceptCurveCard.tsx:61](frontend/src/components/profile/ConceptCurveCard.tsx#L61):
+
+```tsx
+selected ? "border-ring bg-muted/40" : "border-border"
+```
+
+`--ring` ovdje označava **odabranu krivulju** — trajno stanje kartice, vidljivo i kad
+fokusa nema. Po SC 1.4.11 i to je „stanje komponente" i traži 3:1. Praktična posljedica:
+promjena `--ring` mijenja **i izgled odabira**, ne samo prstena.
+
+🔴 **2. Zadana boja outlinea za SVAKI element** — [index.css:299-302](frontend/src/index.css#L299-L302):
+
+```css
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+}
+```
+
+Svaki element u aplikaciji dobiva `outline-color: ring/50` kao **default**, neovisno o
+tome ima li vlastiti `focus-visible:`. Doseg je time širi od popisa komponenata.
+
+**Fokusni potrošači** (za potpunost, 4 obrasca):
+
+| Obrazac | Mjesta |
+| --- | --- |
+| `outline-2 outline-offset-2 outline-ring` | `AppShell.tsx:55,71` · `ConceptRow.tsx:117` · `MasteryHighlights.tsx:81` · `AttemptRow.tsx:81` · `ParticipationSection.tsx:68` · `RegisterPage.tsx:131,224` · `LoginPage.tsx:124` · `TaskPage.tsx:235,254` |
+| `focus-visible:border-ring` + `ring-3 ring-ring/50` | `ui/input.tsx:12` · `ui/button.tsx:8` (vendorani shadcn) |
+| `focus-visible:ring-2 focus-visible:ring-ring` | `ConceptCurveCard.tsx:60` |
+| `focus-within:border-ring` + `ring-2 ring-ring/40` | `TaskPage.tsx:327` — omotač Monaco editora |
+
+⚠️ **Lažni pozitivi — riječ „ring" bez tokena `--ring`:** `ui/card.tsx:15` koristi
+`ring-1 ring-foreground/10` (ukrasna vlas, boja je `foreground`), a `ModuleCard.tsx:47`
+`ring-2 ring-accent-warm/50` (deep-link isticanje). **Ni jedan ne troši `--ring`** i
+promjena ga ne bi dotakla.
+
+### b) Je li `--ring` izveden iz druge vrijednosti?
+
+**NE — samostalan literal, bez repova.**
+
+```
+index.css:170  --ring: oklch(0.708 0 0);    ← light, literal
+index.css:244  --ring: oklch(0.556 0 0);    ← dark,  literal
+index.css:77   --color-ring: var(--ring);   ← samo @theme mapiranje
+```
+
+Nije `var(--border)`, nije `color-mix`, ne dijeli sirovinu ni s čim. Promjena nema
+kaskadu — dodiruje **točno** potrošače iz (a).
+
+🔴 **Jedna zamka:** `--sidebar-ring` (`index.css:185` light, `:258` dark) je **neovisan
+literal s IDENTIČNOM vrijednošću**. Promjena `--ring` ga **ne bi povukla** → tiho bi
+divergirali. Danas bez vizualne posljedice jer **nema nijednog potrošača** (citat
+pretrage: `grep -rn "sidebar-ring" frontend/src` daje samo `index.css:64,185,258` —
+definiciju i `@theme` mapiranje, nula komponenata), ali ostaje zamka za kasnije.
+
+### c) Je li spomenut u `MASTER.md`?
+
+**NE.** `grep -rn "ring" design-system/sql-tutor/MASTER.md` daje **dva** pogotka, oba
+unutar drugih riječi — `:13` „tuto**ring**" i `:216` „st**ring**ovi". **Nijedan se ne
+odnosi na token.**
+
+**Posljedica je bitna za presudu:** `--ring` je shadcn seed iz 4.1b koji **nikad nije ušao
+u SSOT**. Za razliku od #13 (prepisuje hue mapu §2.7) i #33 (ruši skalu §2.3), promjena
+`--ring` **ne dira nijednu dokumentiranu skalu, mapu ni tvrdnju** — nema što remjeriti
+osim same vrijednosti.
+
+### d) HIPOTETSKI — koja bi light vrijednost prošla? (NIJE primijenjeno)
+
+Vezujuće ograničenje je **najtamnija** light ploha, `--sidebar` (`#fafafa`).
+
+| L (oklch) | hex | vs `card` | vs `sidebar` | vs `muted/40` | vs `--primary` | vs `--border` |
+| --- | --- | --- | --- | --- | --- | --- |
+| **0.708 (zatečeno)** | `#a1a1a1` | 2,59 ❌ | 2,48 ❌ | 2,51 ❌ | 6,91 | 2,06 |
+| 0.658 (prag) | `#919191` | 3,14 ✅ | **3,00** ✅ | 3,03 ✅ | 5,71 | 2,49 |
+| 0.620 | `#868686` | 3,64 ✅ | 3,49 ✅ | 3,52 ✅ | 4,92 | 2,89 |
+| **0.556** | `#737373` | **4,73** ✅ | **4,53** ✅ | **4,57** ✅ | **3,79** ✅ | **3,76** ✅ |
+
+**Odgovor na pitanje „koja bi vrijednost prošla":** prag je **`oklch(0.658 0 0)`** —
+najsvjetlija koja istovremeno prolazi prema sve četiri plohe, ali s **nula rezerve**
+(3,00:1 prema `sidebar`).
+
+🔴 **Nalaz koji nisam očekivao:** **`oklch(0.556 0 0)` prolazi u OBJE teme.** To je
+**vrijednost koju dark tema već koristi** za `--ring`, a u light paleti već postoji kao
+`--muted-foreground` (`index.css:161`) — dakle **nijedna nova boja se ne uvodi**. Pri toj
+vrijednosti:
+
+- sve četiri light plohe prolaze s rezervom (4,53–4,73:1);
+- ostaje razlučiv od `--primary` (3,79:1), pa prsten na tamnom gumbu i dalje čita;
+- 🔴 **promjena stanja inputa** (mirovanje `--border` `0.922` → fokus) skače
+  **2,06 → 3,76:1**, čime prelazi 3:1 — a to je uvjet koji zatečena vrijednost ne
+  ispunjava ni blizu (relevantno za AAA čitanje 2.4.13, ali i za samu primjetnost fokusa);
+- light i dark `--ring` postali bi **identični**, što je kod neutralnog sivog obranjivo:
+  `0.556` je dovoljno tamna za bijelu plohu i dovoljno svijetla za `card` `0.205`.
+
+**Što ta promjena NIJE besplatna — pošteno:**
+
+1. Dira **dva ne-fokusna potrošača** iz (a): odabir u `ConceptCurveCard` i zadani
+   `outline-ring/50` na `*`.
+2. `--sidebar-ring` bi trebao ići **istim potezom** ili svjesno divergirati (b).
+3. Prstenovi u light temi postaju **vizualno teži**. Brojka to ne mjeri — traži prolaz
+   po snimkama, po poučku „izračun mjeri element, snimka mjeri hijerarhiju".
+4. Dodiruje `ui/input.tsx` i `ui/button.tsx`, koji se pojavljuju na **eval-verificiranom**
+   Task screenu — kroz token, ne kroz kod, ali piksel se mijenja.
+
+**Presuda nije moja.** Utvrđeno je: potrošači, odsutnost izvedenosti, odsutnost iz SSOT-a
+i **brojka** koja odgovara na pitanje iz t.4d.
+
+### ⟳ DOPUNA (2026-08-10) — `-soft` plohe, kolizija i ne-fokusni potrošači
+
+**Presuda korisnika:** jednovrijednosna korekcija na `oklch(0.556 0 0)`, `--sidebar-ring`
+istovremeno i identično, **izvedba u stageu 1C** (dira `ui/input.tsx`/`ui/button.tsx` na
+eval-verificiranom Task screenu, a smoke suite iz 1B još ne postoji). Ova dopuna je
+**mjerenje, ne izvedba** — vrijednosti su i dalje nedirnute.
+
+#### 1. `-soft` plohe FeedbackPanela — 🟢 `0.556` NE PADA
+
+Ovo su plohe s **najfrekventnijim fokusom tijekom evala**: retry i CTA „Sljedeći zadatak"
+dosežu se tipkovnicom, a leže na obojenom verdict panelu.
+
+| ploha | hex (light) | zatečeno `0.708` | **kandidat `0.556`** |
+| --- | --- | :---: | :---: |
+| `bg-correct-soft` | `#e4f8e7` | 2,33 ❌ | **4,26** ✅ |
+| `bg-incorrect-soft` | `#ffedeb` | 2,29 ❌ | **4,18** ✅ |
+| `bg-partial-soft` | `#fcefe5` | 2,30 ❌ | **4,20** ✅ |
+
+Dark (`0.556`, **nepromijenjen**): `correct-soft` 3,43 ✅ · `incorrect-soft` 3,51 ✅ ·
+`partial-soft` 3,50 ✅.
+
+🔴 **Ispravak vlastite brojke iz t.4d.** `-soft` plohe su **najgore light plohe u
+aplikaciji** (2,29–2,33, ispod dotad najgore `sidebar` 2,48) → **vezujuće ograničenje se
+premješta sa `sidebar` na `incorrect-soft`**, a prag raste:
+
+- prije (bez `-soft`): `oklch(0.658 0 0)` — **taj bi prag na `-soft` plohama PAO**;
+- ispravljeno (uklj. `-soft`): **`oklch(0.637 0 0)`**, vezujuća ploha `incorrect-soft`
+  (3,01:1).
+
+`0.556` ostaje s rezervom iznad oba praga. Isti poučak kao kod #13: mjeriti se mora
+**prema plohi na kojoj element stvarno stoji**.
+
+#### 2. Kolizija s `--muted-foreground` — 🟡 potvrđena, i bliža nego „susjedstvo"
+
+`--muted-foreground` light je **`oklch(0.556 0 0)` = `#737373`** — **bajt-identično**
+kandidatu. Zatečeni `--ring` (`#a1a1a1`) je od njega različit.
+
+Pitanje je bilo sjedne li fokusirani element ikad neposredno uz muted tekst. **Nalaz je
+jači od toga: na dva mjesta je to ISTI element** — nosi `text-muted-foreground` **i**
+`focus-visible:outline-ring`, pa bi prsten bio točno one boje koje je i sadržaj koji
+okružuje:
+
+```
+$ grep -rn "text-muted-foreground" frontend/src --include=*.tsx | grep "outline-ring"
+components/layout/AppShell.tsx:71    ← nav stavke (glavna tipkovnička površina)
+components/profile/AttemptRow.tsx:81 ← ikon-gumb u retku pokušaja
+```
+
+Uz to, prava susjednost u `FeedbackPanel.tsx:197-200`: obrazloženje preporuke
+(`<p className="text-xs text-muted-foreground">`) i CTA gumb (koji dobiva prsten) su
+**djeca istog flex reda**.
+
+**Nije a11y kvar** — prsten i dalje ima 4,53–4,73:1 prema plohi, a tekst i obrub su
+različiti oblici, ne dvije boje koje se moraju razlikovati. **Jest kolizija prostora**, u
+duhu cross-scale guarda §2.7: sekundarni tekst i indikator fokusa prestaju biti razlučivi
+**po boji**, pa fokus nosi samo geometrija (2px obrub + 2px razmak). Zatečeno stanje ih
+razlikuje po boji, ali po cijenu toga da prsten **nigdje ne prolazi 3:1**.
+Odluka je dizajnerska, ne mjeriteljska; ako se traži razdvajanje, `--ring` treba vlastitu
+vrijednost različitu od `--muted-foreground` (npr. `0.637`–`0.620`), uz manju rezervu.
+
+#### 3. Ne-fokusni potrošači pri `0.556`
+
+| potrošač | zatečeno | `0.556` | čita se kao |
+| --- | :---: | :---: | --- |
+| `index.css:301` — `outline-ring/50` (zadani outline za `*`) vs `card` | 1,54 | **1,96** | ostaje **ispod 3:1** → i dalje ukras, ne signal ✅ |
+| `ConceptCurveCard.tsx:61` — `border-ring` = stanje „odabrano" vs `bg-muted/40` | 2,51 | **4,57** | prelazi 3:1 |
+
+- **Halo ne postaje konkurentski signal.** Pri 50 % alfe ostaje na 1,96:1 — vidljiv kao
+  mekana aura, nikad kao rub. To je tražena podređenost.
+- **Stanje „odabrano" postaje vidljivo teže** — i to je dvosjeklo: po SC 1.4.11 ono je
+  **stanje komponente** i traži 3:1, što zatečenih 2,51 **ne ispunjava**. Promjena ga
+  usput popravlja. Ali ⚠️ **token ne može razdvojiti „odabrano" od „fokusirano"** jer oba
+  vuku `--ring`: pri `0.556` odabir je 4,57 a fokus na `card` 4,73 — praktički jednako
+  teški. Odnos se time **ne mijenja** (zatečeno je 2,51 vs 2,59, jednako blisko), nego se
+  **oba dižu**. Ako se traži hijerarhija „fokus > odabir", `ConceptCurveCard` treba
+  **vlastiti token**, a to je dizajnerska odluka za Fazu 6, ne promjena vrijednosti.
+
+**Zaključak dopune:** nijedna izmjerena ploha ne obara `0.556`; vezujuća ploha je
+`incorrect-soft` i prag je `0.637`, ne `0.658`. Otvorena su dva **dizajnerska** pitanja
+(kolizija s `muted-foreground`, razdvajanje odabira od fokusa) — nijedno ne mijenja
+brojke, oba su kandidati za odluku u stageu 1C.
+
+#### 4. 🔴 IZLAZNI KRITERIJ ZA STAGE 1C
+
+Odobrena izvedba: `--ring` **i** `--sidebar-ring` → `oklch(0.556 0 0)`, obje teme
+usklađene, u stageu 1C (ne prije — dira `ui/input.tsx` i `ui/button.tsx` na
+eval-verificiranom Task screenu, a smoke suite iz 1B još ne postoji).
+
+**Uz brojke, 1C MORA proći i vizualnu provjeru po snimkama.** Razlog je kolizija iz t.2:
+light `--muted-foreground` je **bajt-identičan** ciljnoj vrijednosti (`#737373`), pa
+prsten fokusa postaje **iste boje kao sekundarni tekst**. Brojka to ne mjeri —
+izračun mjeri usklađenost elementa, snimka mjeri **relativnu težinu u kompoziciji**
+(v. metodološku bilješku u `faza-4.7-nalazi.md`).
+
+Obavezne snimke, obje teme, s fokusom **stvarno postavljenim** na element:
+
+| # | mjesto | što se provjerava |
+| --- | --- | --- |
+| 1 | [AppShell.tsx:71](frontend/src/components/layout/AppShell.tsx#L71) — nav stavka | isti element nosi `text-muted-foreground` **i** `outline-ring` → prsten je iste boje kao vlastita labela stavke. Čita li se fokus kao fokus? |
+| 2 | [FeedbackPanel.tsx:197-200](frontend/src/components/task/FeedbackPanel.tsx#L197-L200) | muted `<p>` (obrazloženje preporuke) i CTA gumb su **djeca istog flex reda** — prsten CTA-a i susjedni tekst dijele boju |
+| 3 | [AttemptRow.tsx:81](frontend/src/components/profile/AttemptRow.tsx#L81) | isti obrazac kao (1), ikon-gumb |
+| 4 | `ConceptCurveCard` — odabrana **i** fokusirana kartica istovremeno | razlikuju li se dva stanja koja dijele isti token (4,57 vs 4,73) |
+| 5 | `Input` u fokusu (Login/Register) | rub + halo pri novoj vrijednosti; halo ostaje 1,96:1 → smije ostati aura, ne rub |
+
+**Kriterij prolaza:** fokus mora biti prepoznatljiv kao fokus **bez** oslanjanja na boju
+— nosi ga geometrija (2px obrub + 2px razmak). Ako snimka pokaže da se prsten stapa sa
+sekundarnim tekstom, alternativa je `0.637`–`0.620` (i dalje ≥3:1 na svim plohama, ali
+različito od `--muted-foreground`) uz manju rezervu.
+
+---
+
+## REVIZIJA „mjereno vs `card`, renderirano na `-soft`" (READ-ONLY, 2026-08-10)
+
+🔴 **NIŠTA NIJE POPRAVLJENO.** Dva razreda elemenata **padaju AA** — odluka je korisnikova.
+
+Povod: `-soft` plohe su najgore light plohe u aplikaciji, a kroz projekt se kontrast
+mjerio „vs `card`". #13 je to pokazao na jednom tokenu (5,48 vs `card` → 4,86 vs
+`partial-soft`); ovo je pun prolaz kroz **FeedbackPanel**, jedini ekran koji renderira na
+`-soft` plohama.
+
+### a) Inventar — što stvarno stoji na `-soft` plohi
+
+Panel (`FeedbackPanel.tsx:112-114`) nosi `ui.wrap` = `bg-correct-soft` / `bg-incorrect-soft`
+/ `bg-partial-soft`. Sve unutar njega leži na toj plohi, ne na `card`:
+
+| # | element | mjesto | boja teksta |
+| --- | --- | --- | --- |
+| 1 | oznaka verdikta („Točno"/„Djelomično"/„Netočno") + ikona | `:119` | `text-correct`/`-incorrect`/`-partial` |
+| 2 | poruka feedbacka | `:123` | naslijeđeni `foreground` |
+| 3 | čip „Već riješeno · bez XP" | `:138` | `text-muted-foreground` |
+| 4 | XP/pokušaj info | `:143` | `text-muted-foreground` |
+| 5 | streak indikator | `:147` | `text-accent-warm-text` |
+| 6 | objašnjenje uz verdikt | `:156` | `text-muted-foreground` |
+| 7 | mono blok s detaljem greške | `:163` | `text-muted-foreground` na `bg-background/60` |
+| 8 | level-up redak | `:169` | `text-accent-warm-text` (`font-semibold`) |
+| 9 | „Novi bedž:" | `:177` | `text-muted-foreground` |
+| 10 | obrazloženje preporuke (#44) | `:198` | `text-muted-foreground` |
+| — | XP čip i badge čip | `:130`, `:185` | vlastita ploha `bg-accent-warm` → nije pogođeno |
+
+### b) + d) Izmjereno prema plohi na kojoj element STVARNO stoji (2026-08-10)
+
+Prag: **4,50:1** (sve je `text-sm` 14px ili `text-xs` 12px — normalan tekst; `font-semibold`
+na 14px nije „large text").
+
+**LIGHT — 🔴 dva razreda padaju:**
+
+| element (boja) | `correct-soft` | `incorrect-soft` | `partial-soft` | presuda |
+| --- | :---: | :---: | :---: | :---: |
+| oznaka verdikta | 4,67 | 5,15 | 4,86 | ✅ |
+| poruka (`foreground`) | 17,80 | 17,50 | 17,56 | ✅ |
+| **`muted-foreground`** (#3,4,6,9,10) | **4,26** | **4,18** | **4,20** | 🔴 **PADA** |
+| **`accent-warm-text`** (#5,8) | **4,30** | **4,22** | **4,24** | 🔴 **PADA** |
+| mono blok (`bg-background/60`) | 4,54 | 4,51 | 4,51 | ✅ **na rubu** |
+| XP/badge čip (vlastita ploha) | 5,04 | 5,04 | 5,04 | ✅ |
+
+**DARK — sve prolazi s rezervom:**
+
+| element | `correct-soft` | `incorrect-soft` | `partial-soft` |
+| --- | :---: | :---: | :---: |
+| oznaka verdikta | 7,74 | 5,72 | 8,03 |
+| poruka | 15,57 | 15,93 | 15,87 |
+| `muted-foreground` | 6,27 | 6,41 | 6,39 |
+| `accent-warm-text` | 8,57 | 8,77 | 8,74 |
+| mono blok | 7,18 | 7,23 | 7,22 |
+| XP/badge čip | 9,15 | 9,15 | 9,15 |
+
+### c) Usporedba s ranijim tvrdnjama — jedna je preširoka, ostalih nije bilo
+
+| element | ranija tvrdnja | ploha na kojoj je mjerena | presuda |
+| --- | --- | --- | --- |
+| oznaka verdikta | `faza-4.3-wrapup.md:58` — „`text-partial` AA ✓ (8.68:1 dark / 5.50:1 light)" | **`card`** — pogrešna ploha | ishod **isti** (prolazi i na `partial-soft`, 4,86), ali brojka nije bila o kontekstu renderiranja (v. #13) |
+| **`accent-warm-text`** | 🔴 `MASTER.md:46` — „amber tekst NA pozadini (**≥4.5:1 ✓**)" | neimenovana „pozadina" (drži za `card` 4,78) | 🔴 **TVRDNJA JE PRESIROKA** — na `-soft` plohama je 4,22–4,30, dakle **ne drži** ondje gdje token stvarno stoji (streak `:147`, level-up `:169`) |
+| `muted-foreground` | `faza-4.4b-wrapup.md:59` — „7.66:1 / 4.74:1 (muted)" | `card`, na Profilu (BKT krivulje) | tvrdnja **točna za svoj ekran**; FeedbackPanel nije bio pokriven → **nije bilo tvrdnje** |
+| poruka, mono blok, čipovi | — | — | **nije bilo tvrdnje** |
+
+### 🔴 Što ovo znači (odluka je korisnikova)
+
+**Sedam elemenata u light temi je ispod AA praga**, svi na eval-verificiranom ekranu:
+čip „Već riješeno", XP/pokušaj info, objašnjenje verdikta, „Novi bedž:", **obrazloženje
+preporuke (#44)**, streak indikator i level-up redak. Nedostatak je **mali** (4,18–4,30
+naspram 4,50, dakle 4–7 %), ali sustavan i pogađa **svaki** feedback nakon svake predaje.
+
+Dodatno: mono blok na **4,51** prolazi s marginom od 0,2 % — praktički knife-edge.
+
+**Uzrok nije token nego ploha.** `muted-foreground` (4,73) i `accent-warm-text` (4,78)
+prolaze na `card` s tankom rezervom; `-soft` plohe su za ~10 % tamnije od `card` i ta
+rezerva nestane. Zato se ovo nije vidjelo: **svaka pojedina tvrdnja bila je točna za plohu
+koju je mjerila.**
+
+**Mogući smjerovi (nijedan nije izveden, nijedan nije preporuka bez tvoje odluke):**
+
+1. **Posvijetliti `-soft` plohe** (`0.96` → npr. `0.975`) — jedan token po verdiktu, dira
+   samo plohu, ali mijenja piksel eval-verificiranog panela i traži remjeru svih elemenata
+   iznad.
+2. **Potamniti `muted-foreground` i `accent-warm-text`** — dira **cijelu aplikaciju**, ne
+   samo panel; `muted-foreground` je najčešći sekundarni tekst u projektu.
+3. **Lokalni override u panelu** (npr. `text-foreground/70` umjesto `muted-foreground`
+   unutar `FeedbackPanel`) — najuži zahvat, ali uvodi iznimku od tokena, što MASTER §2
+   izrijekom ne voli.
+4. **Prihvatiti kao limitaciju** uz izmjerene brojke — po uzoru na #33, s tim da je ovdje
+   nedostatak znatno manji i popravljiv.
+
+**Neovisno o odluci: `MASTER.md:46` treba suziti** — tvrdnja „≥4.5:1 ✓" bez imenovane
+plohe je ista klasa greške kao netočni `MasteryBar` docstring iz #33.
+
+---
+
+## PRIJEDLOG 6 — errata #48 (tekst pripremljen, `errata.md` NIJE mijenjan)
+
+```markdown
+| **#48** | 🟡 **Stanje „odabrano" na `ConceptCurveCard` krši 1.4.11 (AA) danas, neovisno o fokusu** | 🟡 **otvoren — popravlja se u 4.7-1C kao posljedica korekcije `--ring`** | `ConceptCurveCard.tsx:61` renderira odabranu karticu kao `selected ? "border-ring bg-muted/40" : "border-border"`. `border-ring` je time **indikator stanja**, a ne fokusa: vidljiv je trajno, i kad fokus nije na kartici. SC 1.4.11 Non-text Contrast (AA, WCAG 2.1) pokriva „vizualne informacije potrebne za identifikaciju komponenata sučelja **i njihovih stanja**" → traži ≥3:1 prema susjednoj boji. **Izmjereno 2026-08-10** (alpha-kompozitirano, konvertor validiran na šest ranije objavljenih brojki): `--ring` vs `bg-muted/40` nad `card` = **2,51:1 light** ❌ (dark prolazi). **Zapisuje se SAMOSTALNO iako ga popravlja tuđa promjena:** korekcija `--ring` na `oklch(0.556 0 0)` (stage 1C) diže ga na **4,57:1** ✅, ali to je **posljedica, ne namjera** — bez vlastitog zapisa nalaz bi tiho nestao i vratio bi se neprimijećen ako se token ikad vrati na svjetliju vrijednost ili ako `ConceptCurveCard` dobije vlastitu boju. ⚠️ **Bilješka o hijerarhiji:** token **ne razdvaja** „odabrano" od „fokusirano" — oba vuku `--ring`, pa su pri 0.556 na 4,57 odnosno 4,73:1, praktički jednako teški (zatečeno je 2,51 vs 2,59 — jednako blisko). Odnos se korekcijom **ne mijenja**, oba se dižu. Ako se traži hijerarhija „fokus > odabir", `ConceptCurveCard` treba **vlastiti token** — dizajnerska odluka za Fazu 6, ne promjena vrijednosti. Srodno: N-4 (prsten fokusa), #33 (non-text kontrast kao klasa) |
+```
+
+**Gdje ide:** novi redak u tablici errate, iza #47. **Ne primjenjujem do odobrenja.**
+
+---
+
+## Sažetak — što traži tvoj OK
+
+| #   | Prijedlog                                   | Zahvat                                        | Status                      |
+| --- | ------------------------------------------- | --------------------------------------------- | --------------------------- |
+| 1   | Revizija §REZANE faze (uklj. opseg motiona) | **dodaje** odjeljak; postojeći tekst netaknut | ✅ **primijenjen** 2026-08-09 |
+| 2   | #13 → 📌 limitacija, vlastito obrazloženje  | mijenja status reda #13 + dodaje bilješku     | ✅ **primijenjen** 2026-08-09 |
+| 3   | #24 → revidirana pretpostavka               | mijenja status reda #24 + dodaje bilješku     | ✅ **primijenjen** 2026-08-09 |
+| 4   | `MASTER.md` §5 Motion — tri zastarjele najave | mijenja 3 linije opisa, nula vrijednosti    | 🔴 **ČEKA OK**              |
+
+Uz njih, izvan errate: `docs/faza-4-plan.md:18` („prva se reže 4.6/4.7") — **također
+nedirnut**, čeka odluku ide li ispravak ili bilješka.
+
+**Prijedlog 4 nije primijenjen.** `MASTER.md` i `faza-4-plan.md` su nedirnuti —
+`git diff --stat HEAD -- design-system/sql-tutor/MASTER.md docs/faza-4-plan.md` je prazan.

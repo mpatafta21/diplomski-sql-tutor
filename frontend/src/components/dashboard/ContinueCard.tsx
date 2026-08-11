@@ -139,7 +139,16 @@ export function ContinueCard({
               : reasonText(rec.reason)}
           </p>
         </div>
-        <Button asChild>
+        {/* Gradijent SAMO ovdje, ne na `Button` primitivu (4.7-r2 t.4). Ostaje
+            SVIJETLI fill s tamnim tekstom — hijerarhija se nosi svjetlinom, a
+            gradijent živi UNUTAR nje. Mjereno: tamni tekst 13,30 / 14,85 / 16,51,
+            fill vs `card` isto, ΔE do `tier-hard` 0,1217 (čip je ~40 px iznad,
+            ContinueCard.tsx:125). `hover:opacity-90` umjesto promjene boje —
+            drugi gradijent bio bi druga mjerena površina. */}
+        <Button
+          asChild
+          className="bg-[image:var(--grad-cta)] transition-opacity duration-fast ease-standard hover:bg-primary hover:opacity-90"
+        >
           <Link to={`/task/${rec.task_id}`}>
             {onboarding ? "Riješi prvi zadatak" : "Otvori zadatak"}
             <ArrowRight data-icon="inline-end" aria-hidden="true" />

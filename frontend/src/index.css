@@ -2,16 +2,27 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/bricolage-grotesque";
 @import "@fontsource-variable/jetbrains-mono";
 
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
-  --font-heading: var(--font-sans);
+  /* ⟳ 4.7-r2: `--font-heading` je do sada bio ALIAS za `--font-sans` i imao NULA
+     potrošača — naslovi su vukli Geist preko `html { font-sans }`. Sada je vlastiti
+     display font i dobiva potrošače u `@layer base` (h1/h2) + hero brojku levela.
+     Body ostaje Geist, mono ostaje JetBrains Mono. Nula CDN-a — fontsource je lokalni
+     npm asset koji Vite hashira, isti mehanizam kao za ostala dva. */
+  --font-heading:
+    "Bricolage Grotesque Variable", "Geist Variable", system-ui, sans-serif;
   --font-sans: "Geist Variable", sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 
-  /* ── Semantika verdicta (MASTER.md §2.2) — partial REZERVIRAN, ne koristiti u UI (ERRATA #8) ── */
+  /* ── Semantika verdicta (MASTER.md §2.2) ──
+     partial je AKTIVAN od 4.3c: deriviran iz `error_type === "row_mismatch"`
+     (lib/feedback.ts `deriveVerdict`) — ERRATA #8 je time REVIDIRAN, kolona
+     `verdict` i dalje ne postoji jer nije potrebna.
+     ⚠️ Uz partial je ikona + tekstualna oznaka OBAVEZAN kanal (MASTER §2.2):
+     partial hue 55–60 je blizu accent-warm 70–85 (ERRATA #13), pa boja
+     POJAČAVA značenje, nikad ga ne nosi sama. */
   --color-correct: var(--correct);
   --color-correct-soft: var(--correct-soft);
   --color-incorrect: var(--incorrect);
@@ -19,6 +30,9 @@
   --color-partial: var(--partial);
   --color-partial-soft: var(--partial-soft);
   --color-neutral: var(--neutral);
+  /* ⚠️ `neutral` i `neutral-soft` imaju 0 potrošača. `neutral-soft` je uveden u 4.7
+     kao dom za N-10 (sistemska greška ≠ verdikt); žičenje je STAGE 2. */
+  --color-neutral-soft: var(--neutral-soft);
 
   /* ── Topli amber accent — SAMO napredak/gamifikacija (MASTER.md §2.1) ── */
   --color-accent-warm: var(--accent-warm);
@@ -59,8 +73,10 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
+  /* ⟳ 4.7 stage 2: `--color-sidebar-primary` i `-foreground` uklonjeni zajedno sa
+     svojim tokenima. Imali su 0 potrošača, a `--sidebar-primary` je bio jedini
+     KROMA token koji je ulazio u semantički prostor: oklch(0.488 0.243 264.376) —
+     chroma 0,243 (najviša u paleti) na 4,4° od gornjeg ruba mastery skale. */
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
   --color-chart-5: var(--chart-5);
@@ -121,134 +137,262 @@
   --text-5xl--line-height: 1.05;
   --text-5xl--letter-spacing: -0.02em;
 
-  /* ── Motion tokeni (MASTER.md §5) — vrijednosti, bez motion liba do 4.6 ── */
+  /* ── Motion tokeni (MASTER.md §5) ──
+     Sav motion u aplikaciji je CSS (Tailwind `animate-in` / `transition-*` iz
+     `tw-animate-css`) + ovi tokeni. Motion biblioteke NEMA i neće je biti:
+     Faza 4.6 (framer-motion, gamifikacijski motion, page tranzicije, WebSocket)
+     je REZANA (errata §Opseg implementacije). `framer-motion`/`motion` nisu u
+     package.json — ne dodavati ih bez izričite odluke. */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  /* KORIŠTEN — FeedbackPanel (XP čip, level-pulse, badge-pop) + useXpCountUp
+     koji krivulju PARSIRA iz ove vrijednosti (overshoot klampan na cilj). */
   --ease-reward: cubic-bezier(0.34, 1.25, 0.64, 1);
+  /* 🔴 NALAZ N-18 (2026-08-10): `--duration-*` OVDJE u @theme NIJE utility
+     namespace u Tailwindu v4 — klase `duration-fast/base/…` se NISU generirale,
+     varijable se nisu ni emitirale (tree-shake), pa je SVAKA tranzicija u
+     aplikaciji tiho radila na TW defaultu 150 ms. Tokeni trajanja zato žive u
+     `:root` (uvijek emitirani), a klase gradi eksplicitni `@utility` most niže.
+     `--ease-*` JE prepoznati namespace i ostaje ovdje. */
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   JEDINA PALETA — aplikacija je DARK-ONLY (Faza 4.7 redizajn, stage 1).
+   Light tema je UKINUTA: `:root` vs `.dark` više ne postoje kao par, nema
+   `@custom-variant dark`, nema `ThemeProvider`a ni toggla. Tokeni koji su do
+   4.7 živjeli u `.dark` bloku sada su jedini i stoje u `:root`.
+   🔴 `--radius` je JEDINI token koji `.dark` nikad nije redefinirao — živio je
+   samo u starom `:root`. Prenesen je PRVI i namjerno stoji na vrhu: iz njega se
+   izvodi svih 7 radius stepenica (`@theme inline` gore) i sonnerov
+   `--border-radius`, pa bi ga brisanje starog bloka tiho odnijelo.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --radius: 0.625rem;
+  /* ── Motion trajanja (MASTER §5; N-18: preseljena iz @theme jer ondje nisu
+     imala učinak). Ljestvica instant→fast→base→slow→reward. ── */
   --duration-instant: 100ms;
   --duration-fast: 160ms;
   --duration-base: 240ms;
   --duration-slow: 400ms;
+  /* KORIŠTEN od B.5 (2026-08-10) — točno za ono za što je rezerviran:
+     count-up envelope (useXpCountUp čita OVU vrijednost iz computed stylea)
+     + `level-pulse` keyframe. */
   --duration-reward: 700ms;
-}
-
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  /* Data-viz kategorijska (MASTER.md §2.6) — zamjena neutralnih placeholdera */
-  --chart-1: oklch(0.55 0.15 250);
-  --chart-2: oklch(0.55 0.094 185);
-  --chart-3: oklch(0.55 0.16 300);
-  --chart-4: oklch(0.58 0.16 345);
-  --chart-5: oklch(0.6 0.12 75);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-
-  /* ═══ Prošireni tokeni — light (MASTER.md §2, AA-verificirano) ═══ */
-  /* Semantika verdicta — partial REZERVIRAN (ERRATA #8) */
-  --correct: oklch(0.52 0.13 150);
-  --correct-soft: oklch(0.96 0.03 150);
-  --incorrect: oklch(0.53 0.19 25);
-  --incorrect-soft: oklch(0.96 0.02 25);
-  --partial: oklch(0.53 0.11 55);
-  --partial-soft: oklch(0.96 0.02 60);
-  --neutral: oklch(0.5 0.02 260);
-  /* Topli amber accent — samo napredak/gamifikacija */
-  --accent-warm: oklch(0.66 0.13 72);
-  --accent-warm-foreground: oklch(0.25 0.04 75);
-  --accent-warm-text: oklch(0.56 0.12 70);
-  /* Mastery gradient P(L) — CB-safe, monoton po svjetlini */
-  --mastery-0: oklch(0.85 0.05 260);
-  --mastery-25: oklch(0.74 0.08 245);
-  --mastery-50: oklch(0.63 0.11 225);
-  --mastery-75: oklch(0.53 0.086 205);
-  --mastery-100: oklch(0.44 0.072 190);
-  /* Concept-tier (3) — violet 300; foreground = AA-par za tekst na fillu */
-  --tier-easy: oklch(0.72 0.09 300);
-  --tier-easy-foreground: oklch(0.145 0 0);
-  --tier-medium: oklch(0.55 0.14 300);
-  --tier-medium-foreground: oklch(0.985 0 0);
-  --tier-hard: oklch(0.45 0.18 300);
-  --tier-hard-foreground: oklch(0.985 0 0);
-  /* Module-difficulty (5) — magenta 345; cross_module desaturiran (transverzalan) */
-  --difficulty-beginner: oklch(0.78 0.06 345);
-  --difficulty-beginner-foreground: oklch(0.145 0 0);
-  --difficulty-intermediate: oklch(0.68 0.1 345);
-  --difficulty-intermediate-foreground: oklch(0.145 0 0);
-  --difficulty-advanced: oklch(0.57 0.14 345);
-  --difficulty-advanced-foreground: oklch(0.985 0 0);
-  --difficulty-expert: oklch(0.46 0.18 345);
-  --difficulty-expert-foreground: oklch(0.985 0 0);
-  --difficulty-cross-module: oklch(0.55 0.03 345);
-  --difficulty-cross-module-foreground: oklch(0.985 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.145 0.032 280);
+  --foreground: oklch(0.97 0.013 280);
+  --card: oklch(0.205 0.048 280);
+  --card-foreground: oklch(0.97 0.013 280);
+  --popover: oklch(0.205 0.048 280);
+  --popover-foreground: oklch(0.97 0.013 280);
+  --primary: oklch(0.922 0.02 280);
+  /* Prati `--card` (ista svjetlina I kroma) — nije slučajno isti literal nego namjerno
+     zrcalo, pa se mijenja istovremeno s njim da tiho ne divergira. */
+  --primary-foreground: oklch(0.205 0.048 280);
+  --secondary: oklch(0.269 0.06 280);
+  --secondary-foreground: oklch(0.97 0.013 280);
+  --muted: oklch(0.269 0.06 280);
+  --muted-foreground: oklch(0.708 0.035 280);
+  --accent: oklch(0.269 0.06 280);
+  --accent-foreground: oklch(0.97 0.013 280);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --border: oklch(0.78 0.05 280 / 15%);
+  --input: oklch(0.78 0.05 280 / 22%);
+  --ring: oklch(0.62 0 0);
   /* Data-viz kategorijska (MASTER.md §2.6) — zamjena neutralnih placeholdera */
   --chart-1: oklch(0.7 0.14 250);
   --chart-2: oklch(0.75 0.12 185);
   --chart-3: oklch(0.72 0.13 300);
   --chart-4: oklch(0.74 0.13 345);
   --chart-5: oklch(0.8 0.14 80);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar: oklch(0.205 0.048 280);
+  --sidebar-foreground: oklch(0.97 0.013 280);
+  --sidebar-accent: oklch(0.269 0.06 280);
+  --sidebar-accent-foreground: oklch(0.97 0.013 280);
+  --sidebar-border: oklch(0.78 0.05 280 / 15%);
+  --sidebar-ring: oklch(0.62 0 0);
 
-  /* ═══ Prošireni tokeni — dark (MASTER.md §2, AA-verificirano) ═══ */
-  /* Semantika verdicta — partial REZERVIRAN (ERRATA #8) */
+  /* ══ GRADIJENTI (Faza 4.7-r2, t.4) ══════════════════════════════════════════
+     🔒 GRANICA: gradijent je ZABRANJEN gdje element može čitati kao NOSITELJ
+     STATUSA (trake napretka, čipovi, bedževi, verdict plohe, bilo što uz
+     tier/mastery). Dopušten je na chromeu koji status ne nosi.
+     🔒 SVI su JEDNOHUENI (h280) — putuju samo L i C. Prelazak hue-pojasa bi ušao
+     u prostor neke skale; upravo zato mockupov par 293,5° → 214,5° NIJE ušao
+     (ΔE 0,0345 od `tier-medium`, izmjereno).
+     ⚠️ Srednji stop je UPISAN, ne prepušten: CSS interpolira u sRGB ako se ne
+     kaže drukčije, a sve su brojke ispod mjerene na oklch-sredini.
+     ⚠️ `scripts/a11y` NE mjeri gradijente (parser čita samo `--x: oklch(…)`).
+     Brojke uz svaki su izmjerene ručno; postupak je u MASTER §2.8. */
+
+  /* Brand ikona (AppShell). Sukorišteni skup je PRAZAN — u sidebaru nema nijednog
+     semantičkog tokena. Logotip je izuzet od 1.4.3/1.4.11; 3,56:1 na najtamnijem
+     kraju je mjera VIDLJIVOSTI, ne zahtjev. */
+  --grad-brand: linear-gradient(
+    135deg,
+    oklch(0.55 0.15 280) 0%,
+    oklch(0.665 0.13 280) 50%,
+    oklch(0.78 0.11 280) 100%
+  );
+  /* Wordmark „SQL Tutor". Širi raspon od ikone jer je tekst veći i nosi brand ime.
+     Najtamniji kraj 4,38:1 prema `sidebar` (referenca: `foreground` = 16,51). */
+  --grad-wordmark: linear-gradient(
+    100deg,
+    oklch(0.6 0.155 280) 0%,
+    oklch(0.75 0.1 280) 50%,
+    oklch(0.9 0.045 280) 100%
+  );
+  /* CTA „Otvori zadatak" (ContinueCard). Ostaje SVIJETLI fill s tamnim tekstom —
+     hijerarhija se nosi svjetlinom (KORAK 0 §C.3), gradijent je unutar nje.
+     A.1 (2026-08-10): tamni kraj spušten 0.90→0.85 po kriteriju „mora se vidjeti";
+     pikselni Δ kroz površinu R 40 · G 37 (prije R 24 · G 22; B ~5 jer pri vrhu
+     gamuta B nema kamo — svojstvo svijetlog kraja, ne mana).
+     Tamni tekst 11,30 / 13,73 / 16,51 · fill vs `card` isto (najgore 11,30).
+     ΔE do `tier-hard` 0,1956 na startu (⟳ 2026-08-10, novi tier-hard 335;
+     prije 0,0734) — referenca: ravni `--primary` ima 0,1525; guard ≥0,05
+     drži s velikom rezervom. */
+  --grad-cta: linear-gradient(
+    100deg,
+    oklch(0.85 0.065 280) 0%,
+    oklch(0.91 0.039 280) 50%,
+    oklch(0.97 0.013 280) 100%
+  );
+  /* XP bar (korisnikova odluka, 2026-08-10; mockup .pbar): JEDINA traka s
+     gradijentom — ⟳ REVIZIJA pravila R-2 „trake napretka ne dobivaju
+     gradijent" za točno ovaj slučaj: XP bar je REWARD domena (accent-warm),
+     ne statusna skala; hue putuje 80 → 45 (žuto → crveno-narančasto).
+     Guardovi (2026-08-10): kraj vs `incorrect` ΔE 0,0685 ✓ (≥0,05) · kraj vs
+     `accent-warm` 0,1266 (vidljiv pomak) · gamut C 0,17 ≤ max 0,185.
+     🔴 TRANZIT kroz ~h60 je na ΔE 0,0364 od `partial` — SVJESNO: XP bar
+     (Dashboard hero) i verdict panel (Task) nisu nikad u istom kadru, a
+     partial obvezno nosi ikonu+tekst (MASTER §2.2), boja mu nije jedini
+     kanal. Mastery trake i dalje BEZ gradijenta (statusna skala). */
+  --grad-xp: linear-gradient(
+    90deg,
+    oklch(0.8 0.15 80) 0%,
+    oklch(0.72 0.17 45) 100%
+  );
+  /* Kartice (A.2b, 2026-08-10). Kartice NOSE verdict/tier/mastery sadržaj →
+     gradijent je NAMJERNO suptilan (pikselni Δ krajeva 5/5/9); vidljivost ruba
+     nosi hairline na gornjem rubu (`--border` inset, Δ 23/24/25 nad vrhom) —
+     v. ui/card.tsx. Sredina == `--card` (0.205), krajevi simetrični ±0.0125.
+     ΔE provjere (2026-08-10), najgori = svijetli vrh 0.2175:
+       nabrojane skale: min 0,20 (mastery-0) — tier/mastery/verdict/accent-warm
+       svi daleko iznad praga 0,05
+       -soft plohe: 0,0704–0,0880 (min neutral-soft)
+       muted/secondary: 0,0524 — vrh SPUŠTEN s 0.22 na 0.2175 upravo zbog ovog
+       para (na 0.22 bio je 0,0498 < 0,05); nije statusni par iz guarda, ali se
+       na 0,0498 ne gradi
+       kartica vs `background`: vrh 0,0748 · dno 0,0494 — dno ispod 0,05, ali
+       separaciju kartice nosi ring + hairline, ne ΔE plohe (R-2: ploha nije
+       nositelj statusa)
+     Tekst na najgorem (svijetlom) kraju: fg 16,07 · muted-fg 6,73 — AA. */
+  --grad-card: linear-gradient(
+    180deg,
+    oklch(0.2175 0.0505 280) 0%,
+    oklch(0.205 0.048 280) 50%,
+    oklch(0.1925 0.0455 280) 100%
+  );
+  /* Sidebar i drawer (A.2a, 2026-08-10). Sukorišteni semantički skup je PRAZAN
+     (stage 2 t.4) → gradijent smije biti izražen: pikselni Δ krajeva 15/16/25
+     (svi kanali ≥ prag 15). Smjer TAMNO→SVJETLO odozgo prema dolje, NAMJERNO:
+     (1) aktivna nav stavka (`sidebar-accent`) živi u gornjoj trećini — na
+     tamnom vrhu ΔE prema njoj je 0,095–0,109 (flat je davao 0,065; svjetliji
+     vrh bi je srušio na 0,045); (2) svjetlosna dijagonala kadra ide glow-a
+     (gore-desno) → glow-b (dolje-lijevo), sidebar je lijevo pa svjetliji donji
+     kraj tu dijagonalu nastavlja; (3) wordmark/brand na vrhu DOBIVAJU kontrast:
+     4,38→4,76 · 3,56→3,87. Tekst na najgorem (najsvjetlijem) kraju:
+     `foreground` 15,60 · `muted-fg` 6,54 · `accent-warm-text` 8,98 — sve AA.
+     Vrh se stapa s `background` (ΔE 0,0128) — namjerno, granicu drži border-r.
+     ⟳ STAKLO (korisnik, 2026-08-10, po mockupu .sidebar; POJAČANO na 2.
+     iteraciju): alfa PADA prema dnu (88→80→72 %) — staklo se otvara prema
+     glow-b svjetlu u donjem lijevom kutu kadra — uz backdrop blur 4px + saturate 1.4 (iOS/macOS materijal: puno prozirnosti, malo blura, blagi saturate) na
+     plohi (AppShell aside / sheet). Ispod je samo body pozadina (bg 0,145 —
+     TAMNIJA od svih stopova) → kompozit je tamniji od izmjerenoga u A.2a,
+     pa kontrasti odozgo OSTAJU donje granice; prosijavanje dot-grida do
+     28 % od Δ21 ≈ 6/255 na dnu, razmazano blurom u teksturu. */
+  --grad-sidebar: linear-gradient(
+    180deg,
+    oklch(0.175 0.035 280 / 92%) 0%,
+    oklch(0.16 0.033 280 / 92%) 50%,
+    oklch(0.148 0.03 280 / 92%) 100%
+  );
+  /* ⟳ TONALITET PO MOCKUP SCREENU (korisnik, 2026-08-10, finalna iteracija):
+     mockupov sidebar je TAMAN i suptilan — rgba(15,19,38)→rgba(11,14,26)
+     na 92 % — svjetliji tek mrvicu na vrhu i TONE PREMA DNU do gotovo boje
+     pozadine (0,148 ≈ bg 0,145), pa se ploha uklapa u pozadinu; granicu
+     drži border-r + specularni rub iz .liquid-glass. Jednohuen h280
+     (invarijanta §2.8). Tamnije od svih prijašnjih iteracija → svi ranije
+     izmjereni kontrasti teksta su donje granice (tamnija ploha = viši
+     kontrast svijetlog teksta). Svijetli bloom iz prethodne iteracije
+     UKLONJEN — mockup ga na plohi nema. */
+  /* Dot-grid (t.3; alfa A.1, 2026-08-10). Jedna točka po ćeliji 24×24, iz
+     `--border` baze. Alfa 3,5 % → 12 %: stari kriterij je čuvao samo kontrast,
+     kriterij vidljivosti nije postojao — pikselni Δ bio je 7/7/7 (nevidljivo).
+     Sada IZMJERENO na snimci @1440 dpr1: Δ 21/21/23 po kanalu (prag ≥15).
+     Kontrast unatrag, nad `background`:
+       sama mreža @ 12 %       `foreground` 18,16 → 15,20 · `muted-fg` 7,61 → 6,37
+       mreža + glow (najgore)  `foreground` 11,31 · `muted-fg` 4,74 (konzervativno:
+       glow PUNE alfe, iako mu je centar izvan kadra; s izmjerenim faktorom
+       najjače vidljive točke 0,62 → 12,77 · 5,35)
+     AA 4,50 drži u OBJE konvencije. `-soft` plohe su neprozirne → ne dira ih. */
+  --dot-grid: radial-gradient(
+    oklch(0.78 0.05 280 / 12%) 1px,
+    transparent 1.4px
+  );
+  /* Pozadinski glow (alfa A.1, 2026-08-10). Centar je na (85 %, −10 %) — IZVAN
+     kadra, pa najjača točka koja se uopće vidi nosi ~0,62 pune alfe (izmjereno).
+     Alfa 6 % → 18 % (glow-b drži omjer 3:2 → 12 %): na 6 % je vidljivi pikselni
+     Δ bio 4/4/7 (nevidljivo); sada IZMJERENO 13/14/21 — B kanal (nositelj h280
+     boje) iznad praga 15, R/G na granici. Sve kanale ≥15 daje tek α 24 %, ali
+     ta uz dot 12 % ruši `muted-fg` na 4,24 u konzervativnoj konvenciji — svjesno
+     odbijeno. Sam glow (puna α): `foreground` 14,40 · `muted-fg` 6,03.
+     `-soft` plohe su NEPROZIRNE (alpha = 1,00, provjereno na sve četiri), pa
+     glow ispod njih fizički ne prolazi i ne može ih razbiti. */
+  --glow-a: radial-gradient(
+    900px 500px at 85% -10%,
+    oklch(0.68 0.13 280 / 18%),
+    transparent 60%
+  );
+  --glow-b: radial-gradient(
+    700px 400px at -10% 110%,
+    oklch(0.68 0.13 280 / 12%),
+    transparent 60%
+  );
+
+  /* ═══ Prošireni tokeni (MASTER.md §2, AA-verificirano) ═══ */
+  /* Semantika verdicta — partial je AKTIVAN od 4.3c (ERRATA #8 revidiran) */
   --correct: oklch(0.75 0.15 150);
   --correct-soft: oklch(0.24 0.04 150);
   --incorrect: oklch(0.7 0.19 25);
   --incorrect-soft: oklch(0.24 0.035 25);
   --partial: oklch(0.78 0.13 60);
   --partial-soft: oklch(0.24 0.04 60);
+  /* ── `--neutral-soft` — NOVO u 4.7 stage 2. NULA POTROŠAČA, i to je namjerno. ──
+     Postoji da N-10 (`ErrorState` posuđuje `incorrect-soft` za SISTEMSKU grešku, pa
+     student ne razlucuje vlastiti neuspjeh od kvara aplikacije) ima gdje sletjeti, a
+     da se `index.css` i MASTER.md ne otvaraju drugi put. Žičenje je STAGE 2.
+
+     🔴 IZVEDEN JE, ALI NE PO SLOVU OBRASCA — obrazac se ovdje LOMI, i to se ne
+     prešućuje. Izmjereno na zatečenim `-soft` tokenima:
+        L: 0,240 kod sva tri (invarijanta)  ·  hue: uvijek hue bazičnog tokena
+        C: 0,035–0,040, tj. 0,18–0,31 × C baze (baze su 0,13–0,19)
+     `--neutral` ima C = 0,02 — 6–9× manje od verdict baza. Obrazac pretpostavlja
+     KROMATSKU bazu, pa se dvije njegove čitanke razilaze: omjerno bi dalo C ≈ 0,005
+     (nevidljivo od `card`), apsolutno C ≈ 0,04 (soft KROMATSKIJI od vlastite baze —
+     obrnuto od onoga što „-soft" znači). Nijedno nije izvod, oboje je natezanje.
+
+     Zato se reproducira ono što obrazac POSTIŽE, a ne brojka kojom to postiže:
+        ΔE prema `card`      zatečeni -soft 0,0624–0,0746  →  neutral-soft 0,0761
+        ΔE prema braći       zatečeni međusobno 0,0231–0,0666  →  min 0,0635
+     Uz ostale uvjete: `muted-foreground` 5,60 ✅ · `foreground` 13,36 ✅ ·
+     `neutral` na njoj 5,88 ✅ (sve mjereno 2026-08-10, nova paleta).
+
+     ⚠️ ODSTUPANJE OD L = 0,240 JE NUŽNO, ne stvar ukusa: na L 0,240 uz C 0,02 ploha je
+     na ΔE 0,0493 od `incorrect-soft` — ISPOD praga kolizije 0,05. Panel sistemske
+     greške koji se ne razlikuje od panela netočnog odgovora je upravo N-10, samo
+     obrnuto. Separaciju zato nosi SVJETLINA (L 0,28, uz `muted` 0,269), ne kroma —
+     isto načelo kojim se `muted` odvaja od `card`a. C ostaje 0,02, jednak bazi. */
+  --neutral-soft: oklch(0.28 0.02 260);
   --neutral: oklch(0.72 0.02 260);
   /* Topli amber accent — samo napredak/gamifikacija */
   --accent-warm: oklch(0.8 0.15 80);
@@ -260,24 +404,66 @@
   --mastery-50: oklch(0.64 0.1 225);
   --mastery-75: oklch(0.75 0.11 205);
   --mastery-100: oklch(0.86 0.12 190);
-  /* Concept-tier (3) — violet 300; foreground = AA-par za tekst na fillu */
-  --tier-easy: oklch(0.6 0.1 300);
+  /* ⟳ RAZINE (korisnikova odluka, 2026-08-10): obje skale prelaze s
+     jednohuene rampe (samo L) na HUE RAMPU hladno→toplo (plavo → ljubičasto
+     → magenta) — razina se čita iz TONA, ne iz svjetline. Dvije skale se
+     više ne razdvajaju hueom (300 vs 345) nego REGISTROM: tier = svijetli
+     čip s tamnim tekstom, difficulty = TAMNI badge sa svijetlim tekstom
+     (tier×difficulty min ΔE 0,38). Guardovi (2026-08-10): susjedne razine
+     ΔE 0,059–0,124 · min prema sukorištenom skupu (verdict, -soft, mastery,
+     accent-warm, muted, card/vrh kartice, primary) ≥ 0,0597 · tekst na
+     fillu 7,60–10,58 · ΔE(cta-start, tier-hard) 0,0734 → 0,1956. */
+  /* Concept-tier (3) — hue 255→295→335, C raste s razinom („toplina") */
+  --tier-easy: oklch(0.75 0.11 255);
   --tier-easy-foreground: oklch(0.145 0 0);
-  --tier-medium: oklch(0.7 0.13 300);
+  --tier-medium: oklch(0.72 0.15 295);
   --tier-medium-foreground: oklch(0.145 0 0);
-  --tier-hard: oklch(0.8 0.11 300);
+  --tier-hard: oklch(0.74 0.19 335);
   --tier-hard-foreground: oklch(0.145 0 0);
-  /* Module-difficulty (5) — magenta 345; cross_module desaturiran (transverzalan) */
-  --difficulty-beginner: oklch(0.61 0.08 345);
-  --difficulty-beginner-foreground: oklch(0.145 0 0);
-  --difficulty-intermediate: oklch(0.66 0.11 345);
-  --difficulty-intermediate-foreground: oklch(0.145 0 0);
-  --difficulty-advanced: oklch(0.74 0.13 345);
-  --difficulty-advanced-foreground: oklch(0.145 0 0);
-  --difficulty-expert: oklch(0.82 0.105 345);
-  --difficulty-expert-foreground: oklch(0.145 0 0);
-  --difficulty-cross-module: oklch(0.68 0.03 345);
-  --difficulty-cross-module-foreground: oklch(0.145 0 0);
+  /* Module-difficulty (5) — hue 205→285→320→355, TAMNI registar;
+     cross_module desaturiran (transverzalan, izvan rampe).
+     ⟳ Početna 245 → 205 (teal): na 245 se od Srednje (285) razlikovala
+     premalo (ΔE 0,0597, korisnikov prigovor) — teal diže na 0,1027.
+     C 0,058 je NAMJERNO ispod gamut maksimuma 0,0649 na L 0,38 (tamni teal
+     ima uzak gamut; prvi kandidat 0,09 bi se tiho klampao — ERRATA #52).
+     Min prema skupu 0,0643 (mastery-0), tekst 8,49. */
+  --difficulty-beginner: oklch(0.38 0.058 205);
+  --difficulty-beginner-foreground: oklch(0.95 0.02 205);
+  --difficulty-intermediate: oklch(0.35 0.09 285);
+  --difficulty-intermediate-foreground: oklch(0.95 0.02 285);
+  --difficulty-advanced: oklch(0.34 0.1 320);
+  --difficulty-advanced-foreground: oklch(0.95 0.02 320);
+  --difficulty-expert: oklch(0.35 0.12 355);
+  --difficulty-expert-foreground: oklch(0.95 0.02 355);
+  --difficulty-cross-module: oklch(0.34 0.02 300);
+  --difficulty-cross-module-foreground: oklch(0.95 0.02 300);
+}
+
+/* ── @utility most za trajanja (N-18) ────────────────────────────────────────
+   Tailwind v4 nema namespace za IMENOVANA trajanja, pa `duration-<ime>` klase
+   gradimo eksplicitno: `transition-duration` + `--tw-duration` (tw-animate ga
+   čita kao fallback za SVOJE animacije — provjereno u dist/tw-animate.css).
+   ⚠️ NAMJERNO BEZ `animation-duration`: on bi gazio shorthand trajanje ručnih
+   keyframe klasa na istom elementu (izmjereno na `.bar-fill-enter`, B.4). */
+@utility duration-instant {
+  --tw-duration: var(--duration-instant);
+  transition-duration: var(--duration-instant);
+}
+@utility duration-fast {
+  --tw-duration: var(--duration-fast);
+  transition-duration: var(--duration-fast);
+}
+@utility duration-base {
+  --tw-duration: var(--duration-base);
+  transition-duration: var(--duration-base);
+}
+@utility duration-slow {
+  --tw-duration: var(--duration-slow);
+  transition-duration: var(--duration-slow);
+}
+@utility duration-reward {
+  --tw-duration: var(--duration-reward);
+  transition-duration: var(--duration-reward);
 }
 
 @layer base {
@@ -286,9 +472,264 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Glow: dva radijala nad plohom. `background-attachment: fixed` drži ih uz
+       viewport, pa ne putuju sa skrolom i ne stvaraju pojas na dugim stranicama.
+       Boja ostaje `--background` kao zadnji sloj — glow je NAD njom, ne umjesto. */
+    background-image: var(--dot-grid), var(--glow-a), var(--glow-b);
+    background-size:
+      24px 24px,
+      auto,
+      auto;
+    background-attachment: fixed;
   }
   html {
     @apply font-sans;
+  }
+
+  /* Display font SAMO na h1/h2 (MASTER §3.1). Globalno u `@layer base`, ne po
+     komponenti: alternativa bi bila `font-heading` na ~12 mjesta, a svako novo
+     zaboravljeno mjesto bilo bi tiha nedosljednost.
+     🔴 NE ide na h3+ ni na body: display crta ima uži razmak i jači kontrast poteza,
+     pa ispod ~20 px gubi na čitljivosti — a ondje živi većina a11y-kritičnog teksta
+     (`muted-foreground` je na 118 mjesta, uglavnom `text-xs`/`text-sm`). */
+  h1,
+  h2 {
+    font-family: var(--font-heading);
+  }
+
+  /* ── BROJKE SU MONO (Faza 4.7-r2, MASTER §3.2) ────────────────────────────
+     `tabular-nums` u ovoj aplikaciji ne znači samo „poravnaj znamenke" nego
+     „ovo je PODATAK, ne proza" — a podatak se čita u monou. Pravilo stoji na
+     JEDNOM mjestu umjesto `font-mono` na ~50 poziva: svaka nova brojka koja
+     dobije `tabular-nums` automatski je dosljedna, bez da se netko sjeti.
+     ⚠️ Ne mijenja NIJEDAN kontrast — obitelj fonta ne ulazi u WCAG omjer, a
+     nijedna niska ne seli na drugu plohu. Mijenja se ŠIRINA, pa je provjera
+     prelijevanja snimka, ne izračun.
+     ⚠️ `@layer base` namjerno: utility `font-heading` (hero brojka levela,
+     ProgressHero.tsx:26) time i dalje pobjeđuje, jer utilities > base. */
+  .tabular-nums {
+    font-family: var(--font-mono);
+  }
+
+  /* ── ENTRANCE STAGGER (B.2/4.6) ──────────────────────────────────────────
+     Direktna djeca označenog PAGE ROOTA ulaze fade + translateY, kaskadno po
+     `nth-child` (60 ms korak, unutar 50–90 iz specifikacije), kapa na 7.
+     `backwards` drži elemente nevidljivima TIJEKOM delaya.
+     🔴 NE primjenjuje se na Task screen — editor mora biti odmah spreman;
+     klasa stoji samo na RIJEŠENIM granama Dashboarda, Modula, Profila i
+     Ljestvice (loading/error grane ne trebaju dodatnu latenciju percepcije).
+     Reduced motion: globalni guard ruši i trajanje I delay (v. dolje). */
+  @keyframes enter-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+  .stagger-cards > * {
+    animation: enter-up var(--duration-slow) var(--ease-entrance) backwards;
+  }
+  .stagger-cards > :nth-child(2) {
+    animation-delay: 60ms;
+  }
+  .stagger-cards > :nth-child(3) {
+    animation-delay: 120ms;
+  }
+  .stagger-cards > :nth-child(4) {
+    animation-delay: 180ms;
+  }
+  .stagger-cards > :nth-child(5) {
+    animation-delay: 240ms;
+  }
+  .stagger-cards > :nth-child(6) {
+    animation-delay: 300ms;
+  }
+  .stagger-cards > :nth-child(n + 7) {
+    animation-delay: 360ms;
+  }
+
+  /* ── PROGRES I STREAK (B.4/4.6) ──────────────────────────────────────────
+     `bar-fill-enter`: fill MasteryBara ulazi s 0 na stvarnu vrijednost nakon
+     mounta. Animacija nadjačava inline `translateX` SAMO dok traje, pa se
+     komponenta ne cijepa niti zaobilazi (#mastery-bar) — animira se PRIKAZ.
+     Kasnije promjene vrijednosti i dalje nosi postojeća tranzicija.
+     `flame-flicker`: 3 × 600 ms = 1,8 s UKUPNO — WCAG 2.2.2 riješen
+     TRAJANJEM, ne guardom (guard pokriva samo korisnike koji su ga postavili). */
+  @keyframes bar-fill {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+  .bar-fill-enter {
+    animation: bar-fill var(--duration-slow) var(--ease-entrance);
+  }
+  @keyframes flame-flicker {
+    30% {
+      transform: scale(1.15) rotate(-4deg);
+    }
+    60% {
+      transform: scale(0.95) rotate(3deg);
+    }
+  }
+  .flame-flicker {
+    transform-origin: bottom center;
+    animation: flame-flicker 600ms var(--ease-standard) 3;
+  }
+
+  /* ── FEEDBACKPANEL NAGRADE (B.5/4.6) — jedini dodir eval-verificiranog puta.
+     `level-pulse` na --duration-reward (700 ms je REZERVIRAN točno za ovo);
+     `badge-pop` unlock s overshootom na --ease-reward. Oba jednokratna,
+     `backwards` fill zbog badge staggera. Reduced motion: globalni guard. */
+  @keyframes level-pulse {
+    0% {
+      opacity: 0;
+      transform: translateY(4px) scale(0.92);
+    }
+    45% {
+      transform: translateY(0) scale(1.05);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  .level-pulse {
+    animation: level-pulse var(--duration-reward) var(--ease-reward) backwards;
+  }
+  @keyframes badge-pop {
+    0% {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+    60% {
+      transform: scale(1.08);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  .badge-pop {
+    animation: badge-pop var(--duration-base) var(--ease-reward) backwards;
+  }
+
+  /* ── XP BAR: gradijentni fill + zraka (korisnik, 2026-08-10; mockup .pbar) ──
+     `.xp-fill` ide kroz fillClass, a `.bar-shimmer` na TRACK (className prop)
+     — na fillu zraka ne bi pokrila cijeli bar jer je fill translatiran
+     ulijevo; track je pune širine i `overflow-hidden` je reže rub-do-ruba.
+     MasteryBar komponenta netaknuta (#mastery-bar). Ciklus 2 s (sweep ~1 s +
+     stanka ~1 s), BESKONAČNO na korisnikov izričit zahtjev („svake 2
+     sekunde") — ⚠️ ODSTUPANJE od WCAG 2.2.2 obrasca „ograniči trajanjem"
+     (zabilježeno; reduced-motion guard zraku gasi u cijelosti). */
+  @keyframes bar-shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    65%,
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  .xp-fill {
+    background-image: var(--grad-xp);
+    box-shadow: 0 0 14px oklch(0.8 0.15 80 / 0.4);
+  }
+  .bar-shimmer {
+    position: relative;
+  }
+  .bar-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      100deg,
+      transparent 36%,
+      color-mix(in oklab, var(--foreground) 45%, transparent) 50%,
+      transparent 64%
+    );
+    /* 🔴 LINEARNO, ne `ease-in-out` kao mockup: ease usporava na KRAJEVIMA
+       (gdje je zraka izvan kadra) i juri kroz sredinu, pa se činilo da „ne
+       dođe do kraja". Linearno + sweep na 65 % ciklusa = ravnomjeran prolaz
+       rub-do-ruba u 1,3 s, pa stanka 0,7 s (ciklus 2 s).
+       IZMJERENO (pikselno, razlika prema kadru bez zrake, bar 810 px):
+       vrh zrake 3,8 % → 34,6 % → 65,2 % → 96,0 % širine (pojas doseže
+       808/810 px) → izlazi. */
+    animation: bar-shimmer 2s linear 0.6s infinite;
+  }
+  /* 🔴 Pod reduced-motion zraka se mora UGASITI, ne zaustaviti: globalni guard
+     ruši trajanje na 0,01 ms i iteraciju na 1, pa animacija odmah završi i
+     element se vrati u BAZNO stanje (bez transforma) — a ondje svijetli pojas
+     stoji na sredini trake kao trajna mrlja. Otkriveno pri snimanju figura
+     (koje se snimaju s reduced-motion radi determinizma), 2026-08-11. */
+  @media (prefers-reduced-motion: reduce) {
+    .bar-shimmer::after {
+      display: none;
+    }
+  }
+
+  /* ── LIQUID GLASS (korisnik, 2026-08-10) — iOS/visionOS materijal ─────────
+     Tri sastojka povrh prozirne `--grad-sidebar` plohe (alfe se štimaju TAMO,
+     index.css ~:300):
+       1. dijagonalni ODSJAJ preko površine (foreground kroz color-mix,
+          8 % → 2 % → nestane do 45 % plohe) — „svjetlo klizi po staklu";
+       2. SPECULARNI RUB: unutarnji hairline na vrhu (--border) + slabiji
+          lijevi — brid koji hvata svjetlo;
+       3. backdrop blur 8px + saturate 1.7 — prosijano postaje sočnije.
+     Poluge: blur/saturate OVDJE, prozirnost NA STOPOVIMA --grad-sidebar. */
+  .liquid-glass {
+    background-image:
+      linear-gradient(
+        115deg,
+        color-mix(in oklab, var(--foreground) 6%, transparent) 0%,
+        color-mix(in oklab, var(--foreground) 2%, transparent) 18%,
+        transparent 40%
+      ),
+      var(--grad-sidebar);
+    backdrop-filter: blur(8px) saturate(1.7);
+    box-shadow:
+      inset 0 1px 0 0 var(--border),
+      inset 1px 0 0 0 color-mix(in oklab, var(--foreground) 6%, transparent);
+  }
+
+  /* ── BRAND SPOTLIGHT (korisnikov zahtjev, 2026-08-10; mockup .brand-icon) ──
+     Pločica: `--grad-brand` kao ploha, tamna ikona (var(--background) stroke),
+     glow sjena u boji SREDNJEG stopa --grad-brand — literal namjerno živi
+     odmah uz svoj izvor (isti obrazac kao stopovi gradijenata gore), nije
+     nova boja nego sjena postojeće. Mount: jednokratni pop (< 1 s → 2.2.2 ✓);
+     hover: jači glow + blagi scale (`scale` svojstvo, ne transform — v.
+     MASTER §5 🔴). Reduced motion: guard ruši trajanja, hover scale se
+     neutralizira ovdje. */
+  @keyframes brand-pop {
+    0% {
+      opacity: 0;
+      scale: 0.7;
+      rotate: -8deg;
+    }
+    60% {
+      scale: 1.06;
+      rotate: 2deg;
+    }
+    100% {
+      opacity: 1;
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+  .brand-tile {
+    background-image: var(--grad-brand);
+    box-shadow: 0 4px 18px oklch(0.665 0.13 280 / 0.35);
+    animation: brand-pop var(--duration-slow) var(--ease-reward) backwards;
+    transition:
+      box-shadow var(--duration-base) ease,
+      scale var(--duration-base) ease;
+  }
+  .brand-tile:hover {
+    box-shadow: 0 4px 24px oklch(0.665 0.13 280 / 0.55);
+    scale: 1.06;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .brand-tile:hover {
+      scale: 1;
+    }
   }
 
   /* MASTER.md §7: cursor-pointer na svemu klikabilnom. Tailwind v4 preflight
@@ -299,12 +740,20 @@
   }
 
   /* A11y baseline (MASTER.md §5): reduced motion = gotovo bez pokreta.
-     Komponente u 4.6 mogu opt-in na blaže opacity prijelaze unutar vlastitih media query-ja. */
+     Univerzalni selektor namjerno — hvata SVE, uključujući komponente bez
+     vlastite `motion-reduce:` klase (te su dodatni sloj, ne nužnost).
+     ⟳ B/4.6 (2026-08-10): Faza 4.6 se IZVODI unutar 4.7 (stage 3, DIO B) —
+     prijašnja bilješka „4.6 je rezana, opt-in nema tko uvesti" više ne vrijedi.
+     Guard ostaje temelj; komponente s POMAKOM na hover dodaju vlastite
+     `motion-reduce:` klase jer guard ruši samo TRAJANJE, ne i ciljno stanje.
+     `animation-delay` je u guardu zbog entrance staggera (B.2): bez toga bi
+     elementi i pod reduced-motion iskakali sekvencijalno kroz ~400 ms. */
   @media (prefers-reduced-motion: reduce) {
     *,
     ::before,
     ::after {
       animation-duration: 0.01ms !important;
+      animation-delay: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;

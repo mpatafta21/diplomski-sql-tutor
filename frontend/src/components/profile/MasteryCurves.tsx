@@ -9,7 +9,7 @@
  * Klik na mini-krivulju → uvećani detalj (ConceptCurveDetail) s tooltipom.
  *
  * IZVORI: /mastery-history (točke) × /modules (taksonomija + primary_task_count)
- * × /profile (mastery_threshold — 🔴 NIKAD hardkodiran 0.85; invarijanta #6).
+ * × /profile (mastery_threshold — 🔴 NIKAD hardkodiran 0.85; invarijanta: prag iz /profile).
  */
 import { useId, useMemo, useState } from "react"
 import { TrendingUp } from "lucide-react"

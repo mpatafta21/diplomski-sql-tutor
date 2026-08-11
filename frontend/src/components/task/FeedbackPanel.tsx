@@ -314,8 +314,16 @@ export const FeedbackPanel = memo(function FeedbackPanel({
 
       {/* CTA iz recommendation — reuse 4.2a mappera (fail-closed: error ≠ slavlje). */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
-        <p className="text-xs text-muted-foreground">
+        <p className="max-w-prose text-xs text-muted-foreground">
           {reasonText(rec.reason)}
+          {/* #44 (2026-08-11): obrazloženje IZMJENE TEME. Istinito prema
+              `rules.pl` — `recommend_next` bira koncept s NAJNIŽOM procjenom
+              znanja među dostupnima (weak-ready prije partial-ready), pa se
+              tema legitimno mijenja i kad prethodna nije dovršena. To NIJE
+              bug (errata #44: preporučivač se ne dira pred evalom), nego
+              ponašanje koje pod asinkronim evalom nema tko objasniti uživo. */}{" "}
+          Sustav vodi prema konceptima s najnižom procjenom znanja, pa se teme
+          mogu izmjenjivati.
         </p>
         {recKind === "task" &&
           rec.task_id != null &&

@@ -303,6 +303,15 @@ Pravila: sve animacije poštuju `prefers-reduced-motion` · bez layout-shift hov
 nikad scale koji pomiče susjede) · reward animacije SAMO na accent-warm događajima · svaka animacija
 prolazi `/review-animations` gate.
 
+⚠️ **JEDNA BESKONAČNA PETLJA — `bar-shimmer` na XP baru** (zraka koja prolazi kroz traku,
+ciklus 2 s: prolaz 1,3 s + stanka 0,7 s). Sve ostale animacije poštuju obrazac „pokret dulji
+od 5 s ograniči TRAJANJEM" (WCAG 2.2.2; v. `flame-flicker` 3×600 ms, `level-pulse`,
+`brand-pop`) — XP zraka je **odstupanje na izričit korisnikov zahtjev** („treba ići svake 2
+sekunde", 2026-08-10). Ublažavanje: pokret je suptilan (Δ svjetline ~95/255 na uskom pojasu,
+bez pomicanja sadržaja), nije uz tekst koji se čita, i **globalni `prefers-reduced-motion`
+guard ga gasi u cijelosti**. 2.2.2 traži mehanizam pauze za pokret >5 s koji je *dio*
+sadržaja — ovdje je dekorativan, ali odstupanje se ne prešućuje.
+
 ⚠️ **Doseg gatea:** `/review-animations` je stvarno pokrenut samo nad Task screenom (4.3).
 ⟳ B/4.6 (2026-08-10): skupine B.1–B.6 prošle su **ručni review po istim kriterijima**
 (tokeni · reduced-motion · 2.2.2 · podaci nedirnuti) jer `/review-animations` nije bio
@@ -368,7 +377,13 @@ pomaknuta na pravilo koje se može provjeriti:
 
 | ZABRANJENO | DOPUŠTENO |
 |---|---|
-| trake napretka · čipovi · bedževi · verdict plohe · **bilo što uz tier/mastery/verdict** | brand ikona · wordmark · pozadinski glow · hairline/separator · hover obrub kartice · aktivni nav indikator (nosi poziciju, ne status) · **CTA gumb** |
+| ~~trake napretka~~ · čipovi · bedževi · verdict plohe · **bilo što uz tier/mastery/verdict** | brand ikona · wordmark · pozadinski glow · hairline/separator · hover obrub kartice · aktivni nav indikator (nosi poziciju, ne status) · **CTA gumb** · **XP bar** (v. iznimku) |
+
+⟳ **IZNIMKA ZA XP BAR (korisnikova odluka, 2026-08-10).** „Trake napretka" ostaju
+zabranjene kao skupina, ali XP bar iz njih **izlazi**: on nije statusna skala nego
+**reward domena** (`accent-warm`, MASTER §2.1) — ne kodira mastery ni verdict, nego napredak
+prema idućem levelu. Mastery trake (`MasteryBar` u `ConceptRow`, `MasteryHighlights`,
+`ModuleCard`) i dalje su **bez gradijenta**, jer njihova boja JEST skala.
 
 ### 🔒 Dvije invarijante
 
@@ -389,7 +404,19 @@ mjerenje ne opisuje ono što se renderira.
 | `--grad-wordmark` | `0,60 0,155` → `0,90 0,045` | 4,38 vs `sidebar` | — (skup je **prazan**) |
 | `--grad-cta` (r3 A.1) | `0,85 0,065` → `0,97 0,013` | **11,30** (tamni tekst) · 11,30 (fill vs `card`) | **0,1956** (`tier-hard`; ⟳ 2026-08-10 novi tier-hard 335 — prije 0,0734) |
 | `--glow-a` / `--glow-b` (r3 A.1) | h280 @ 18 % / 12 % | `foreground` 18,16 → **14,40** (puna α) | — |
-| `--grad-sidebar` (r3 A.2a) | `0,155 0,04` → `0,23 0,054` (180°, tamno gore) | `muted-fg` **6,54** na svijetlom kraju · `fg` 15,60 | — (skup je **prazan**; aktivna stavka: ΔE 0,095–0,109 u nav zoni, bolje od flat 0,065) |
+| `--grad-sidebar` (r3 A.2a; ⟳ staklo 2026-08-10) | `0,175 0,035` → `0,148 0,03` @ **92 % alfe** (180°, tone prema dnu) | tamnije od svih ranijih iteracija → ranije brojke su donje granice | — (skup je **prazan**) |
+| `--grad-xp` (XP bar, 2026-08-10) | `0,80 0,15 h80` → `0,72 0,17 h45` (90°, žuto→crveno) | fill je grafika, ne tekst | **0,0685** (`incorrect`) · 0,1266 od `accent-warm` |
+
+🔴 **`--grad-xp` je JEDINI gradijent koji prelazi hue-pojas** (80 → 45) — dopuštena iznimka
+od invarijante 1, jer cijeli raspon ostaje **unutar reward domene** (`accent-warm` 70–85 →
+topliji kraj) i ne ulazi ni u jednu skalu. Kraj je od `incorrect` (h25) na ΔE **0,0685** ✓.
+⚠️ Tranzit kroz ~h60 je na ΔE 0,0364 od `partial` — **svjesno**: XP bar (Dashboard hero) i
+verdict panel (Task) nisu nikad u istom kadru, a `partial` obvezno nosi ikonu + tekst (§2.2).
+
+**Staklo sidebara** (`.liquid-glass`, `index.css`): polupropusna ploha + `backdrop-filter:
+blur(8px) saturate(1.7)` + dijagonalni odsjaj + specularni unutarnji rub. Tonalitet je
+namjerno **taman** (donji stop 0,148 ≈ `background` 0,145) — ploha se uklapa u pozadinu, a
+granicu drži `border-r` + specularni rub.
 | `--grad-card` (r3 A.2b) | `0,2175 0,0505` → `0,1925 0,0455` (sredina == `--card`) | `muted-fg` **6,73** na vrhu · `fg` 16,07 | min **0,20** (mastery-0); `-soft` 0,0704–0,0880; `muted` 0,0524 (vrh spušten s 0,22 zbog 0,0498) |
 
 ⟳ **r3 A.1 (2026-08-10):** CTA start `0,90 0,045` → `0,85 0,065` po pikselnom kriteriju

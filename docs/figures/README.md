@@ -37,8 +37,6 @@ repozitorij — ista klasa problema kao NALAZ #17, #20 i #26.
 | `05-zadatak-feedback-dark.png` | **Feedback nakon točnog rješenja**: „Točno", +10 XP, preporuka | poglavlje o evaluaciji i igrifikaciji |
 | `06-ljestvica-dark.png` | Ljestvica (global scope) | poglavlje o igrifikaciji |
 | `07-fipa-agent-log-dark.png` | **FIPA tok** — puni ciklus attempta, svih 6 agenata | poglavlje o agentskoj arhitekturi |
-| `08-fipa-agent-log-light.png` | isto, svijetla tema | isto |
-| `09-profil-bkt-krivulje-light.png` | Profil s BKT krivuljama, svijetla tema | isto kao 03 |
 
 Sve su snimljene na **1440×900 CSS px pri `deviceScaleFactor: 2`** (dakle 2880×1800
 efektivnih piksela i više za duge stranice) — dovoljno za tisak.

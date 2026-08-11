@@ -1126,3 +1126,50 @@ Ploha `incorrect-soft` → `neutral-soft`, ikona i obrub → `neutral` (tokeni i
 0 potrošača). Izmjereno: naslov 13,36 · poruka 5,60 · ikona 5,88 · ΔE prema
 `incorrect-soft` 0,0635. Verificirano nad blokiranim backend pozivom na dva ekrana
 (Dashboard, Moduli): ploha `oklch(0.28 0.02 260)` ✅.
+
+---
+
+## N-19 🟡 Level i streak prikazuju se DVAPUT u istom kadru (Dashboard, Profil)
+
+**Status:** 🟡 zatečeno, **nije popravljeno** · otkriveno 2026-08-11 pri snimanju figura ·
+odluka o rasporedu je korisnikova
+
+### Mjerenje
+
+Programsko brojanje vidljivih čvorova s istom vrijednošću, Dashboard @1440
+(`demo44_student`, level 5, streak 1):
+
+| vrijednost | sidebar | main (`ProgressHero`) | ukupno u kadru |
+|---|:---:|:---:|:---:|
+| level `5` | 1 | 1 | **2** |
+| streak `1` | 1 | 1 | **2** |
+
+Isto vrijedi za Profil — ondje `ProgressHero` također stoji.
+
+### Zašto je to prekršaj
+
+`docs/invarijante.md#jedan-prikaz-po-kadru`: „jedna autoritativna vrijednost prikazuje se
+samo jednom u istom kadru; **persistentni sidebar/topbar računaju se u kadar svake rute**".
+Level i streak zadovoljavaju definiciju autoritativne vrijednosti jednako kao XP.
+
+### 🔴 Nije uzrokovano stageom 3 — zatečeno je od 1C t.2
+
+Sidebar level kartica uvedena je u 1C t.2, dok je `ProgressHero` već postojao. Provjera u
+N-16 tada je brojala **samo XP** („XP niske u kadru = 1") i streak **sidebar vs topbar**;
+par *sidebar × hero* nije provjeren ni za level ni za streak. Korekcija A.3 (streak natrag
+u sidebar) nije stvorila prekršaj — prije nje je streak bio u topbaru, koji je jednako
+persistentan, pa je duplikat postojao i tada.
+
+**Poučak je isti kao #57:** provjera je bila napisana prema paru koji se tada mijenjao
+(sidebar vs topbar), pa je previdjela par koji se nije mijenjao (chrome vs hero).
+
+### Moguća razrješenja (odluka korisnika, NE izvedeno)
+
+1. Sidebar box prikazuje level/streak **samo na rutama bez `ProgressHero`** — chrome
+   postaje uvjetovan rutom, što je novo ponašanje pred deploymentom.
+2. `ProgressHero` ispušta level/streak i zadržava samo XP progres — mijenja ekran koji je
+   već snimljen kao figura `01` i `03`.
+3. Prihvatiti kao svjesnu iznimku i **suziti invarijantu** na XP (jedina vrijednost za koju
+   je jednoznačnost izvorno i postavljena), uz zapis razloga.
+
+Do odluke ostaje zabilježeno; figure `01` i `03` prikazuju zatečeno stanje.

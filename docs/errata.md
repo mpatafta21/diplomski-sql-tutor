@@ -854,23 +854,46 @@ Lanac je potvrđen u tri različita fizička poretka; svaki je unaprijed predvid
 - `test_seed.py::test_seed_is_idempotent` — isto, dvaput po pokretanju suitea.
 - `VACUUM FULL`, `CLUSTER`, restore iz dumpa, autovacuum.
 
-### Trag u produkcijskim podacima
+### 🔴 POVUČENO: „trag u produkcijskim podacima" (ispravak 2026-08-12)
 
-`recommendations_log` pokazuje kad je drift počeo:
+**Prvotna verzija ovog odjeljka tvrdila je da `recommendations_log` pokazuje kad je drift
+počeo. Ta tvrdnja je provjerena i NE STOJI. Povlači se u cijelosti.**
 
-| koncept | puta | od | do |
-|---|---|---|---|
-| `inner_join` | 176 | 2026-07-25 | 2026-08-11 |
-| `select_basic` | 20 | 2026-07-20 | 2026-08-11 |
-| `group_by` | 10 | **2026-08-11** | 2026-08-11 |
-| `cross_join` | 2 | **2026-08-11** | 2026-08-11 |
-| `update` | 2 | **2026-08-11** | 2026-08-11 |
-| `where_filter` | 2 | **2026-08-11** | 2026-08-11 |
-| `null_handling` | 1 | **2026-08-11** | 2026-08-11 |
+Tvrdilo se: tri tjedna samo `inner_join` (176×) i `select_basic` (20×), a pet novih
+koncepata (`group_by`, `cross_join`, `update`, `where_filter`, `null_handling`) pojavljuje
+se prvi put 2026-08-11 — „istog dana kad je heap opetovano prepisivan".
 
-Tri tjedna sustav je vraćao samo `inner_join` i `select_basic`. Pet novih koncepata
-pojavljuje se **prvi put istog dana** kad je heap opetovano prepisivan — među njima točno
-`cross_join` i `update`, dva ishoda koje pokvareni kod daje pod forsiranim poretcima.
+**Što provjera pokazuje.** Svih 17 redaka s tim konceptima pripada **jednom stvarnom
+korisniku** (`user_id 565`), u neprekinutoj sesiji 11:52–12:01, i svaka preporuka slijedi
+**neposredno iza pokušaja koji je promijenio znanje**:
+
+| vrijeme | pokušaj | preporuka odmah nakon |
+|---|---|---|
+| 11:56:39 | riješen `inner_join` (task 44) | `cross_join` |
+| 11:57:16 | riješen `cross_join` (task 39) | `where_filter` |
+| 11:59:04 | riješen `order_by` (task 13) | `group_by` |
+| 12:01:10 | riješen `group_by` (task 30, 7. pokušaj) | `null_handling` |
+| 12:01:30 | riješen `null_handling` (task 1) | `update` |
+
+`skill_mastery_history` to potvrđuje: u istom prozoru `inner_join` 0,217 → 0,644,
+`group_by` 0,217 → 0,657, `where_filter` 0,728 → 0,987. **Znanje se stvarno mijenjalo, pa
+je preporuka legitimno pratila** — to je sustav koji radi, ne kvar.
+
+Vremenski se ni ne poklapa: redci su 11:56–12:01, a opetovano prepisivanje heapa (pokretanja
+suitea) dogodilo se ~5 sati kasnije.
+
+**Ispravna tvrdnja:** `recommendations_log` **niti potvrđuje niti opovrgava** utjecaj kvara
+na stvarne korisnike. Nedostatak raznolikosti kroz tri tjedna govori o slabom korištenju, ne
+o stabilnosti preporuke.
+
+🔴 **Kvar i popravak time NISU dovedeni u pitanje** — dokazani su izravnim pokusom (tri
+fizička poretka, svaki unaprijed predvidio ishod; test pada 5/5 na starom kodu, prolazi 5/5
+na novom). To mjerenje ne ovisi ni o jednom retku iz `recommendations_log`.
+
+**Pouka, ista obitelj kao #55 i #57:** podudarnost datuma je uzeta kao uzročnost jer je
+*potvrđivala* zaključak do kojeg je pokus već došao. Pokus je bio valjan i bez nje; „trag"
+je dodan kao ukras, a ukras je bio netočan. Dokaz koji ništa ne nosi svejedno može biti
+kriv, i onda kvari nalaz koji je inače dobar.
 
 ### Popravak
 
@@ -934,10 +957,17 @@ vrijednost** — pokvareni kod je davao `cross_join` ili `update` ovisno o stanj
 se nije imalo što sačuvati. `group_by` je modul 2, odmah iza M1, dakle traženi pedagoški
 slijed.
 
-🔴 **Za analizu evala:** preporuke zabilježene **2026-08-11** nastale su dok je kvar bio
-aktivan i heap se opetovano prepisivao. Sedam različitih koncepata toga dana nije signal o
-studentima nego o poretku redaka. Taj se dan izuzima ili posebno označava pri svakoj
-tvrdnji o ponašanju preporučivača.
+**Za analizu evala.** ~~Preporuke od 2026-08-11 izuzeti jer nisu signal o studentima nego o
+poretku redaka.~~ **Povučeno istog dana kad i „trag u produkcijskim podacima" (v. gore) —
+uputa je bila pogrešna i bacila bi ispravne podatke.** Sesija 2026-08-11 11:52–12:01 je
+uredna: svaka preporuka slijedi pokušaj koji je promijenio `p_l`.
+
+Ono što **ostaje** istinito i mora se navesti: sve preporuke zabilježene **prije** merge-a
+ovog popravka nastale su dok je kvar bio aktivan, pa se **za nijednu pojedinačnu ne može
+tvrditi** da je bila kanonska. Kvar se očituje samo kad više kandidata dijeli status
+`weak` + `prereqs_met`; kad je kandidat jedan, poredak ne mijenja ništa. Zato: ne izuzimati
+podatke, nego uz svaku tvrdnju o preporukama iz tog razdoblja navesti da determinizam nije
+bio zajamčen.
 
 ---
 

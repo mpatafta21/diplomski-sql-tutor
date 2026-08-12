@@ -865,3 +865,25 @@ tablica ne prepiše — pa se pretpostavka nikad ne opovrgne u razvoju. Simboli�
 (Prolog) je pritom radila točno ono što je specificirana raditi; kvar je nastao na
 **granici** simboličkog i relacijskog sloja, gdje se uređeni ulaz tiho pretvorio u
 neuređeni. To je nalaz o hibridnoj arhitekturi, ne o Prologu.
+
+### Odluka o promjeni ponašanja (2026-08-12)
+
+Popravak **mijenja preporuku** za profil `partial (M1 mastered)`. Odluka korisnika:
+**prihvaćeno.**
+
+| profil | prije (ovisilo o heapu) | poslije (determinističko) |
+|---|---|---|
+| `weak` (bez mastery retka) | `select_basic` | `select_basic` |
+| `partial` (M1 mastered) | `cross_join` ili `update` | **`group_by`** |
+| `unlock` (M1+M2+null_handling) | `cross_join` ili `update` | **`inner_join`** |
+
+Za `weak` i `unlock` popravak reproducira ono što je produkcija radila tri tjedna
+(`select_basic` 20×, `inner_join` 176×). Za `partial` **nije postojala stabilna polazna
+vrijednost** — pokvareni kod je davao `cross_join` ili `update` ovisno o stanju heapa, pa
+se nije imalo što sačuvati. `group_by` je modul 2, odmah iza M1, dakle traženi pedagoški
+slijed.
+
+🔴 **Za analizu evala:** preporuke zabilježene **2026-08-11** nastale su dok je kvar bio
+aktivan i heap se opetovano prepisivao. Sedam različitih koncepata toga dana nije signal o
+studentima nego o poretku redaka. Taj se dan izuzima ili posebno označava pri svakoj
+tvrdnji o ponašanju preporučivača.

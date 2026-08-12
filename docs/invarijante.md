@@ -163,6 +163,34 @@ vrijednost koju `MAP` ne tvrdi je greška, ne bilješka.
 
 ---
 
+## <a id="povucena-errata"></a>Povučena errata stavka se OZNAČAVA, nikad ne briše
+
+**Pravilo.** Kad se nalaz ili tvrdnja unutar nalaza pokaže netočnom, u `docs/errata.md`:
+
+1. **broj ostaje** — ne reciklira se i ne popunjava se drugim nalazom
+   (postojeća konvencija „broj je trajan"),
+2. povučeni tekst ostaje **precrtan** (`~~…~~`), ne briše se,
+3. uz njega ide **vidljiva oznaka** `🔴 POVUČENO (datum)` s **razlogom** i s onim što
+   **ostaje** istinito nakon povlačenja,
+4. ako je povučena samo tvrdnja unutar nalaza, nalaz zadržava status; ako je povučen
+   **cijeli** nalaz, status postaje `🚫 povučen` u tablici statusa.
+
+**Hazard.** Tiho brisanje ostavlja commitove, wrapupe i kod koji referenciraju nalaz bez
+ičega na što bi pokazivali — točno mehanizam visećih referenci `#14`, `#15`, `#26` zbog
+kojeg je errata i konsolidirana. Gore od toga: povučena tvrdnja koja je jednom bila u
+tekstu **nastavi se citirati** iz starijih dokumenata, a čitatelj nema kako doznati da je
+opovrgnuta.
+
+**Presedan.** `#60` (2026-08-12): odjeljak „trag u produkcijskim podacima" precrtan je i
+označen kao POVUČEN, dok sam nalaz o nedeterminizmu ostaje valjan; izvedena uputa
+(„izuzeti preporuke od 2026-08-11") povučena je zasebno jer bi bacila ispravne podatke.
+`#49` je presedan za **umirovljen broj** — nikad dodijeljen, trajno se ne dodjeljuje.
+
+**Zašto je uopće zapisano.** Praksa je postojala u dva primjera, ali nigdje kao pravilo,
+pa je sljedeće povlačenje ovisilo o tome sjeća li se autor kako se to radilo.
+
+---
+
 ## <a id="brojka-nosi-konkurentnost"></a>Brojka o performansama nosi broj istovremenih korisnika
 
 **Pravilo.** Nijedna izmjerena vrijednost (p50, p95, throughput, trajanje) ne navodi se

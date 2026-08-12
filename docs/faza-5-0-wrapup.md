@@ -128,21 +128,25 @@ se **ne** tvrdi kako o studentovom radu ništa ne izlazi — brojčani pokazatel
 
 ## 5. Što ostaje otvoreno
 
-### 5.1 🔴 Preporučivač nema determinističan tie-break (NOVO, nije iz faze 5)
+### 5.1 Preporučivač nema determinističan tie-break → **POPRAVLJENO drugdje, ERRATA #60**
 Nađeno pri izvođenju exit kriterija „`pytest` zelen". Dokazano da nije uzrokovano fazom 5
 — reproducirano na starom kodu i staroj shemi (`git stash` + `alembic downgrade`).
 
-`load_concept_code_map` čita koncepte **bez `ORDER BY`**; `inject_mastery` asertira Prolog
-fakte redoslijedom dobivenog dicta; Prolog vraća prvo rješenje. `test_seed.py` pokreće
-`run_seed()` dvaput, seed radi `on_conflict_do_update`, i fizički poredak heapa se mijenja.
+`load_concept_code_map` čitao je koncepte **bez `ORDER BY`**; `inject_mastery` asertira
+Prolog fakte redoslijedom dobivenog dicta; `recommend_next/2` reže prvim rješenjem.
+`run_seed()` prepisuje sve koncepte `on_conflict_do_update`om pri **svakom bootu**
+(`make db-seed`), pa se preporuka mijenjala bez ijedne izmjene koda.
 
-⇒ **Pokretanje `pytest`-a mijenja koncept koji preporučivač vrati živom studentu.**
-`inner_join` i `scalar_subquery` imaju isti `order_index` (1) i isti `p_l` (0.15), pa
-odlučuje poredak redaka iz PostgreSQL-a. Neovisno o `PYTHONHASHSEED`.
+⇒ **Preporuka se mijenjala između pokretanja**, i to na živom sustavu, ne samo u testovima.
 
-Padaju `test_recommender_logic::test_advanced_recommends_inner_join` i
-`test_recommender_agent::test_concurrent_recommends_serialized_and_correct`. Detalji u
-[§D.4 plana](faza-5-korak-0.md).
+🔴 **Ispravak tvrdnje iz ranije verzije ovog dokumenta:** pisalo je da dva testa
+preporučivača „padaju". Ne padaju stabilno — **flaky su**, jer ih zatekne poredak koji je
+ostavio prethodni seed. Kvar je time gori nego što je bio opisan.
+
+Popravljeno na grani `fix-recommender-determinizam` (s `main`a): kanonski
+`ORDER BY modules.order_index, concepts.order_index, concepts.id`. **Ne ulazi u ovaj tag** —
+blokira deployment neovisno o Fazi 5, pa ide zasebnim PR-om **prije** ovoga. Puna analiza,
+produkcijski trag i odluka o promjeni ponašanja: `docs/errata.md` #60.
 
 ### 5.2 RIZIK: nema odvojene test baze
 `pg_database` sadrži samo `tutor_main`. `pytest` piše u istu bazu koju koristi aplikacija,

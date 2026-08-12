@@ -2579,7 +2579,19 @@ bi se namočila. Isti korijen kao ERRATA #40/#46. **Rizik, ne napomena.**
   izvor `partial` verdikta; danas je to `:209`. **Nije ispravljeno** — 5.0 ne dira
   `frontend/src/`. Za 5.2.
 
-## D.4 🔴 OTVORENO: preporučivač nema determinističan tie-break
+## D.4 preporučivač nema determinističan tie-break → **POPRAVLJENO drugdje**
+
+> **Status:** popravljeno na grani `fix-recommender-determinizam` (s `main`a), **ERRATA
+> #60**. Ne ulazi u ovu granu ni u tag `faza-5-0-preduvjeti` — blokira **deployment**
+> neovisno o Fazi 5, pa ide zasebnim PR-om PRIJE ovoga. Ostatak odjeljka je zapis kako je
+> nađen; mjerenja i presuda su u erratu.
+>
+> Jedna tvrdnja odozdo je bila **pogrešna** i ispravlja se: pisalo je da dva testa padaju.
+> Ne padaju stabilno — **flaky su.** Nakon pune suite prolaze, jer `test_seed` ostavi heap
+> u poretku koji daje `inner_join`; padaju kad ih zatekne drugi poredak. Kvar je time gori
+> nego što je ovdje opisan: ne „dva testa padaju", nego **preporuka se mijenja između
+> pokretanja**.
+
 Nađeno pri izvođenju exit kriterija „`pytest` zelen". **Nije uzrokovano fazom 5** —
 reproducirano na starom kodu i staroj shemi (`git stash` + `alembic downgrade`).
 
@@ -2604,4 +2616,6 @@ Ne ovisi o `PYTHONHASHSEED` (provjereno za 0/1/2/3/42) — dakle nije Python, ne
 redaka iz PostgreSQL-a.
 
 **Nije popravljeno u 5.0**: dira Fazu 3 (`recommender_logic` / ontologija), mijenja
-ponašanje preporučivača i traži zasebnu odluku.
+ponašanje preporučivača i traži zasebnu odluku. Odluka je donesena 2026-08-12 (promjena
+preporuke za profil `partial` prihvaćena) i popravak je izveden na zasebnoj grani —
+v. ERRATA #60.

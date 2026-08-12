@@ -78,3 +78,35 @@ CORS_ORIGINS: list[str] = _list(
     "CORS_ORIGINS",
     ["http://localhost:5173", "http://127.0.0.1:5173"],
 )
+
+# ---------------------------------------------------------------------------
+# HintAgent (Faza 5.1) — LLM hintovi iza flaga
+# ---------------------------------------------------------------------------
+
+AGENT_HINT_JID: str = os.getenv("AGENT_HINT_JID", "hint@localhost")
+AGENT_HINT_PASSWORD: str = os.getenv("AGENT_HINT_PASSWORD", "hint_pw")
+
+#: 🔴 NALAZ 5.0 §2: `ANTHROPIC_API_KEY` do sada NIJE bio dio konfiguracijske
+#: površine runtime procesa — postojao je samo u `.env` za offline generiranje
+#: zadataka. Od 5.1 ga runtime čita, pa mora stajati ovdje.
+#: NIJE `_required()`: sustav mora raditi i bez ključa, s `USE_LLM_HINTS=false`.
+ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+
+#: Glavni prekidač. Dok je false, `/hint` vraća 503 bez IJEDNOG odlaznog poziva.
+USE_LLM_HINTS: bool = os.getenv("USE_LLM_HINTS", "false").lower() == "true"
+
+#: Model — odluka 5.0: Anthropic umjesto OpenAI-ja (v. docs/errata.md #59).
+HINT_LLM_MODEL: str = os.getenv("HINT_LLM_MODEL", "claude-haiku-4-5")
+
+#: 🔴 MORA biti manje od GATEWAY_TIMEOUT (15 s) — to je jedina granica u lancu,
+#: a Anthropic SDK default je 10 MINUTA. Bez ovoga bi pad providera zaključao
+#: HTTP zahtjev do gateway timeouta, a agenta mnogo dulje.
+HINT_LLM_TIMEOUT: float = float(os.getenv("HINT_LLM_TIMEOUT", "8"))
+
+#: Timeout ruta→agent, između LLM timeouta i gateway timeouta.
+HINT_TIMEOUT: float = float(os.getenv("HINT_TIMEOUT", "12"))
+
+#: Limit: HINT_MAX hintova, +1 svaka HINT_REFILL_HOURS. Izvodi se PRI ČITANJU iz
+#: `hint_requests` — bez crona. `source='unavailable'` NE troši kredit.
+HINT_MAX: int = int(os.getenv("HINT_MAX", "5"))
+HINT_REFILL_HOURS: float = float(os.getenv("HINT_REFILL_HOURS", "4"))

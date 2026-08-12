@@ -26,7 +26,9 @@ Hibridni AI: Prolog (simboličko) + Bayesian Knowledge Tracing (probabilističko
 3. RecommenderAgent — preporuka zadataka (Prolog + BKT)
 4. GamificationAgent — XP, leveli, bedževi, streakovi
 5. CoordinatorAgent — orkestracija, API gateway
-6. HintAgent (opcionalno) — LLM personalizirani hintovi
+6. HintAgent — LLM hintovi uz fallback na `hints` katalog (Faza 5.1). Sluša
+   ontologiju `request-hint`, **ne ulazi u Coordinatorov FSM** (izravno gateway →
+   agent, presedan `/next-task`). Iza `USE_LLM_HINTS`, po defaultu isključen.
 
 ## Struktura repozitorija
 

@@ -971,6 +971,45 @@ bio zajamčen.
 
 ---
 
+## #61 🔴 VALJANOST: `submitted_query` se trajno pohranjuje u `agent_messages_log`
+
+**Kad:** otkriveno 2026-08-12, pri exit mjerenju Faze 5.1 (kriterij: „log ne sadrži
+`hint_text` ni `submitted_query`").
+
+**Što je izmjereno** (živi `tutor_main`, ne čitanje koda):
+
+| mjera | vrijednost |
+|---|---|
+| redaka u `agent_messages_log` | 7480 |
+| redaka koji sadrže `submitted_query` | **1568** |
+| najstariji takav redak | **2026-07-20** |
+| redaka od `hint@localhost` | 68 |
+| od toga sa `submitted_query` | **0** |
+
+**Što to znači.** FIPA lanac `POST /attempt` prosljeđuje payload sa studentovim upitom, a
+`TutorAgent.log_message` upisuje `content` doslovno. Doslovni SQL koji je student napisao
+time završava u trajnoj tablici koja se **ne briše** i **ulazi u izvoz**.
+
+🔴 **Ovo NIJE uveo HintAgent.** Hint put je izmjeren i čist: van ide `{user_id, task_id}`,
+natrag `{task_id, source, hint_len}`. Nalaz je zatečen i star tri tjedna; Faza 5.1 ga je
+samo **otkrila**, jer je prvi put netko pretražio sadržaj tog loga umjesto da čita kôd.
+
+**Zašto je relevantno za rad:**
+- `export_eval_data.py` pseudonimizira `user_id`, ali sadržaj `content` ne dira — pseudonim
+  ne pomaže ako je uz njega doslovni rad koji je osoba napisala,
+- privola iz 5.0 §D govori o obradi podataka o učenju; trajna pohrana doslovnog uratka je
+  jača tvrdnja od one koju je sudionik pročitao,
+- ista je logika po kojoj je `hint_text` u 5.1 redigiran — kriterij je već postojao, samo
+  se primjenjivao na jedan put a ne na oba.
+
+**Nije popravljeno u 5.1** jer bi tražilo izmjenu `base.py` i `coordinator.py`, koji su
+odlukom 8 plana 5.1 zamrznuti. **Status: OTVORENO** — Faza 6.
+
+**Što se NE tvrdi:** da su podaci ikamo procurili. Log je lokalna baza u Dockeru. Tvrdi se
+samo da pohrana postoji, da je trajna, i da je šira od onoga što je sudioniku rečeno.
+
+---
+
 ## #62 🔴 STRUKTURNI: druga istovremena predaja se ODBACUJE, ne odgađa
 
 > ⚠️ **Ovaj unos postoji i na grani `faza-5-hintagent`, u kraćoj verziji.** Ova je potpuna

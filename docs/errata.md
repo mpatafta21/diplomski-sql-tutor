@@ -763,3 +763,127 @@ koja ne radi ništa, korisnik dobiva gumb koji čisti panel, a **SQL ostaje u ed
 usporediti ga s brojem različitih pokušaja; ako je udio visok, interpretacija „broj
 pokušaja do rješenja" mora to uzeti u obzir. **Ponašanje se ne mijenja** — trenje u
 sučelju nije prihvatljiv način prikupljanja čišćih podataka.
+
+---
+
+## #60 🔴 STRUKTURNI: preporuka koncepta ovisila je o fizičkom poretku redaka u heapu
+
+**Status:** 🔴 popravljeno · grana `fix-recommender-determinizam` · blokator za **deployment**
+
+> **Numeracija:** #59 je zauzet na grani `faza-5-hintagent` (informacija sudionika). Ovaj
+> nalaz uzima #60 da se dvije grane ne sudare pri spajanju.
+
+### Lanac, svaki korak izmjeren
+
+1. `load_concept_code_map` ([db_helpers.py](../backend/agents/db_helpers.py)) čitao je
+   `select(Concept.code, Concept.id)` **bez `ORDER BY`** → redoslijed = fizički poredak
+   redaka u heapu.
+2. `build_mastery_snapshot` gradi dict **tim** redoslijedom.
+3. `PrologEngine.inject_mastery` asertira `mastery/3` činjenice redoslijedom dicta
+   (`assertz` dodaje na kraj).
+4. `recommend_next/2` ([rules.pl:57-59](../backend/prolog/rules.pl)) zove
+   `weak(User, Concept)` s **nevezanim** `Concept`, pa Prolog backtracka po činjenicama
+   redom asercije — i **reže prvim rješenjem** (`!`).
+
+⇒ **Prvi weak koncept s ispunjenim prereq-ima u fizičkom poretku pobjeđuje.**
+
+Lanac je potvrđen u tri različita fizička poretka; svaki je unaprijed predvidio ishod:
+
+| fizički poredak | prvi kandidat | `recommend()` vratio |
+|---|---|---|
+| seed poredak | `scalar_subquery` | `scalar_subquery` |
+| abecedno (`code ASC`) | `cross_join` | `cross_join` |
+| obrnuto po `id` | `scalar_subquery` | `scalar_subquery` |
+
+### Što mijenja fizički poredak
+
+- 🔴 **`run_seed()` pri SVAKOM bootu** — `make db-seed` → `on_conflict_do_update` nad svih
+  30 koncepata ([seed.py:60-71](../backend/app/db/seed.py)). Svaki `UPDATE` piše novu
+  verziju tuplea. **Zato je ovo blokator deploymenta, ne test-only smetnja.**
+- `test_seed.py::test_seed_is_idempotent` — isto, dvaput po pokretanju suitea.
+- `VACUUM FULL`, `CLUSTER`, restore iz dumpa, autovacuum.
+
+### Trag u produkcijskim podacima
+
+`recommendations_log` pokazuje kad je drift počeo:
+
+| koncept | puta | od | do |
+|---|---|---|---|
+| `inner_join` | 176 | 2026-07-25 | 2026-08-11 |
+| `select_basic` | 20 | 2026-07-20 | 2026-08-11 |
+| `group_by` | 10 | **2026-08-11** | 2026-08-11 |
+| `cross_join` | 2 | **2026-08-11** | 2026-08-11 |
+| `update` | 2 | **2026-08-11** | 2026-08-11 |
+| `where_filter` | 2 | **2026-08-11** | 2026-08-11 |
+| `null_handling` | 1 | **2026-08-11** | 2026-08-11 |
+
+Tri tjedna sustav je vraćao samo `inner_join` i `select_basic`. Pet novih koncepata
+pojavljuje se **prvi put istog dana** kad je heap opetovano prepisivan — među njima točno
+`cross_join` i `update`, dva ishoda koje pokvareni kod daje pod forsiranim poretcima.
+
+### Popravak
+
+Kanonski `ORDER BY modules.order_index, concepts.order_index, concepts.id` — pedagoški
+slijed koji rad ionako tvrdi. Par `(modules.order_index, concepts.order_index)` je
+**izmjereno jedinstven** nad svih 30 koncepata (0 sudara), pa `id` nikad ne odlučuje;
+stoji da poredak ostane totalan ako se doda koncept koji sudari.
+
+### 🔴 Dva testa koja su padala bila su POŠTENA
+
+`test_advanced_recommends_inner_join` i `test_concurrent_recommends_serialized_and_correct`
+tvrdili su `inner_join` — što je i **kanonski** ishod (modul 3, prije `cross_join` u istom
+modulu, prije `update`/`delete` u modulu 4 i `scalar_subquery` u modulu 5) i ono što je
+produkcija radila 176 puta kroz tri tjedna. Nisu bili prestrogi ni „zaključali zatečeno
+stanje" — mjerili su ispravnu stvar, samo su padali tek kad bi se poredak slučajno
+pomaknuo. **Nijedan nije prilagođen.**
+
+To je razlika prema **#57**: ondje je test kodirao promatrano ponašanje kao ugovor; ovdje
+je test kodirao ispravan ugovor, a sustav ga je povremeno kršio.
+
+### Novi test tvrdi DETERMINIZAM, ne konkretan koncept
+
+`test_recommender_determinizam.py` forsira dva suprotna fizička poretka (`code ASC` i
+`code DESC`) i traži isti ishod. Pada 5/5 na starom kodu (`cross_join` vs `update`),
+prolazi 5/5 na novom.
+
+Dva pokušaja prije njega su odbačena i vrijedi ih zabilježiti:
+
+1. **Prepisivanje po fiksnom ključu** (`ORDER BY id DESC`) je **idempotentno** nad heapom
+   koji je već u tom poretku → drugi poziv ne mijenja ništa, test postaje prazan hod.
+2. **`UPDATE ... SET name = name` uopće ne jamči poredak.** Uz 30 redaka u dvije stranice
+   PostgreSQL nove verzije smjesti u slobodan prostor **iste** stranice (HOT), pa se
+   poredak jedva pomakne. `CLUSTER` prepisuje heap u poretku indeksa, bez iznimke.
+
+Oba su otkrivena jer test nosi **guard koji tvrdi da je perturbacija stvarno djelovala**.
+Bez njega bi test „prolazio" ne ispitavši ništa — isti obrazac kao #55.
+
+### Za rad
+
+Nedeterminizam nije bio u algoritmu nego u **pretpostavci o redoslijedu koju SQL ne daje**.
+`SELECT` bez `ORDER BY` ne jamči ništa, ali ga vrati u poretku koji izgleda stabilno dok se
+tablica ne prepiše — pa se pretpostavka nikad ne opovrgne u razvoju. Simbolička jezgra
+(Prolog) je pritom radila točno ono što je specificirana raditi; kvar je nastao na
+**granici** simboličkog i relacijskog sloja, gdje se uređeni ulaz tiho pretvorio u
+neuređeni. To je nalaz o hibridnoj arhitekturi, ne o Prologu.
+
+### Odluka o promjeni ponašanja (2026-08-12)
+
+Popravak **mijenja preporuku** za profil `partial (M1 mastered)`. Odluka korisnika:
+**prihvaćeno.**
+
+| profil | prije (ovisilo o heapu) | poslije (determinističko) |
+|---|---|---|
+| `weak` (bez mastery retka) | `select_basic` | `select_basic` |
+| `partial` (M1 mastered) | `cross_join` ili `update` | **`group_by`** |
+| `unlock` (M1+M2+null_handling) | `cross_join` ili `update` | **`inner_join`** |
+
+Za `weak` i `unlock` popravak reproducira ono što je produkcija radila tri tjedna
+(`select_basic` 20×, `inner_join` 176×). Za `partial` **nije postojala stabilna polazna
+vrijednost** — pokvareni kod je davao `cross_join` ili `update` ovisno o stanju heapa, pa
+se nije imalo što sačuvati. `group_by` je modul 2, odmah iza M1, dakle traženi pedagoški
+slijed.
+
+🔴 **Za analizu evala:** preporuke zabilježene **2026-08-11** nastale su dok je kvar bio
+aktivan i heap se opetovano prepisivao. Sedam različitih koncepata toga dana nije signal o
+studentima nego o poretku redaka. Taj se dan izuzima ili posebno označava pri svakoj
+tvrdnji o ponašanju preporučivača.

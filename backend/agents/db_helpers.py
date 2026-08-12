@@ -9,18 +9,46 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Concept, SkillMastery
+from app.db.models import Concept, Module, SkillMastery
+
+#: 🔴 KANONSKI REDOSLIJED KONCEPATA — pedagoški slijed: modul po modulu, unutar
+#: modula po `order_index`, `concepts.id` kao obrambeni razrješitelj.
+#:
+#: NIJE kozmetika. `build_mastery_snapshot` gradi dict OVIM redoslijedom,
+#: `PrologEngine.inject_mastery` asertira `mastery/3` činjenice redoslijedom tog
+#: dicta, a `recommend_next/2` reže prvim rješenjem (`!`). Bez `ORDER BY` taj
+#: redoslijed je FIZIČKI POREDAK REDAKA U HEAPU, koji `run_seed()` prepisuje pri
+#: svakom bootu (`make db-seed` → `on_conflict_do_update`) — pa se preporuka
+#: mijenja bez ijedne izmjene koda. V. `docs/errata.md` #60.
+#:
+#: Par `(modules.order_index, concepts.order_index)` je izmjereno JEDINSTVEN nad
+#: svih 30 koncepata (0 sudara), pa `Concept.id` nikad ne odlučuje — stoji da
+#: redoslijed ostane totalan i ako se doda koncept koji sudari.
+_KANONSKI_POREDAK = (Module.order_index, Concept.order_index, Concept.id)
 
 
 def load_concept_code_map(session: Session) -> dict[str, int]:
-    """Vrati {concept_code: concept_id} za sve koncepte u bazi."""
-    rows = session.execute(select(Concept.code, Concept.id)).all()
+    """Vrati {concept_code: concept_id} za sve koncepte, u KANONSKOM redoslijedu.
+
+    🔴 Redoslijed je dio ugovora, ne slučajnost — v. `_KANONSKI_POREDAK`.
+    Pozivatelj koji ga ne treba ništa ne gubi; pozivatelj koji ga treba
+    (`build_mastery_snapshot`) bez njega tiho postaje nedeterminističan.
+    """
+    rows = session.execute(
+        select(Concept.code, Concept.id)
+        .join(Module, Module.id == Concept.module_id)
+        .order_by(*_KANONSKI_POREDAK)
+    ).all()
     return {r.code: r.id for r in rows}
 
 
 def load_concept_id_map(session: Session) -> dict[int, str]:
-    """Vrati {concept_id: concept_code} za sve koncepte u bazi."""
-    rows = session.execute(select(Concept.id, Concept.code)).all()
+    """Vrati {concept_id: concept_code} za sve koncepte, u KANONSKOM redoslijedu."""
+    rows = session.execute(
+        select(Concept.id, Concept.code)
+        .join(Module, Module.id == Concept.module_id)
+        .order_by(*_KANONSKI_POREDAK)
+    ).all()
     return {r.id: r.code for r in rows}
 
 

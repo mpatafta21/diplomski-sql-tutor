@@ -137,10 +137,15 @@ def build_mastery_snapshot(
       3. subfloor (kat. B) → 0.99 (ravna maska)
       4. transverzalni (kat. A) → 0.99 ako su svi all_prereqs mastered, inače 0.0
     """
-    code_map = load_concept_code_map(session)  # code -> id
+    code_map = load_concept_code_map(session)  # code -> id, KANONSKI redoslijed
     id_map = load_concept_id_map(session)  # id -> code
 
     # 1. tier-točan prior za svih 30
+    # 🔴 Redoslijed ovog dicta je ULAZ U PROLOG, ne detalj implementacije:
+    # `inject_mastery` asertira činjenice ovim redom, a `recommend_next/2` reže
+    # prvim rješenjem. Nasljeđuje se iz `load_concept_code_map` (kanonski
+    # pedagoški slijed). Koraci 2–4 samo prepisuju VRIJEDNOSTI postojećih
+    # ključeva, pa redoslijed ostaje netaknut. V. `docs/errata.md` #60.
     snapshot: dict[str, float] = {
         code: create_bkt_for_concept(code, engine).p_l for code in code_map
     }

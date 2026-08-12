@@ -1,0 +1,119 @@
+"""Gradnja payloada za LLM hint — selektivni B+ (Faza 5.1, §C).
+
+🔴 OVO JE JEDINA TOČKA na kojoj podaci o studentovom radu napuštaju sustav.
+Presuda §A1 plana 5.0 donesena je nakon mjerenja nad živom bazom, i mjerenje ju je
+SUZILO u odnosu na prvotnu namjeru:
+
+  - `execution_error` `detail` nosi **doslovni redak studentovog upita** (PG `LINE n:`
+    kontekst); jedan živi uzorak sadrži i zaostali komentar iz editora,
+  - `wrong_columns` `detail` nabraja **studentove aliase** (`product_count`, `count`).
+
+Zato je bijela lista **po `error_type`**, a **default grana je ODBIJANJE**: nov tip
+greške u budućnosti ne smije tiho procuriti time što nitko nije ažurirao ovaj modul.
+
+🔴 `ComparisonResult.first_mismatch` nosi STVARNE RETKE PODATAKA. Danas se ne
+perzistira i 5.1 ga NE SMIJE početi koristiti. Ne uvoziti ga ovamo ni pod čim.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from app.db.models import Task
+
+#: Tipovi kojima cijeli `detail` smije van — sadrže isključivo brojeve, indekse
+#: redaka ili konstantan tekst. Provjereno nad svim granama `evaluation.py`.
+DETAIL_SAFE_TYPES = frozenset(
+    {"row_mismatch", "empty_result", "syntax_error", "unsupported_eval"}
+)
+
+#: Tip kojem se `detail` NE šalje, nego se oblik rješenja REKONSTRUIRA iz sheme.
+#: Ključevi (`expected_result[0].keys()`) su oblik rješenja i pod B+ smiju van;
+#: vrijednosti redaka nikad. Pohranjeni `detail` se NIKAD ne parsira.
+RECONSTRUCT_COLUMNS_TYPE = "wrong_columns"
+
+#: Tipovi koji šalju samo klasifikaciju. `execution_error` uz nju nosi `sqlstate`
+#: (zatvoren šifrarnik, bez ijednog studentovog znaka); `timeout` nema ni to jer
+#: mu čistoća poruke nije dokazana — nema živih uzoraka.
+CLASSIFICATION_ONLY_TYPES = frozenset({"execution_error", "timeout"})
+
+#: 🔴 Pragovi se MORAJU poklapati s `prolog/rules.pl`: `weak_threshold(0.30)` i
+#: `mastery_threshold(0.85)`. Isti obrazac kao `recommender_logic._MASTERED_THRESHOLD`.
+_WEAK_THRESHOLD = 0.30
+_MASTERED_THRESHOLD = 0.85
+
+
+def mastery_band(p_l: float | None) -> str | None:
+    """Pretvori BKT vjerojatnost u grubu oznaku.
+
+    🔴 Zašto ne šaljemo `p_l` kao broj (odluka korisnika 2026-08-12): sirova
+    vrijednost je preciznija procjena studenta nego što hint traži, a njezine
+    znamenke su se sudarale s brojčanim vrijednostima iz `expected_result` pri
+    guard provjeri (105 pogodaka). Gruba oznaka rješava oboje: **manje podataka o
+    studentu izlazi iz sustava**, a guard ostaje čitljiv.
+
+    Granice su iste kao u Prologu, pa oznaka znači isto što i ondje.
+    """
+    if p_l is None:
+        return None
+    if p_l < _WEAK_THRESHOLD:
+        return "nisko"
+    if p_l < _MASTERED_THRESHOLD:
+        return "srednje"
+    return "visoko"
+
+
+def build_hint_payload(
+    *,
+    task: Task,
+    error_type: str,
+    detail: str | None,
+    sqlstate: str | None,
+    concept_code: str | None,
+    p_l: float | None,
+) -> dict[str, Any]:
+    """Sastavi payload za LLM. Zatvoren skup polja, bijela lista po `error_type`.
+
+    Args:
+        task: Zadatak — koriste se SAMO `description` i (za `wrong_columns`)
+            ključevi prvog retka `expected_result`. `expected_query` se NE dira.
+        error_type: Klasifikacija iz `evaluation.py`.
+        detail: `attempts.detail`. Prosljeđuje se SAMO za `DETAIL_SAFE_TYPES`.
+        sqlstate: PG SQLSTATE, samo za `execution_error`.
+        concept_code: Koncept koji student vježba.
+        p_l: BKT procjena znanja tog koncepta. Šalje se kao GRUBA oznaka
+            (`mastery_band`), nikad kao sirovi broj.
+
+    Returns:
+        Dict s poljima: `task_description`, `concept`, `mastery`, `error_type`,
+        te NAJVIŠE JEDNO od `error_detail` / `expected_columns` / `sqlstate`.
+
+    🔴 `task_description` je JEDINO polje koje se doslovno citira iz zadatka.
+    Izuzeto je iz guard provjere VRIJEDNOSTI jer je problemski tekst koji student
+    ionako vidi u sučelju — izmjereno, 11 od 80 opisa sadrži vrijednost koja se
+    pojavljuje i u `expected_result` (npr. „samousluga", „processing"). Slanje ne
+    otkriva ništa novo. Protiv `expected_query` se i dalje provjerava.
+    """
+    payload: dict[str, Any] = {
+        "task_description": task.description,
+        "concept": concept_code,
+        "mastery": mastery_band(p_l),
+        "error_type": error_type,
+    }
+
+    if error_type in DETAIL_SAFE_TYPES:
+        if detail:
+            payload["error_detail"] = detail
+    elif error_type == RECONSTRUCT_COLUMNS_TYPE:
+        # 🔴 REKONSTRUKCIJA, ne parsiranje pohranjenog `detail`a: taj string
+        # miješa očekivane stupce sa STUDENTOVIM ALIASIMA.
+        expected = task.expected_result or []
+        if expected and isinstance(expected[0], dict):
+            payload["expected_columns"] = sorted(expected[0].keys())
+    elif error_type in CLASSIFICATION_ONLY_TYPES:
+        if error_type == "execution_error" and sqlstate:
+            payload["sqlstate"] = sqlstate
+    # 🔴 DEFAULT: ništa se ne dodaje. Nepoznat `error_type` prolazi kroz sve
+    # grane i izlazi sa samom klasifikacijom — fail-closed, bez tihog curenja.
+
+    return payload

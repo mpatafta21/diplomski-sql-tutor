@@ -82,8 +82,17 @@ def _rows_equal(row_a: dict, row_b: dict) -> bool:
     return all(_values_equal(row_a[k], row_b[k]) for k in row_a)
 
 
+#: Gornja granica trajanja JEDNOG studentskog upita (PG `statement_timeout`).
+#: 🔴 Imenovana je zato što o njoj ovisi tuđa odluka: Coordinatorov UPDATE prozor
+#: izvodi se IZ NJE (`coordinator.DEFAULT_UPDATE_TIMEOUT`), a ne iz vlastite
+#: konstante — dvije nevezane petice su bile uzrok ERRATE #63.
+DEFAULT_STATEMENT_TIMEOUT_S = 5
+
+
 class SandboxRunner:
-    def __init__(self, connection_string: str, timeout_seconds: int = 5) -> None:
+    def __init__(
+        self, connection_string: str, timeout_seconds: int = DEFAULT_STATEMENT_TIMEOUT_S
+    ) -> None:
         self.connection_string = connection_string
         self.timeout_ms = timeout_seconds * 1000
 

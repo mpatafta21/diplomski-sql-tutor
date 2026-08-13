@@ -950,8 +950,27 @@ predaju istovremeno. Komentar predviđa pad „ako se uvede dispatcher"; zapravo
 (`docs/fix-62-korak-0.md` §C.5). Zaobilaženje Coordinatora odbijeno — FSM orkestracija je
 dio doprinosa rada, ne implementacijski detalj.
 
-**Status: OTVOREN.** Popravak dira `coordinator.py`; test iz §D mora biti **dokazano crven**
-prije ijedne izmjene.
+**Status: ✅ ZATVOREN** (2026-08-13, grana `fix-coordinator-concurrency`, commit `846f241`).
+
+Popravak: FSM **po razgovoru**, s predloškom vezanim uz vlastiti `correlation_id`. SPADE
+`dispatch()` isporučuje poruku svakom behaviouru čiji predložak matcha, pa je predložak
+sam po sebi korelacijski router — ručni registry Future-a nije ni pisan. Prijem je izdvojen
+iz FSM-a u `_Intake`: dok je bio stanje, jedan razgovor u tijeku značio je da se sljedeći
+ne može ni primiti.
+
+Uz to `MAX_CONCURRENT_FLOWS = 64` s **eksplicitnim** odbijanjem na granici (`refuse` +
+`coordinator_busy` → HTTP 503, ne 504) — tiho odbijanje ondje bilo bi ovaj isti nalaz
+reproduciran na drugom mjestu.
+
+| mjerenje | prije | poslije |
+|---|---|---|
+| K=2,4,8 istovremenih predaja | **1** redak, bez obzira na K | **K** redaka i **K** odgovora |
+| 20 studenata, tempo evala (~19 s) | ~13 % gubitka (procjena) | **60/60**, p95 197 ms |
+| p95 pri K=1 (kontrola, ista sesija) | 123,6 ms | 124,2 ms — unutar devijacije |
+
+Invarijanta iz `coordinator.py:29-31` **prepisana** i po prvi put vezana uz test koji ju
+izvršava (`tests/test_coordinator_concurrency.py`). GATE 2 pao kao opis sustava.
+Detalji: `docs/fix-62-63-wrapup.md`.
 
 ---
 
@@ -995,4 +1014,27 @@ tražilo točan upit sporiji od 5 s.
 Tekst „Evaluacija je predugo trajala" netočan je za prvi slučaj. Prijedlozi u
 `docs/fix-62-korak-0.md` §E.2.
 
-**Status: OTVOREN.** Ne rješava ga popravak #62.
+**Status: ✅ ZATVOREN** (2026-08-13, commit `23e2046`).
+
+Popravak ima dva dijela i nijedan sam ne bi bio dovoljan:
+
+1. UPDATE prozor se **izvodi** iz sandbox granice
+   (`DEFAULT_STATEMENT_TIMEOUT_S + 2`), ne postavlja kao vlastita konstanta — granica je
+   zato dobila ime u `sandbox_runner.py`, da se veza vidi umjesto da se duplicira.
+   🔴 Produljenje je postalo sigurno **tek nakon #62**.
+2. Kad prozor ipak istekne, Coordinator **provjeri je li upisano** umjesto da pretpostavi
+   da nije. Redak postoji → odgovara stvarnim ishodom (200); ne postoji → greška je
+   istinita. Polazna crta je `max(attempts.id)` s prijema, ne vrijeme — usporedba po
+   `created_at` mjerila bi aplikacijski sat protiv sata baze.
+
+Podizanje same konstante bilo bi pomicanje praga, ne popravak; zato provjera.
+
+**Izmjereno s produkcijskim konstantama:**
+
+| upit | prije | poslije |
+|---|---|---|
+| `pg_sleep(4.9)`, **točan** | 504 + pokušaj + 2 BKT + **30 XP** | **200**, `is_correct=true` |
+| `pg_sleep(5.2)`, prespor | 504 + pokušaj + 2 BKT | **200**, `error_type=timeout` |
+
+Ne dira `persistence.py`, `evaluate-query` payload ni migracije; D6 netaknut.
+Detalji: `docs/fix-62-63-wrapup.md`.

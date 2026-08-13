@@ -82,8 +82,9 @@ from agents.gamification_persistence import (
 )
 from agents.messages import Ontology, Performative, body_to_payload
 from app.core import config
-from app.db.models import Badge, User, UserBadge, XpLog
+from app.db.models import Attempt, Badge, User, UserBadge, XpLog
 from app.db.session import SessionLocal
+from scripts.lib.sandbox_runner import DEFAULT_STATEMENT_TIMEOUT_S
 
 _log = logging.getLogger(__name__)
 
@@ -99,6 +100,10 @@ ERROR_EVALUATION_TIMEOUT = "evaluation_timeout"
 #: Granica istovremenih tokova dosegnuta — predaja odbijena EKSPLICITNO (#62).
 ERROR_COORDINATOR_BUSY = "coordinator_busy"
 REASON_RECOMMEND_TIMEOUT = "recommend_timeout"
+#: #63: pokušaj je nađen u bazi nakon isteka UPDATE prozora, pa se preporuka NIJE ni
+#: tražila. Razlikuje se od `recommend_timeout` (tražena, nije stigla) — student je u
+#: oba slučaja bez preporuke, ali razlog nije isti i log to mora znati.
+REASON_RECOMMEND_SKIPPED = "recommend_skipped"
 
 # FSM stanja (RECEIVE je od #62 izdvojen u `_Intake` i više nije stanje)
 STATE_EVALUATE = "EVALUATE"
@@ -108,12 +113,28 @@ STATE_RESPOND = "RESPOND"
 
 # Default timeouti (sekunde).
 #
-# 🔴 UPDATE prozor i njegovo obrazloženje mijenjaju se u #63 — prije popravka je bio
-# „namjerno kratak jer pod serijalizacijom UPDATE hang blokira SVE studente". Nakon
-# #62 spor tok blokira samo sebe, pa taj razlog više ne postoji.
-DEFAULT_UPDATE_TIMEOUT = 5.0
+# 🔴 #63: UPDATE prozor se IZVODI iz sandbox granice, ne postavlja kao vlastita
+# konstanta. Prije popravka su `statement_timeout` i `DEFAULT_UPDATE_TIMEOUT` oba
+# bili 5 — dvije nevezane petice — pa je SVAKI upit koji potroši sandbox timeout
+# nužno prekoračio i UPDATE prozor: Coordinator bi odustao (504) dok bi Evaluator
+# uredno commitao pokušaj. Izmjereno 3/3, uklj. TOČAN upit uz dodijeljenih 30 XP.
+#
+# 🔴 Produljenje je postalo SIGURNO tek nakon #62. Stari komentar je glasio: „UPDATE
+# namjerno kratak: pod serijalizacijom UPDATE hang blokira SVE studente." To je bilo
+# točno dok je FSM bio jedan; sada spor tok blokira samo sebe.
+#
+# Ukupni najgori put (UPDATE + RECOMMEND) mora ostati ispod `GATEWAY_TIMEOUT` (15):
+# 7 + 5 = 12, uz 3 s rezerve.
+UPDATE_TIMEOUT_MARGIN_S = 2.0
+DEFAULT_UPDATE_TIMEOUT = DEFAULT_STATEMENT_TIMEOUT_S + UPDATE_TIMEOUT_MARGIN_S
 DEFAULT_RECOMMEND_TIMEOUT = 5.0
 DEFAULT_RECEIVE_TIMEOUT = 30.0
+
+#: Koliko se nakon isteka UPDATE prozora još čeka da upis „slegne" prije nego se
+#: odgovori greškom. Bez toga bi redak koji nastane milisekundu nakon provjere opet
+#: proizveo nesklad — samo rjeđe.
+SETTLE_WINDOW_S = 2.0
+SETTLE_INTERVAL_S = 0.25
 
 #: 🔴 Gornja granica istovremenih razgovora. Postoji da bi preopterećenje imalo
 #: EKSPLICITAN ishod: bez nje bi svi tokovi čekali u Evaluatorovom serijalnom redu i
@@ -144,6 +165,39 @@ def _best_effort_new_badges(session, user_id: int, since) -> list[str]:
         .where(UserBadge.user_id == user_id, UserBadge.earned_at >= since)
     ).scalars()
     return list(rows)
+
+
+def max_attempt_id(user_id: int, task_id: int) -> int | None:
+    """Najveći `attempts.id` tog korisnika i zadatka — polazna crta toka (#63).
+
+    🔴 Zašto ID, a ne vrijeme: usporedba po `created_at` mjeri APLIKACIJSKI sat protiv
+    sata BAZE. Skew je na istom stroju zanemariv, ali „zanemariv" nije isto što i
+    „nula", a ovdje bi promašaj vratio točno onaj nesklad koji popravljamo. ID-evi
+    dolaze iz istog sekvencijalnog izvora kao i redak, pa usporedba nema sata.
+
+    Ide kroz `idx_attempts_user_task`; trošak ~1 ms po predaji.
+    """
+    with SessionLocal() as session:
+        return session.scalar(
+            select(func.max(Attempt.id)).where(
+                Attempt.user_id == user_id, Attempt.task_id == task_id
+            )
+        )
+
+
+def attempt_since(user_id: int, task_id: int, baseline_id: int | None) -> int | None:
+    """Pokušaj nastao NAKON polazne crte, ili `None`. Odgovara na: „je li upisano?"."""
+    with SessionLocal() as session:
+        return session.scalar(
+            select(Attempt.id)
+            .where(
+                Attempt.user_id == user_id,
+                Attempt.task_id == task_id,
+                Attempt.id > (baseline_id or 0),
+            )
+            .order_by(Attempt.id.desc())
+            .limit(1)
+        )
 
 
 def build_response_payload(user_id: int, attempt_id: int | None) -> dict:
@@ -300,9 +354,33 @@ class UpdateState(_FlowState):
             timeout=self.agent.update_timeout,
         )
         if msg is None:
-            # Anti-hang: KM nikad nije javio (npr. payload exception). NE visi.
+            # 🔴 #63: prije nego kažemo „nije prošlo", moramo PROVJERITI je li prošlo.
+            # Coordinatorov istek ne zaustavlja Evaluatora — on commita neovisno
+            # (D6), a Gamification i KM rade dalje. Odgovor „greška" uz postojeći
+            # redak znači da je student kažnjen za predaju koju mu sustav niječe.
+            found = await self._settle(flow)
+            if found is not None:
+                _log.warning(
+                    "Coordinator UPDATE: model-updated istekao (cid=%s), ali pokušaj "
+                    "%s POSTOJI → odgovaram stvarnim ishodom, ne greškom",
+                    flow["cid"],
+                    found,
+                )
+                flow["attempt_id"] = found
+                # Preporuka se ne traži: prozor je već potrošen, a `RECOMMEND` bi
+                # dodao još do 5 s na zahtjev koji je ionako spor.
+                flow["recommendation"] = {
+                    "task_id": None,
+                    "concept": None,
+                    "reason": REASON_RECOMMEND_SKIPPED,
+                }
+                self.set_next_state(STATE_RESPOND)
+                return
+
+            # Ništa nije upisano → greška je istinita.
             _log.warning(
-                "Coordinator UPDATE: model-updated timeout (cid=%s) → evaluation_timeout",
+                "Coordinator UPDATE: model-updated timeout (cid=%s) i nema retka → "
+                "evaluation_timeout",
                 flow["cid"],
             )
             flow["error"] = ERROR_EVALUATION_TIMEOUT
@@ -312,6 +390,26 @@ class UpdateState(_FlowState):
         payload = body_to_payload(msg.body)
         flow["attempt_id"] = payload.get("attempt_id")
         self.set_next_state(STATE_RECOMMEND)
+
+    async def _settle(self, flow: dict) -> int | None:
+        """Kratko pričekaj da upis slegne, pa vrati `attempt_id` ako postoji.
+
+        Jedna provjera ne bi bila dovoljna: redak koji nastane milisekundu nakon nje
+        vratio bi isti nesklad, samo rjeđe. Zato se provjera ponavlja kroz
+        `SETTLE_WINDOW_S` — ograničeno, jer i ovaj prozor troši `GATEWAY_TIMEOUT`.
+        """
+        loop = asyncio.get_event_loop()
+        deadline = loop.time() + SETTLE_WINDOW_S
+        while True:
+            found = await asyncio.to_thread(
+                attempt_since,
+                flow["user_id"],
+                flow["task_id"],
+                flow["baseline_attempt_id"],
+            )
+            if found is not None or loop.time() >= deadline:
+                return found
+            await asyncio.sleep(SETTLE_INTERVAL_S)
 
 
 class RecommendState(_FlowState):
@@ -480,10 +578,17 @@ class _Intake(CyclicBehaviour):
                 "attempt_id": None,
                 "recommendation": None,
                 "error": None,
+                # #63: polazna crta za pitanje „je li ovaj tok išta upisao?".
+                # Postavlja se PRIJE nego išta krene, inače nije polazna crta.
+                "baseline_attempt_id": None,
             }
         except Exception:
             _log.exception("Coordinator INTAKE: neispravna start-poruka — ignoriram")
             return
+
+        flow["baseline_attempt_id"] = await asyncio.to_thread(
+            max_attempt_id, flow["user_id"], flow["task_id"]
+        )
 
         self.agent.log_message(
             sender=sender,

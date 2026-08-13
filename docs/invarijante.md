@@ -163,6 +163,46 @@ vrijednost koju `MAP` ne tvrdi je greška, ne bilješka.
 
 ---
 
+## <a id="brojka-nosi-konkurentnost"></a>Brojka o performansama nosi broj istovremenih korisnika
+
+**Pravilo.** Nijedna izmjerena vrijednost (p50, p95, throughput, trajanje) ne navodi se
+bez broja **istovremenih korisnika** pod kojim je izmjerena. To vrijedi u kodu, u
+wrapupima i u tekstu rada.
+
+**Hazard.** Brojka bez tog broja opisuje **drugi sustav** nego što čitatelj misli.
+Izmjereno: `p95 = 135 ms` bilo je istinito i stabilno mjesecima — pri **jednom**
+korisniku. Pri dvoje se polovica predaja **gubila**, a p95 uspjelih je ostajao 120 ms,
+jer su izgubljeni zahtjevi ispadali iz uzorka. Ista brojka, sustav koji ne radi.
+
+**Presedan.** ERRATA #62: sva mjerenja do 2026-08-12 (p95 iz 5.1, `pilot_run`,
+Playwright uz `workers: 1`, svih 6 coordinator testova) bila su sekvencijalna, pa
+nijedno nije opisivalo ponašanje s dvoje korisnika. Nijedno nije bilo netočno — sva su
+bila **uža** nego što su izgledala.
+
+**Kako se piše.** „p95 = 197 ms (20 studenata, predaja svakih ~19 s)", nikad „p95 = 197 ms".
+
+---
+
+## <a id="jedan-uvicorn-radnik"></a>`--workers 1` je invarijanta, ne postavka
+
+**Pravilo.** Gateway se pokreće kao **jedan** uvicorn proces. `--workers > 1` nije
+dopušten bez arhitektonske promjene.
+
+**Hazard.** Svaki radnik pokreće vlastiti `start_gateway_stack` i prijavljuje se na
+Prosody **istim JID-om** iz `.env`. Isporuka poruka tada ovisi o prioritetu XMPP
+resursa, a `AgentBridge` je **in-process dict**: Future čeka u radniku A, odgovor može
+stići radniku B i ondje se tiho izgubiti (`resolve` vrati `False`, ostane `_log.debug`).
+To je ista klasa gubitka kao ERRATA #62, samo teža za dijagnozu jer se ne vidi ni u
+`agent_messages_log`.
+
+**Što bi trebalo za više radnika:** JID po radniku **i** korelacijski registry izvan
+procesa (Redis ili sl.). To je druga arhitektura, ne zastavica.
+
+**Zapisano u kodu:** `Makefile:168` (jedan proces, `--reload` u devu).
+**Izvor:** `docs/fix-62-korak-0.md` §E.3.
+
+---
+
 ## Kako dodati invarijantu
 
 1. Opisni naslov + **novo stabilno sidro** (`<a id="...">`).

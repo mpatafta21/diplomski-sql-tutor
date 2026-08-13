@@ -105,6 +105,31 @@ def transversal_concepts(session: Session) -> set[str]:
     }
 
 
+def concepts_with_tasks(session: Session) -> list[str]:
+    """Koncepti s >= 1 aktivnim primary zadatkom — ulaz za `recommendable/1`.
+
+    🔴 Definicija je „IMA zadatke", ne „ima NERIJEŠENE zadatke". Da je potonje,
+    koncept čije je sve riješeno tiho bi nestao iz preporuka umjesto da vrati
+    reason="exhausted" — a to je stanje koje sučelje mora moći prikazati
+    (v. test_all_tasks_solved_gives_exhausted).
+
+    🔴 Vraća LISTU u kanonskom poretku (`load_concept_code_map`), ne set. Poredak
+    injektiranih fakata je ulaz u Prolog, ne detalj implementacije: set bi ovdje
+    dao poredak ovisan o hashu, dakle promjenjiv između procesa — mehanizam
+    ERRATE #60. `recommendable/1` je u rules.pl namjerno zadnji cilj pa ne
+    nabraja, ali kanonski poredak je druga brana i ne košta ništa.
+
+    Ne zamjenjuje maske Kat. B/C (0.99); te ostaju kakve jesu. Ovaj skup je
+    obrana za Kat. A, koju maska po dizajnu ne pokriva.
+    """
+    stats = _concept_task_stats(session)
+    return [
+        code
+        for code in load_concept_code_map(session)  # KANONSKI redoslijed
+        if stats.get(code, (None, 0))[1] > 0
+    ]
+
+
 def subfloor_concepts(session: Session) -> set[str]:
     """Kat. B: koncepti modula != 0 s < 2 aktivna primary taska (pod-resursirani).
 
@@ -244,13 +269,23 @@ def recommend(session: Session, engine: "PrologEngine", user_id: int) -> dict:
     masked = subfloor_concepts(session) | UNSUPPORTED_CONCEPTS
     snapshot = build_mastery_snapshot(session, engine, user_id, transversal, masked)
 
+    # Kat. A se NE maskira nego se izbacuje iz KANDIDATA: p_l mora ostati 0.0 da
+    # blokira nizvodne koncepte, a 0.0 ga ujedno čini `weak` pa je preticao prave
+    # koncepte kroz klauzulu 1 i završavao kao "exhausted". recommendable/1 je
+    # razdvajanje te dvije uloge — v. rules.pl.
+    recommendable = concepts_with_tasks(session)
+
     uid = str(user_id)
+    engine.inject_recommendable(recommendable)
     engine.inject_mastery(uid, snapshot)
     try:
         rec = engine.recommend_next(uid)
     finally:
         # Počisti mastery fakte da ne cure u dijeljeni VM (cross-user leak).
         engine.clear_mastery(uid)
+        # recommendable/1 je globalan; čisti se pod istom bravom pod kojom je i
+        # ubačen (pozivatelj u 3C.2 drži prolog_lock preko cijelog recommend()).
+        engine.clear_recommendable()
 
     if rec is None:
         return {"task_id": None, "concept": None, "reason": "no_recommendation"}

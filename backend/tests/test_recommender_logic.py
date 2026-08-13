@@ -35,6 +35,7 @@ from agents.db_helpers import load_concept_code_map
 from agents.evaluation import UNSUPPORTED_CONCEPTS
 from agents.recommender_logic import (
     build_mastery_snapshot,
+    concepts_with_tasks,
     recommend,
     select_task_for_concept,
     subfloor_concepts,
@@ -493,11 +494,17 @@ def test_unmasked_prolog_would_recommend_unevaluable(prolog_engine):
     for code in UNSUPPORTED_CONCEPTS:
         snap[code] = 0.10
 
+    # Izolira pravilo pod testom (maska) od guarda po broju zadataka: ovdje se
+    # tvrdi svijet u kojem SVI koncepti imaju zadatke, pa preporuku može
+    # zaustaviti samo maska. Bez toga bi test prolazio iz drugog razloga —
+    # explain_plan/index_usage danas imaju 0 aktivnih zadataka (izmjereno).
+    prolog_engine.inject_recommendable(ALL_30)
     prolog_engine.inject_mastery("t_unmasked", snap)
     try:
         rec = prolog_engine.recommend_next("t_unmasked")
     finally:
         prolog_engine.clear_mastery("t_unmasked")
+        prolog_engine.clear_recommendable()
 
     assert rec is not None and rec[0] in UNSUPPORTED_CONCEPTS, (
         f"bez maske Prolog nudi neevaluabilan koncept (= ćorsokak), dobiveno {rec}"
@@ -515,11 +522,13 @@ def test_masked_skips_to_evaluable_concept(prolog_engine):
     for code in UNSUPPORTED_CONCEPTS:
         snap[code] = 0.99  # maska koju recommend() primjenjuje
 
+    prolog_engine.inject_recommendable(ALL_30)  # v. napomenu u testu iznad
     prolog_engine.inject_mastery("t_masked", snap)
     try:
         rec = prolog_engine.recommend_next("t_masked")
     finally:
         prolog_engine.clear_mastery("t_masked")
+        prolog_engine.clear_recommendable()
 
     assert rec is not None, "maska je ušutkala preporuku — tiši ćorsokak"
     assert rec[0] not in UNSUPPORTED_CONCEPTS
@@ -611,11 +620,15 @@ def test_transversal_loses_to_real_concept(prolog_engine):
     snap["join_condition"] = 0.0  # jedini weak
     snap["self_join"] = 0.50  # jedini partial
 
+    # Svijet u kojem svi OSIM transverzalnih imaju zadatke — to je stvarno stanje
+    # kataloga i jedina stvar koju ovaj test ispituje.
+    prolog_engine.inject_recommendable([c for c in ALL_30 if c != "join_condition"])
     prolog_engine.inject_mastery("t_transversal", snap)
     try:
         rec = prolog_engine.recommend_next("t_transversal")
     finally:
         prolog_engine.clear_mastery("t_transversal")
+        prolog_engine.clear_recommendable()
 
     assert rec is not None, "preporuka ušutkana — tiši ćorsokak"
     assert rec[0] != "join_condition", (
@@ -641,3 +654,105 @@ def test_transversal_still_blocks_downstream(prolog_engine):
         prolog_engine.clear_mastery("t_block")
 
     assert not met, "inner_join je lažno otključan — blokada transverzalnim je pala"
+
+
+# ---------------------------------------------------------------------------
+# T11 — recommendable/1 NE SMIJE utjecati na poredak preporuke
+#
+# 🔴 Uhvaćeno tijekom implementacije: s `recommendable(Concept)` kao PRVIM ciljem
+# u klauzuli i nevezanim Conceptom, predikat postaje GENERATOR — poredak rješenja
+# prestaje ovisiti o `mastery/3` (kanonski pedagoški slijed) i počinje ovisiti o
+# poretku `recommendable/1` fakata. Kako su se ti fakti tada injektirali iz Python
+# seta, poredak je ovisio o hashu i mijenjao se između procesa: preporuka se
+# mijenja bez ijedne izmjene koda = mehanizam ERRATE #60.
+#
+# Prvi simptom bio je pad zatečenog testa (M1+M2 mastered → dobio `update` umjesto
+# `inner_join`). Ovi testovi pretvaraju taj slučajni pad u trajnu branu.
+# ---------------------------------------------------------------------------
+
+
+def test_recommendable_order_does_not_change_recommendation(prolog_engine):
+    """🔴 Isti svijet, obrnut poredak recommendable fakata → ISTA preporuka.
+
+    Pada ako `recommendable/1` ikad postane generator (npr. premještanjem na
+    početak klauzule).
+    """
+    # 🔴 Profil mora dati VIŠE kandidata, inače test ne mjeri poredak. Prva verzija
+    # stavila je sve na 0.10 i prolazila je i s namjerno vraćenom regresijom: kad
+    # ništa nije mastered, `prereqs_met` vrijedi samo za `select_basic` (jedini
+    # korijen grafa), pa je odgovor jedinstven bez obzira na poredak.
+    # Ovdje su sve mastered osim dva weak koncepta čiji su prereqs zadovoljeni —
+    # tada o pobjedniku odlučuje isključivo redoslijed nabrajanja.
+    snap = {c: 0.99 for c in ALL_30}
+    snap["self_join"] = 0.10
+    snap["update"] = 0.10
+    world = [c for c in ALL_30 if c != "join_condition"]
+
+    results = []
+    for order in (world, list(reversed(world))):
+        prolog_engine.inject_recommendable(order)
+        prolog_engine.inject_mastery("t_order", snap)
+        try:
+            results.append(prolog_engine.recommend_next("t_order"))
+        finally:
+            prolog_engine.clear_mastery("t_order")
+            prolog_engine.clear_recommendable()
+
+    assert results[0] == results[1], (
+        f"poredak recommendable fakata promijenio preporuku: {results} — "
+        "predikat je postao generator (ERRATA #60)"
+    )
+
+
+def test_concepts_with_tasks_is_canonically_ordered():
+    """Skup za injekciju je LISTA u kanonskom poretku, ne set.
+
+    Set bi dao poredak ovisan o hashu stringova, dakle promjenjiv između procesa.
+    """
+    with SessionLocal() as sess:
+        got = concepts_with_tasks(sess)
+        canonical = list(load_concept_code_map(sess))
+
+    assert isinstance(got, list), "set ne jamči poredak između procesa"
+    assert got == [c for c in canonical if c in set(got)], (
+        "poredak ne prati load_concept_code_map (kanonski pedagoški slijed)"
+    )
+
+
+def test_recommend_is_deterministic_across_calls(recommender_env, prolog_engine):
+    """Isti profil, pet uzastopnih poziva → isti ishod (uklj. ćorsokak profil)."""
+    user_id = recommender_env["user_id"]
+    _seed_mastery(user_id, _DEADLOCK_PROFILE)
+
+    with SessionLocal() as sess:
+        results = [recommend(sess, prolog_engine, user_id) for _ in range(5)]
+
+    assert all(r == results[0] for r in results), f"nedeterministično: {results}"
+
+
+def test_recommend_injects_recommendable(recommender_env, prolog_engine):
+    """🔴 recommend() MORA injektirati recommendable/1 — inače fail-closed ušutka sve.
+
+    Brana protiv refaktora koji ispusti injekciju: bez fakata `recommend_next`
+    ne vraća ništa, pa bi svaki korisnik dobio "no_recommendation".
+    """
+    user_id = recommender_env["user_id"]
+    prolog_engine.clear_recommendable()  # zajamči prazno stanje prije poziva
+
+    with SessionLocal() as sess:
+        result = recommend(sess, prolog_engine, user_id)
+
+    assert result["concept"] is not None, (
+        f"recommend() nije injektirao recommendable/1 — dobiveno {result}"
+    )
+
+
+def test_recommendable_is_cleared_after_recommend(recommender_env, prolog_engine):
+    """Globalni fakti se ne smiju zadržati nakon poziva (dijeljeni VM)."""
+    user_id = recommender_env["user_id"]
+
+    with SessionLocal() as sess:
+        recommend(sess, prolog_engine, user_id)
+
+    left = list(prolog_engine._prolog.query("recommendable(C)"))
+    assert not left, f"recommendable/1 fakti procurili iz recommend(): {len(left)}"

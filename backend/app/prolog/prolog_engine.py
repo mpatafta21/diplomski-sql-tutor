@@ -23,6 +23,7 @@ pokrivanje preporuča se injectati svih 30 koncepata.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 from types import TracebackType
 
@@ -67,9 +68,10 @@ class PrologEngine:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        """Čisti sve ubačene mastery fakte."""
+        """Čisti sve ubačene mastery fakte i globalne `recommendable/1` fakte."""
         for user_id in list(self._injected_users):
             self.clear_mastery(user_id)
+        self.clear_recommendable()
 
     # --- Injekcija BKT snapshot-a ---------------------------------------
 
@@ -92,6 +94,29 @@ class PrologEngine:
         """Retractall za sve `mastery/3` fakte danog user_id-a."""
         list(self._prolog.query(f"retractall(mastery({user_id}, _, _))"))
         self._injected_users.discard(user_id)
+
+    # --- Injekcija skupa preporučivih koncepata --------------------------
+
+    def inject_recommendable(self, concept_codes: Iterable[str]) -> None:
+        """Ubacuje `recommendable/1` fakte — koncepti koji IMAJU aktivne zadatke.
+
+        🔴 Za razliku od `mastery/3`, ovo NIJE po korisniku: skup je izveden iz
+        kataloga zadataka i jednak je za sve. Zato je i `retractall` globalan, pa
+        injekcija, upit i čišćenje MORAJU biti u istoj kritičnoj sekciji
+        (`prolog_lock` u RecommenderAgentu) — inače bi jedan tok maknuo fakte
+        drugome usred upita.
+
+        🔴 Fail-closed: bez ijednog fakta `recommend_next/2` ne vraća NIŠTA.
+        Propuštena injekcija se time vidi odmah (nula preporuka), umjesto da
+        tiho vrati koncept bez zadataka — kvar zbog kojeg predikat i postoji.
+        """
+        self.clear_recommendable()
+        for code in concept_codes:
+            self._prolog.assertz(f"recommendable({code})")
+
+    def clear_recommendable(self) -> None:
+        """Retractall za sve `recommendable/1` fakte (globalno, nije po korisniku)."""
+        list(self._prolog.query("retractall(recommendable(_))"))
 
     # --- Preporuke ------------------------------------------------------
 

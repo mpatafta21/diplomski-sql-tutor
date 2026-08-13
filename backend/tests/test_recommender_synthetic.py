@@ -21,9 +21,17 @@ def engine():
     """Svježa PrologEngine instanca s automatskim cleanup-om mastery fakata.
 
     __exit__ radi retractall(mastery/3) pa testovi ne cure state među sobom.
+
+    🔴 `recommendable/1` je fail-closed: bez ijednog fakta `recommend_next/2` ne
+    vraća ništa. Ovaj modul provjerava ZPD PRAVILA na profilima iz §4.5
+    domenskog modela i stariji je od kataloga zadataka, pa je njegov svijet
+    „svih 30 koncepata je vježbivo". Deklarira se ovdje, na jednom mjestu, da
+    profilni testovi mjere pravila a ne stanje kataloga.
     """
     with PrologEngine() as eng:
+        eng.inject_recommendable(ALL_30)
         yield eng
+        eng.clear_recommendable()
 
 
 # --- Profili iz §4.5 dokumenta -------------------------------------------

@@ -104,6 +104,18 @@ class NextTaskResponse(BaseModel):
     reason: str | None = None
 
 
+class TaskForConceptResponse(BaseModel):
+    """Odgovor `GET /task-for-concept/{code}` — zadatak koncepta za OVOG korisnika.
+
+    Za razliku od `entry_task_id` u `/modules`, koji je statičan katalog bez
+    korisničkog konteksta, ovdje se riješeni zadaci preskaču.
+    """
+
+    task_id: int
+    concept: str
+    repeat: bool = False
+
+
 class HintRequestBody(BaseModel):
     """Tijelo `POST /hint` — SAMO `task_id`.
 

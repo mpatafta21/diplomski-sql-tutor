@@ -45,6 +45,7 @@ from agents.hint_logic import (
     unlocking_attempt,
 )
 from agents.messages import Ontology
+from agents.recommender_logic import resolve_task_for_concept
 from app.api.schemas import (
     AgentLogItem,
     AttemptItem,
@@ -65,6 +66,7 @@ from app.api.schemas import (
     RunRequest,
     RunResponse,
     TaskDetailResponse,
+    TaskForConceptResponse,
     TokenResponse,
 )
 from app.core.security import (
@@ -698,6 +700,50 @@ async def get_modules(
 ) -> list[ModuleNode]:
     data = await asyncio.to_thread(_read_modules)
     return [ModuleNode(**m) for m in data]
+
+
+# ---------------------------------------------------------------------------
+# GET /task-for-concept/{code} — zadatak koncepta ZA OVOG korisnika
+#
+# Postoji jer je `entry_task_id` u `/modules` statičan (bez usera), pa je klik na
+# koncept vodio na već riješen zadatak. Ovdje se riješeni preskaču kroz
+# `resolve_task_for_concept` — jedini kod koji zna što je student riješio.
+#
+# 🔴 BEZ FIPA lanca, izravan DB read: ovaj put ne dira Prolog (za razliku od
+# `/next-task`), pa bi bridge dodao round-trip bez ijedne koristi. Presedan je
+# `/modules`, koji je isto `to_thread` read.
+# ---------------------------------------------------------------------------
+
+
+def _read_task_for_concept(concept_code: str, user_id: int) -> dict | None:
+    """Sinkroni read. Vraća None za nepoznat koncept, {} za koncept bez zadataka."""
+    with SessionLocal() as session:
+        exists = session.scalar(
+            select(Concept.id).where(Concept.code == concept_code)
+        )
+        if exists is None:
+            return None
+
+        task_id, repeat = resolve_task_for_concept(session, user_id, concept_code)
+        if task_id is None:
+            return {}
+        return {"task_id": task_id, "concept": concept_code, "repeat": repeat}
+
+
+@router.get("/task-for-concept/{code}", response_model=TaskForConceptResponse)
+async def get_task_for_concept(
+    code: str = Path(...),
+    user: User = Depends(get_current_user),
+) -> TaskForConceptResponse:
+    data = await asyncio.to_thread(_read_task_for_concept, code, user.id)
+    if data is None:
+        raise HTTPException(status_code=404, detail="concept_not_found")
+    if not data:
+        # Koncept postoji ali nema aktivnih primary zadataka (transverzalni,
+        # deaktivirani M6). Klijent taj link ionako ne renderira
+        # (`primary_task_count === 0` → nije klikabilno), pa je ovo obrana u dubinu.
+        raise HTTPException(status_code=404, detail="concept_has_no_tasks")
+    return TaskForConceptResponse(**data)
 
 
 # ---------------------------------------------------------------------------

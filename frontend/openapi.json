@@ -332,6 +332,50 @@
         ]
       }
     },
+    "/task-for-concept/{code}": {
+      "get": {
+        "summary": "Get Task For Concept",
+        "operationId": "get_task_for_concept_task_for_concept__code__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskForConceptResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/badges": {
       "get": {
         "summary": "Get Badges",
@@ -1832,6 +1876,30 @@
         ],
         "title": "TaskDetailResponse",
         "description": "Detalj zadatka za studenta. NAMJERNO bez expected_query / expected_result /\nsandbox_schema \u2014 rje\u0161enje se NE izla\u017ee kroz ovaj endpoint."
+      },
+      "TaskForConceptResponse": {
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "title": "Task Id"
+          },
+          "concept": {
+            "type": "string",
+            "title": "Concept"
+          },
+          "repeat": {
+            "type": "boolean",
+            "title": "Repeat",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "concept"
+        ],
+        "title": "TaskForConceptResponse",
+        "description": "Odgovor `GET /task-for-concept/{code}` \u2014 zadatak koncepta za OVOG korisnika.\n\nZa razliku od `entry_task_id` u `/modules`, koji je stati\u010dan katalog bez\nkorisni\u010dkog konteksta, ovdje se rije\u0161eni zadaci preska\u010du."
       },
       "TokenResponse": {
         "properties": {

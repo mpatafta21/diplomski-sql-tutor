@@ -215,39 +215,67 @@ def solved_task_ids(session: Session, user_id: int) -> set[int]:
     )
 
 
+def resolve_task_for_concept(
+    session: Session, user_id: int, concept_code: str
+) -> tuple[int | None, bool]:
+    """Vrati `(task_id, repeat)` — zadatak koncepta za ovog korisnika.
+
+    Tri ishoda koja pozivatelji moraju razlikovati:
+      * `(id, False)` — najlakši NERIJEŠEN aktivan primary zadatak;
+      * `(id, True)`  — svi su riješeni, vraćen najlakši **za ponavljanje**
+        (Task ekran ga označava bedžom „Riješeno"; ponovna predaja ne nosi XP);
+      * `(None, False)` — koncept nema nijedan aktivan primary zadatak.
+
+    🔴 JEDINI izvor pravila „koncept → zadatak". `select_task_for_concept`
+    delegira ovamo; dvije implementacije istog upita bile bi mehanizam N-8.
+    """
+    # Obrana u dubinu (Kat. C): neevaluabilan koncept NIKAD ne smije dati task —
+    # ni ako ga netko zatraži izravno, zaobilazeći masku u recommend(). Takav
+    # task ne može postati is_correct → nikad "riješen" → trajna petlja.
+    if concept_code in UNSUPPORTED_CONCEPTS:
+        return None, False
+
+    concept_id = load_concept_code_map(session).get(concept_code)
+    if concept_id is None:
+        return None, False
+
+    candidate_ids = list(
+        session.execute(
+            select(Task.id)
+            .join(TaskConcept, TaskConcept.task_id == Task.id)
+            .where(
+                TaskConcept.concept_id == concept_id,
+                TaskConcept.is_primary.is_(True),
+                Task.is_active.is_(True),
+            )
+            .order_by(Task.difficulty.asc(), Task.id.asc())
+        ).scalars()
+    )
+    if not candidate_ids:
+        return None, False
+
+    solved = solved_task_ids(session, user_id)
+    for task_id in candidate_ids:
+        if task_id not in solved:
+            return task_id, False
+
+    return candidate_ids[0], True
+
+
 def select_task_for_concept(
     session: Session, user_id: int, concept_code: str
 ) -> int | None:
     """Najlakši aktivni primary task koncepta koji korisnik još NIJE riješio.
 
     Vraća None ako koncept nema (nerješenih) aktivnih primary taskova.
+
+    🔴 „Sve riješeno" OSTAJE None — `recommend()` iz toga radi reason="exhausted",
+    stanje koje sučelje mora moći prikazati. Zadatak za ponavljanje nudi samo
+    izravni put kroz `resolve_task_for_concept` (klik na koncept), gdje ga je
+    korisnik izrijekom zatražio.
     """
-    # Obrana u dubinu (Kat. C): neevaluabilan koncept NIKAD ne smije dati task —
-    # ni ako ga netko zatraži izravno, zaobilazeći masku u recommend(). Takav
-    # task ne može postati is_correct → nikad "riješen" → trajna petlja.
-    if concept_code in UNSUPPORTED_CONCEPTS:
-        return None
-
-    concept_id = load_concept_code_map(session).get(concept_code)
-    if concept_id is None:
-        return None
-
-    solved = solved_task_ids(session, user_id)
-    candidate_ids = session.execute(
-        select(Task.id)
-        .join(TaskConcept, TaskConcept.task_id == Task.id)
-        .where(
-            TaskConcept.concept_id == concept_id,
-            TaskConcept.is_primary.is_(True),
-            Task.is_active.is_(True),
-        )
-        .order_by(Task.difficulty.asc(), Task.id.asc())
-    ).scalars()
-
-    for task_id in candidate_ids:
-        if task_id not in solved:
-            return task_id
-    return None
+    task_id, repeat = resolve_task_for_concept(session, user_id, concept_code)
+    return None if repeat else task_id
 
 
 # ---------------------------------------------------------------------------

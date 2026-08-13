@@ -436,6 +436,68 @@ ostalo — natpis, `aria-disabled`, geometrija, mjesto gumba u redu.
 
 ---
 
+# E4 — Admin reset kredita (2026-08-13, odluka korisnika)
+
+`POST /admin/hint-credit/reset` + admin-only gumb uz brojač.
+
+## Zašto reset, a ne „admin bez ograničenja"
+
+Neograničen admin nikad ne može vidjeti `hint_rate_limited`, a to je jedno od sedam
+stanja koja rad dokumentira i **demonstrira se upravo na adminu**. Brojač bi mu uz to
+uvijek pisao 5, dakle bio bi dekorativan. S resetom limit ostaje stvaran: može se
+iscrpiti, pokazati, pa vratiti.
+
+## Zašto smije brisati retke
+
+🔴 **Adminovi `hint_requests` redci nisu telemetrija.** Admin je po dizajnu izvan analize
+— `/leaderboard` ga izrijekom isključuje („admin nije natjecatelj"). Studentovi redci
+jesu: oni su jedini izvor o potrošnji savjeta i rupama u katalogu.
+
+Zato ruta:
+
+1. **ne prima `user_id`** i briše isključivo retke pozivatelja. Parametar za ciljanog
+   korisnika nije propust nego **izostavljen namjerno** — s njim bi jedna kriva vrijednost
+   obrisala evaluacijske podatke sudionika. Čuva ga test
+   `test_reset_touches_only_the_caller`.
+2. briše **samo ono što troši kredit** (`CONSUMING_SOURCES`). `source='unavailable'`
+   ostaje — ne troši ništa, a mjeri rupu u katalogu.
+3. vraća `remaining`/`next_refill_at` iz `hint_credit`, **iste funkcije** koju zovu
+   `/hint` i `/profile` — ne iz pretpostavke „nakon brisanja je puno". Treća
+   implementacija istog pravila bila bi mehanizam N-8; čuva ga
+   `test_reset_agrees_with_profile`.
+
+Time je izbjegnuta i **migracija**: pravi „reset bez brisanja" tražio bi novu kolonu
+(npr. `users.hint_credit_reset_at`), a shema se po CLAUDE.md ne mijenja bez zasebne
+odluke. Ako reset ikad zatreba **za studenta**, brisanje više neće biti prihvatljivo i
+ta migracija postaje nužna — zapisano ovdje da se ne otkriva ispočetka.
+
+## Izmjereno na živom sustavu
+
+| provjera | rezultat |
+|---|---|
+| student — gumb u DOM-u | **0** (ne renderira se) |
+| student — izravan poziv rute | **403** `admin_required`, nula obrisanih redaka |
+| admin — reset | toast „obrisano 5 zapisa", `/profile.remaining` 0 → **5**, `next_refill_at` → `null` |
+| N-20 @768 s admin gumbom | red **44 px**, editor **420 px**, bez prelamanja |
+| `pytest` | **760 passed, 1 skipped** |
+| `make preflight` | zelen |
+| `npm run e2e` | 2/2, teardown čist |
+
+🔴 **Skrivanje gumba nije kontrola pristupa.** Gumb se sakriva radi urednosti; kontrola je
+`require_admin` na ruti, i to je izmjereno pozivom iz studentove sesije, ne pretpostavljeno.
+
+🔴 **Odstupanje:** gumb je `size="xs"` (24 px), ispod WCAG 2.5.5 praga od 44 px. Svjesno —
+`button.tsx` xs/sm izrijekom drži kao escape-hatch za gusti sekundarni UI, a ovo je admin
+alat koji student nikad ne renderira, dakle nije dio studentskog puta za koji se AA tvrdi.
+Veći gumb narastao bi meta redak. Kartica je na adminovu ekranu viša **+4,8 px** (24 px
+gumb umjesto 19,2 px retka teksta); studentov ekran je nepromijenjen, pa matrica iz §D.1
+i dalje vrijedi.
+
+🔴 Ovo je bila **eskalacija zamrznutog backenda** (🔒 politika od 4.4-0f) uz izričitu
+odluku korisnika, pa su pun `pytest` i `make preflight` odvrćeni kako politika traži.
+
+---
+
 # F — Otvoreno
 
 - **N-21** (`submitted_query` u FIPA logu) — i dalje otvoren, izvan opsega 5.2.

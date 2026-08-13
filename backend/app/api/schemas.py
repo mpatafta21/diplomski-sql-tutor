@@ -136,6 +136,21 @@ class HintResponse(BaseModel):
     next_refill_at: datetime | None = None
 
 
+class HintCreditResetResponse(BaseModel):
+    """Odgovor na `POST /admin/hint-credit/reset` (Faza 5.2).
+
+    🔴 `remaining` i `next_refill_at` dolaze iz `hint_logic.hint_credit`, iste
+    funkcije koju zovu `/hint` i `/profile` — ne iz pretpostavke „nakon brisanja
+    je puno". Da se računa ovdje, imali bismo treću implementaciju istog pravila
+    (mehanizam N-8).
+    """
+
+    remaining: int | None = None
+    next_refill_at: datetime | None = None
+    #: Koliko je redaka obrisano — akcija koja briše mora reći KOLIKO je obrisala.
+    deleted: int
+
+
 class ProfileResponse(BaseModel):
     """Polja level-progresa i konstante (Faza 4.2) su tu da ih frontend NE
     hardkodira — izvor: gamification_logic (progress_to_next_level, LEVEL_STEP,

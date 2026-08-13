@@ -113,6 +113,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/hint-credit/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Reset Hint Credit
+         * @description Vrati adminov kredit za savjete na puno stanje.
+         *
+         *     🔴 BRIŠE SAMO RETKE POZIVATELJA i NE PRIMA `user_id`. Adminovi
+         *     `hint_requests` redci nisu telemetrija — admin je po dizajnu izvan analize
+         *     (`/leaderboard` ga izrijekom isključuje). Studentovi jesu: oni su jedini
+         *     izvor o potrošnji savjeta i rupama u katalogu, pa ih ova ruta ne može
+         *     dohvatiti ni greškom. Parametar za ciljanog korisnika NIJE propust nego
+         *     izostavljen namjerno — s njim bi jedna kriva vrijednost obrisala
+         *     evaluacijske podatke sudionika.
+         *
+         *     🔴 Briše se samo ono što TROŠI kredit (`CONSUMING_SOURCES`).
+         *     `source='unavailable'` ostaje: taj redak ne troši ništa, a mjeri rupu u
+         *     katalogu hintova.
+         *
+         *     🔴 Ovo je RESET, ne izuzeće. Admin i dalje ima limit, pa mu stanje
+         *     `hint_rate_limited` ostaje dosežno — a ono je jedno od sedam stanja koja
+         *     rad dokumentira i demonstrira se upravo na adminu.
+         */
+        post: operations["post_reset_hint_credit_admin_hint_credit_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/profile": {
         parameters: {
             query?: never;
@@ -443,6 +479,23 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HintCreditResetResponse
+         * @description Odgovor na `POST /admin/hint-credit/reset` (Faza 5.2).
+         *
+         *     🔴 `remaining` i `next_refill_at` dolaze iz `hint_logic.hint_credit`, iste
+         *     funkcije koju zovu `/hint` i `/profile` — ne iz pretpostavke „nakon brisanja
+         *     je puno". Da se računa ovdje, imali bismo treću implementaciju istog pravila
+         *     (mehanizam N-8).
+         */
+        HintCreditResetResponse: {
+            /** Remaining */
+            remaining?: number | null;
+            /** Next Refill At */
+            next_refill_at?: string | null;
+            /** Deleted */
+            deleted: number;
         };
         /**
          * HintRequestBody
@@ -895,6 +948,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_reset_hint_credit_admin_hint_credit_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HintCreditResetResponse"];
                 };
             };
         };

@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "react-router-dom"
+import { toast } from "sonner"
 import {
   BookOpen,
   CheckCircle2,
@@ -22,6 +23,7 @@ import {
   Lightbulb,
   MonitorSmartphone,
   Play,
+  RotateCcw,
   Send,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -43,6 +45,7 @@ import { useBadges } from "@/hooks/useBadges"
 import { useHint, HintError } from "@/hooks/useHint"
 import { useModules } from "@/hooks/useModules"
 import { useProfile } from "@/hooks/useProfile"
+import { useResetHintCredit } from "@/hooks/useResetHintCredit"
 import { useRun } from "@/hooks/useRun"
 import { useSubmitAttempt } from "@/hooks/useSubmitAttempt"
 import { useTask } from "@/hooks/useTask"
@@ -187,6 +190,21 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
   const [hintObjava, setHintObjava] = useState("")
 
   const hintsEnabled = (user?.hints_enabled ?? false) && !hintsHidden
+  // 🔴 Sakrivanje gumba NIJE kontrola pristupa — ruta ima `require_admin` i
+  // vraća 403 studentu koji je ipak pozove. Ovo je samo da studentu ne visi
+  // admin alat na ekranu (isti obrazac kao `hints_enabled`).
+  const isAdmin = user?.role === "admin"
+  const resetM = useResetHintCredit()
+  const handleResetKredit = () =>
+    resetM.mutate(undefined, {
+      onSuccess: (d) =>
+        toast.success(
+          d.deleted === 0
+            ? "Kredit je već bio pun."
+            : `Kredit vraćen — obrisano ${d.deleted} zapisa.`,
+        ),
+      onError: () => toast.error("Reset kredita nije uspio."),
+    })
   const hintUnlocked = task.last_attempt_error_type != null
   const hintRemaining = profileQ.data?.remaining
   const hintFailureReason =
@@ -603,14 +621,34 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
           {hintsEnabled && (
             <>
               {hintMetaText && (
-                // `text-sm`, ne `text-xs` — presedan RegisterPage.tsx:152, gdje
-                // je pomoć uz polje podignuta upravo zbog kontrasta (N-4).
-                <p
-                  id={HINT_RAZLOG_ID}
-                  className="text-sm text-muted-foreground"
-                >
-                  {hintMetaText}
-                </p>
+                <div className="flex items-center gap-2">
+                  {/* `text-sm`, ne `text-xs` — presedan RegisterPage.tsx:152,
+                      gdje je pomoć uz polje podignuta upravo zbog kontrasta
+                      (N-4). 🔴 Gumb je IZVAN <p>: `aria-describedby` pokazuje
+                      na taj <p>, pa bi natpis gumba unutra ušao u opis gumba. */}
+                  <p
+                    id={HINT_RAZLOG_ID}
+                    className="text-sm text-muted-foreground"
+                  >
+                    {hintMetaText}
+                  </p>
+                  {isAdmin && (
+                    // 🔴 `size="xs"` (24 px) je ISPOD WCAG 2.5.5 praga od 44 px.
+                    // Svjesno: `button.tsx` xs/sm izrijekom drži kao escape-hatch
+                    // za gusti sekundarni UI, a ovo je admin alat koji student
+                    // nikad ne renderira — nije dio studentskog puta za koji se
+                    // AA tvrdi. Veći gumb bi ovdje narastao meta redak.
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      disabled={resetM.isPending}
+                      onClick={handleResetKredit}
+                    >
+                      <RotateCcw data-icon="inline-start" aria-hidden="true" />
+                      Resetiraj kredit
+                    </Button>
+                  )}
+                </div>
               )}
               {/* Klik na zaključan gumb ne mijenja ništa vidljivo, pa objava ide
                   ovuda. `sr-only` je izvan toka → ne dodaje visinu. */}

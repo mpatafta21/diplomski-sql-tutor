@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import aliased
 
@@ -38,6 +38,7 @@ from agents.gamification_logic import (
 )
 from agents.hint_agent import REASON_NOT_UNLOCKED
 from agents.hint_logic import (
+    CONSUMING_SOURCES,
     existing_request,
     hint_credit,
     primary_concept,
@@ -50,6 +51,7 @@ from app.api.schemas import (
     AttemptRequest,
     AttemptResponse,
     BadgeCatalogItem,
+    HintCreditResetResponse,
     HintRequestBody,
     HintResponse,
     LeaderboardItem,
@@ -79,6 +81,7 @@ from app.db.models import (
     Badge,
     Concept,
     ConceptPrerequisite,
+    HintRequest,
     Module,
     SkillMastery,
     SkillMasteryHistory,
@@ -394,6 +397,58 @@ async def post_hint(
         remaining=remaining,
         next_refill_at=refill,
     )
+
+
+# ---------------------------------------------------------------------------
+# POST /admin/hint-credit/reset — admin vraća SVOJ kredit za savjete
+# ---------------------------------------------------------------------------
+
+
+def _reset_hint_credit(user_id: int) -> dict:
+    """Obriši retke koji troše kredit ovog korisnika i vrati novo stanje."""
+    with SessionLocal() as session:
+        deleted = session.execute(
+            delete(HintRequest).where(
+                HintRequest.user_id == user_id,
+                HintRequest.source.in_(CONSUMING_SOURCES),
+            )
+        ).rowcount
+        session.commit()
+        remaining, refill = (
+            hint_credit(session, user_id) if config.USE_LLM_HINTS else (None, None)
+        )
+        return {
+            "remaining": remaining,
+            "next_refill_at": refill,
+            "deleted": int(deleted or 0),
+        }
+
+
+@router.post("/admin/hint-credit/reset", response_model=HintCreditResetResponse)
+async def post_reset_hint_credit(
+    admin: User = Depends(require_admin),
+) -> HintCreditResetResponse:
+    """Vrati adminov kredit za savjete na puno stanje.
+
+    🔴 BRIŠE SAMO RETKE POZIVATELJA i NE PRIMA `user_id`. Adminovi
+    `hint_requests` redci nisu telemetrija — admin je po dizajnu izvan analize
+    (`/leaderboard` ga izrijekom isključuje). Studentovi jesu: oni su jedini
+    izvor o potrošnji savjeta i rupama u katalogu, pa ih ova ruta ne može
+    dohvatiti ni greškom. Parametar za ciljanog korisnika NIJE propust nego
+    izostavljen namjerno — s njim bi jedna kriva vrijednost obrisala
+    evaluacijske podatke sudionika.
+
+    🔴 Briše se samo ono što TROŠI kredit (`CONSUMING_SOURCES`).
+    `source='unavailable'` ostaje: taj redak ne troši ništa, a mjeri rupu u
+    katalogu hintova.
+
+    🔴 Ovo je RESET, ne izuzeće. Admin i dalje ima limit, pa mu stanje
+    `hint_rate_limited` ostaje dosežno — a ono je jedno od sedam stanja koja
+    rad dokumentira i demonstrira se upravo na adminu.
+    """
+    data = await asyncio.to_thread(_reset_hint_credit, admin.id)
+    return HintCreditResetResponse(**data)
+
 
 
 # ---------------------------------------------------------------------------

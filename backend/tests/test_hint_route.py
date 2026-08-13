@@ -436,6 +436,64 @@ async def test_replay_works_even_with_empty_bucket(hint_user, llm_ok) -> None:
     assert llm_ok == []
 
 
+@pytest.mark.asyncio
+async def test_profile_remaining_matches_hint_response(hint_user, llm_ok) -> None:
+    """🔴 Faza 5.2 §B.4: `/profile.remaining` == `HintResponse.remaining`.
+
+    Ovo je test protiv N-8 mehanizma, ne protiv tipfelera: dvije rute računaju istu
+    brojku i moraju je računati ISTOM funkcijom (`hint_logic.hint_credit`). Kopija
+    formule bi ovdje pala prvi put kad se jedna strana promijeni.
+
+    Mjeri se nakon ISTOG niza — prije hinta, poslije hinta i poslije ponovljenog
+    (idempotentnog) hinta, koji kredit NE troši.
+    """
+    uid, tid = hint_user["user_id"], hint_user["task_id"]
+    _attempt(uid, tid, n=1, correct=False, et="row_mismatch")
+
+    app = create_app()
+    async with _stack(app), _client(app) as c:
+
+        async def profil() -> dict:
+            r = await c.get("/profile", headers=auth_header(uid))
+            assert r.status_code == 200, r.text
+            return r.json()
+
+        prije = await profil()
+        assert prije["remaining"] == config.HINT_MAX, "netaknut bucket je pun"
+        assert prije["next_refill_at"] is None, "pun bucket nema što puniti"
+
+        prvi = await c.post("/hint", json={"task_id": tid}, headers=auth_header(uid))
+        assert prvi.status_code == 200, prvi.text
+        poslije = await profil()
+        assert poslije["remaining"] == prvi.json()["remaining"] == config.HINT_MAX - 1
+        assert poslije["next_refill_at"] is not None
+
+        # Ponavljanje (C.2.2) — isti odgovor, kredit se NE troši ni u jednom izvoru.
+        drugi = await c.post("/hint", json={"task_id": tid}, headers=auth_header(uid))
+        assert drugi.status_code == 200
+        ponovno = await profil()
+        assert ponovno["remaining"] == drugi.json()["remaining"] == config.HINT_MAX - 1
+
+
+@pytest.mark.asyncio
+async def test_profile_hides_credit_when_flag_off(hint_user, monkeypatch) -> None:
+    """🔴 B3: isključena značajka → `remaining` je `null`, a ne `HINT_MAX`.
+
+    Parnjak `test_flag_off_returns_503_without_touching_anything`: ruta koja odbija
+    hint ne smije istovremeno oglašavati pun bucket na drugom endpointu.
+    """
+    uid = hint_user["user_id"]
+    monkeypatch.setattr(config, "USE_LLM_HINTS", False)
+
+    app = create_app()
+    async with _client(app) as c:
+        r = await c.get("/profile", headers=auth_header(uid))
+
+    assert r.status_code == 200
+    assert r.json()["remaining"] is None
+    assert r.json()["next_refill_at"] is None
+
+
 # ---------------------------------------------------------------------------
 # 6) Invarijante nad tuđim tablicama
 # ---------------------------------------------------------------------------

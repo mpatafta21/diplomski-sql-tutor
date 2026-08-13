@@ -170,6 +170,50 @@
         ]
       }
     },
+    "/hint": {
+      "post": {
+        "summary": "Post Hint",
+        "description": "Vrati hint za zadnji neto\u010dan poku\u0161aj na zadatku.\n\n\ud83d\udd34 NE IDE KROZ COORDINATOROV FSM (\u00a7B.4.4): FSM je globalno serijaliziran, a LLM\npoziv traje sekunde \u2014 kroz njega bi jedan hint gurnuo tu\u0111i `POST /attempt` u 504.\nPut je gateway \u2192 HintAgent \u2192 gateway, po presedanu `/next-task`.",
+        "operationId": "post_hint_hint_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HintRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HintResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/profile": {
       "get": {
         "summary": "Get Profile",
@@ -1073,6 +1117,73 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HintRequestBody": {
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "title": "Task Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id"
+        ],
+        "title": "HintRequestBody",
+        "description": "Tijelo `POST /hint` \u2014 SAMO `task_id`.\n\n\ud83d\udd34 `submitted_query` NAMJERNO NIJE ovdje. Varijanta A (slanje upita LLM-u) je\nodbijena u 5.0; pod selektivnim B+ studentov upit ne napu\u0161ta sustav, pa ga ruta\nne smije ni primiti \u2014 polje koje ne postoji ne mo\u017ee se slu\u010dajno proslijediti.\n`user_id` se izvodi iz tokena (obrazac `AttemptRequest`, Faza 4.0b.2)."
+      },
+      "HintResponse": {
+        "properties": {
+          "hint_text": {
+            "type": "string",
+            "title": "Hint Text"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "concept": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concept"
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          },
+          "next_refill_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Refill At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hint_text",
+          "source"
+        ],
+        "title": "HintResponse",
+        "description": "Odgovor na `POST /hint`.\n\n\ud83d\udd34 `remaining`/`next_refill_at` postoje da prazan bucket ne bude neobja\u0161njen\n(C.4). Broja\u010d NIKAD ne ide u natpis gumba (\u00a7G7.2) \u2014 to je uputa za UI, ovdje se\nsamo isporu\u010duje podatak.\n\n\ud83d\udd34 Broj tra\u017eenih hintova NIJE mjera potra\u017enje (C.5): odozgo je ograni\u010den\ndizajnom (5 / 4 h). Ta re\u010denica mora stajati svugdje gdje se brojka spominje."
+      },
       "LeaderboardItem": {
         "properties": {
           "rank": {
@@ -1174,6 +1285,11 @@
           "role": {
             "type": "string",
             "title": "Role"
+          },
+          "hints_enabled": {
+            "type": "boolean",
+            "title": "Hints Enabled",
+            "default": false
           }
         },
         "type": "object",
@@ -1417,6 +1533,29 @@
             },
             "type": "array",
             "title": "Badges"
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          },
+          "next_refill_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Refill At"
           }
         },
         "type": "object",
@@ -1607,6 +1746,17 @@
             "type": "boolean",
             "title": "Solved",
             "default": false
+          },
+          "last_attempt_error_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Attempt Error Type"
           }
         },
         "type": "object",

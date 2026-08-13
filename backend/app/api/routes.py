@@ -426,6 +426,16 @@ def _read_profile(user_id: int) -> dict | None:
         # postojećom formulom — NE reimplementira se.
         _level, xp_in_level, xp_to_next = progress_to_next_level(user.xp)
 
+        # Faza 5.2 (C.3.2): kredit za hintove živi ovdje jer je stanje PO KORISNIKU
+        # koje se mijenja u vremenu — isti rod kao xp/level/streak — a `/profile` je
+        # već u cacheu na Task ekranu (nula dodatnih poziva).
+        # 🔴 Ista funkcija koju zove `POST /hint`, ne kopija formule (N-8 mehanizam).
+        # 🔴 Flag isključen → oba polja `None`: brojač bez značajke je besmislen, a
+        # `0` bi se čitalo kao „potrošeno" (stanje iz kojeg se izlazi čekanjem).
+        hint_remaining, hint_refill = (
+            hint_credit(session, user_id) if config.USE_LLM_HINTS else (None, None)
+        )
+
         return {
             "xp": user.xp,
             "level": user.level,
@@ -437,6 +447,8 @@ def _read_profile(user_id: int) -> dict | None:
             "longest_streak": user.longest_streak,
             "mastery": [{"concept": code, "p_l": p_l} for code, p_l in mastery_rows],
             "badges": list(badge_rows),
+            "remaining": hint_remaining,
+            "next_refill_at": hint_refill,
         }
 
 

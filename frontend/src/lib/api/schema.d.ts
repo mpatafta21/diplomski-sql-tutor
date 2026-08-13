@@ -89,6 +89,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Hint
+         * @description Vrati hint za zadnji netočan pokušaj na zadatku.
+         *
+         *     🔴 NE IDE KROZ COORDINATOROV FSM (§B.4.4): FSM je globalno serijaliziran, a LLM
+         *     poziv traje sekunde — kroz njega bi jedan hint gurnuo tuđi `POST /attempt` u 504.
+         *     Put je gateway → HintAgent → gateway, po presedanu `/next-task`.
+         */
+        post: operations["post_hint_hint_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/profile": {
         parameters: {
             query?: never;
@@ -421,6 +445,42 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * HintRequestBody
+         * @description Tijelo `POST /hint` — SAMO `task_id`.
+         *
+         *     🔴 `submitted_query` NAMJERNO NIJE ovdje. Varijanta A (slanje upita LLM-u) je
+         *     odbijena u 5.0; pod selektivnim B+ studentov upit ne napušta sustav, pa ga ruta
+         *     ne smije ni primiti — polje koje ne postoji ne može se slučajno proslijediti.
+         *     `user_id` se izvodi iz tokena (obrazac `AttemptRequest`, Faza 4.0b.2).
+         */
+        HintRequestBody: {
+            /** Task Id */
+            task_id: number;
+        };
+        /**
+         * HintResponse
+         * @description Odgovor na `POST /hint`.
+         *
+         *     🔴 `remaining`/`next_refill_at` postoje da prazan bucket ne bude neobjašnjen
+         *     (C.4). Brojač NIKAD ne ide u natpis gumba (§G7.2) — to je uputa za UI, ovdje se
+         *     samo isporučuje podatak.
+         *
+         *     🔴 Broj traženih hintova NIJE mjera potražnje (C.5): odozgo je ograničen
+         *     dizajnom (5 / 4 h). Ta rečenica mora stajati svugdje gdje se brojka spominje.
+         */
+        HintResponse: {
+            /** Hint Text */
+            hint_text: string;
+            /** Source */
+            source: string;
+            /** Concept */
+            concept?: string | null;
+            /** Remaining */
+            remaining?: number | null;
+            /** Next Refill At */
+            next_refill_at?: string | null;
+        };
+        /**
          * LeaderboardItem
          * @description `xp` je score za dani scope (global = User.xp, weekly = SUM(delta) u prozoru).
          *     `level` je uvijek trenutni User.level.
@@ -469,6 +529,11 @@ export interface components {
             email: string;
             /** Role */
             role: string;
+            /**
+             * Hints Enabled
+             * @default false
+             */
+            hints_enabled: boolean;
         };
         /** ModuleNode */
         ModuleNode: {
@@ -556,6 +621,10 @@ export interface components {
             mastery: components["schemas"]["MasteryItem"][];
             /** Badges */
             badges: string[];
+            /** Remaining */
+            remaining?: number | null;
+            /** Next Refill At */
+            next_refill_at?: string | null;
         };
         /** RecommendationModel */
         RecommendationModel: {
@@ -623,6 +692,8 @@ export interface components {
              * @default false
              */
             solved: boolean;
+            /** Last Attempt Error Type */
+            last_attempt_error_type?: string | null;
         };
         /** TokenResponse */
         TokenResponse: {
@@ -791,6 +862,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NextTaskResponse"];
+                };
+            };
+        };
+    };
+    post_hint_hint_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HintRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HintResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

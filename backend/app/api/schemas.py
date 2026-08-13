@@ -152,6 +152,15 @@ class ProfileResponse(BaseModel):
     mastery: list[MasteryItem]
     badges: list[str]
 
+    # ── Kredit za hintove (Faza 5.2, C.3.2) ────────────────────────────────
+    #: Preostali hintovi. 🔴 `None` = značajka je isključena (`USE_LLM_HINTS=false`),
+    #: NIJE isto što i `0` (bucket potrošen, puni se čekanjem). Isti izvor kao
+    #: `HintResponse.remaining` — `hint_logic.hint_credit`, ne druga formula.
+    remaining: int | None = None
+    #: Trenutak u kojem `remaining` poraste za 1; `None` kad je bucket pun ILI
+    #: kad je značajka isključena. Razliku nosi `remaining`.
+    next_refill_at: datetime | None = None
+
 
 # ---------------------------------------------------------------------------
 # Statički read endpointi (Faza 4.0a-1) — /task/{id}, /modules, /badges

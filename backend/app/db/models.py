@@ -172,6 +172,13 @@ class Attempt(Base):
     __tablename__ = "attempts"
     __table_args__ = (
         CheckConstraint("attempt_number >= 1", name="ck_attempts_num_min"),
+        # Faza 5.0 (H3.1): netočan pokušaj MORA nositi tip greške. Otključavanje
+        # hinta čita `error_type` zadnjeg pokušaja — redak s is_correct=false i
+        # error_type NULL bio bi neklasificiran, a UI bi ga tiho progutao.
+        CheckConstraint(
+            "is_correct = true OR error_type IS NOT NULL",
+            name="ck_attempts_error_type_when_incorrect",
+        ),
         UniqueConstraint("user_id", "task_id", "attempt_number", name="uq_attempts_user_task_number"),
         Index("idx_attempts_user_task", "user_id", "task_id"),
         Index("idx_attempts_user_created", "user_id", "created_at"),
@@ -190,6 +197,13 @@ class Attempt(Base):
     # Faza 4.3 Stage 0b: EvaluationOutcome.detail — pedagoški opis greške za UI.
     # NIKAD ne smije sadržavati expected_query ni sadržaj očekivanih redaka.
     detail: Mapped[str | None] = mapped_column(Text)
+    # Faza 5.0 (A1-dop-1): PG SQLSTATE uhvaćene greške — zatvoren šifrarnik od 5
+    # znakova (42703, 42601, 42P01, 42803…), BEZ ijednog znaka studentovog upita.
+    # Jedini signal koji `execution_error` smije poslati LLM-u pod selektivnim B+
+    # (sirovi `detail` ondje nosi doslovni redak upita — v. docs/faza-5-korak-0.md §A1).
+    # 🔴 U 5.0 kolona stoji PRAZNA; puni je tek 5.1 (sandbox_runner → outcome →
+    # persist_attempt). Ovdje je da `attempts` ne treba drugu Alembic reviziju.
+    sqlstate: Mapped[str | None] = mapped_column(String(5))
     execution_time_ms: Mapped[int | None] = mapped_column(Integer)
     rows_returned: Mapped[int | None] = mapped_column(Integer)
     xp_awarded: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
@@ -383,6 +397,61 @@ class RecommendationLog(Base):
     reasoning: Mapped[dict] = mapped_column(JSONB, nullable=False)
     accepted: Mapped[bool | None] = mapped_column(Boolean)
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+# ============================================================
+# HINT_REQUESTS (Faza 5.0 — telemetrija zahtjeva za hintom)
+# ============================================================
+class HintRequest(Base):
+    """Jedan zahtjev studenta za hintom. READ-heavy: nosi izračun limita (5/4h).
+
+    🔴 Odnos prema `hints` (H1.2): čuvaju se OBJE kolone. `hint_id` daje analitičku
+    grupu („koliko je puta ovaj katalog-hint poslužen"), `hint_text` je SNIMKA
+    isporučenog teksta — kasnije dotjerivanje `hints` retka ne smije prepisati ono
+    što je student stvarno vidio.
+
+    🔴 `hint_text` je NULL-abilan jer zahtjev koji je vratio 503 nema teksta.
+    Takav se redak i dalje UPISUJE (`source='unavailable'`) — rupa u pokrivenosti
+    `hints` katalogom se mjeri, ne prešućuje.
+    """
+
+    __tablename__ = "hint_requests"
+    __table_args__ = (
+        CheckConstraint(
+            "source IN ('llm', 'fallback', 'unavailable')",
+            name="ck_hint_requests_source",
+        ),
+        CheckConstraint(
+            "source = 'unavailable' OR hint_text IS NOT NULL",
+            name="ck_hint_requests_text_or_unavailable",
+        ),
+        # Nosi upit limita: count po useru unutar prozora od 4 h + `next_refill_at`
+        # (najstariji zahtjev u prozoru). DESC je iz specifikacije; PG bi isti plan
+        # dobio i iz ASC indeksa (btree se skenira u oba smjera), pa je ovo forma,
+        # ne dobitak.
+        Index(
+            "idx_hint_requests_user_created",
+            "user_id",
+            text("created_at DESC"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), nullable=False)
+    after_attempt_id: Mapped[int] = mapped_column(
+        ForeignKey("attempts.id", ondelete="CASCADE"), nullable=False
+    )
+    error_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    #: 'llm' | 'fallback' | 'unavailable' — v. ck_hint_requests_source.
+    source: Mapped[str] = mapped_column(String(16), nullable=False)
+    hint_id: Mapped[int | None] = mapped_column(ForeignKey("hints.id"))
+    hint_text: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

@@ -23,6 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from agents.coordinator import CoordinatorAgent
 from agents.evaluator_agent import EvaluatorAgent
 from agents.gamification_agent import GamificationAgent
+from agents.hint_agent import HintAgent
 from agents.knowledge_agent import KnowledgeModelAgent
 from agents.recommender_agent import RecommenderAgent
 from app.api.routes import router
@@ -34,12 +35,18 @@ _log = logging.getLogger(__name__)
 
 
 def _build_domain_agents() -> list:
-    """Produkcijski set: 5 domenskih agenata + Coordinator (instancirano na tekućem loopu)."""
+    """Produkcijski set: 5 domenskih agenata + Coordinator (instancirano na tekućem loopu).
+
+    Faza 5.1: HintAgent je šesti. Startanjem NE ulazi ni u jedan postojeći tok —
+    sluša vlastitu ontologiju (`request-hint`) i nikad ne prima poruke Coordinatora.
+    Dok je `USE_LLM_HINTS=false`, do njega ne dolazi ni jedan zahtjev.
+    """
     return [
         EvaluatorAgent("evaluator"),
         KnowledgeModelAgent("knowledge"),
         RecommenderAgent("recommender"),
         GamificationAgent("gamification"),
+        HintAgent("hint"),
         CoordinatorAgent("coordinator"),
     ]
 

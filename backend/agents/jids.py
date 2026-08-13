@@ -10,6 +10,7 @@ _REGISTRY: dict[str, tuple[str, str]] = {
     "knowledge": (config.AGENT_KNOWLEDGE_JID, config.AGENT_KNOWLEDGE_PASSWORD),
     "recommender": (config.AGENT_RECOMMENDER_JID, config.AGENT_RECOMMENDER_PASSWORD),
     "gamification": (config.AGENT_GAMIFICATION_JID, config.AGENT_GAMIFICATION_PASSWORD),
+    "hint": (config.AGENT_HINT_JID, config.AGENT_HINT_PASSWORD),
 }
 
 

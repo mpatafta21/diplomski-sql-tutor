@@ -233,3 +233,38 @@ def test_compare_leading_zero_string_guard() -> None:
     expected = [{"zip_code": "7"}]
     res = r.compare(actual, expected)
     assert not res.matches, "String '007' ne smije numerički matchati '7'"
+
+
+# ---------------------------------------------------------------------------
+# Faza 5.1 (B1) — SQLSTATE se propušta iz psycopg iznimke
+# ---------------------------------------------------------------------------
+
+
+def test_execute_error_carries_sqlstate(runner: SandboxRunner):
+    """🔴 `.sqlstate` je JEDINI signal koji `execution_error` smije poslati LLM-u.
+
+    Zatvoren šifrarnik od 5 znakova, bez ijednog studentovog znaka — dok poruka
+    pored njega nosi doslovni redak upita (v. docs/faza-5-korak-0.md §A1).
+    Do 5.1 se gubio u `str(e)`; ovaj test čuva da se ne izgubi opet.
+    """
+    res = runner.execute("SELECT id, name, county FROM suppliers LIMIT 3")
+    assert res.success is False
+    assert res.sqlstate == "42703"  # undefined_column
+    # Kod NE smije nositi studentov tekst, poruka smije.
+    assert "county" not in res.sqlstate
+    assert "county" in (res.error or "")
+
+
+def test_execute_success_has_no_sqlstate(runner: SandboxRunner):
+    res = runner.execute("SELECT 1 AS x")
+    assert res.success is True
+    assert res.sqlstate is None
+
+
+def test_execute_grouping_error_sqlstate(runner: SandboxRunner):
+    """42803 pogađa `group_by` i `having_filter` — dva od osam top koncepata."""
+    res = runner.execute(
+        "SELECT category_id, name, COUNT(*) FROM products GROUP BY category_id"
+    )
+    assert res.success is False
+    assert res.sqlstate == "42803"

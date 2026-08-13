@@ -45,6 +45,12 @@ class MeResponse(BaseModel):
     username: str
     email: str
     role: str
+    #: Faza 5.1 (§B.4.3): je li značajka hintova uopće uključena na ovom poslužitelju.
+    #: 🔴 Stoji na `/me`, a ne se otkriva tek klikom, jer stanje `unavailable` traži
+    #: da se gumb TIHO SAKRIJE. Da se saznaje s rute, student bi vidio gumb → kliknuo
+    #: → dobio grešku, što je suprotno od „tiho sakrij". `/me` se dohvaća pri prijavi,
+    #: dakle prije prvog rendera Task ekrana.
+    hints_enabled: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -98,6 +104,53 @@ class NextTaskResponse(BaseModel):
     reason: str | None = None
 
 
+class HintRequestBody(BaseModel):
+    """Tijelo `POST /hint` — SAMO `task_id`.
+
+    🔴 `submitted_query` NAMJERNO NIJE ovdje. Varijanta A (slanje upita LLM-u) je
+    odbijena u 5.0; pod selektivnim B+ studentov upit ne napušta sustav, pa ga ruta
+    ne smije ni primiti — polje koje ne postoji ne može se slučajno proslijediti.
+    `user_id` se izvodi iz tokena (obrazac `AttemptRequest`, Faza 4.0b.2).
+    """
+
+    task_id: int
+
+
+class HintResponse(BaseModel):
+    """Odgovor na `POST /hint`.
+
+    🔴 `remaining`/`next_refill_at` postoje da prazan bucket ne bude neobjašnjen
+    (C.4). Brojač NIKAD ne ide u natpis gumba (§G7.2) — to je uputa za UI, ovdje se
+    samo isporučuje podatak.
+
+    🔴 Broj traženih hintova NIJE mjera potražnje (C.5): odozgo je ograničen
+    dizajnom (5 / 4 h). Ta rečenica mora stajati svugdje gdje se brojka spominje.
+    """
+
+    hint_text: str
+    #: 'llm' (model) ili 'fallback' (katalog `hints`). Ista riječ kao u
+    #: `hint_requests.source` — v. §B.4.2 odstupanje u wrapupu 5.1.
+    source: str
+    concept: str | None = None
+    remaining: int | None = None
+    next_refill_at: datetime | None = None
+
+
+class HintCreditResetResponse(BaseModel):
+    """Odgovor na `POST /admin/hint-credit/reset` (Faza 5.2).
+
+    🔴 `remaining` i `next_refill_at` dolaze iz `hint_logic.hint_credit`, iste
+    funkcije koju zovu `/hint` i `/profile` — ne iz pretpostavke „nakon brisanja
+    je puno". Da se računa ovdje, imali bismo treću implementaciju istog pravila
+    (mehanizam N-8).
+    """
+
+    remaining: int | None = None
+    next_refill_at: datetime | None = None
+    #: Koliko je redaka obrisano — akcija koja briše mora reći KOLIKO je obrisala.
+    deleted: int
+
+
 class ProfileResponse(BaseModel):
     """Polja level-progresa i konstante (Faza 4.2) su tu da ih frontend NE
     hardkodira — izvor: gamification_logic (progress_to_next_level, LEVEL_STEP,
@@ -113,6 +166,15 @@ class ProfileResponse(BaseModel):
     longest_streak: int
     mastery: list[MasteryItem]
     badges: list[str]
+
+    # ── Kredit za hintove (Faza 5.2, C.3.2) ────────────────────────────────
+    #: Preostali hintovi. 🔴 `None` = značajka je isključena (`USE_LLM_HINTS=false`),
+    #: NIJE isto što i `0` (bucket potrošen, puni se čekanjem). Isti izvor kao
+    #: `HintResponse.remaining` — `hint_logic.hint_credit`, ne druga formula.
+    remaining: int | None = None
+    #: Trenutak u kojem `remaining` poraste za 1; `None` kad je bucket pun ILI
+    #: kad je značajka isključena. Razliku nosi `remaining`.
+    next_refill_at: datetime | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -140,6 +202,12 @@ class TaskDetailResponse(BaseModel):
     #: True ako je trenutni korisnik već točno riješio ovaj task (bilo koji raniji
     #: is_correct pokušaj). UI prikazuje „Riješeno" + da ponovni Submit ne nosi XP.
     solved: bool = False
+    #: Faza 5.1: `error_type` ZADNJEG pokušaja na ovom zadatku, ili None ako pokušaja
+    #: nema ili je zadnji bio točan. Iz njega UI zna je li hint otključan — ista
+    #: istina koju ruta `/hint` provjerava, samo unaprijed.
+    #: 🔴 Ovo je NAGOVJEŠTAJ, ne ovlaštenje (C.3): između čitanja i klika student može
+    #: predati točan upit, pa `/hint` istu provjeru radi ponovno i vraća 409.
+    last_attempt_error_type: str | None = None
 
 
 class ConceptNode(BaseModel):

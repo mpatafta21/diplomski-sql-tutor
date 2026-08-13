@@ -15,7 +15,8 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.orm import Session
 from spade.behaviour import CyclicBehaviour
 from spade.template import Template
 
@@ -24,11 +25,36 @@ from agents.evaluation import evaluate
 from agents.messages import Ontology, Performative, body_to_payload
 from agents.persistence import persist_attempt
 from app.core import config
-from app.db.models import Concept, Task, TaskConcept
+from app.db.models import Attempt, Concept, Task, TaskConcept
 from app.db.session import SessionLocal
 from scripts.lib.sandbox_runner import SandboxRunner
 
 _log = logging.getLogger(__name__)
+
+
+def persist_sqlstate(session: Session, attempt_id: int, sqlstate: str | None) -> bool:
+    """Upiši PG SQLSTATE na već perzistiran attempt. Vrati je li upisan.
+
+    🔴 ZAŠTO ZASEBAN UPIS, a ne polje u ``persist_attempt``: ``persistence.py`` je
+    zamrznut (odluka 8 plana 5.1), a ``persist_attempt`` gradi ``Attempt(...)`` sa
+    zatvorenim popisom polja — ``sqlstate`` kroz njega ne može bez izmjene te
+    datoteke. Odluka korisnika 2026-08-12: zaseban ``UPDATE`` ovdje.
+
+    🔴 Poštuje D6: ``persist_attempt`` je već commitao, pa ``attempt_id`` postoji i
+    redak je vidljiv nizvodnim agentima. Ovaj upis ide PRIJE ``inform``a, dakle
+    nijedan agent ne vidi redak bez koda koji bi trebao imati.
+
+    🔴 No-op kad koda nema — a nema ga za sve osim ``execution_error``/``timeout``
+    (živo ~3/13 pokušaja). Bezuvjetni UPDATE bio bi trošak na svakom ``POST /attempt``
+    bez ijedne dobiti.
+    """
+    if sqlstate is None:
+        return False
+    session.execute(
+        update(Attempt).where(Attempt.id == attempt_id).values(sqlstate=sqlstate)
+    )
+    session.commit()
+    return True
 
 
 def _sandbox_conn_string() -> str:
@@ -92,6 +118,12 @@ class EvaluatorAgent(TutorAgent):
                         session, user_id, task_id, submitted_query, outcome
                     )
                     # session je committana (D6) — attempt_id je validan
+
+                    # Faza 5.1 (B1): SQLSTATE ide zasebnim upisom jer je
+                    # `persistence.py` zamrznut (odluka 8). No-op osim za
+                    # execution_error/timeout. Ide PRIJE informa, pa nizvodni
+                    # agenti nikad ne vide redak bez koda koji bi trebao imati.
+                    persist_sqlstate(session, attempt_id, outcome.sqlstate)
 
                 result_payload: dict = {
                     "attempt_id": attempt_id,

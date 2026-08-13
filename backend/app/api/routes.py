@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import aliased
 
@@ -36,6 +36,14 @@ from agents.gamification_logic import (
     MASTERY_THRESHOLD,
     progress_to_next_level,
 )
+from agents.hint_agent import REASON_NOT_UNLOCKED
+from agents.hint_logic import (
+    CONSUMING_SOURCES,
+    existing_request,
+    hint_credit,
+    primary_concept,
+    unlocking_attempt,
+)
 from agents.messages import Ontology
 from app.api.schemas import (
     AgentLogItem,
@@ -43,6 +51,9 @@ from app.api.schemas import (
     AttemptRequest,
     AttemptResponse,
     BadgeCatalogItem,
+    HintCreditResetResponse,
+    HintRequestBody,
+    HintResponse,
     LeaderboardItem,
     MasteryHistoryPoint,
     MeResponse,
@@ -70,6 +81,7 @@ from app.db.models import (
     Badge,
     Concept,
     ConceptPrerequisite,
+    HintRequest,
     Module,
     SkillMastery,
     SkillMasteryHistory,
@@ -157,7 +169,13 @@ async def post_login(
 @router.get("/me", response_model=MeResponse)
 async def get_me(user: User = Depends(get_current_user)) -> MeResponse:
     return MeResponse(
-        id=user.id, username=user.username, email=user.email, role=user.role
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        role=user.role,
+        # Faza 5.1: zastavica se čita iz konfiguracije poslužitelja, ne iz korisnika —
+        # značajka je uključena za sve ili ni za koga.
+        hints_enabled=config.USE_LLM_HINTS,
     )
 
 
@@ -266,6 +284,174 @@ async def get_next_task(
 
 
 # ---------------------------------------------------------------------------
+# POST /hint — izravan request-hint kroz bridge (bez FSM-a, presedan /next-task)
+# ---------------------------------------------------------------------------
+
+
+def _hint_gate(user_id: int, task_id: int) -> dict:
+    """Sinkrone provjere prije buđenja agenta. Vraća opis ishoda, ne diže iznimke.
+
+    🔴 REDOSLIJED JE DIO UGOVORA:
+      1. otključanost (409) — ruta ne vjeruje klijentu (C.3),
+      2. idempotencija (200 iz pohrane) — PRIJE limita, jer ponovljeni klik na isti
+         pokušaj ne troši kredit (C.2) i mora raditi i s praznim bucketom,
+      3. limit (429).
+
+    Zamijeniti 2 i 3 značilo bi da student s potrošenim limitom ne može ponovno
+    vidjeti hint koji je već platio.
+    """
+    with SessionLocal() as session:
+        attempt = unlocking_attempt(session, user_id, task_id)
+        if attempt is None:
+            return {"gate": "not_unlocked"}
+
+        prior = existing_request(session, attempt.id)
+        if prior is not None:
+            remaining, refill = hint_credit(session, user_id)
+            _, concept_code = primary_concept(session, task_id)
+            return {
+                "gate": "replay",
+                "hint_text": prior.hint_text,
+                "source": prior.source,
+                "concept": concept_code,
+                "remaining": remaining,
+                "next_refill_at": refill,
+            }
+
+        remaining, refill = hint_credit(session, user_id)
+        if remaining <= 0:
+            return {"gate": "rate_limited", "next_refill_at": refill}
+        return {"gate": "ok"}
+
+
+def _hint_credit_now(user_id: int) -> tuple[int, datetime | None]:
+    with SessionLocal() as session:
+        return hint_credit(session, user_id)
+
+
+@router.post("/hint", response_model=HintResponse)
+async def post_hint(
+    req: HintRequestBody,
+    request: Request,
+    user: User = Depends(get_current_user),
+) -> HintResponse:
+    """Vrati hint za zadnji netočan pokušaj na zadatku.
+
+    🔴 NE IDE KROZ COORDINATOROV FSM (§B.4.4): FSM je globalno serijaliziran, a LLM
+    poziv traje sekunde — kroz njega bi jedan hint gurnuo tuđi `POST /attempt` u 504.
+    Put je gateway → HintAgent → gateway, po presedanu `/next-task`.
+    """
+    # 1) Prekidač — prije svega ostalog, i BEZ ijednog odlaznog poziva.
+    if not config.USE_LLM_HINTS:
+        raise HTTPException(status_code=503, detail="hints_disabled")
+
+    gate = await asyncio.to_thread(_hint_gate, user.id, req.task_id)
+
+    # 2) Otključanost.
+    if gate["gate"] == "not_unlocked":
+        raise HTTPException(status_code=409, detail="hint_not_unlocked")
+
+    # 3) Idempotencija — pohranjeni tekst, bez LLM poziva i bez novog retka (C.2).
+    if gate["gate"] == "replay":
+        return HintResponse(
+            hint_text=gate["hint_text"],
+            source=gate["source"],
+            concept=gate["concept"],
+            remaining=gate["remaining"],
+            next_refill_at=gate["next_refill_at"],
+        )
+
+    # 4) Limit.
+    if gate["gate"] == "rate_limited":
+        raise HTTPException(status_code=429, detail="hint_rate_limited")
+
+    # 5) Agent: LLM → katalog → ništa.
+    bridge = request.app.state.bridge
+    gateway = request.app.state.gateway
+    cid, _future = bridge.register()
+    gateway.send_fipa(
+        to=config.AGENT_HINT_JID,
+        ontology=Ontology.REQUEST_HINT,
+        payload={"user_id": user.id, "task_id": req.task_id},
+        cid=cid,
+    )
+
+    try:
+        result = await bridge.wait(cid, timeout=config.HINT_TIMEOUT)
+    except (asyncio.TimeoutError, TimeoutError):
+        # 🔴 Agent je možda ipak potrošio poziv — njegov `hint_requests` redak to
+        # bilježi neovisno o ovom timeoutu (v. `produce_hint`).
+        raise HTTPException(status_code=504, detail="hint_timeout")
+
+    if result.get("error") == REASON_NOT_UNLOCKED:
+        # Student je riješio zadatak između provjere i agentovog čitanja.
+        raise HTTPException(status_code=409, detail="hint_not_unlocked")
+    if "hint_text" not in result:
+        raise HTTPException(status_code=503, detail="hint_unavailable")
+
+    remaining, refill = await asyncio.to_thread(_hint_credit_now, user.id)
+    return HintResponse(
+        hint_text=result["hint_text"],
+        source=result["source"],
+        concept=result.get("concept"),
+        remaining=remaining,
+        next_refill_at=refill,
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /admin/hint-credit/reset — admin vraća SVOJ kredit za savjete
+# ---------------------------------------------------------------------------
+
+
+def _reset_hint_credit(user_id: int) -> dict:
+    """Obriši retke koji troše kredit ovog korisnika i vrati novo stanje."""
+    with SessionLocal() as session:
+        deleted = session.execute(
+            delete(HintRequest).where(
+                HintRequest.user_id == user_id,
+                HintRequest.source.in_(CONSUMING_SOURCES),
+            )
+        ).rowcount
+        session.commit()
+        remaining, refill = (
+            hint_credit(session, user_id) if config.USE_LLM_HINTS else (None, None)
+        )
+        return {
+            "remaining": remaining,
+            "next_refill_at": refill,
+            "deleted": int(deleted or 0),
+        }
+
+
+@router.post("/admin/hint-credit/reset", response_model=HintCreditResetResponse)
+async def post_reset_hint_credit(
+    admin: User = Depends(require_admin),
+) -> HintCreditResetResponse:
+    """Vrati adminov kredit za savjete na puno stanje.
+
+    🔴 BRIŠE SAMO RETKE POZIVATELJA i NE PRIMA `user_id`. Adminovi
+    `hint_requests` redci nisu telemetrija — admin je po dizajnu izvan analize
+    (`/leaderboard` ga izrijekom isključuje). Studentovi jesu: oni su jedini
+    izvor o potrošnji savjeta i rupama u katalogu, pa ih ova ruta ne može
+    dohvatiti ni greškom. Parametar za ciljanog korisnika NIJE propust nego
+    izostavljen namjerno — s njim bi jedna kriva vrijednost obrisala
+    evaluacijske podatke sudionika.
+
+    🔴 Briše se samo ono što TROŠI kredit (`CONSUMING_SOURCES`).
+    `source='unavailable'` ostaje: taj redak ne troši ništa, a mjeri rupu u
+    katalogu hintova.
+
+    🔴 Ovo je RESET, ne izuzeće. Admin i dalje ima limit, pa mu stanje
+    `hint_rate_limited` ostaje dosežno — a ono je jedno od sedam stanja koja
+    rad dokumentira i demonstrira se upravo na adminu.
+    """
+    data = await asyncio.to_thread(_reset_hint_credit, admin.id)
+    return HintCreditResetResponse(**data)
+
+
+
+# ---------------------------------------------------------------------------
 # GET /profile — čisti DB read (bez agenata)
 # ---------------------------------------------------------------------------
 
@@ -295,6 +481,16 @@ def _read_profile(user_id: int) -> dict | None:
         # postojećom formulom — NE reimplementira se.
         _level, xp_in_level, xp_to_next = progress_to_next_level(user.xp)
 
+        # Faza 5.2 (C.3.2): kredit za hintove živi ovdje jer je stanje PO KORISNIKU
+        # koje se mijenja u vremenu — isti rod kao xp/level/streak — a `/profile` je
+        # već u cacheu na Task ekranu (nula dodatnih poziva).
+        # 🔴 Ista funkcija koju zove `POST /hint`, ne kopija formule (N-8 mehanizam).
+        # 🔴 Flag isključen → oba polja `None`: brojač bez značajke je besmislen, a
+        # `0` bi se čitalo kao „potrošeno" (stanje iz kojeg se izlazi čekanjem).
+        hint_remaining, hint_refill = (
+            hint_credit(session, user_id) if config.USE_LLM_HINTS else (None, None)
+        )
+
         return {
             "xp": user.xp,
             "level": user.level,
@@ -306,6 +502,8 @@ def _read_profile(user_id: int) -> dict | None:
             "longest_streak": user.longest_streak,
             "mastery": [{"concept": code, "p_l": p_l} for code, p_l in mastery_rows],
             "badges": list(badge_rows),
+            "remaining": hint_remaining,
+            "next_refill_at": hint_refill,
         }
 
 
@@ -378,6 +576,11 @@ def _read_task_detail(task_id: int, user_id: int) -> dict | None:
                 for code, name, is_primary in concept_rows
             ],
             "solved": solved,
+            # Faza 5.1: iz čega UI zna je li hint otključan. Ista funkcija koju
+            # `POST /hint` koristi za provjeru — jedan izvor istine, ne dva pravila.
+            "last_attempt_error_type": (
+                a.error_type if (a := unlocking_attempt(session, user_id, task_id)) else None
+            ),
         }
 
 

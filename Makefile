@@ -44,7 +44,7 @@ help:
 # app.openapi() gradi spec iz app objekta BEZ servera/infra/agenata (KORAK 0 W).
 # Regeneriraj kad se backend ugovor promijeni → frontend/openapi.json je diff-vidljiv u PR-u.
 openapi-snapshot:
-	cd backend && uv run python -c "import json,sys; from app.main import app; json.dump(app.openapi(), sys.stdout)" > ../frontend/openapi.json
+	cd backend && uv run python -c "import json,sys; from app.main import app; json.dump(app.openapi(), sys.stdout, indent=2)" > ../frontend/openapi.json
 	@echo "frontend/openapi.json regeneriran."
 
 db-tasks:

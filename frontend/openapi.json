@@ -170,6 +170,74 @@
         ]
       }
     },
+    "/hint": {
+      "post": {
+        "summary": "Post Hint",
+        "description": "Vrati hint za zadnji neto\u010dan poku\u0161aj na zadatku.\n\n\ud83d\udd34 NE IDE KROZ COORDINATOROV FSM (\u00a7B.4.4): FSM je globalno serijaliziran, a LLM\npoziv traje sekunde \u2014 kroz njega bi jedan hint gurnuo tu\u0111i `POST /attempt` u 504.\nPut je gateway \u2192 HintAgent \u2192 gateway, po presedanu `/next-task`.",
+        "operationId": "post_hint_hint_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HintRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HintResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/admin/hint-credit/reset": {
+      "post": {
+        "summary": "Post Reset Hint Credit",
+        "description": "Vrati adminov kredit za savjete na puno stanje.\n\n\ud83d\udd34 BRI\u0160E SAMO RETKE POZIVATELJA i NE PRIMA `user_id`. Adminovi\n`hint_requests` redci nisu telemetrija \u2014 admin je po dizajnu izvan analize\n(`/leaderboard` ga izrijekom isklju\u010duje). Studentovi jesu: oni su jedini\nizvor o potro\u0161nji savjeta i rupama u katalogu, pa ih ova ruta ne mo\u017ee\ndohvatiti ni gre\u0161kom. Parametar za ciljanog korisnika NIJE propust nego\nizostavljen namjerno \u2014 s njim bi jedna kriva vrijednost obrisala\nevaluacijske podatke sudionika.\n\n\ud83d\udd34 Bri\u0161e se samo ono \u0161to TRO\u0160I kredit (`CONSUMING_SOURCES`).\n`source='unavailable'` ostaje: taj redak ne tro\u0161i ni\u0161ta, a mjeri rupu u\nkatalogu hintova.\n\n\ud83d\udd34 Ovo je RESET, ne izuze\u0107e. Admin i dalje ima limit, pa mu stanje\n`hint_rate_limited` ostaje dose\u017eno \u2014 a ono je jedno od sedam stanja koja\nrad dokumentira i demonstrira se upravo na adminu.",
+        "operationId": "post_reset_hint_credit_admin_hint_credit_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HintCreditResetResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/profile": {
       "get": {
         "summary": "Get Profile",
@@ -1073,6 +1141,110 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HintCreditResetResponse": {
+        "properties": {
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          },
+          "next_refill_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Refill At"
+          },
+          "deleted": {
+            "type": "integer",
+            "title": "Deleted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "title": "HintCreditResetResponse",
+        "description": "Odgovor na `POST /admin/hint-credit/reset` (Faza 5.2).\n\n\ud83d\udd34 `remaining` i `next_refill_at` dolaze iz `hint_logic.hint_credit`, iste\nfunkcije koju zovu `/hint` i `/profile` \u2014 ne iz pretpostavke \u201enakon brisanja\nje puno\". Da se ra\u010duna ovdje, imali bismo tre\u0107u implementaciju istog pravila\n(mehanizam N-8)."
+      },
+      "HintRequestBody": {
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "title": "Task Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id"
+        ],
+        "title": "HintRequestBody",
+        "description": "Tijelo `POST /hint` \u2014 SAMO `task_id`.\n\n\ud83d\udd34 `submitted_query` NAMJERNO NIJE ovdje. Varijanta A (slanje upita LLM-u) je\nodbijena u 5.0; pod selektivnim B+ studentov upit ne napu\u0161ta sustav, pa ga ruta\nne smije ni primiti \u2014 polje koje ne postoji ne mo\u017ee se slu\u010dajno proslijediti.\n`user_id` se izvodi iz tokena (obrazac `AttemptRequest`, Faza 4.0b.2)."
+      },
+      "HintResponse": {
+        "properties": {
+          "hint_text": {
+            "type": "string",
+            "title": "Hint Text"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "concept": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concept"
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          },
+          "next_refill_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Refill At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hint_text",
+          "source"
+        ],
+        "title": "HintResponse",
+        "description": "Odgovor na `POST /hint`.\n\n\ud83d\udd34 `remaining`/`next_refill_at` postoje da prazan bucket ne bude neobja\u0161njen\n(C.4). Broja\u010d NIKAD ne ide u natpis gumba (\u00a7G7.2) \u2014 to je uputa za UI, ovdje se\nsamo isporu\u010duje podatak.\n\n\ud83d\udd34 Broj tra\u017eenih hintova NIJE mjera potra\u017enje (C.5): odozgo je ograni\u010den\ndizajnom (5 / 4 h). Ta re\u010denica mora stajati svugdje gdje se brojka spominje."
+      },
       "LeaderboardItem": {
         "properties": {
           "rank": {
@@ -1174,6 +1346,11 @@
           "role": {
             "type": "string",
             "title": "Role"
+          },
+          "hints_enabled": {
+            "type": "boolean",
+            "title": "Hints Enabled",
+            "default": false
           }
         },
         "type": "object",
@@ -1417,6 +1594,29 @@
             },
             "type": "array",
             "title": "Badges"
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          },
+          "next_refill_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Refill At"
           }
         },
         "type": "object",
@@ -1607,6 +1807,17 @@
             "type": "boolean",
             "title": "Solved",
             "default": false
+          },
+          "last_attempt_error_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Attempt Error Type"
           }
         },
         "type": "object",

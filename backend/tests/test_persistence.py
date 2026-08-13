@@ -29,6 +29,11 @@ _EMAIL = "persist_3a2@test.example"
 _MODULE_NUMBER = 9801  # ne kolidira s pravim modulima (1-7)
 
 
+#: Tip greške koji se podrazumijeva za netočan ishod bez izričitog tipa.
+#: Vrijednost je nebitna — bitno je da NIJE None (v. dolje).
+_DEFAULT_ERROR_TYPE = "row_mismatch"
+
+
 def _outcome(
     *,
     is_correct: bool = True,
@@ -36,6 +41,18 @@ def _outcome(
     execution_time_ms: int = 10,
     rows_returned: int = 1,
 ) -> EvaluationOutcome:
+    """Tvornica EvaluationOutcome za testove.
+
+    🔴 Faza 5.0: `error_type` se DERIVIRA kad je ishod netočan a tip nije zadan.
+    Baza od 5.0 nosi `ck_attempts_error_type_when_incorrect`, pa bi
+    `_outcome(is_correct=False)` s `None` defaultom pao kao neproziran
+    `IntegrityError` u testu koji o CHECK-u ništa ne zna. Ovdje je jedina točka
+    na kojoj se ta kombinacija može slučajno proizvesti (A2, latentna zamka).
+    Test koji NAMJERNO ide na kršenje CHECK-a piše `Attempt(...)` izravno —
+    v. `test_hint_requests.py`.
+    """
+    if not is_correct and error_type is None:
+        error_type = _DEFAULT_ERROR_TYPE
     return EvaluationOutcome(
         is_correct=is_correct,
         verdict="correct" if is_correct else "incorrect",

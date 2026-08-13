@@ -36,6 +36,10 @@ _AGENTS: list[tuple[str, str]] = [
     (config.AGENT_KNOWLEDGE_JID, config.AGENT_KNOWLEDGE_PASSWORD),
     (config.AGENT_RECOMMENDER_JID, config.AGENT_RECOMMENDER_PASSWORD),
     (config.AGENT_GAMIFICATION_JID, config.AGENT_GAMIFICATION_PASSWORD),
+    # Faza 5.1 — 6. agent. Registrira se `prosodyctl`om kao ostalih pet, iako bi
+    # in-band registracija na ovoj Prosody konfiguraciji prošla (gateway je koristi):
+    # jedan put za sve domenske agente lakše je provjeriti nego dva.
+    (config.AGENT_HINT_JID, config.AGENT_HINT_PASSWORD),
 ]
 
 

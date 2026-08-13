@@ -326,3 +326,45 @@ def test_non_dml_concept_still_runs_readonly(db_session, sandbox_runner):
     assert "permission denied" in (outcome.detail or "").lower(), (
         f"očekivan permission denied pod readonly rolom, dobiveno: {outcome.detail}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Faza 5.1 (B1) — sqlstate na EvaluationOutcome
+# ---------------------------------------------------------------------------
+
+
+def test_execution_error_outcome_carries_sqlstate(db_session, sandbox_runner):
+    """`execution_error` nosi SQLSTATE — jedini signal koji taj tip smije poslati LLM-u.
+
+    🔴 `detail` ONDJE nosi doslovni redak studentovog upita (mjereno, §A1), pa je
+    izbačen iz bijele liste. Bez `sqlstate` bi hint za `execution_error` mogao reći
+    samo „baza je odbila upit", što student već vidi.
+    """
+    task = _task(db_session, "agg_sum_avg_d3_manual_f239bc99")
+    outcome = evaluate(task, "SELECT nepostojeci_stupac FROM products", sandbox_runner)
+
+    assert outcome.error_type == "execution_error"
+    assert outcome.sqlstate == "42703"
+    # Šifra je zatvoren skup i NE nosi studentov tekst; `detail` ga nosi.
+    assert "nepostojeci_stupac" not in outcome.sqlstate
+    assert "nepostojeci_stupac" in outcome.detail
+
+
+def test_correct_outcome_has_no_sqlstate(db_session, sandbox_runner):
+    task = _task(db_session, "agg_sum_avg_d3_manual_f239bc99")
+    outcome = evaluate(task, task.expected_query, sandbox_runner)
+    assert outcome.is_correct is True
+    assert outcome.sqlstate is None
+
+
+def test_non_execution_failures_have_no_sqlstate(db_session, sandbox_runner):
+    """Sintaktički i rezultatski promašaji nemaju SQLSTATE — baza ih nije odbila."""
+    task = _task(db_session, "agg_sum_avg_d3_manual_f239bc99")
+
+    prazan = evaluate(task, "   ", sandbox_runner)
+    assert prazan.error_type == "syntax_error"
+    assert prazan.sqlstate is None
+
+    krivi = evaluate(task, "SELECT 1 AS bogus_kolona", sandbox_runner)
+    assert krivi.error_type in ("wrong_columns", "row_mismatch")
+    assert krivi.sqlstate is None

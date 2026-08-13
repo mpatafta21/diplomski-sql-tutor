@@ -67,13 +67,21 @@ class GatewayAgent(TutorAgent):
                 _log.debug("GatewayAgent: nije rezolviran cid=%s (nepoznat/already-done)", cid)
 
     async def setup(self) -> None:
-        # Sluša OBA tipa odgovora: attempt-response (od Coordinatora, /attempt) i
-        # recommend-next (izravno od Recommendera, /next-task).
+        # Sluša TRI tipa odgovora: attempt-response (od Coordinatora, /attempt),
+        # recommend-next (izravno od Recommendera, /next-task) i request-hint
+        # (izravno od HintAgenta, /hint).
+        #
+        # 🔴 Faza 5.1: bez `t_hint` u ovom OR-u odgovor HintAgenta stigne na gateway,
+        # ne odgovara nijednom predlošku, nikad ne uđe u `_Resolve`, i Future ostane
+        # neriješen do `HINT_TIMEOUT` → svaki `/hint` bi bio 504. Predložak je jedina
+        # stvar koja te dvije komponente povezuje.
         t_attempt = Template()
         t_attempt.set_metadata("ontology", ONTOLOGY_ATTEMPT_RESPONSE)
         t_recommend = Template()
         t_recommend.set_metadata("ontology", Ontology.RECOMMEND_NEXT)
-        self.add_behaviour(self._Resolve(), t_attempt | t_recommend)
+        t_hint = Template()
+        t_hint.set_metadata("ontology", Ontology.REQUEST_HINT)
+        self.add_behaviour(self._Resolve(), t_attempt | t_recommend | t_hint)
 
     def send_fipa(
         self,

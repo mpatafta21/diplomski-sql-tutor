@@ -54,6 +54,10 @@ class EvaluationOutcome:
     execution_time_ms: int
     rows_returned: int
     detail: str             # kratki opis za log/hint, nije za klasifikaciju
+    #: PG SQLSTATE (Faza 5.1) — popunjen SAMO za execution_error/timeout.
+    #: 🔴 Bijela lista selektivnog B+: `sqlstate` smije LLM-u, `detail` za te dvije
+    #: grane NE smije (nosi doslovni redak upita). V. docs/faza-5-korak-0.md §A1.
+    sqlstate: str | None = None
 
 
 def evaluate(
@@ -129,6 +133,7 @@ def evaluate(
             execution_time_ms=result.execution_time_ms,
             rows_returned=0,
             detail=result.error or "",
+            sqlstate=result.sqlstate,
         )
 
     # ------------------------------------------------------------------

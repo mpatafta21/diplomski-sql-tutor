@@ -14,7 +14,10 @@ Hibridni AI: Prolog (simboličko) + Bayesian Knowledge Tracing (probabilističko
 - Agenti: 5 SPADE agenata + opcionalni 6. (HintAgent)
 - Baza: PostgreSQL 16 (main + sandbox), sve u Dockeru
 - Frontend: React 18 + TypeScript + Vite + Tailwind + shadcn/ui + Monaco Editor
-- LLM: Claude API (offline task gen), OpenAI GPT-4o-mini (opcionalno runtime hints)
+- LLM: Anthropic Claude API — `claude-haiku-4-5` (offline task gen **i** runtime hintovi,
+  iza `USE_LLM_HINTS`). Odluka Faze 5.0; prije je ovdje stajalo „OpenAI GPT-4o-mini
+  (opcionalno runtime hints)", što je bilo netočno u oba dijela: provider nije OpenAI, a
+  Anthropic SDK više nije samo offline alat. V. `docs/errata.md` #59 i `docs/faza-5-korak-0.md`.
 - Dev: WSL2 Ubuntu 24.04, uv, SWI-Prolog 10.0.2
 
 ## Agenti i njihove uloge
@@ -23,7 +26,9 @@ Hibridni AI: Prolog (simboličko) + Bayesian Knowledge Tracing (probabilističko
 3. RecommenderAgent — preporuka zadataka (Prolog + BKT)
 4. GamificationAgent — XP, leveli, bedževi, streakovi
 5. CoordinatorAgent — orkestracija, API gateway
-6. HintAgent (opcionalno) — LLM personalizirani hintovi
+6. HintAgent — LLM hintovi uz fallback na `hints` katalog (Faza 5.1). Sluša
+   ontologiju `request-hint`, **ne ulazi u Coordinatorov FSM** (izravno gateway →
+   agent, presedan `/next-task`). Iza `USE_LLM_HINTS`, po defaultu isključen.
 
 ## Struktura repozitorija
 

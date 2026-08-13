@@ -10,17 +10,20 @@
  * task.module_id — on je KRIV za 3/83 taskova (71–73: module_id kaže
  * "DML operacije", a primarni koncept correlated_subquery je u "Podupiti").
  */
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "react-router-dom"
+import { toast } from "sonner"
 import {
   BookOpen,
   CheckCircle2,
   ChevronRight,
   Clock,
   LayoutDashboard,
+  Lightbulb,
   MonitorSmartphone,
   Play,
+  RotateCcw,
   Send,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -33,11 +36,16 @@ import { SchemaReference } from "@/components/task/SchemaReference"
 import { SqlEditor } from "@/components/task/SqlEditor"
 import { RunResultPanel } from "@/components/task/RunResultPanel"
 import { FeedbackPanel } from "@/components/task/FeedbackPanel"
+import { HintPanel } from "@/components/task/HintPanel"
 import { ApiError } from "@/lib/api/query"
 import { ErrorState } from "@/components/state/ErrorState"
 import { LoadingState } from "@/components/state/LoadingState"
+import { useAuth } from "@/hooks/useAuth"
 import { useBadges } from "@/hooks/useBadges"
+import { useHint, HintError } from "@/hooks/useHint"
 import { useModules } from "@/hooks/useModules"
+import { useProfile } from "@/hooks/useProfile"
+import { useResetHintCredit } from "@/hooks/useResetHintCredit"
 import { useRun } from "@/hooks/useRun"
 import { useSubmitAttempt } from "@/hooks/useSubmitAttempt"
 import { useTask } from "@/hooks/useTask"
@@ -50,6 +58,15 @@ import type {
 import { buildConceptIndex, type ConceptInfo } from "@/lib/mastery"
 
 const INITIAL_QUERY = "-- Napiši svoj SQL upit ovdje\n"
+
+/**
+ * Natpis je ZAMRZNUT i ISTI u oba stanja (H3.8, §C.4.2). Brojač NIKAD ne ulazi
+ * u natpis — inače se natpis mijenja s brojkom i H3.8 pada.
+ */
+const HINT_NATPIS = "Zatraži hint"
+/** Vidljiv razlog zaključanosti; vezan `aria-describedby`om (presedan RegisterPage:152). */
+const HINT_RAZLOG = "Savjet se otključava nakon netočne predaje."
+const HINT_RAZLOG_ID = "hint-razlog"
 
 // Platform-aware oznaka prečaca: monaco KeyMod.CtrlCmd je ⌘ na macOS-u —
 // label i aria-keyshortcuts moraju reći isto što tipka stvarno radi.
@@ -153,6 +170,116 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
     mutate(q, { onSuccess: setLastResult })
   }, [mutate])
 
+  // ── Hint (5.2) — NEOVISAN o submitSlot enumu; koegzistira s feedbackom. ────
+  const { user } = useAuth()
+  const profileQ = useProfile()
+  const hintM = useHint(task.id)
+  const { reset: resetHint } = hintM
+  const [hintText, setHintText] = useState<string>()
+  // Savjet se odnosi na `after_attempt_id`. Nakon nove predaje opisuje grešku
+  // koje više nema — ali se NE BRIŠE (§C3.1): student ga je platio kreditom, a
+  // idući klik nakon nove predaje troši NOVI kredit (idempotencija veže hint uz
+  // pokušaj). Brisanje bi tiho uništilo plaćeni sadržaj; oznaka ne uništava ništa.
+  const [hintStale, setHintStale] = useState(false)
+  // Flag ugašen USRED sesije (C.2.1): 503 `hints_disabled` na klik znači „sakrij
+  // gumb sada", ne „prikaži grešku".
+  const [hintsHidden, setHintsHidden] = useState(false)
+  // Objava za čitač ekrana pri kliku na zaključan gumb. Prazan međukorak je
+  // nužan: aria-live objavljuje PROMJENU sadržaja, pa bi drugi klik s istim
+  // tekstom prošao nečujno.
+  const [hintObjava, setHintObjava] = useState("")
+
+  const hintsEnabled = (user?.hints_enabled ?? false) && !hintsHidden
+  // 🔴 Sakrivanje gumba NIJE kontrola pristupa — ruta ima `require_admin` i
+  // vraća 403 studentu koji je ipak pozove. Ovo je samo da studentu ne visi
+  // admin alat na ekranu (isti obrazac kao `hints_enabled`).
+  const isAdmin = user?.role === "admin"
+  const resetM = useResetHintCredit()
+  const handleResetKredit = () =>
+    resetM.mutate(undefined, {
+      onSuccess: (d) =>
+        toast.success(
+          d.deleted === 0
+            ? "Kredit je već bio pun."
+            : `Kredit vraćen — obrisano ${d.deleted} zapisa.`,
+        ),
+      onError: () => toast.error("Reset kredita nije uspio."),
+    })
+  const hintUnlocked = task.last_attempt_error_type != null
+  const hintRemaining = profileQ.data?.remaining
+  const hintFailureReason =
+    hintM.error instanceof HintError
+      ? hintM.error.reason
+      : hintM.isError
+        ? ("unknown" as const)
+        : undefined
+
+  /**
+   * Jednokratni „poskok" u trenutku otključavanja.
+   *
+   * 🔴 OKIDAČ JE PRIJELAZ, NE VRIJEDNOST. `ref` se inicijalizira POČETNIM
+   * stanjem, pa dolazak na već otključan zadatak ne animira ništa — animira se
+   * samo `false → true` koji se dogodi dok je ekran otvoren (netočna predaja →
+   * invalidacija `["task", id]` → novi `last_attempt_error_type`).
+   * Bez toga bi svaka navigacija ponovila slavlje za nešto što nije novo, a to
+   * je ista laž koju C.2.2 zabranjuje kod dolaska savjeta.
+   *
+   * 🔴 Klasa se SKIDA nakon animacije. Da ostane, `animation` bi se ponovno
+   * pokrenuo na svaki idući re-render koji dira taj čvor.
+   */
+  const [hintJustUnlocked, setHintJustUnlocked] = useState(false)
+  const hintUnlockedRef = useRef(hintUnlocked)
+  useEffect(() => {
+    if (hintUnlocked === hintUnlockedRef.current) return
+    hintUnlockedRef.current = hintUnlocked
+    if (!hintUnlocked) return
+    setHintJustUnlocked(true)
+    // Nešto duže od `--duration-slow` (400 ms) — klasa se skida tek kad je
+    // animacija sigurno gotova, inače se odreže na sporijem uređaju.
+    const id = window.setTimeout(() => setHintJustUnlocked(false), 600)
+    return () => window.clearTimeout(id)
+  }, [hintUnlocked])
+
+  /**
+   * Vidljiv jednoredni meta tekst uz gumb — JEDAN element, jedan `id`, na koji
+   * `aria-describedby` pokazuje u oba stanja:
+   *   zaključano  → RAZLOG (ono što `aria-describedby` mora imenovati)
+   *   otključano  → BROJAČ preostalih savjeta
+   * 🔴 Brojač je OVDJE, nikad u natpisu gumba (§C.4.2) — natpis se ne smije
+   * mijenjati s brojkom, inače H3.8 („isti natpis u oba stanja") pada.
+   * 🔴 Brojka je iz `/profile` i AUTORITATIVNA — ne dekrementira se lokalno
+   * (C.2.2: idempotentno ponavljanje ne troši kredit, pa bi lokalni dekrement
+   * lagao na svakom ponovljenom kliku).
+   */
+  const hintMetaText = !hintsEnabled
+    ? null
+    : !hintUnlocked
+      ? HINT_RAZLOG
+      : hintRemaining != null
+        ? `Preostalo savjeta: ${hintRemaining}`
+        : null
+
+  const handleHint = () => {
+    // 🔴 Zaključan gumb: NULA mrežnog prometa (§C.5.2 t.1). `aria-disabled`
+    // ostaje klikabilan namjerno — čitač ekrana ga vidi i pročita razlog.
+    if (!hintUnlocked) {
+      setHintObjava("")
+      window.setTimeout(() => setHintObjava(HINT_RAZLOG), 80)
+      return
+    }
+    hintM.mutate(undefined, {
+      onSuccess: (data) => {
+        setHintText(data.hint_text)
+        setHintStale(false)
+      },
+      onError: (e) => {
+        if (e instanceof HintError && e.reason === "hints_disabled") {
+          setHintsHidden(true)
+        }
+      },
+    })
+  }
+
   // ── Submit (4.3c) — SCORED predaja; feedback je per-task (keyed TaskView). ──
   const queryClient = useQueryClient()
   const badgesQ = useBadges()
@@ -179,6 +306,12 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
         setLevelUp(
           prevLevel != null && data.level > prevLevel && data.xp_delta > 0,
         )
+        // Nova predaja → postojeći savjet opisuje raniji pokušaj (§C3.1). Panel
+        // ga OZNAČAVA, ne briše; kad savjeta nema, zastavica nema učinka.
+        setHintStale(true)
+        // Neuspjeli hint (npr. 409 iz utrke predaja i osvježenog /task) više ne
+        // opisuje sadašnjost — poruka se gasi predajom, ne visi do reloada.
+        resetHint()
       },
     })
   }
@@ -405,7 +538,10 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
       <Card className="hidden min-w-0 self-start md:block">
         <CardContent className="space-y-3 p-4">
           {/* focus-within prsten: Monaco fokus mora biti vidljiv i na kontejneru (MASTER §7). */}
-          <div className="h-[420px] overflow-hidden rounded-md border border-border transition-[border-color,box-shadow] duration-fast ease-standard focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40 motion-reduce:transition-none xl:h-[520px]">
+          <div
+            data-testid="editor-box"
+            className="h-[420px] overflow-hidden rounded-md border border-border transition-[border-color,box-shadow] duration-fast ease-standard focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40 motion-reduce:transition-none xl:h-[520px]"
+          >
             {/* ⚠️ onRun/onSubmit od PRVOG rendera — monaco akcije su mount-time. */}
             <SqlEditor
               value={query}
@@ -414,7 +550,47 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
               onSubmit={handleSubmit}
             />
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-3">
+          <div
+            data-testid="action-row"
+            className="flex flex-wrap items-center justify-end gap-3"
+          >
+            {/* 🔴 Gumb za savjet je PRVI child vanjskog flexa (§C2.1) i `mr-auto`
+                ga drži uz lijevi rub — Run/Submit ostaju desno, nepomaknuti.
+                `ghost`, nikad `default`: savjet nije primarna akcija ekrana
+                (to je Submit, i on jedini nosi punu `primary` plohu).
+                🔴 `aria-disabled`, NE `disabled`: zaključan gumb mora ostati
+                fokusabilan da čitač ekrana pročita razlog (§C.5.2).
+
+                ⟳ ODSTUPANJE OD §C2.1 (odluka korisnika, 2026-08-13): plan je
+                tražio neutralni `border-border`/`bg-muted` u OBA stanja. Sada
+                je otključano stanje `hint` (cyan), a zaključano ostaje
+                neutralno — razlika u boji NOSI promjenu dostupnosti, koju je
+                dotad nosio samo `aria-disabled`. Boja je POJAČANJE, ne jedini
+                kanal: natpis je nepromijenjen, `aria-disabled` i vidljivi
+                razlog rade kao i prije (MASTER §2.2).
+                🔴 Geometrija je namjerno netaknuta — samo boje. Da se mijenja
+                padding ili obrub, pao bi N-20 (`e2e/hint-row.spec.ts`). */}
+            {hintsEnabled && (
+              <Button
+                variant="ghost"
+                className={`mr-auto border-hint/45 bg-hint-soft text-hint hover:border-hint/70 hover:bg-hint/15 hover:text-hint aria-disabled:border-transparent aria-disabled:bg-transparent aria-disabled:text-muted-foreground aria-disabled:hover:border-transparent aria-disabled:hover:bg-transparent aria-disabled:hover:text-muted-foreground${
+                  hintJustUnlocked ? " hint-unlock-ring" : ""
+                }`}
+                aria-disabled={!hintUnlocked}
+                aria-describedby={hintMetaText ? HINT_RAZLOG_ID : undefined}
+                onClick={handleHint}
+              >
+                {/* 🔴 Klasa NE smije sadržavati „size-": base button stilizira
+                    ikonu kroz `[&_svg:not([class*='size-'])]:size-4`, pa bi
+                    takvo ime tiho ubilo veličinu ikone. */}
+                <Lightbulb
+                  data-icon="inline-start"
+                  aria-hidden="true"
+                  className={hintJustUnlocked ? "hint-unlock-pop" : undefined}
+                />
+                {HINT_NATPIS}
+              </Button>
+            )}
             <div className="flex items-center gap-2">
               {/* Run = proba bez bodovanja; Submit = scored predaja. */}
               <Button
@@ -438,6 +614,57 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
               </Button>
             </div>
           </div>
+          {/* ── Hint slot (§C.6.2): ZASEBAN, iznad lanca `submitSlot`a ────────
+              Hint i feedback KOEGZISTIRAJU — hint gore jer je akcija koju je
+              student upravo pokrenuo i mora biti bliže gumbu koji ju je
+              pokrenuo. Ulazak u `submitSlot` enum bi ih učinio isključivima. */}
+          {hintsEnabled && (
+            <>
+              {hintMetaText && (
+                <div className="flex items-center gap-2">
+                  {/* `text-sm`, ne `text-xs` — presedan RegisterPage.tsx:152,
+                      gdje je pomoć uz polje podignuta upravo zbog kontrasta
+                      (N-4). 🔴 Gumb je IZVAN <p>: `aria-describedby` pokazuje
+                      na taj <p>, pa bi natpis gumba unutra ušao u opis gumba. */}
+                  <p
+                    id={HINT_RAZLOG_ID}
+                    className="text-sm text-muted-foreground"
+                  >
+                    {hintMetaText}
+                  </p>
+                  {isAdmin && (
+                    // 🔴 `size="xs"` (24 px) je ISPOD WCAG 2.5.5 praga od 44 px.
+                    // Svjesno: `button.tsx` xs/sm izrijekom drži kao escape-hatch
+                    // za gusti sekundarni UI, a ovo je admin alat koji student
+                    // nikad ne renderira — nije dio studentskog puta za koji se
+                    // AA tvrdi. Veći gumb bi ovdje narastao meta redak.
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      disabled={resetM.isPending}
+                      onClick={handleResetKredit}
+                    >
+                      <RotateCcw data-icon="inline-start" aria-hidden="true" />
+                      Resetiraj kredit
+                    </Button>
+                  )}
+                </div>
+              )}
+              {/* Klik na zaključan gumb ne mijenja ništa vidljivo, pa objava ide
+                  ovuda. `sr-only` je izvan toka → ne dodaje visinu. */}
+              <div aria-live="polite" className="sr-only">
+                {hintObjava}
+              </div>
+              <HintPanel
+                hintText={hintText}
+                stale={hintStale}
+                isPending={hintM.isPending}
+                failure={hintFailureReason}
+                nextRefillAt={profileQ.data?.next_refill_at}
+                onRetry={handleHint}
+              />
+            </>
+          )}
           {submitSlot === "pending" && (
             <LoadingState
               lines={2}

@@ -766,6 +766,57 @@ sučelju nije prihvatljiv način prikupljanja čišćih podataka.
 
 ---
 
+## #59 🔴 VALJANOST: informacija sudionika ne pokriva slanje podataka vanjskoj usluzi
+
+**Status:** 🔴 otvoren, zabilježen 2026-08-11 · **blokator za puštanje hinta u eval** ·
+**nije blokator** za gradnju iza `USE_LLM_HINTS=false`
+
+Tekst koji sudionik vidi prije registracije (`participation.ts`) opisivao je što se
+**bilježi** — SQL upiti, ishodi pokušaja, procjena znanja — ali ni jednom riječju nije
+spominjao da bi išta od toga moglo **napustiti sustav**. Do Faze 5 to je bilo točno:
+jedini LLM poziv bio je offline generiranje zadataka, bez ijednog studentovog podatka.
+
+HintAgent to mijenja. Zahtjev za savjetom šalje podatke o studentovom pokušaju vanjskoj
+usluzi (Anthropic, Claude API). Sudionik koji je pristao na tekst bez te tvrdnje **nije
+pristao na to**.
+
+### Što je učinjeno
+
+Umetnut odlomak (indeks 2, odmah iza bilježenja) koji granicu izriče u **oba** smjera:
+
+- **ne izlazi:** tekst upita,
+- **izlazi:** opis zadatka, koncept, vrsta greške i njezini **brojčani pokazatelji**
+  (npr. broj vraćenih redaka), procjena znanja koncepta,
+- **ne izlazi ništa** bez izričitog zahtjeva za savjetom.
+
+Granica nije nagađana — izmjerena je nad živom bazom (§A1 plana 5.0). Mjerenje je i
+suzilo prvotnu namjeru: `execution_error` `detail` nosi **doslovni redak upita** (jedan
+uzorak sadrži i zaostali komentar iz editora), a `wrong_columns` nabraja **studentove
+aliase**. Oba su izbačena iz onoga što se šalje.
+
+### Zašto ostaje otvoren
+
+Odlomak informira, ali **ne bilježi suglasnost**. Nosilac pristanka je i dalje čin
+registracije, kao i dosad. Prije nego hint proradi u evalu treba odluka: je li informacija
+dovoljna ili traži zaseban, bilježen pristanak (nova kolona → migracija).
+
+### Srodno
+
+- **#46** — brisanje pojedinog sudionika nije dokazano izvedivo; sada mu se pridružuje
+  pitanje što je s podacima koji su već otišli vanjskoj usluzi.
+- **#37**, **#40** — ista obitelj: obećanje prema sudioniku šire je od dokazanog
+  ponašanja sustava.
+
+### Za rad
+
+Nalaz je primjer općenitijeg obrasca: **tekst suglasnosti stari zajedno s arhitekturom.**
+Tvrdnja „sustav bilježi X" bila je potpuna dok je sustav bio zatvoren; dodavanje jednog
+vanjskog poziva učinilo ju je nepotpunom a da nijedan njezin znak nije promijenjen.
+Provjera „je li informacija sudionika još istinita?" mora biti stavka pri svakoj izmjeni
+koja otvara novi izlazni kanal, ne pri ponovnom čitanju teksta.
+
+---
+
 ## #60 🔴 STRUKTURNI: preporuka koncepta ovisila je o fizičkom poretku redaka u heapu
 
 **Status:** 🔴 popravljeno · grana `fix-recommender-determinizam` · blokator za **deployment**
@@ -803,23 +854,46 @@ Lanac je potvrđen u tri različita fizička poretka; svaki je unaprijed predvid
 - `test_seed.py::test_seed_is_idempotent` — isto, dvaput po pokretanju suitea.
 - `VACUUM FULL`, `CLUSTER`, restore iz dumpa, autovacuum.
 
-### Trag u produkcijskim podacima
+### 🔴 POVUČENO: „trag u produkcijskim podacima" (ispravak 2026-08-12)
 
-`recommendations_log` pokazuje kad je drift počeo:
+**Prvotna verzija ovog odjeljka tvrdila je da `recommendations_log` pokazuje kad je drift
+počeo. Ta tvrdnja je provjerena i NE STOJI. Povlači se u cijelosti.**
 
-| koncept | puta | od | do |
-|---|---|---|---|
-| `inner_join` | 176 | 2026-07-25 | 2026-08-11 |
-| `select_basic` | 20 | 2026-07-20 | 2026-08-11 |
-| `group_by` | 10 | **2026-08-11** | 2026-08-11 |
-| `cross_join` | 2 | **2026-08-11** | 2026-08-11 |
-| `update` | 2 | **2026-08-11** | 2026-08-11 |
-| `where_filter` | 2 | **2026-08-11** | 2026-08-11 |
-| `null_handling` | 1 | **2026-08-11** | 2026-08-11 |
+Tvrdilo se: tri tjedna samo `inner_join` (176×) i `select_basic` (20×), a pet novih
+koncepata (`group_by`, `cross_join`, `update`, `where_filter`, `null_handling`) pojavljuje
+se prvi put 2026-08-11 — „istog dana kad je heap opetovano prepisivan".
 
-Tri tjedna sustav je vraćao samo `inner_join` i `select_basic`. Pet novih koncepata
-pojavljuje se **prvi put istog dana** kad je heap opetovano prepisivan — među njima točno
-`cross_join` i `update`, dva ishoda koje pokvareni kod daje pod forsiranim poretcima.
+**Što provjera pokazuje.** Svih 17 redaka s tim konceptima pripada **jednom stvarnom
+korisniku** (`user_id 565`), u neprekinutoj sesiji 11:52–12:01, i svaka preporuka slijedi
+**neposredno iza pokušaja koji je promijenio znanje**:
+
+| vrijeme | pokušaj | preporuka odmah nakon |
+|---|---|---|
+| 11:56:39 | riješen `inner_join` (task 44) | `cross_join` |
+| 11:57:16 | riješen `cross_join` (task 39) | `where_filter` |
+| 11:59:04 | riješen `order_by` (task 13) | `group_by` |
+| 12:01:10 | riješen `group_by` (task 30, 7. pokušaj) | `null_handling` |
+| 12:01:30 | riješen `null_handling` (task 1) | `update` |
+
+`skill_mastery_history` to potvrđuje: u istom prozoru `inner_join` 0,217 → 0,644,
+`group_by` 0,217 → 0,657, `where_filter` 0,728 → 0,987. **Znanje se stvarno mijenjalo, pa
+je preporuka legitimno pratila** — to je sustav koji radi, ne kvar.
+
+Vremenski se ni ne poklapa: redci su 11:56–12:01, a opetovano prepisivanje heapa (pokretanja
+suitea) dogodilo se ~5 sati kasnije.
+
+**Ispravna tvrdnja:** `recommendations_log` **niti potvrđuje niti opovrgava** utjecaj kvara
+na stvarne korisnike. Nedostatak raznolikosti kroz tri tjedna govori o slabom korištenju, ne
+o stabilnosti preporuke.
+
+🔴 **Kvar i popravak time NISU dovedeni u pitanje** — dokazani su izravnim pokusom (tri
+fizička poretka, svaki unaprijed predvidio ishod; test pada 5/5 na starom kodu, prolazi 5/5
+na novom). To mjerenje ne ovisi ni o jednom retku iz `recommendations_log`.
+
+**Pouka, ista obitelj kao #55 i #57:** podudarnost datuma je uzeta kao uzročnost jer je
+*potvrđivala* zaključak do kojeg je pokus već došao. Pokus je bio valjan i bez nje; „trag"
+je dodan kao ukras, a ukras je bio netočan. Dokaz koji ništa ne nosi svejedno može biti
+kriv, i onda kvari nalaz koji je inače dobar.
 
 ### Popravak
 
@@ -883,19 +957,62 @@ vrijednost** — pokvareni kod je davao `cross_join` ili `update` ovisno o stanj
 se nije imalo što sačuvati. `group_by` je modul 2, odmah iza M1, dakle traženi pedagoški
 slijed.
 
-🔴 **Za analizu evala:** preporuke zabilježene **2026-08-11** nastale su dok je kvar bio
-aktivan i heap se opetovano prepisivao. Sedam različitih koncepata toga dana nije signal o
-studentima nego o poretku redaka. Taj se dan izuzima ili posebno označava pri svakoj
-tvrdnji o ponašanju preporučivača.
+**Za analizu evala.** ~~Preporuke od 2026-08-11 izuzeti jer nisu signal o studentima nego o
+poretku redaka.~~ **Povučeno istog dana kad i „trag u produkcijskim podacima" (v. gore) —
+uputa je bila pogrešna i bacila bi ispravne podatke.** Sesija 2026-08-11 11:52–12:01 je
+uredna: svaka preporuka slijedi pokušaj koji je promijenio `p_l`.
+
+Ono što **ostaje** istinito i mora se navesti: sve preporuke zabilježene **prije** merge-a
+ovog popravka nastale su dok je kvar bio aktivan, pa se **za nijednu pojedinačnu ne može
+tvrditi** da je bila kanonska. Kvar se očituje samo kad više kandidata dijeli status
+`weak` + `prereqs_met`; kad je kandidat jedan, poredak ne mijenja ništa. Zato: ne izuzimati
+podatke, nego uz svaku tvrdnju o preporukama iz tog razdoblja navesti da determinizam nije
+bio zajamčen.
+
+---
+
+## #61 🔴 VALJANOST: `submitted_query` se trajno pohranjuje u `agent_messages_log`
+
+**Kad:** otkriveno 2026-08-12, pri exit mjerenju Faze 5.1 (kriterij: „log ne sadrži
+`hint_text` ni `submitted_query`").
+
+**Što je izmjereno** (živi `tutor_main`, ne čitanje koda):
+
+| mjera | vrijednost |
+|---|---|
+| redaka u `agent_messages_log` | 7480 |
+| redaka koji sadrže `submitted_query` | **1568** |
+| najstariji takav redak | **2026-07-20** |
+| redaka od `hint@localhost` | 68 |
+| od toga sa `submitted_query` | **0** |
+
+**Što to znači.** FIPA lanac `POST /attempt` prosljeđuje payload sa studentovim upitom, a
+`TutorAgent.log_message` upisuje `content` doslovno. Doslovni SQL koji je student napisao
+time završava u trajnoj tablici koja se **ne briše** i **ulazi u izvoz**.
+
+🔴 **Ovo NIJE uveo HintAgent.** Hint put je izmjeren i čist: van ide `{user_id, task_id}`,
+natrag `{task_id, source, hint_len}`. Nalaz je zatečen i star tri tjedna; Faza 5.1 ga je
+samo **otkrila**, jer je prvi put netko pretražio sadržaj tog loga umjesto da čita kôd.
+
+**Zašto je relevantno za rad:**
+- `export_eval_data.py` pseudonimizira `user_id`, ali sadržaj `content` ne dira — pseudonim
+  ne pomaže ako je uz njega doslovni rad koji je osoba napisala,
+- privola iz 5.0 §D govori o obradi podataka o učenju; trajna pohrana doslovnog uratka je
+  jača tvrdnja od one koju je sudionik pročitao,
+- ista je logika po kojoj je `hint_text` u 5.1 redigiran — kriterij je već postojao, samo
+  se primjenjivao na jedan put a ne na oba.
+
+**Nije popravljeno u 5.1** jer bi tražilo izmjenu `base.py` i `coordinator.py`, koji su
+odlukom 8 plana 5.1 zamrznuti. **Status: OTVORENO** — Faza 6.
+
+**Što se NE tvrdi:** da su podaci ikamo procurili. Log je lokalna baza u Dockeru. Tvrdi se
+samo da pohrana postoji, da je trajna, i da je šira od onoga što je sudioniku rečeno.
 
 ---
 
 ## #62 🔴 STRUKTURNI: druga istovremena predaja se ODBACUJE, ne odgađa
 
-> ⚠️ **Ovaj unos postoji i na grani `faza-5-hintagent`, u kraćoj verziji.** Ova je potpuna
-> (dopunjena istragom `docs/fix-62-korak-0.md`). Pri spajanju **zadržati ovu**.
-> Broj `#61` (`submitted_query` u FIPA logu) živi samo na `faza-5-hintagent` — rupa u
-> numeraciji ovdje je očekivana, broj nije slobodan.
+**Kad:** izmjereno 2026-08-12, kontrolnim mjerenjem koje je N-22 tražio.
 
 **Nalaz.** `POST /attempt` podnosi **točno jednu istovremenu predaju**. Svaka koja stigne dok
 je Coordinator FSM u toku biva **trajno odbačena**: student čeka 15 s, dobije 504
@@ -1038,3 +1155,79 @@ Podizanje same konstante bilo bi pomicanje praga, ne popravak; zato provjera.
 
 Ne dira `persistence.py`, `evaluate-query` payload ni migracije; D6 netaknut.
 Detalji: `docs/fix-62-63-wrapup.md`.
+
+---
+
+## #64 🔴 KVALITETA SAVJETA: hint za `row_mismatch` je nagađanje, i zna dati NETOČAN SQL
+
+**Kad:** izmjereno 2026-08-13, prvi prolaz kroz UI s uključenim `USE_LLM_HINTS` i živim
+`ANTHROPIC_API_KEY` (5 stvarnih poziva, `claude-haiku-4-5`, `source='llm'`).
+
+**Nalaz.** Predano `... ORDER BY id DESC LIMIT 3` umjesto `ASC` (dakle: točni stupci,
+krivi poredak → `row_mismatch`). Model je vratio:
+
+> „Tvoji stupci su ispravni, ali vrati se na redoslijed upita: prvo trebaš **WHERE ili
+> LIMIT**, a zatim **ORDER BY**? Ponovi redoslijed klauzula u SELECT iskazu."
+
+To **nije samo promašena dijagnoza** (problem je bio smjer sortiranja, ne poredak
+klauzula) nego i **netočna uputa o SQL sintaksi**: `ORDER BY` ide **prije** `LIMIT`.
+Student koji posluša savjet napiše upit koji ne parsira.
+
+**Uzrok je strukturan, ne slučajan — i vidi se iz usporedbe s drugim tipom greške.**
+`build_hint_payload` ([hint_payload.py:66](../backend/agents/hint_payload.py#L66)) šalje
+najviše jedno od `error_detail` / `expected_columns` / `sqlstate`, po bijeloj listi:
+
+| `error_type` | što payload nosi | kakav je savjet ispao |
+|---|---|---|
+| `wrong_columns` | **`expected_columns`** — rekonstruirani ključevi iz `expected_result` | **točan i konkretan**: „zadatak traži točno `id`, `name` i `country`" |
+| `row_mismatch` | `error_detail`, a to je interni string tipa `Row 0 differs` | **spekulativan**; u jednom od dva mjerenja i netočan |
+
+Studentov upit **namjerno** ne napušta sustav (selektivni B+, odluka 5.0), pa model nema
+iz čega vidjeti da je razlika bila `DESC` vs `ASC`. Kad payload nosi tvrdu činjenicu,
+savjet je dobar; kad nosi interni dijagnostički string, model **popuni prazninu
+izmišljanjem**.
+
+🔴 **Privatnosna odluka NIJE uzrok i ne treba je mijenjati.** Uzrok je što za
+`row_mismatch` u payload ne ide ništa **strukturno o očekivanom rezultatu** — a to se dade
+izvesti iz `expected_result`, koji sustav ionako ima, **bez ijednog znaka studentovog
+upita**: npr. „očekuje se 3 retka, sortirano uzlazno po `id`" umjesto `Row 0 differs`.
+
+**Zašto 5.1 ovo nije uhvatila.** `test_hint_route.py` mocka LLM u svakom testu (nula
+potrošnje, ispravna odluka) i provjerava **mehaniku** — status, idempotenciju, kredit,
+redigiranost loga. Ništa ondje ne gleda **sadržaj** savjeta, pa ni ne može. Kvar je
+vidljiv tek na živom modelu, i to samo ako se pročita što je napisao.
+
+**Opseg.** Pogađa `row_mismatch`, koji je najčešći „skoro točan" ishod i **jedini koji
+nosi djelomičan XP** — dakle točno onaj trenutak u kojem je savjet najvredniji.
+
+**NE popravlja se u 5.2.** Plan 5.2 izrijekom zabranjuje diranje `hint_agent.py` i
+`/hint` rute, a ovo je izmjena payloada, dakle backend i vlastita grana. Zabilježeno
+ovdje da ne ovisi o sjećanju.
+
+**Usput uočeno, isti prolaz:** u jednom savjetu procurio je glas modela — „to znači da
+**trebam reći** da `FROM` klauzula…". Prompt-level, ista grana kad se otvori.
+
+## #65 🟡 Model vraća Markdown, a slot ga je prikazivao doslovno
+
+**Kad:** izmjereno 2026-08-13, isti prolaz kao #64. ✅ **POPRAVLJENO isti dan.**
+
+`hint_text` je išao u `<p>` neobrađen, pa je student čitao `**ograničiti broj redaka**`
+i `` `FROM` `` sa zvjezdicama i backtickovima. Izmjereno: **2 od 4** živa savjeta nose
+`**` ili `` ` `` (potvrđeno i upitom nad `hint_requests`).
+
+Prompt Markdown **ne traži** — model ga dodaje sam. Popravak je zato na strani prikaza, ne
+prompta (koji je u zamrznutom opsegu, v. #64): `hintSegments` / `hintParagraphs` u
+`lib/hint.ts` prevode **samo** `**podebljano**` i `` `kod` `` u React čvorove.
+
+🔴 **Nije Markdown parser i ne smije to postati.** Nesparen `*` ili `` ` `` ostaje
+**doslovan znak** — provjereno na sedam ulaza, uključujući „3 * 4 = 12"; invarijanta je da
+vraćanje graničnika u segmente reproducira normalizirani ulaz, dakle **nijedan znak se ne
+gubi**. Renderira se kroz React čvorove, **nikad** `dangerouslySetInnerHTML`: tekst dolazi
+od modela i ne smije moći unijeti oznake u DOM.
+
+**Usput uhvaćeno mjerenjem, ne okom:** prva verzija `<code>` čipa imala je `text-xs`, što
+uz root skalu od ~14 px daje **10,24 px** — najsitniji tekst na ekranu, i to na imenima
+stupaca koja student mora **pročitati i utipkati**. Ista greška koju je već platio
+`RegisterPage` (v. 🔒 politika iz #33). `text-xs` maknut → čip nasljeđuje `text-sm`
+odlomka (12,8 px). Kontrast izmjeren nakon promjene: **17,23:1** (`#f3f4fe` na `#0e0f23`,
+kompozitirano `bg-background/60` nad `bg-muted/40` nad `card`).

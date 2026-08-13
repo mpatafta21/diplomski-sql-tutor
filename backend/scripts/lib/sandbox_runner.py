@@ -23,6 +23,11 @@ class ExecutionResult:
     column_names: list[str] = field(default_factory=list)
     execution_time_ms: int = 0
     error: str | None = None
+    #: PG SQLSTATE uhvaćene greške (Faza 5.1) — zatvoren šifrarnik od 5 znakova
+    #: (42703, 42601, 42P01, 42803…), BEZ ijednog znaka studentovog upita.
+    #: 🔴 `error` (poruka) nosi doslovni redak upita i NE smije van; `sqlstate`
+    #: smije. Do 5.1 se gubio jer je hvatanje radilo samo `str(e)`.
+    sqlstate: str | None = None
 
 
 @dataclass
@@ -146,12 +151,14 @@ class SandboxRunner:
                         success=False,
                         error=f"Statement timeout after {self.timeout_ms}ms: {e}",
                         execution_time_ms=int((time.perf_counter() - start) * 1000),
+                        sqlstate=e.sqlstate,
                     )
                 except psycopg.Error as e:
                     return ExecutionResult(
                         success=False,
                         error=str(e),
                         execution_time_ms=int((time.perf_counter() - start) * 1000),
+                        sqlstate=e.sqlstate,
                     )
                 finally:
                     if dml:
@@ -170,10 +177,12 @@ class SandboxRunner:
                 # The per-call rollback is safe only because no outer transaction exists.
                 # If a connection pool is introduced, switch to SAVEPOINT pattern.
         except psycopg.Error as e:
+            # Vanjski catch: greška pri samom spajanju (connect/SET ROLE), ne pri upitu.
             return ExecutionResult(
                 success=False,
                 error=str(e),
                 execution_time_ms=int((time.perf_counter() - start) * 1000),
+                sqlstate=e.sqlstate,
             )
 
     def compare(

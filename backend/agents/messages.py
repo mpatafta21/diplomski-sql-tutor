@@ -29,6 +29,9 @@ class Ontology:
     UPDATE_MASTERY = "update-mastery"
     GAMIFICATION_EVENT = "gamification-event"
     MODEL_UPDATED = "model-updated"
+    # Faza 5.1 — hint ide gateway → HintAgent i natrag pod ISTOM ontologijom
+    # (presedan RECOMMEND_NEXT), pa `_Resolve` u gatewayu razlikuje odgovor po njoj.
+    REQUEST_HINT = "request-hint"
 
 
 # ---------------------------------------------------------------------------

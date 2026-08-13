@@ -1155,3 +1155,79 @@ Podizanje same konstante bilo bi pomicanje praga, ne popravak; zato provjera.
 
 Ne dira `persistence.py`, `evaluate-query` payload ni migracije; D6 netaknut.
 Detalji: `docs/fix-62-63-wrapup.md`.
+
+---
+
+## #64 🔴 KVALITETA SAVJETA: hint za `row_mismatch` je nagađanje, i zna dati NETOČAN SQL
+
+**Kad:** izmjereno 2026-08-13, prvi prolaz kroz UI s uključenim `USE_LLM_HINTS` i živim
+`ANTHROPIC_API_KEY` (5 stvarnih poziva, `claude-haiku-4-5`, `source='llm'`).
+
+**Nalaz.** Predano `... ORDER BY id DESC LIMIT 3` umjesto `ASC` (dakle: točni stupci,
+krivi poredak → `row_mismatch`). Model je vratio:
+
+> „Tvoji stupci su ispravni, ali vrati se na redoslijed upita: prvo trebaš **WHERE ili
+> LIMIT**, a zatim **ORDER BY**? Ponovi redoslijed klauzula u SELECT iskazu."
+
+To **nije samo promašena dijagnoza** (problem je bio smjer sortiranja, ne poredak
+klauzula) nego i **netočna uputa o SQL sintaksi**: `ORDER BY` ide **prije** `LIMIT`.
+Student koji posluša savjet napiše upit koji ne parsira.
+
+**Uzrok je strukturan, ne slučajan — i vidi se iz usporedbe s drugim tipom greške.**
+`build_hint_payload` ([hint_payload.py:66](../backend/agents/hint_payload.py#L66)) šalje
+najviše jedno od `error_detail` / `expected_columns` / `sqlstate`, po bijeloj listi:
+
+| `error_type` | što payload nosi | kakav je savjet ispao |
+|---|---|---|
+| `wrong_columns` | **`expected_columns`** — rekonstruirani ključevi iz `expected_result` | **točan i konkretan**: „zadatak traži točno `id`, `name` i `country`" |
+| `row_mismatch` | `error_detail`, a to je interni string tipa `Row 0 differs` | **spekulativan**; u jednom od dva mjerenja i netočan |
+
+Studentov upit **namjerno** ne napušta sustav (selektivni B+, odluka 5.0), pa model nema
+iz čega vidjeti da je razlika bila `DESC` vs `ASC`. Kad payload nosi tvrdu činjenicu,
+savjet je dobar; kad nosi interni dijagnostički string, model **popuni prazninu
+izmišljanjem**.
+
+🔴 **Privatnosna odluka NIJE uzrok i ne treba je mijenjati.** Uzrok je što za
+`row_mismatch` u payload ne ide ništa **strukturno o očekivanom rezultatu** — a to se dade
+izvesti iz `expected_result`, koji sustav ionako ima, **bez ijednog znaka studentovog
+upita**: npr. „očekuje se 3 retka, sortirano uzlazno po `id`" umjesto `Row 0 differs`.
+
+**Zašto 5.1 ovo nije uhvatila.** `test_hint_route.py` mocka LLM u svakom testu (nula
+potrošnje, ispravna odluka) i provjerava **mehaniku** — status, idempotenciju, kredit,
+redigiranost loga. Ništa ondje ne gleda **sadržaj** savjeta, pa ni ne može. Kvar je
+vidljiv tek na živom modelu, i to samo ako se pročita što je napisao.
+
+**Opseg.** Pogađa `row_mismatch`, koji je najčešći „skoro točan" ishod i **jedini koji
+nosi djelomičan XP** — dakle točno onaj trenutak u kojem je savjet najvredniji.
+
+**NE popravlja se u 5.2.** Plan 5.2 izrijekom zabranjuje diranje `hint_agent.py` i
+`/hint` rute, a ovo je izmjena payloada, dakle backend i vlastita grana. Zabilježeno
+ovdje da ne ovisi o sjećanju.
+
+**Usput uočeno, isti prolaz:** u jednom savjetu procurio je glas modela — „to znači da
+**trebam reći** da `FROM` klauzula…". Prompt-level, ista grana kad se otvori.
+
+## #65 🟡 Model vraća Markdown, a slot ga je prikazivao doslovno
+
+**Kad:** izmjereno 2026-08-13, isti prolaz kao #64. ✅ **POPRAVLJENO isti dan.**
+
+`hint_text` je išao u `<p>` neobrađen, pa je student čitao `**ograničiti broj redaka**`
+i `` `FROM` `` sa zvjezdicama i backtickovima. Izmjereno: **2 od 4** živa savjeta nose
+`**` ili `` ` `` (potvrđeno i upitom nad `hint_requests`).
+
+Prompt Markdown **ne traži** — model ga dodaje sam. Popravak je zato na strani prikaza, ne
+prompta (koji je u zamrznutom opsegu, v. #64): `hintSegments` / `hintParagraphs` u
+`lib/hint.ts` prevode **samo** `**podebljano**` i `` `kod` `` u React čvorove.
+
+🔴 **Nije Markdown parser i ne smije to postati.** Nesparen `*` ili `` ` `` ostaje
+**doslovan znak** — provjereno na sedam ulaza, uključujući „3 * 4 = 12"; invarijanta je da
+vraćanje graničnika u segmente reproducira normalizirani ulaz, dakle **nijedan znak se ne
+gubi**. Renderira se kroz React čvorove, **nikad** `dangerouslySetInnerHTML`: tekst dolazi
+od modela i ne smije moći unijeti oznake u DOM.
+
+**Usput uhvaćeno mjerenjem, ne okom:** prva verzija `<code>` čipa imala je `text-xs`, što
+uz root skalu od ~14 px daje **10,24 px** — najsitniji tekst na ekranu, i to na imenima
+stupaca koja student mora **pročitati i utipkati**. Ista greška koju je već platio
+`RegisterPage` (v. 🔒 politika iz #33). `text-xs` maknut → čip nasljeđuje `text-sm`
+odlomka (12,8 px). Kontrast izmjeren nakon promjene: **17,23:1** (`#f3f4fe` na `#0e0f23`,
+kompozitirano `bg-background/60` nad `bg-muted/40` nad `card`).

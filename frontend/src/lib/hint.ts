@@ -91,3 +91,62 @@ export function refillText(
   const ostatak = minute % 60
   return ostatak === 0 ? `za ${sati} h` : `za ${sati} h ${ostatak} min`
 }
+
+// ---------------------------------------------------------------------------
+// Minimalni Markdown u tekstu savjeta (5.2 dopuna — NALAZ „doslovni Markdown")
+// ---------------------------------------------------------------------------
+
+/**
+ * 🔴 POVOD: model vraća Markdown iako ga prompt ne traži, a slot ga je
+ * prikazivao doslovno — student je čitao „konstrukt koji će **ograničiti broj
+ * redaka**" sa zvjezdicama. Izmjereno 2026-08-13: 2 od 4 živa savjeta nose
+ * `**` ili `` ` ``.
+ *
+ * 🔴 OPSEG JE NAMJERNO SITAN: samo `**podebljano**` i `` `kod` ``. Ovo NIJE
+ * Markdown parser i ne smije to postati — savjet je jedna do dvije rečenice, a
+ * puni parser (ili nova ovisnost) bio bi nerazmjeran i otvorio bi pitanje
+ * sanitizacije teksta koji dolazi od modela.
+ *
+ * 🔴 FAIL-SAFE: nesparen `*` ili `` ` `` ostaje DOSLOVAN znak, kao i dosad.
+ * Regex traži par; što ga nema, prolazi kroz `text` granu netaknuto. Gore od
+ * zvjezdice u tekstu bila bi progutana rečenica.
+ */
+export type HintSegment = { kind: "text" | "bold" | "code"; value: string }
+
+const MD = /\*\*([^*\n]+)\*\*|`([^`\n]+)`/g
+
+/** Jedan odlomak → segmenti. Nikad ne gubi znakove: spoj `value`a vraća ulaz. */
+export function hintSegments(text: string): HintSegment[] {
+  const out: HintSegment[] = []
+  let zadnji = 0
+  for (const m of text.matchAll(MD)) {
+    if (m.index > zadnji) {
+      out.push({ kind: "text", value: text.slice(zadnji, m.index) })
+    }
+    out.push(
+      m[1] !== undefined
+        ? { kind: "bold", value: m[1] }
+        : { kind: "code", value: m[2] },
+    )
+    zadnji = m.index + m[0].length
+  }
+  if (zadnji < text.length) {
+    out.push({ kind: "text", value: text.slice(zadnji) })
+  }
+  return out
+}
+
+/**
+ * Tekst savjeta → odlomci → segmenti.
+ *
+ * Prazan redak dijeli odlomke (model ih zna vratiti dva). Jednostruki prijelom
+ * unutar odlomka postaje razmak — inače bi `white-space` morao biti `pre-line`,
+ * pa bi i slučajni prijelom iz modela postao vidljiv prelom u sučelju.
+ */
+export function hintParagraphs(text: string): HintSegment[][] {
+  return text
+    .split(/\n\s*\n/)
+    .map((odlomak) => odlomak.replace(/\s*\n\s*/g, " ").trim())
+    .filter((odlomak) => odlomak.length > 0)
+    .map(hintSegments)
+}

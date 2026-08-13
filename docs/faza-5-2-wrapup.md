@@ -305,6 +305,43 @@ dobio plohu. Izmjeren je stvarni par; da je izmjeren propisani, brojka bi bila n
 
 ---
 
+# E2 — Prvi prolaz s UKLJUČENIM LLM-om (2026-08-13, nakon taga)
+
+Flag je nakon zatvaranja faze prebačen na `USE_LLM_HINTS=true` u `backend/.env` (i cijeli
+blok hint varijabli dodan u `.env.example`, gdje ga dotad **uopće nije bilo**). Prvi
+prolaz kroz UI sa živim modelom, 5 stvarnih poziva.
+
+**Mehanika drži bez iznimke:**
+
+| provjera | rezultat |
+|---|---|
+| brojač kroz niz | 5 → 4 (savjet) → **4** (ponavljanje) → 3 → 2 |
+| ponovljeni klik na isti pokušaj | **bajt-identičan tekst**, kredit netaknut |
+| različiti pokušaji → različiti savjeti | ✅ tri različita teksta |
+| točna predaja | gumb se **ponovo zaključava**, savjet ostaje uz oznaku |
+| klik na zaključan gumb | **0 zahtjeva** |
+| prelazak na drugi zadatak | savjet nestaje (keyed `TaskView`) |
+| latencija | 3,6–4,2 s (LLM) · 1,8 s (ponavljanje iz pohrane) |
+
+**Dva nalaza koje je otkrio tek živi model** — mock u `test_hint_route.py` provjerava
+mehaniku, a sadržaj savjeta ne gleda nitko:
+
+- **ERRATA #64 🔴** — savjet za `row_mismatch` je nagađanje i jednom je dao **netočan
+  SQL** („prvo `LIMIT`, pa `ORDER BY`"). Uzrok: payload za taj tip nosi interni string
+  `Row 0 differs`, dok `wrong_columns` nosi `expected_columns` i ondje je savjet točan.
+  Popravak je izmjena payloada → zaseban zadatak, izvan opsega 5.2.
+- **ERRATA #65 🟡 → popravljeno isti dan** — model vraća Markdown, slot ga je prikazivao
+  doslovno. `hintSegments`/`hintParagraphs` prevode **samo** `**bold**` i `` `kod` ``,
+  fail-safe na nesparene znakove, bez `dangerouslySetInnerHTML` i bez nove ovisnosti.
+  Usput uhvaćen `<code>` čip na 10,24 px → podignut na `text-sm` (12,8 px), kontrast
+  **17,23:1**.
+
+🔴 **Tagovi `faza-5-2-ui` i `faza-5-complete` premješteni** na commit s popravkom #65.
+Bili su lokalni i nepushani, a „complete" koji isključuje kvar nađen isti dan bio bi
+netočna oznaka.
+
+---
+
 # F — Otvoreno
 
 - **N-21** (`submitted_query` u FIPA logu) — i dalje otvoren, izvan opsega 5.2.
@@ -314,3 +351,11 @@ dobio plohu. Izmjeren je stvarni par; da je izmjeren propisani, brojka bi bila n
   ostale tablice. Sitno; jedan redak u `COUNTED_TABLES` ako se želi zatvoriti.
 - **Odluka o `Kbd` čipovima** na 768 px — jedini put do nulte promjene visine kartice
   (v. D.1). Nije donesena ovdje jer dira eval-verificirani Run/Submit.
+- **ERRATA #64** — kvaliteta savjeta za `row_mismatch`. Traži izmjenu
+  `build_hint_payload` (strukturni opis očekivanog rezultata umjesto internog
+  `Row 0 differs`), dakle backend i vlastita grana. 🔴 Vrijedi riješiti **prije** nego
+  savjeti odu sudionicima: `row_mismatch` je najčešći „skoro točan" ishod i jedini s
+  djelomičnim XP-om, pa je to trenutak u kojem savjet najviše znači — a sada ondje
+  najmanje vrijedi.
+- **Curenje glasa modela** u tekst savjeta („to znači da trebam reći da…") — prompt-level,
+  ista grana kao #64.

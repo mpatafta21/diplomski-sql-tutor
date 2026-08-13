@@ -20,9 +20,50 @@ import { LoadingState } from "@/components/state/LoadingState"
 import {
   hintFailureRetryable,
   hintFailureText,
+  hintParagraphs,
   refillText,
   type HintFailure,
 } from "@/lib/hint"
+
+/**
+ * Tekst savjeta s minimalnim Markdownom (`**bold**`, `` `kod` ``).
+ *
+ * 🔴 Segmenti se renderiraju kao React čvorovi, NIKAD kroz
+ * `dangerouslySetInnerHTML`: tekst dolazi od modela i ne smije moći unijeti
+ * oznake u DOM. Ovako je najgori mogući ishod ružna rečenica, ne injekcija.
+ */
+function HintTekst({ text }: { text: string }) {
+  return (
+    <>
+      {hintParagraphs(text).map((odlomak, i) => (
+        <p key={i} className="text-sm text-card-foreground">
+          {odlomak.map((s, j) =>
+            s.kind === "bold" ? (
+              <strong key={j} className="font-semibold">
+                {s.value}
+              </strong>
+            ) : s.kind === "code" ? (
+              // 🔴 BEZ `text-xs`, za razliku od mono bloka u `FeedbackPanel`u:
+              // ondje je tehnički detalj koji se namjerno prigušuje, ovdje su
+              // imena stupaca koja student mora PROČITATI I UTIPKATI. Izmjereno:
+              // `text-xs` daje 10,24 px (root skala je ~14 px, ne 16), a to je
+              // ista greška koju je platio `RegisterPage` (N-4). Nasljeđuje
+              // `text-sm` odlomka; `py-px` drži visinu retka mirnom.
+              <code
+                key={j}
+                className="rounded bg-background/60 px-1 py-px font-mono"
+              >
+                {s.value}
+              </code>
+            ) : (
+              <span key={j}>{s.value}</span>
+            ),
+          )}
+        </p>
+      ))}
+    </>
+  )
+}
 
 interface HintPanelProps {
   /** Tekst savjeta iz `HintResponse`; bez njega slot nema uspješno stanje. */
@@ -100,7 +141,7 @@ export function HintPanel({
         className="mt-0.5 size-4 shrink-0 text-muted-foreground"
       />
       <div className="min-w-0 space-y-1">
-        <p className="text-sm text-card-foreground">{hintText}</p>
+        <HintTekst text={hintText} />
         {stale && (
           <p className="text-sm text-muted-foreground">
             Savjet je zatražen uz prethodnu predaju.

@@ -10,9 +10,16 @@
  * iz pohrane, pa frontend NE MOŽE razlikovati „upravo generirano" od „vraćeno".
  * Animacija novosti bi lagala na svakom ponavljanju.
  *
- * 🔴 Boja NIJE verdikt. Ploha je neutralna (`muted`), ikona `muted-foreground` —
- * savjet nije ni točno ni netočno, pa ne posuđuje semantiku iz MASTER §2.2.
- * `neutral-soft` je namjerno izbjegnut: N-10 ga je rezervirao za KVAR aplikacije.
+ * 🔴 Boja NIJE verdikt. Ploha je `hint` (cyan, hue 195) — VLASTITI token uveden
+ * u 5.2, ne posuđena semantika: 45° od `correct`, 135° od `partial`, 170° od
+ * `incorrect`, pa se ne može pročitati kao ocjena. Obrazloženje izbora huea i
+ * zašto je amber odbijen stoji uz `--hint` u `index.css`.
+ * `neutral-soft` je namjerno izbjegnut: N-10 ga je rezervirao za KVAR aplikacije,
+ * a `ErrorState` u grani neuspjeha i dalje ostaje NEUTRALAN — kvar dohvata nije
+ * savjet i ne smije nositi njegovu boju.
+ *
+ * 🔴 Ploha ostaje na disciplini `-soft` obitelji (L 0.24, C 0.04). Savjet stoji
+ * IZNAD panela s ocjenom i ne smije ga nadglasati — isticanje nosi gumb.
  */
 import { Lightbulb } from "lucide-react"
 import { ErrorState } from "@/components/state/ErrorState"
@@ -93,7 +100,7 @@ export function HintPanel({
       <LoadingState
         lines={2}
         label="Dohvaćanje savjeta"
-        className="rounded-md border border-border p-3"
+        className="rounded-md border border-hint/30 p-3"
       />
     )
   }
@@ -103,11 +110,11 @@ export function HintPanel({
     return (
       <div
         role="status"
-        className="flex items-start gap-3 rounded-md border border-border bg-muted/40 p-3"
+        className="flex items-start gap-3 rounded-md border border-hint/25 bg-hint-soft/60 p-3"
       >
         <Lightbulb
           aria-hidden="true"
-          className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+          className="mt-0.5 size-4 shrink-0 text-hint/70"
         />
         <p className="text-sm text-muted-foreground">
           {hintFailureText("hint_rate_limited")}
@@ -134,11 +141,11 @@ export function HintPanel({
     <div
       role="status"
       aria-label="Savjet"
-      className="flex items-start gap-3 rounded-md border border-border bg-muted/40 p-3"
+      className="flex items-start gap-3 rounded-md border border-hint/40 bg-hint-soft p-3"
     >
       <Lightbulb
         aria-hidden="true"
-        className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+        className="mt-0.5 size-4 shrink-0 text-hint"
       />
       <div className="min-w-0 space-y-1">
         <HintTekst text={hintText} />

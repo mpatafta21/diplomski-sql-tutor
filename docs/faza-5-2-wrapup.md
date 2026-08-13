@@ -271,10 +271,18 @@ dosegne 1. Tema je jedna (light je ukinut u 4.7).
 
 | par | tekst | podloga | omjer | AA |
 |---|---|---|---|---|
-| natpis gumba, `aria-disabled` | `#9c9fb7` | `#212243` | **5,86:1** | ✅ |
+| natpis gumba, **zaključan** | `#9c9fb7` | `#13142c` | **6,92:1** | ✅ |
+| natpis gumba, **otključan** (`hint`) | `#36dede` | `#012525` | **9,79:1** | ✅ |
 | razlog (`muted-foreground`) | `#9c9fb7` | `#13142c` | **6,92:1** | ✅ |
 | brojač `remaining` | `#9c9fb7` | `#13142c` | **6,92:1** | ✅ |
-| tekst savjeta u slotu | `#f3f4fe` | `#181a35` | **15,48:1** | ✅ |
+| tekst savjeta u slotu | `#f3f4fe` | `#012525` | **14,84:1** | ✅ |
+| `<code>` čip u savjetu | `#f3f4fe` | `#05141d` | **17,11:1** | ✅ |
+| `rate-limited` tekst | `#9c9fb7` | `#091e28` | **6,55:1** | ✅ |
+
+Brojke za plohe savjeta su iz **druge iteracije** (v. §E3) — prva verzija stajala je na
+`bg-muted/40` i mjerila 15,48:1. Ponovno je izmjereno jer se ploha promijenila, a ne
+prepisano: to je točno greška koju opisuje ERRATA #50 (pet mjerenja, svako točno za svoju
+plohu, defekt preživio).
 
 🔴 **Odstupanje od §C.5.3:** plan je za natpis gumba naveo podlogu `card`. Stvarna podloga
 je `bg-muted` **samog gumba** (`#212243`), ne kartica — plan je pisan prije nego je gumb
@@ -339,6 +347,92 @@ mehaniku, a sadržaj savjeta ne gleda nitko:
 🔴 **Tagovi `faza-5-2-ui` i `faza-5-complete` premješteni** na commit s popravkom #65.
 Bili su lokalni i nepushani, a „complete" koji isključuje kvar nađen isti dan bio bi
 netočna oznaka.
+
+---
+
+# E3 — Boja savjeta (2026-08-13, odluka korisnika nakon taga)
+
+Zahtjev: gumb neka bude „funky", neka se **naglasi kad se otključa**, a kutija savjeta
+neka nosi istu boju.
+
+## Izbor huea je bio OSTATAK, ne ukus
+
+Paleta je gusto alocirana, pa je slobodan pojas nađen odbijanjem, ne biranjem:
+
+| pojas | zauzeto |
+|---|---|
+| 25 / 60 / 150 | verdikti — netočno / djelomično / točno |
+| 80 | `accent-warm` — XP, level, streak (MASTER §2.1) |
+| 190–260 | mastery gradijent, `tier-easy`, `chart-1/2` |
+| 205–355 | `difficulty-*`, `tier-medium/hard`, bazne plohe (280) |
+
+Ostaje **~160–200**. Uzet je **195**: 45° od `correct`, 135° od `partial`, 170° od
+`incorrect` — ne može se pročitati kao ocjena.
+
+🔴 **Amber je odbijen unatoč idiomu žarulje.** `accent-warm` (80) već je uz `partial` (60)
+predmet ERRATE #13, a savjet stoji **iznad** panela s ocjenom — dvije amber plohe jedna
+nad drugom su točno ta zabuna.
+
+🔴 **Adjacencija koja postoji i zašto ne smeta:** `mastery-100` je na 190. Mastery
+gradijent se **ne renderira na Task ekranu** — sidebar ondje koristi isključivo
+`accent-warm` (provjereno `SidebarCards.tsx`). Zapisano jer je to jedini par koji bi
+mogao zasmetati ako se sidebar ikad proširi.
+
+## Naglasak nosi GUMB, ne ploha
+
+| stanje | izgled |
+|---|---|
+| zaključan | **bez plohe i bez obruba** — samo `muted-foreground` tekst i ikona |
+| otključan | `border-hint/45` / `bg-hint-soft` / `text-hint`, žarulja u istoj boji |
+| prijelaz | jednokratni **poskok žarulje** + halo oko gumba, 400 ms |
+
+Razlika sada **nosi promjenu dostupnosti**, koju je dotad nosio samo `aria-disabled`. Boja
+je pritom **pojačanje, ne jedini kanal** (MASTER §2.2): natpis je nepromijenjen,
+`aria-disabled` i vidljivi razlog rade kao prije, a kontrast zaključanog natpisa je
+**porastao** (6,92:1 na `card`, prije 5,86:1 na `bg-muted`) — tiši ne znači slabiji.
+
+## Animacija otključavanja
+
+🔴 **Ovo NIJE ono što C.2.2 zabranjuje.** Ondje je zabranjeno animirati **dolazak
+savjeta**, jer je idempotentno ponavljanje bajt-identično novom odgovoru pa bi animacija
+novosti lagala na svakom ponovljenom kliku. Ovdje se animira **prijelaz nedostupno →
+dostupno**, a to je stvarna jednokratna promjena stanja.
+
+🔴 **Okidač je PRIJELAZ, ne vrijednost.** `hintUnlockedRef` se inicijalizira *početnim*
+stanjem, pa dolazak na već otključan zadatak ne animira ništa — animira se samo
+`false → true` koji se dogodi dok je ekran otvoren. Bez toga bi svaka navigacija ponovila
+slavlje za nešto što nije novo, dakle ista laž koju C.2.2 sprječava. **Izmjereno:** reload
+već otključanog zadatka → animacija se **ne pojavljuje** (25 uzoraka kroz 1,25 s).
+
+Jednokratno (WCAG 2.2.2), `--duration-slow` (400 ms), **ne** `--duration-reward` — tih
+700 ms je rezervirano za `level-pulse`, a savjet nije nagrada. Halo je `box-shadow`, koji
+ne ulazi u tok, pa se ništa ne pomiče. Reduced motion: globalni guard.
+
+🔴 Klasa se **skida** nakon animacije (600 ms timeout). Da ostane, `animation` bi se
+ponovno pokrenuo na svaki idući re-render koji dira taj čvor.
+
+Ploha savjeta ostaje na disciplini `-soft` obitelji (L 0.24, C 0.04) — savjet je **peer**
+panelu s ocjenom i ne smije ga nadglasati. `ErrorState` u grani neuspjeha ostaje
+**neutralan**: kvar dohvata nije savjet i ne nosi njegovu boju.
+
+## Izmjereno
+
+- **Geometrija netaknuta** — mijenjaju se boje i `box-shadow`/`transform`, od kojih
+  nijedno ne ulazi u tok, pa N-20 gate i dalje prolazi: `action-row` 44 px, `editor-box`
+  420 px, red se ne prelama na 768 px.
+- **Ikona i dalje 16 px.** Klasa animacije ne smije sadržavati `size-`: base gumb
+  stilizira ikonu kroz `[&_svg:not([class*='size-'])]:size-4`, pa bi takvo ime tiho
+  ubilo veličinu. Provjereno `getComputedStyle` → `16px×16px` u sva tri stanja.
+- **Animacija se ne ponavlja na mount** — v. gore, 25 uzoraka nakon reloada.
+- **Kontrast** — sedam parova, sve brojke u §D.5. Najniži je 5,86:1 (zaključan natpis,
+  nepromijenjen); otključani natpis je 9,79:1.
+- `npm run e2e` 2/2, teardown čist.
+
+## Odstupanje koje ovime nastaje
+
+Plan §C2.1 tražio je neutralni `border-border`/`bg-muted` u **oba** stanja. To više ne
+vrijedi za otključano stanje. Odluka je tvoja i zapisana ovdje; zamrznuto je i dalje sve
+ostalo — natpis, `aria-disabled`, geometrija, mjesto gumba u redu.
 
 ---
 

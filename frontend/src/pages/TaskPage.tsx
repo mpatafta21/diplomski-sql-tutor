@@ -10,7 +10,7 @@
  * task.module_id — on je KRIV za 3/83 taskova (71–73: module_id kaže
  * "DML operacije", a primarni koncept correlated_subquery je u "Podupiti").
  */
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "react-router-dom"
 import {
@@ -195,6 +195,32 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
       : hintM.isError
         ? ("unknown" as const)
         : undefined
+
+  /**
+   * Jednokratni „poskok" u trenutku otključavanja.
+   *
+   * 🔴 OKIDAČ JE PRIJELAZ, NE VRIJEDNOST. `ref` se inicijalizira POČETNIM
+   * stanjem, pa dolazak na već otključan zadatak ne animira ništa — animira se
+   * samo `false → true` koji se dogodi dok je ekran otvoren (netočna predaja →
+   * invalidacija `["task", id]` → novi `last_attempt_error_type`).
+   * Bez toga bi svaka navigacija ponovila slavlje za nešto što nije novo, a to
+   * je ista laž koju C.2.2 zabranjuje kod dolaska savjeta.
+   *
+   * 🔴 Klasa se SKIDA nakon animacije. Da ostane, `animation` bi se ponovno
+   * pokrenuo na svaki idući re-render koji dira taj čvor.
+   */
+  const [hintJustUnlocked, setHintJustUnlocked] = useState(false)
+  const hintUnlockedRef = useRef(hintUnlocked)
+  useEffect(() => {
+    if (hintUnlocked === hintUnlockedRef.current) return
+    hintUnlockedRef.current = hintUnlocked
+    if (!hintUnlocked) return
+    setHintJustUnlocked(true)
+    // Nešto duže od `--duration-slow` (400 ms) — klasa se skida tek kad je
+    // animacija sigurno gotova, inače se odreže na sporijem uređaju.
+    const id = window.setTimeout(() => setHintJustUnlocked(false), 600)
+    return () => window.clearTimeout(id)
+  }, [hintUnlocked])
 
   /**
    * Vidljiv jednoredni meta tekst uz gumb — JEDAN element, jedan `id`, na koji
@@ -512,19 +538,38 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
           >
             {/* 🔴 Gumb za savjet je PRVI child vanjskog flexa (§C2.1) i `mr-auto`
                 ga drži uz lijevi rub — Run/Submit ostaju desno, nepomaknuti.
-                `ghost` + neutralni `border-border`/`bg-muted`: nikad `default`,
-                jer savjet nije primarna akcija ekrana (to je Submit).
+                `ghost`, nikad `default`: savjet nije primarna akcija ekrana
+                (to je Submit, i on jedini nosi punu `primary` plohu).
                 🔴 `aria-disabled`, NE `disabled`: zaključan gumb mora ostati
-                fokusabilan da čitač ekrana pročita razlog (§C.5.2). */}
+                fokusabilan da čitač ekrana pročita razlog (§C.5.2).
+
+                ⟳ ODSTUPANJE OD §C2.1 (odluka korisnika, 2026-08-13): plan je
+                tražio neutralni `border-border`/`bg-muted` u OBA stanja. Sada
+                je otključano stanje `hint` (cyan), a zaključano ostaje
+                neutralno — razlika u boji NOSI promjenu dostupnosti, koju je
+                dotad nosio samo `aria-disabled`. Boja je POJAČANJE, ne jedini
+                kanal: natpis je nepromijenjen, `aria-disabled` i vidljivi
+                razlog rade kao i prije (MASTER §2.2).
+                🔴 Geometrija je namjerno netaknuta — samo boje. Da se mijenja
+                padding ili obrub, pao bi N-20 (`e2e/hint-row.spec.ts`). */}
             {hintsEnabled && (
               <Button
                 variant="ghost"
-                className="mr-auto border-border bg-muted hover:bg-muted/70 aria-disabled:text-muted-foreground aria-disabled:hover:bg-muted"
+                className={`mr-auto border-hint/45 bg-hint-soft text-hint hover:border-hint/70 hover:bg-hint/15 hover:text-hint aria-disabled:border-transparent aria-disabled:bg-transparent aria-disabled:text-muted-foreground aria-disabled:hover:border-transparent aria-disabled:hover:bg-transparent aria-disabled:hover:text-muted-foreground${
+                  hintJustUnlocked ? " hint-unlock-ring" : ""
+                }`}
                 aria-disabled={!hintUnlocked}
                 aria-describedby={hintMetaText ? HINT_RAZLOG_ID : undefined}
                 onClick={handleHint}
               >
-                <Lightbulb data-icon="inline-start" aria-hidden="true" />
+                {/* 🔴 Klasa NE smije sadržavati „size-": base button stilizira
+                    ikonu kroz `[&_svg:not([class*='size-'])]:size-4`, pa bi
+                    takvo ime tiho ubilo veličinu ikone. */}
+                <Lightbulb
+                  data-icon="inline-start"
+                  aria-hidden="true"
+                  className={hintJustUnlocked ? "hint-unlock-pop" : undefined}
+                />
                 {HINT_NATPIS}
               </Button>
             )}

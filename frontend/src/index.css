@@ -34,6 +34,10 @@
      kao dom za N-10 (sistemska greška ≠ verdikt); žičenje je STAGE 2. */
   --color-neutral-soft: var(--neutral-soft);
 
+  /* ── Savjet (Faza 5.2) — NIJE verdikt. Obrazloženje huea uz `--hint` niže. ── */
+  --color-hint: var(--hint);
+  --color-hint-soft: var(--hint-soft);
+
   /* ── Topli amber accent — SAMO napredak/gamifikacija (MASTER.md §2.1) ── */
   --color-accent-warm: var(--accent-warm);
   --color-accent-warm-foreground: var(--accent-warm-foreground);
@@ -367,6 +371,23 @@
   --incorrect-soft: oklch(0.24 0.035 25);
   --partial: oklch(0.78 0.13 60);
   --partial-soft: oklch(0.24 0.04 60);
+  /* ── `--hint` — savjet (Faza 5.2). NIJE verdikt i ne smije se moći pročitati
+     kao verdikt: hue 195 je 45° od `correct` (150), 135° od `partial` (60) i
+     170° od `incorrect` (25).
+     🔴 IZBOR HUEA JE OSTATAK, NE UKUS. Paleta je gusto alocirana: 80 je
+     `accent-warm` (XP/level/streak, MASTER §2.1), 205–260 su mastery gradijent,
+     `tier-easy` i `difficulty-beginner`, 280–355 bazne plohe i `tier-*` /
+     `difficulty-*`. Slobodan je pojas ~160–200, i to je jedini.
+     Adjacencija koja postoji: `mastery-100` je na 190. Ne sudaraju se jer se
+     mastery gradijent NE RENDERIRA na Task ekranu — sidebar ondje koristi samo
+     `accent-warm` (provjereno 2026-08-13, `SidebarCards.tsx`).
+     🔴 Amber je odbijen unatoč idiomu žarulje: `accent-warm` (80) je uz
+     `partial` (60) već predmet ERRATE #13, a savjet stoji IZNAD panela s
+     ocjenom — dvije amber plohe jedna nad drugom su upravo ta zabuna.
+     `-soft` ostaje na disciplini obitelji (L 0.24, C 0.04): savjet je peer
+     panelu s ocjenom, ne smije ga nadglasati. Isticanje nosi GUMB, ne ploha. */
+  --hint: oklch(0.82 0.13 195);
+  --hint-soft: oklch(0.24 0.04 195);
   /* ── `--neutral-soft` — NOVO u 4.7 stage 2. NULA POTROŠAČA, i to je namjerno. ──
      Postoji da N-10 (`ErrorState` posuđuje `incorrect-soft` za SISTEMSKU grešku, pa
      student ne razlucuje vlastiti neuspjeh od kvara aplikacije) ima gdje sletjeti, a
@@ -573,6 +594,44 @@
   .flame-flicker {
     transform-origin: bottom center;
     animation: flame-flicker 600ms var(--ease-standard) 3;
+  }
+
+  /* ── OTKLJUČAVANJE SAVJETA (5.2) ─────────────────────────────────────────
+     🔴 OVO NIJE ISTO ŠTO I C.2.2. Ondje je zabranjeno animirati DOLAZAK
+     savjeta, jer je idempotentno ponavljanje bajt-identično novom odgovoru pa
+     bi animacija novosti lagala na svakom ponovljenom kliku. Ovdje se animira
+     PRIJELAZ NEDOSTUPNO → DOSTUPNO, a to je stvarna, jednokratna promjena
+     stanja (`last_attempt_error_type` null → non-null).
+     🔴 Okidač je PRIJELAZ, ne montiranje: dolazak na već otključan zadatak NE
+     animira ništa (v. `hintUnlockedRef` u `TaskPage.tsx`). Bez toga bi svaka
+     navigacija ponovila „slavlje" za nešto što nije novo — ista laž.
+     JEDNOKRATNO (WCAG 2.2.2), `--duration-slow`, ne `--duration-reward`:
+     700 ms je rezerviran za `level-pulse` i savjet nije nagrada.
+     Reduced motion: globalni guard (v. dolje). */
+  @keyframes hint-unlock-pop {
+    35% {
+      transform: scale(1.35) rotate(-9deg);
+    }
+    70% {
+      transform: scale(0.94) rotate(5deg);
+    }
+  }
+  .hint-unlock-pop {
+    transform-origin: bottom center;
+    animation: hint-unlock-pop var(--duration-slow) var(--ease-reward);
+  }
+  /* Halo oko gumba — `box-shadow` NE ulazi u tok, pa se ništa ne pomiče i N-20
+     ostaje netaknut (`e2e/hint-row.spec.ts`). */
+  @keyframes hint-unlock-ring {
+    from {
+      box-shadow: 0 0 0 0 color-mix(in oklch, var(--hint) 45%, transparent);
+    }
+    to {
+      box-shadow: 0 0 0 8px transparent;
+    }
+  }
+  .hint-unlock-ring {
+    animation: hint-unlock-ring var(--duration-slow) var(--ease-exit);
   }
 
   /* ── FEEDBACKPANEL NAGRADE (B.5/4.6) — jedini dodir eval-verificiranog puta.

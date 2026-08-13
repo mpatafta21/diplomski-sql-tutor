@@ -887,3 +887,154 @@ slijed.
 aktivan i heap se opetovano prepisivao. Sedam različitih koncepata toga dana nije signal o
 studentima nego o poretku redaka. Taj se dan izuzima ili posebno označava pri svakoj
 tvrdnji o ponašanju preporučivača.
+
+---
+
+## #62 🔴 STRUKTURNI: druga istovremena predaja se ODBACUJE, ne odgađa
+
+> ⚠️ **Ovaj unos postoji i na grani `faza-5-hintagent`, u kraćoj verziji.** Ova je potpuna
+> (dopunjena istragom `docs/fix-62-korak-0.md`). Pri spajanju **zadržati ovu**.
+> Broj `#61` (`submitted_query` u FIPA logu) živi samo na `faza-5-hintagent` — rupa u
+> numeraciji ovdje je očekivana, broj nije slobodan.
+
+**Nalaz.** `POST /attempt` podnosi **točno jednu istovremenu predaju**. Svaka koja stigne dok
+je Coordinator FSM u toku biva **trajno odbačena**: student čeka 15 s, dobije 504
+`orchestration_timeout`, i **redak u `attempts` nikad ne nastane**.
+
+**Izmjereno** (bez hintova; `coordinator.py` byte-identičan `origin/main`-u):
+
+| K istovremenih | uspjeha po rafalu |
+|---|---|
+| 2 | **1,0** |
+| 3 | **1,0** |
+| 4 | **1,0** |
+| 8 | **1,0** |
+
+Dvanaest rafala, dvanaest uspjeha — nikad dva. Rafal od 4 dao je **1 redak** u `attempts`.
+Raspodjela je bimodalna: uspjeli ~120 ms **na svakoj razini** (125 ms pri n=1, 123 ms pri
+n=8), neuspjeli 15 012–15 070 ms. Latencija uspjelih **ne raste** → nije zasićenje nego
+gubitak.
+
+**Uzrok** ([coordinator.py:178-209](../backend/agents/coordinator.py#L178-L209)): drain-loop
+`_recv_matching` odbacuje poruke s tuđim `correlation_id`-em. Invarijant
+([coordinator.py:29-31](../backend/agents/coordinator.py#L29-L31)) tvrdi da je takva poruka
+„nužno MRTVA … nikad buduća, pa je drop siguran". 🔴 Tvrdnja pada čim dva HTTP klijenta
+predaju istovremeno. Komentar predviđa pad „ako se uvede dispatcher"; zapravo pada od Faze
+3E.3.
+
+**Dopune iz istrage (2026-08-12), grana `fix-coordinator-concurrency`:**
+
+1. 🔴 **Kvar je lokaliziran u Coordinatoru.** `/next-task` (izravno gateway → Recommender)
+   pod istim harnessom daje **K uspjeha za K = 2, 4, 8** — nula gubitaka. Latencije rastu
+   stepenasto (87 → 291 ms pri K=8): red se formira i **prazni**. Razlika je strukturna:
+   gateway je **dispatcher** (`dict[cid → Future]`, ne čeka određeni cid), Coordinator je
+   **stroj stanja s jednim utorom** (`self.agent._flow`, čeka točno jednu poruku).
+2. **Gubitak nije potpuno tih** — ispravak ranije formulacije. Svaku poruku bilježe **oba**
+   agenta (pošiljatelj nakon slanja, primatelj pri primitku), pa odbačena poruka ima **samo
+   pošiljateljev redak**. Forenzika nad 874 tokova: **99** odbačenih u RECEIVE (svi
+   2026-08-12, iz ovih mjerenja), **0** redaka u `attempts` za njih. Postoji izvediv upit
+   koji izgubljene predaje broji **retroaktivno**.
+3. **Izloženo je točno jedno korisničko djelovanje.** Samo `submit-attempt` pokreće tok;
+   `model-updated` i `recommend-next` su odgovori unutar toka. `/next-task`, `/run` i
+   `/profile` Coordinator ne dodiruju. To jedno djelovanje nosi ocjenu, XP i BKT.
+4. **Horizontalno skaliranje ne pomaže.** Više uvicorn radnika prijavilo bi se na Prosody
+   **istim JID-om**, a `AgentBridge` je in-process dict — odgovor bi mogao stići radniku koji
+   ne drži Future i ondje se tiho izgubiti. Ista klasa gubitka, teža za dijagnozu.
+5. **Nijedan test ovo ne hvata, i to nije slučajno.** `test_cid_correlation_two_sequential_flows`
+   u docstringu piše „Sekvencijalno jer FSMBehaviour serijalizira" — **ugrađuje ograničenje
+   u dizajn testa**. `test_stale_message_guard_drops_foreign_cid` šalje stranu
+   `model-updated` (mrtvu poruku — slučaj u kojem je invarijant ispravan), nikad strani
+   `submit-attempt` (budući zahtjev — slučaj u kojem pada). Peti primjerak obrasca iz **#57**.
+
+**Preporučen smjer:** korelacijski dispatcher po uzoru na `AgentBridge`
+(`docs/fix-62-korak-0.md` §C.5). Zaobilaženje Coordinatora odbijeno — FSM orkestracija je
+dio doprinosa rada, ne implementacijski detalj.
+
+**Status: ✅ ZATVOREN** (2026-08-13, grana `fix-coordinator-concurrency`, commit `846f241`).
+
+Popravak: FSM **po razgovoru**, s predloškom vezanim uz vlastiti `correlation_id`. SPADE
+`dispatch()` isporučuje poruku svakom behaviouru čiji predložak matcha, pa je predložak
+sam po sebi korelacijski router — ručni registry Future-a nije ni pisan. Prijem je izdvojen
+iz FSM-a u `_Intake`: dok je bio stanje, jedan razgovor u tijeku značio je da se sljedeći
+ne može ni primiti.
+
+Uz to `MAX_CONCURRENT_FLOWS = 64` s **eksplicitnim** odbijanjem na granici (`refuse` +
+`coordinator_busy` → HTTP 503, ne 504) — tiho odbijanje ondje bilo bi ovaj isti nalaz
+reproduciran na drugom mjestu.
+
+| mjerenje | prije | poslije |
+|---|---|---|
+| K=2,4,8 istovremenih predaja | **1** redak, bez obzira na K | **K** redaka i **K** odgovora |
+| 20 studenata, tempo evala (~19 s) | ~13 % gubitka (procjena) | **60/60**, p95 197 ms |
+| p95 pri K=1 (kontrola, ista sesija) | 123,6 ms | 124,2 ms — unutar devijacije |
+
+Invarijanta iz `coordinator.py:29-31` **prepisana** i po prvi put vezana uz test koji ju
+izvršava (`tests/test_coordinator_concurrency.py`). GATE 2 pao kao opis sustava.
+Detalji: `docs/fix-62-63-wrapup.md`.
+
+---
+
+## #63 🔴 VALJANOST: odgovor se izgubi, a pokušaj OSTANE zabilježen
+
+**Kad:** reproducirano 2026-08-12 (3/3), tijekom istrage #62.
+
+🔴 **Zaseban kvar od #62** — isti simptom (504), druga uzročna veza, drugi popravak.
+I **ne treba nikakav pad procesa.**
+
+**Nalaz.** Kad evaluacija traje dulje od `DEFAULT_UPDATE_TIMEOUT = 5.0`
+([coordinator.py:77](../backend/agents/coordinator.py#L77)), Coordinator odustaje i vraća
+504 `evaluation_timeout`. Ali Evaluator je **već commitao** pokušaj (D6 garancija: commit
+**prije** informa), a KnowledgeModel i Gamification rade dalje — pokreće ih Evaluatorov
+inform, **neovisno o Coordinatoru**.
+
+**Izmjereno** — `POST /attempt` sa `SELECT pg_sleep(6);`, sandbox `statement_timeout = 5 s`:
+
+| pokušaj | HTTP | trajanje | redaka u `attempts` | BKT snapshotova |
+|---|---|---|---|---|
+| 1 | 504 `evaluation_timeout` | 5076 ms | **1** | **2** |
+| 2 | 504 `evaluation_timeout` | 6620 ms | **1** | **2** |
+| 3 | 504 `evaluation_timeout` | 5115 ms | **1** | **2** |
+
+FIPA trag (isti `cid`): `knowledge → coordinator inform` stiže **36 ms nakon** što je
+Coordinator već poslao `evaluation_timeout` gatewayu.
+
+**Zašto nije rubni slučaj.** Sandbox `statement_timeout` je 5 s, a `DEFAULT_UPDATE_TIMEOUT`
+5,0 s — svaki upit koji potroši statement timeout **nužno** prekorači i UPDATE prozor, jer
+režija uvijek doda nekoliko ms. Nedostajući uvjet spajanja → kartezijev produkt → timeout je
+**uobičajena greška u učenju SQL-a**. Takav student dobiva „sustav ne odgovara" dok mu se
+pokušaj bilježi i BKT kažnjava; preda ponovno i bude kažnjen **dvaput za isti upit**.
+
+**Što je izmjereno, a što izvedeno:** izmjereno je `xp_awarded = 0` (pokušaj je bio netočan).
+Da isti prozor zadesi **točan** upit, XP bi bio dodijeljen dok student vidi grešku — to
+slijedi iz koda (Gamification visi o Evaluatorovom informu), ali **nije izmjereno**, jer bi
+tražilo točan upit sporiji od 5 s.
+
+**Posljedica za UI:** 504 danas pokriva dva ishoda koje sučelje ne razlikuje —
+`orchestration_timeout` (ništa nije zabilježeno) i `evaluation_timeout` (zabilježeno je).
+Tekst „Evaluacija je predugo trajala" netočan je za prvi slučaj. Prijedlozi u
+`docs/fix-62-korak-0.md` §E.2.
+
+**Status: ✅ ZATVOREN** (2026-08-13, commit `23e2046`).
+
+Popravak ima dva dijela i nijedan sam ne bi bio dovoljan:
+
+1. UPDATE prozor se **izvodi** iz sandbox granice
+   (`DEFAULT_STATEMENT_TIMEOUT_S + 2`), ne postavlja kao vlastita konstanta — granica je
+   zato dobila ime u `sandbox_runner.py`, da se veza vidi umjesto da se duplicira.
+   🔴 Produljenje je postalo sigurno **tek nakon #62**.
+2. Kad prozor ipak istekne, Coordinator **provjeri je li upisano** umjesto da pretpostavi
+   da nije. Redak postoji → odgovara stvarnim ishodom (200); ne postoji → greška je
+   istinita. Polazna crta je `max(attempts.id)` s prijema, ne vrijeme — usporedba po
+   `created_at` mjerila bi aplikacijski sat protiv sata baze.
+
+Podizanje same konstante bilo bi pomicanje praga, ne popravak; zato provjera.
+
+**Izmjereno s produkcijskim konstantama:**
+
+| upit | prije | poslije |
+|---|---|---|
+| `pg_sleep(4.9)`, **točan** | 504 + pokušaj + 2 BKT + **30 XP** | **200**, `is_correct=true` |
+| `pg_sleep(5.2)`, prespor | 504 + pokušaj + 2 BKT | **200**, `error_type=timeout` |
+
+Ne dira `persistence.py`, `evaluate-query` payload ni migracije; D6 netaknut.
+Detalji: `docs/fix-62-63-wrapup.md`.

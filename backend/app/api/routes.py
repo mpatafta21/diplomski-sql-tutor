@@ -25,7 +25,11 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import aliased
 
-from agents.coordinator import ERROR_EVALUATION_TIMEOUT, ONTOLOGY_SUBMIT_ATTEMPT
+from agents.coordinator import (
+    ERROR_COORDINATOR_BUSY,
+    ERROR_EVALUATION_TIMEOUT,
+    ONTOLOGY_SUBMIT_ATTEMPT,
+)
 from agents.evaluator_agent import _sandbox_conn_string
 from agents.gamification_logic import (
     LEVEL_STEP,
@@ -218,6 +222,12 @@ async def post_attempt(
     # Coordinatorov definiran timeout-odgovor (UPDATE timeout) → 504 sa strukturom.
     if isinstance(result, dict) and result.get("error") == ERROR_EVALUATION_TIMEOUT:
         raise HTTPException(status_code=504, detail=ERROR_EVALUATION_TIMEOUT)
+
+    # 🔴 #62: granica istovremenih tokova. 503, a NE 504 — 504 znači „nismo stigli
+    # odgovoriti", a ovdje smo odgovorili odmah i namjerno. Razlika je vidljiva
+    # studentu: ponovni pokušaj ima smisla, i to odmah.
+    if isinstance(result, dict) and result.get("error") == ERROR_COORDINATOR_BUSY:
+        raise HTTPException(status_code=503, detail=ERROR_COORDINATOR_BUSY)
 
     return _to_attempt_response(result)
 

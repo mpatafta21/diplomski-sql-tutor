@@ -75,7 +75,11 @@ function MasteryRow({
     <li>
       {isLink ? (
         <Link
-          to={`/task/${item.entryTaskId}`}
+          // Odredište je KONCEPT, ne zadatak: `entryTaskId` je statičan (bez
+          // usera) pa je vodio na već riješeno. `/koncept/:code` pušta
+          // poslužitelj da odabere neriješen. `entryTaskId` ostaje uvjet
+          // klikabilnosti — on i dalje točno znači „koncept ima zadataka".
+          to={`/koncept/${item.code}`}
           aria-label={`Otvori zadatak za koncept ${item.name}`}
           // -mx-2 px-2: hover diše u padding kartice, sadržaj se ne pomiče.
           className="-mx-2 block space-y-1.5 rounded-md px-2 py-1.5 transition-colors duration-fast ease-standard hover:bg-sidebar-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"

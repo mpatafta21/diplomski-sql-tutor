@@ -111,7 +111,8 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
     >
       {clickable ? (
         <Link
-          to={`/task/${concept.entryTaskId}`}
+          // Odredište je KONCEPT, ne zadatak — v. MasteryHighlights.
+          to={`/koncept/${concept.code}`}
           aria-label={`Otvori zadatak za koncept ${concept.name}`}
           // -mx-2 px-2: hover pozadina diše u padding kartice, sadržaj se ne pomiče.
           className="-mx-2 block space-y-1.5 rounded-md px-2 py-3 transition-colors duration-fast ease-standard hover:bg-sidebar-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"

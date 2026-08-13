@@ -1,5 +1,10 @@
 # Korak 0 prije Faze 5.2 — kontrola N-22, higijena, inventar za UI
 
+> ✅ **Sekcija A je od tada IZVEDENA.** Presuda „sustav podnosi 1 istovremenu predaju“
+> potvrđena je i popravljena: errata **#62** (gubitak predaja) i **#63** (nesklad
+> odustajanja i upisa), oboje mergeano u `main` (PR #28). Rečenica „ne popravljam ništa“
+> u §A.3 opisuje stanje **tog koraka**, ne današnje — v. `docs/fix-62-63-wrapup.md`.
+
 **Datum:** 2026-08-12 · **Grana:** `faza-5-hintagent` · **Status:** mjerenje + inventar,
 bez izmjena u `frontend/src/` i bez izmjena u `backend/`
 
@@ -463,4 +468,5 @@ hint je akcija koju je student upravo zatražio i mora biti bliže gumbu koji ju
 8. Kontrastni parovi iz C.5.3 izmjereni.
 9. Hint i feedback **istovremeno vidljivi** kad oba postoje.
 
-**Izvan opsega 5.2:** popravak N-22 (vlastita grana), N-21 (`submitted_query` u FIPA logu).
+**Izvan opsega 5.2:** ~~popravak N-22 (vlastita grana)~~ ✅ izveden — errata #62 + #63;
+N-21 (`submitted_query` u FIPA logu) i dalje otvoren.

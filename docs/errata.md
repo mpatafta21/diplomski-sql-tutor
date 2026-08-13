@@ -1012,10 +1012,7 @@ samo da pohrana postoji, da je trajna, i da je šira od onoga što je sudioniku 
 
 ## #62 🔴 STRUKTURNI: druga istovremena predaja se ODBACUJE, ne odgađa
 
-> ⚠️ **Ovaj unos postoji i na grani `faza-5-hintagent`, u kraćoj verziji.** Ova je potpuna
-> (dopunjena istragom `docs/fix-62-korak-0.md`). Pri spajanju **zadržati ovu**.
-> Broj `#61` (`submitted_query` u FIPA logu) živi samo na `faza-5-hintagent` — rupa u
-> numeraciji ovdje je očekivana, broj nije slobodan.
+**Kad:** izmjereno 2026-08-12, kontrolnim mjerenjem koje je N-22 tražio.
 
 **Nalaz.** `POST /attempt` podnosi **točno jednu istovremenu predaju**. Svaka koja stigne dok
 je Coordinator FSM u toku biva **trajno odbačena**: student čeka 15 s, dobije 504

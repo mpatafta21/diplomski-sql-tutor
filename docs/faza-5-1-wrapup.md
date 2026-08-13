@@ -177,6 +177,11 @@ To 5.1 nije uveo i nije popravio. Bitno je jer:
 
 ### N-22 — 4 paralelna `POST /attempt` → 504 (opažanje, nije izolirano)
 
+> ✅ **RIJEŠENO nakon ovog wrapupa.** Kontrolno mjerenje pripisalo je uzrok Coordinatoru
+> (errata **#62**), a uz njega je nađen i zaseban kvar **#63**. Oba su popravljena i
+> mergeana u `main` (PR #28). Tekst ispod ostaje **nepromijenjen kao povijesni zapis**
+> stanja u kojem uzrok još nije bio pripisan — v. `docs/fix-62-63-wrapup.md`.
+
 U prvoj (pokvarenoj) izvedbi §C.7 tri radnika + mjerni klijent slali su `/attempt`
 istodobno; dio je vraćao 504 `orchestration_timeout`.
 
@@ -217,7 +222,7 @@ za Haiku 4.5 je 4096 tokena, a naš je 386 — `cache_control` bi se tiho ignori
 | 1 | UI za hint (gumb, brojač, „tiho sakrij" kad `hints_enabled=false`) | Faza 5.2 |
 | 2 | ERRATA #59 — privola je informirana, ali nije **zabilježena** | odluka korisnika |
 | 3 | N-21 — `submitted_query` u trajnom FIPA logu | Faza 6 |
-| 4 | N-22 — 504 pod 4 paralelna `/attempt` | Faza 6 |
+| 4 | ~~N-22 — 504 pod 4 paralelna `/attempt`~~ → ✅ errata #62 + #63, mergeano | — |
 | 5 | `USE_LLM_HINTS` ostaje `false` u `.env` | namjerno |
 
 🔴 **Za rad (C.5):** broj traženih hintova **nije mjera potražnje** — odozgo je ograničen

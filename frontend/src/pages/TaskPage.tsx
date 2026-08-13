@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Clock,
   LayoutDashboard,
+  Lightbulb,
   MonitorSmartphone,
   Play,
   Send,
@@ -33,11 +34,15 @@ import { SchemaReference } from "@/components/task/SchemaReference"
 import { SqlEditor } from "@/components/task/SqlEditor"
 import { RunResultPanel } from "@/components/task/RunResultPanel"
 import { FeedbackPanel } from "@/components/task/FeedbackPanel"
+import { HintPanel } from "@/components/task/HintPanel"
 import { ApiError } from "@/lib/api/query"
 import { ErrorState } from "@/components/state/ErrorState"
 import { LoadingState } from "@/components/state/LoadingState"
+import { useAuth } from "@/hooks/useAuth"
 import { useBadges } from "@/hooks/useBadges"
+import { useHint, HintError } from "@/hooks/useHint"
 import { useModules } from "@/hooks/useModules"
+import { useProfile } from "@/hooks/useProfile"
 import { useRun } from "@/hooks/useRun"
 import { useSubmitAttempt } from "@/hooks/useSubmitAttempt"
 import { useTask } from "@/hooks/useTask"
@@ -50,6 +55,15 @@ import type {
 import { buildConceptIndex, type ConceptInfo } from "@/lib/mastery"
 
 const INITIAL_QUERY = "-- Napiši svoj SQL upit ovdje\n"
+
+/**
+ * Natpis je ZAMRZNUT i ISTI u oba stanja (H3.8, §C.4.2). Brojač NIKAD ne ulazi
+ * u natpis — inače se natpis mijenja s brojkom i H3.8 pada.
+ */
+const HINT_NATPIS = "Zatraži hint"
+/** Vidljiv razlog zaključanosti; vezan `aria-describedby`om (presedan RegisterPage:152). */
+const HINT_RAZLOG = "Savjet se otključava nakon netočne predaje."
+const HINT_RAZLOG_ID = "hint-razlog"
 
 // Platform-aware oznaka prečaca: monaco KeyMod.CtrlCmd je ⌘ na macOS-u —
 // label i aria-keyshortcuts moraju reći isto što tipka stvarno radi.
@@ -153,6 +167,75 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
     mutate(q, { onSuccess: setLastResult })
   }, [mutate])
 
+  // ── Hint (5.2) — NEOVISAN o submitSlot enumu; koegzistira s feedbackom. ────
+  const { user } = useAuth()
+  const profileQ = useProfile()
+  const hintM = useHint(task.id)
+  const { reset: resetHint } = hintM
+  const [hintText, setHintText] = useState<string>()
+  // Savjet se odnosi na `after_attempt_id`. Nakon nove predaje opisuje grešku
+  // koje više nema — ali se NE BRIŠE (§C3.1): student ga je platio kreditom, a
+  // idući klik nakon nove predaje troši NOVI kredit (idempotencija veže hint uz
+  // pokušaj). Brisanje bi tiho uništilo plaćeni sadržaj; oznaka ne uništava ništa.
+  const [hintStale, setHintStale] = useState(false)
+  // Flag ugašen USRED sesije (C.2.1): 503 `hints_disabled` na klik znači „sakrij
+  // gumb sada", ne „prikaži grešku".
+  const [hintsHidden, setHintsHidden] = useState(false)
+  // Objava za čitač ekrana pri kliku na zaključan gumb. Prazan međukorak je
+  // nužan: aria-live objavljuje PROMJENU sadržaja, pa bi drugi klik s istim
+  // tekstom prošao nečujno.
+  const [hintObjava, setHintObjava] = useState("")
+
+  const hintsEnabled = (user?.hints_enabled ?? false) && !hintsHidden
+  const hintUnlocked = task.last_attempt_error_type != null
+  const hintRemaining = profileQ.data?.remaining
+  const hintFailureReason =
+    hintM.error instanceof HintError
+      ? hintM.error.reason
+      : hintM.isError
+        ? ("unknown" as const)
+        : undefined
+
+  /**
+   * Vidljiv jednoredni meta tekst uz gumb — JEDAN element, jedan `id`, na koji
+   * `aria-describedby` pokazuje u oba stanja:
+   *   zaključano  → RAZLOG (ono što `aria-describedby` mora imenovati)
+   *   otključano  → BROJAČ preostalih savjeta
+   * 🔴 Brojač je OVDJE, nikad u natpisu gumba (§C.4.2) — natpis se ne smije
+   * mijenjati s brojkom, inače H3.8 („isti natpis u oba stanja") pada.
+   * 🔴 Brojka je iz `/profile` i AUTORITATIVNA — ne dekrementira se lokalno
+   * (C.2.2: idempotentno ponavljanje ne troši kredit, pa bi lokalni dekrement
+   * lagao na svakom ponovljenom kliku).
+   */
+  const hintMetaText = !hintsEnabled
+    ? null
+    : !hintUnlocked
+      ? HINT_RAZLOG
+      : hintRemaining != null
+        ? `Preostalo savjeta: ${hintRemaining}`
+        : null
+
+  const handleHint = () => {
+    // 🔴 Zaključan gumb: NULA mrežnog prometa (§C.5.2 t.1). `aria-disabled`
+    // ostaje klikabilan namjerno — čitač ekrana ga vidi i pročita razlog.
+    if (!hintUnlocked) {
+      setHintObjava("")
+      window.setTimeout(() => setHintObjava(HINT_RAZLOG), 80)
+      return
+    }
+    hintM.mutate(undefined, {
+      onSuccess: (data) => {
+        setHintText(data.hint_text)
+        setHintStale(false)
+      },
+      onError: (e) => {
+        if (e instanceof HintError && e.reason === "hints_disabled") {
+          setHintsHidden(true)
+        }
+      },
+    })
+  }
+
   // ── Submit (4.3c) — SCORED predaja; feedback je per-task (keyed TaskView). ──
   const queryClient = useQueryClient()
   const badgesQ = useBadges()
@@ -179,6 +262,12 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
         setLevelUp(
           prevLevel != null && data.level > prevLevel && data.xp_delta > 0,
         )
+        // Nova predaja → postojeći savjet opisuje raniji pokušaj (§C3.1). Panel
+        // ga OZNAČAVA, ne briše; kad savjeta nema, zastavica nema učinka.
+        setHintStale(true)
+        // Neuspjeli hint (npr. 409 iz utrke predaja i osvježenog /task) više ne
+        // opisuje sadašnjost — poruka se gasi predajom, ne visi do reloada.
+        resetHint()
       },
     })
   }
@@ -405,7 +494,10 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
       <Card className="hidden min-w-0 self-start md:block">
         <CardContent className="space-y-3 p-4">
           {/* focus-within prsten: Monaco fokus mora biti vidljiv i na kontejneru (MASTER §7). */}
-          <div className="h-[420px] overflow-hidden rounded-md border border-border transition-[border-color,box-shadow] duration-fast ease-standard focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40 motion-reduce:transition-none xl:h-[520px]">
+          <div
+            data-testid="editor-box"
+            className="h-[420px] overflow-hidden rounded-md border border-border transition-[border-color,box-shadow] duration-fast ease-standard focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40 motion-reduce:transition-none xl:h-[520px]"
+          >
             {/* ⚠️ onRun/onSubmit od PRVOG rendera — monaco akcije su mount-time. */}
             <SqlEditor
               value={query}
@@ -414,7 +506,28 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
               onSubmit={handleSubmit}
             />
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-3">
+          <div
+            data-testid="action-row"
+            className="flex flex-wrap items-center justify-end gap-3"
+          >
+            {/* 🔴 Gumb za savjet je PRVI child vanjskog flexa (§C2.1) i `mr-auto`
+                ga drži uz lijevi rub — Run/Submit ostaju desno, nepomaknuti.
+                `ghost` + neutralni `border-border`/`bg-muted`: nikad `default`,
+                jer savjet nije primarna akcija ekrana (to je Submit).
+                🔴 `aria-disabled`, NE `disabled`: zaključan gumb mora ostati
+                fokusabilan da čitač ekrana pročita razlog (§C.5.2). */}
+            {hintsEnabled && (
+              <Button
+                variant="ghost"
+                className="mr-auto border-border bg-muted hover:bg-muted/70 aria-disabled:text-muted-foreground aria-disabled:hover:bg-muted"
+                aria-disabled={!hintUnlocked}
+                aria-describedby={hintMetaText ? HINT_RAZLOG_ID : undefined}
+                onClick={handleHint}
+              >
+                <Lightbulb data-icon="inline-start" aria-hidden="true" />
+                {HINT_NATPIS}
+              </Button>
+            )}
             <div className="flex items-center gap-2">
               {/* Run = proba bez bodovanja; Submit = scored predaja. */}
               <Button
@@ -438,6 +551,37 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
               </Button>
             </div>
           </div>
+          {/* ── Hint slot (§C.6.2): ZASEBAN, iznad lanca `submitSlot`a ────────
+              Hint i feedback KOEGZISTIRAJU — hint gore jer je akcija koju je
+              student upravo pokrenuo i mora biti bliže gumbu koji ju je
+              pokrenuo. Ulazak u `submitSlot` enum bi ih učinio isključivima. */}
+          {hintsEnabled && (
+            <>
+              {hintMetaText && (
+                // `text-sm`, ne `text-xs` — presedan RegisterPage.tsx:152, gdje
+                // je pomoć uz polje podignuta upravo zbog kontrasta (N-4).
+                <p
+                  id={HINT_RAZLOG_ID}
+                  className="text-sm text-muted-foreground"
+                >
+                  {hintMetaText}
+                </p>
+              )}
+              {/* Klik na zaključan gumb ne mijenja ništa vidljivo, pa objava ide
+                  ovuda. `sr-only` je izvan toka → ne dodaje visinu. */}
+              <div aria-live="polite" className="sr-only">
+                {hintObjava}
+              </div>
+              <HintPanel
+                hintText={hintText}
+                stale={hintStale}
+                isPending={hintM.isPending}
+                failure={hintFailureReason}
+                nextRefillAt={profileQ.data?.next_refill_at}
+                onRetry={handleHint}
+              />
+            </>
+          )}
           {submitSlot === "pending" && (
             <LoadingState
               lines={2}

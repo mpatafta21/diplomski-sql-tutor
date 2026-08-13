@@ -524,3 +524,120 @@ def test_masked_skips_to_evaluable_concept(prolog_engine):
     assert rec is not None, "maska je ušutkala preporuku — tiši ćorsokak"
     assert rec[0] not in UNSUPPORTED_CONCEPTS
     assert rec[0] == "self_join", f"mora ponuditi evaluabilan koncept, dobiveno {rec}"
+
+
+# ---------------------------------------------------------------------------
+# T10 — Kat. A ćorsokak: transverzalni koncept POBIJEDI PRIORITETOM
+#
+# Zatečeni kvar (nije ga uveo Faza 5), izmjeren 2026-08-13 na računu s 6/80
+# riješenih: /next-task vraća {"task_id": null, "concept": "join_condition",
+# "reason": "exhausted"}, a UI to prikaže kao „Nema novih zadataka" — uz 74
+# neriješena zadatka i BEZ izlaza kroz sučelje.
+#
+# 🔴 Mehanizam je PRIORITET, ne prazan skup kandidata. Izmjereno na stvarnom
+# motoru: actionable skup ima TRI člana — {join_condition, select_basic,
+# where_filter}. join_condition je 0.0 → weak (<0.30) → klauzula 1 `recommend_next`
+# reže cutom prije nego se stigne do klauzule 2 (partial), gdje čekaju select_basic
+# (0.8412) i where_filter. Transverzalni po dizajnu ima 0 zadataka →
+# select_task_for_concept → None → reason="exhausted".
+#
+# Uvjet ulaska: from_clause SAVLADAN + select_basic < 0.85. Zato ga T4 (novak) ne
+# hvata — novaku from_clause nije mastered, pa prereqs_met(join_condition) padne i
+# klauzula 1 se ne upali. from_clause saturira brzo (sekundarni koncept gotovo
+# svakog zadatka), pa je to stanje kroz koje realno prolazi svaki sudionik.
+# ---------------------------------------------------------------------------
+
+# Izmjereno na računu iz nalaza (2026-08-13), ne izmišljeno.
+_DEADLOCK_PROFILE = {"from_clause": 0.99998, "select_basic": 0.8412}
+
+
+def test_deadlock_profile_does_not_dead_end(recommender_env, prolog_engine):
+    """🔴 REPRODUKCIJA: profil iz nalaza NE SMIJE dati ćorsokak.
+
+    Tvrdi ISHOD vidljiv studentu (postoji zadatak), ne ime koncepta — ime je
+    stvar pedagoškog poretka i smije se mijenjati, „nema izlaza" ne smije.
+    """
+    user_id = recommender_env["user_id"]
+    _seed_mastery(user_id, _DEADLOCK_PROFILE)
+
+    with SessionLocal() as sess:
+        result = recommend(sess, prolog_engine, user_id)
+        transversal = transversal_concepts(sess)
+
+    assert result["reason"] != "exhausted", (
+        f"ćorsokak: {result} — student vidi „Nema novih zadataka” uz neriješene zadatke"
+    )
+    assert result["task_id"] is not None, f"nema izlaza kroz sučelje: {result}"
+    assert result["concept"] not in transversal, (
+        f"preporučen transverzalni koncept {result['concept']!r}, koji po dizajnu "
+        "nema zadataka"
+    )
+
+
+def test_deadlock_profile_falsifiable_control(recommender_env, prolog_engine):
+    """Kontrola iz nalaza: podigni select_basic iznad praga → preporuka je zdrava.
+
+    Bez ove kontrole test iznad ne bi razlikovao „popravljeno" od „profil nikad
+    nije ni bio u ćorsokaku".
+    """
+    user_id = recommender_env["user_id"]
+    _seed_mastery(user_id, {"from_clause": 0.99998, "select_basic": 0.90})
+
+    with SessionLocal() as sess:
+        result = recommend(sess, prolog_engine, user_id)
+        transversal = transversal_concepts(sess)
+
+    assert result["task_id"] is not None, f"kontrola: {result}"
+    assert result["concept"] not in transversal
+
+
+def test_transversal_loses_to_real_concept(prolog_engine):
+    """🔴 JEZGRA: transverzalni 0.0 ne smije preteći koncept koji IMA zadatke.
+
+    🔴 Determinizam NE SMIJE ovisiti o poretku injekcije fakata. Prva verzija ovog
+    testa stavila je oba koncepta u `weak` i prolazila je i PRIJE popravka — ne
+    zbog pravila nego zato što `self_join` (ALL_30 idx 16) dolazi prije
+    `join_condition` (idx 27), pa ga je klauzula 1 zatekla prvog.
+
+    Zato: join_condition je JEDINI weak (klauzula 1 nema konkurenciju), a self_join
+    je partial (klauzula 2). Prije popravka klauzula 1 reže cutom na transverzalnom;
+    poslije mora pasti na self_join. Ishod je jednoznačan u oba smjera bez obzira
+    na poredak.
+
+    Zrcali test_masked_skips_to_evaluable_concept (Kat. B/C), koji isto pravilo
+    već čuva za maskirane koncepte.
+    """
+    snap = {c: 0.99 for c in ALL_30}
+    snap["join_condition"] = 0.0  # jedini weak
+    snap["self_join"] = 0.50  # jedini partial
+
+    prolog_engine.inject_mastery("t_transversal", snap)
+    try:
+        rec = prolog_engine.recommend_next("t_transversal")
+    finally:
+        prolog_engine.clear_mastery("t_transversal")
+
+    assert rec is not None, "preporuka ušutkana — tiši ćorsokak"
+    assert rec[0] != "join_condition", (
+        f"transverzalni koncept pobijedio prioritetom, dobiveno {rec}"
+    )
+    assert rec[0] == "self_join", f"mora ponuditi koncept sa zadacima, dobiveno {rec}"
+
+
+def test_transversal_still_blocks_downstream(prolog_engine):
+    """🔴 REGRESIJA: popravak NE SMIJE otključati nizvodne koncepte.
+
+    join_condition = 0.0 je JEDINI izravni prereq od inner_join. Da popravak dira
+    tu vrijednost (npr. poravnanjem tranzitivno→izravno u snapshotu), inner_join bi
+    postao lažno dostupan novaku — kvar zbog kojeg Kat. A uopće postoji.
+    """
+    snap = {c: 0.10 for c in ALL_30}
+    snap["join_condition"] = 0.0
+
+    prolog_engine.inject_mastery("t_block", snap)
+    try:
+        met = list(prolog_engine._prolog.query("prereqs_met(t_block, inner_join)"))
+    finally:
+        prolog_engine.clear_mastery("t_block")
+
+    assert not met, "inner_join je lažno otključan — blokada transverzalnim je pala"

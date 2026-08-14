@@ -17,8 +17,25 @@ import {
 import { ConceptChip, TIER_LABEL } from "@/components/ConceptChip"
 import { MasteryBar } from "@/components/MasteryBar"
 import { masteryFillClass } from "@/lib/mastery"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import type { ConceptProgress, ConceptState } from "@/lib/progress"
 import { cn } from "@/lib/utils"
+
+/**
+ * 🔴 Zašto ovo objašnjenje uopće treba: ekran nosi TRI broja koja mjere tri
+ * različite stvari — postotak (znanje), brojač (prijeđeni sadržaj) i ikonu (ima
+ * li novog zadatka). Postotak je pritom najmanje očit, jer raste i od zadataka u
+ * kojima je koncept SPOREDAN: BKT ažurira sve koncepte zadatka, ne samo primarni
+ * (`evaluator_agent.py` šalje sve, `knowledge_agent.py` ne filtrira po
+ * `is_primary`). Izmjereno: `order_by` je na 77 % uz 0/2 riješena primarna
+ * zadatka, jer su riješena tri zadatka u kojima je sporedan.
+ */
+const MASTERY_TOOLTIP =
+  "Procjena znanja iz modela, ne postotak riješenih zadataka. Raste i kad koncept riješiš kao sporedni dio nekog drugog zadatka, zato može biti visoka i kad ovdje još nema riješenih."
 
 const STATE_META: Record<
   ConceptState,
@@ -53,7 +70,43 @@ const STATE_META: Record<
 }
 
 export function ConceptRow({ concept }: { concept: ConceptProgress }) {
-  const { label, icon: Icon, iconClass } = STATE_META[concept.state]
+  const meta = STATE_META[concept.state]
+
+  // 🔴 IKONA GOVORI O ZADACIMA, NATPIS O ZNANJU — namjerno različite stvari.
+  //
+  // Zelena kvačica znači „ovdje više nema novog zadatka", ne „savladano".
+  // Razlog: to je pitanje na koje student odgovara PRIJE klika. Dok je kvačica
+  // značila mastery, koncept sa 99 % i 1/3 riješenih izgledao je gotov, a onaj
+  // sa 77 % i 3/3 izgledao je kao da ima još — pa je klik na njega vraćao već
+  // riješen zadatak i djelovao kao kvar (ERRATA #42).
+  //
+  // 🔴 Stanje `mastered` se NE dira. Isti predikat (`isMastered`) određuje i
+  // `satisfied` u prereq walku (progress.ts) i zrcali `rules.pl
+  // mastery_threshold`; da mu se ovdje promijeni značenje, klijent bi
+  // zaključavao koncepte drukčije nego Prolog, koji je autoritativan. Zato je
+  // ovo isključivo prikaz — natpis, postotak, bar, zaključavanje i „X/Y
+  // savladano" po modulu ostaju na znanju.
+  // Samo `in_progress` i `mastered`: ondje je kvačica značila mastery i
+  // zavaravala. `not_started` zadržava isprekidani krug (radi se o konceptu
+  // koji student nije ni dirnuo — a takav ne može imati riješenih zadataka, jer
+  // bi mu prvi točan pokušaj stvorio BKT redak i maknuo ga iz tog stanja),
+  // `locked` i `unavailable` zadržavaju svoje.
+  const iconFollowsTasks =
+    concept.hasOwnTasks &&
+    (concept.state === "in_progress" || concept.state === "mastered")
+  const allSolved = concept.solvedTaskCount >= concept.totalTaskCount
+
+  const label = meta.label
+  const Icon = iconFollowsTasks
+    ? allSolved
+      ? CheckCircle2
+      : CircleDot
+    : meta.icon
+  const iconClass = iconFollowsTasks
+    ? allSolved
+      ? "text-correct"
+      : "text-mastery-50"
+    : meta.iconClass
   // "unavailable": NIŠTA što sugerira dostižnost — bez postotka, bez bara, bez
   // "Traži: …". Koncept nema zadataka, pa napredak nije ni definiran.
   const unavailable = concept.state === "unavailable"
@@ -62,10 +115,10 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
   // stanje još "U tijeku" (prikaz mora biti konzistentan sa stanjem).
   const pct = pL !== null ? Math.floor(pL * 100) : null
 
-  // Klik → otvara zadatak koncepta. Dopušteno SAMO kad koncept ima zadatak
-  // (entryTaskId) I nije zaključan — zaključani (nezadovoljeni preduvjeti) i oni
-  // bez vlastitih zadataka (glue/izvan opsega) ostaju neklikabilni.
-  const clickable = concept.entryTaskId !== null && concept.state !== "locked"
+  // Klik → otvara zadatak koncepta. Dopušteno SAMO kad koncept ima vlastitih
+  // zadataka I nije zaključan — zaključani (nezadovoljeni preduvjeti) i oni bez
+  // vlastitih zadataka (glue/izvan opsega) ostaju neklikabilni.
+  const clickable = concept.hasOwnTasks && concept.state !== "locked"
 
   const body = (
     <>
@@ -78,7 +131,43 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
         />
         <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
           {label}
-          {pct !== null && <span className="tabular-nums"> · {pct} %</span>}
+          {pct !== null && (
+            // Vanjski span drži separator IZVAN triggera: podcrtava se i hovera
+            // samo brojka, a razmak i „·" ostaju obična interpunkcija. Sve je i
+            // dalje jedan flex item, pa se `gap-1` ne udvostručuje.
+            <span className="tabular-nums">
+              {" · "}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {/* Bez `tabIndex`: ovaj span je unutar `<Link>`a koji pokriva
+                      redak, pa bi fokusabilan trigger bio ugniježđena interaktivna
+                      kontrola (WCAG 4.1.2) i razbio tab redoslijed.
+                      🔴 Tooltip zato NIJE dostupan tipkovnici; informacija je
+                      pokrivena drugdje — brojač i postotak idu u `aria-label`
+                      linka, a objašnjenje što postotak znači stoji JEDNOM u
+                      zaglavlju stranice (ModulesPage). Ranije je ovdje stajala
+                      `sr-only` kopija po retku, ali `aria-label` na linku
+                      potiskuje potomke pa je čitač ekrana nije ni dobivao. */}
+                  <span className="cursor-help underline decoration-dotted underline-offset-2">
+                    {pct} %
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{MASTERY_TOOLTIP}</TooltipContent>
+              </Tooltip>
+            </span>
+          )}
+          {/* 🔴 ERRATA #42 — postotak je BKT procjena ZNANJA, ne napredak kroz
+              zadatke, i to dvoje se razilazi u OBA smjera: 99 % uz dva
+              neriješena zadatka, 77 % uz sve riješeno. Bez ovog brojača ekran
+              odgovara na „koliko znam", a čita se kao „koliko mi je ostalo" —
+              pa klik na koncept s visokim postotkom izgleda kao kvar kad vrati
+              već riješen zadatak. `solved` iz /profile, `total` iz /modules. */}
+          {concept.hasOwnTasks && (
+            <span className="tabular-nums">
+              {" "}
+              · {concept.solvedTaskCount}/{concept.totalTaskCount} zadataka
+            </span>
+          )}
           {clickable && (
             // Afordancija klika (uz hover/cursor) — strelica „otvori".
             <ChevronRight aria-hidden="true" className="size-3.5 shrink-0" />
@@ -111,8 +200,17 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
     >
       {clickable ? (
         <Link
-          to={`/task/${concept.entryTaskId}`}
-          aria-label={`Otvori zadatak za koncept ${concept.name}`}
+          // Odredište je KONCEPT, ne zadatak — v. MasteryHighlights.
+          to={`/koncept/${concept.code}`}
+          // 🔴 `aria-label` POTISKUJE sadržaj potomaka pri računanju pristupačnog
+          // imena, pa brojač i postotak iz retka čitač ekrana inače ne dobiva.
+          // Zato su ovdje eksplicitno — bez toga bi tipkovnički korisnik čuo samo
+          // „Otvori zadatak za koncept X" i ne bi znao ima li ondje još ičega.
+          aria-label={
+            `Otvori zadatak za koncept ${concept.name}. ` +
+            (pct !== null ? `Procjena znanja ${pct} posto. ` : "") +
+            `Riješeno ${concept.solvedTaskCount} od ${concept.totalTaskCount} zadataka.`
+          }
           // -mx-2 px-2: hover pozadina diše u padding kartice, sadržaj se ne pomiče.
           className="-mx-2 block space-y-1.5 rounded-md px-2 py-3 transition-colors duration-fast ease-standard hover:bg-sidebar-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
         >

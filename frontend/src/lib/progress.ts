@@ -55,12 +55,20 @@ export interface ConceptProgress {
   /** Imena nezadovoljenih preduvjeta (samo za state === "locked"). */
   missingPrereqs: string[]
   /**
-   * Meta za klik na koncept → `/task/<id>` (self-test fix 4.6-eval). Reprezentativan
-   * aktivan primary zadatak (najlakši prvi, iz `/modules`). null ⟺ koncept nema
-   * vlastitih zadataka (glue/izvan opsega). UI čini redak klikabilnim samo kad je
-   * ne-null I koncept NIJE "locked".
+   * Ima li koncept vlastitih aktivnih zadataka (`primary_task_count > 0`). UI čini
+   * redak klikabilnim kad je `true` I koncept NIJE "locked"; odredište bira
+   * `/task-for-concept/{code}`.
    */
-  entryTaskId: number | null
+  hasOwnTasks: boolean
+  /**
+   * Riješenih / ukupno aktivnih primarnih zadataka. 🔴 NIJE isto što i `pL`:
+   * `pL` je BKT procjena ZNANJA, ovo je prijeđeni SADRŽAJ, i namjerno se
+   * razilaze (ERRATA #42 — 99 % uz neriješene, 77 % uz sve riješeno).
+   * `solved` dolazi iz `/profile` (invalidira se na predaju), `total` iz
+   * `/modules` (katalog).
+   */
+  solvedTaskCount: number
+  totalTaskCount: number
 }
 
 export interface ModuleProgress {
@@ -87,6 +95,10 @@ export function deriveProgress(
   masteryThreshold: number,
 ): ProgressOverview {
   const pLByCode = new Map(mastery.map((m) => [m.concept, m.p_l]))
+  // Riješeno po konceptu iz /profile; koncept bez unosa nije ni dirnut → 0.
+  const solvedByCode = new Map(
+    mastery.map((m) => [m.concept, m.solved_task_count ?? 0]),
+  )
   // Isti index kao Dashboard join (lib/mastery.ts) — jedan izvor taksonomije.
   const index: Map<string, ConceptInfo> = buildConceptIndex(modules)
 
@@ -151,7 +163,9 @@ export function deriveProgress(
           state: "mastered",
           pL,
           missingPrereqs: [],
-          entryTaskId: c.entry_task_id ?? null,
+          hasOwnTasks: hasOwnTasks(c),
+          solvedTaskCount: solvedByCode.get(c.code) ?? 0,
+          totalTaskCount: c.primary_task_count,
         }
       }
 
@@ -167,7 +181,9 @@ export function deriveProgress(
           state: "unavailable",
           pL,
           missingPrereqs: [],
-          entryTaskId: c.entry_task_id ?? null,
+          hasOwnTasks: hasOwnTasks(c),
+          solvedTaskCount: solvedByCode.get(c.code) ?? 0,
+          totalTaskCount: c.primary_task_count,
         }
       }
 
@@ -186,7 +202,9 @@ export function deriveProgress(
         state,
         pL,
         missingPrereqs: missing.map((p) => index.get(p)?.name ?? p),
-        entryTaskId: c.entry_task_id ?? null,
+        hasOwnTasks: hasOwnTasks(c),
+        solvedTaskCount: solvedByCode.get(c.code) ?? 0,
+        totalTaskCount: c.primary_task_count,
       }
     })
 

@@ -23,6 +23,9 @@ pokrivanje preporuča se injectati svih 30 koncepata.
 
 from __future__ import annotations
 
+import re
+
+from collections.abc import Iterable
 from pathlib import Path
 from types import TracebackType
 
@@ -32,6 +35,30 @@ from pyswip import Prolog
 # __file__ = backend/app/prolog/prolog_engine.py → parents[2]/prolog
 _PROLOG_DIR: Path = Path(__file__).resolve().parents[2] / "prolog"
 _RULES_FILE: str = "rules.pl"
+
+
+_ATOM_RE = re.compile(r"^[a-z][a-zA-Z0-9_]*$")
+
+
+def _atom(name: str) -> str:
+    """Pretvori kod koncepta u Prolog atom, uz provjeru oblika.
+
+    🔴 Bez navodnika `assertz("recommendable(CTE)")` asertira klauzulu s
+    VARIJABLOM, dakle `recommendable(_)` — činjenicu koja se poklapa sa SVIME.
+    `recommend_next/2` tada ne filtrira ništa i ćorsokak zbog kojeg predikat
+    postoji se tiho vraća. Isto vrijedi za `mastery/3`, gdje bi
+    `mastery(1, CTE, 0.5)` unificirao svaki koncept.
+
+    Zato: navodnici UVIJEK, i eksplicitno odbijanje imena koje bi iz njih moglo
+    pobjeći. Katalog danas ima samo `snake_case` kodove, pa je ovo obrana za
+    buduće (`CTE`, `Window_Fn`), ne popravak zatečenog kvara.
+    """
+    if not _ATOM_RE.match(name):
+        raise ValueError(
+            f"kod koncepta nije siguran za Prolog atom: {name!r} "
+            "(očekivano ^[a-z][a-zA-Z0-9_]*$)"
+        )
+    return f"'{name}'"
 
 
 class PrologEngine:
@@ -67,9 +94,10 @@ class PrologEngine:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        """Čisti sve ubačene mastery fakte."""
+        """Čisti sve ubačene mastery fakte i globalne `recommendable/1` fakte."""
         for user_id in list(self._injected_users):
             self.clear_mastery(user_id)
+        self.clear_recommendable()
 
     # --- Injekcija BKT snapshot-a ---------------------------------------
 
@@ -85,13 +113,45 @@ class PrologEngine:
         self.clear_mastery(user_id)
         for concept, p_l in mastery_snapshot.items():
             # assertz vraća None u pyswip 0.3.x — ne wrappamo u list()
-            self._prolog.assertz(f"mastery({user_id}, {concept}, {float(p_l)})")
+            self._prolog.assertz(
+                f"mastery({user_id}, {_atom(concept)}, {float(p_l)})"
+            )
         self._injected_users.add(user_id)
 
     def clear_mastery(self, user_id: str) -> None:
         """Retractall za sve `mastery/3` fakte danog user_id-a."""
         list(self._prolog.query(f"retractall(mastery({user_id}, _, _))"))
         self._injected_users.discard(user_id)
+
+    # --- Injekcija skupa preporučivih koncepata --------------------------
+
+    def inject_recommendable(self, concept_codes: Iterable[str]) -> None:
+        """Ubacuje `recommendable/1` fakte — koncepti koji IMAJU aktivne zadatke.
+
+        🔴 JEST po korisniku: skup su koncepti koji TOM korisniku mogu dati
+        zadatak (`concepts_with_available_tasks` filtrira po riješenom). Raniji
+        opis ovdje tvrdio je suprotno („izveden iz kataloga, jednak za sve") i
+        proturječio `rules.pl`-u — ispravljeno 2026-08-14. To je mehanizam N-8:
+        dvije autoritativne tvrdnje o istom predikatu. Tko bi vjerovao starom
+        opisu, podigao bi injekciju na start aplikacije i dao korisniku B skup
+        korisnika A.
+
+        `retractall` je svejedno globalan (predikat je arnosti 1, bez user
+        argumenta), pa injekcija, upit i čišćenje MORAJU biti u istoj kritičnoj
+        sekciji (`prolog_lock` u RecommenderAgentu) — inače bi jedan tok maknuo
+        fakte drugome usred upita.
+
+        🔴 Fail-closed: bez ijednog fakta `recommend_next/2` ne vraća NIŠTA.
+        Propuštena injekcija se time vidi odmah (nula preporuka), umjesto da
+        tiho vrati koncept bez zadataka — kvar zbog kojeg predikat i postoji.
+        """
+        self.clear_recommendable()
+        for code in concept_codes:
+            self._prolog.assertz(f"recommendable({_atom(code)})")
+
+    def clear_recommendable(self) -> None:
+        """Retractall za sve `recommendable/1` fakte (globalno, nije po korisniku)."""
+        list(self._prolog.query("retractall(recommendable(_))"))
 
     # --- Preporuke ------------------------------------------------------
 

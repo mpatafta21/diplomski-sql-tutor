@@ -332,6 +332,50 @@
         ]
       }
     },
+    "/task-for-concept/{code}": {
+      "get": {
+        "summary": "Get Task For Concept",
+        "operationId": "get_task_for_concept_task_for_concept__code__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskForConceptResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/badges": {
       "get": {
         "summary": "Get Badges",
@@ -1039,17 +1083,6 @@
           "primary_task_count": {
             "type": "integer",
             "title": "Primary Task Count"
-          },
-          "entry_task_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Entry Task Id"
           }
         },
         "type": "object",
@@ -1320,6 +1353,11 @@
           "p_l": {
             "type": "number",
             "title": "P L"
+          },
+          "solved_task_count": {
+            "type": "integer",
+            "title": "Solved Task Count",
+            "default": 0
           }
         },
         "type": "object",
@@ -1832,6 +1870,30 @@
         ],
         "title": "TaskDetailResponse",
         "description": "Detalj zadatka za studenta. NAMJERNO bez expected_query / expected_result /\nsandbox_schema \u2014 rje\u0161enje se NE izla\u017ee kroz ovaj endpoint."
+      },
+      "TaskForConceptResponse": {
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "title": "Task Id"
+          },
+          "concept": {
+            "type": "string",
+            "title": "Concept"
+          },
+          "repeat": {
+            "type": "boolean",
+            "title": "Repeat",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "concept"
+        ],
+        "title": "TaskForConceptResponse",
+        "description": "Odgovor `GET /task-for-concept/{code}` \u2014 zadatak koncepta za OVOG korisnika.\n\n`/modules` je katalog bez korisni\u010dkog konteksta i namjerno ne nosi nijedan\n`task_id`; odredi\u0161te klika na koncept bira ova ruta, koja preska\u010de rije\u0161ene."
       },
       "TokenResponse": {
         "properties": {

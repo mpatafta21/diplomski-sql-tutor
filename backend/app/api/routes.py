@@ -45,6 +45,7 @@ from agents.hint_logic import (
     unlocking_attempt,
 )
 from agents.messages import Ontology
+from agents.recommender_logic import resolve_task_for_concept
 from app.api.schemas import (
     AgentLogItem,
     AttemptItem,
@@ -65,6 +66,7 @@ from app.api.schemas import (
     RunRequest,
     RunResponse,
     TaskDetailResponse,
+    TaskForConceptResponse,
     TokenResponse,
 )
 from app.core.security import (
@@ -470,6 +472,35 @@ def _read_profile(user_id: int) -> dict | None:
             .order_by(Concept.code)
         ).all()
 
+        # solved_task_count (ERRATA #42): koliko je AKTIVNIH PRIMARNIH zadataka
+        # koncepta korisnik točno riješio. Ukupan broj nosi `primary_task_count` iz
+        # `/modules` — ondje je katalog, ovdje osobni napredak.
+        #
+        # 🔴 Zašto OVDJE, a ne u `/modules`: `["modules"]` se na klijentu ne
+        # invalidira ni na jednu predaju (staleTime 5 min), pa bi brojač ondje
+        # zaostajao i pokazivao neriješenim ono što je upravo riješeno.
+        # `["profile"]` se invalidira u `useSubmitAttempt`, dakle podatak se osvježi
+        # točno kad se promijeni.
+        #
+        # Ista (is_primary + is_active) maska kao `primary_task_count`, inače bi
+        # omjer mogao dati „3/2".
+        solved_counts = dict(
+            session.execute(
+                select(Concept.code, func.count(func.distinct(Task.id)))
+                .select_from(Concept)
+                .join(TaskConcept, TaskConcept.concept_id == Concept.id)
+                .join(Task, Task.id == TaskConcept.task_id)
+                .join(
+                    Attempt,
+                    (Attempt.task_id == Task.id)
+                    & (Attempt.user_id == user_id)
+                    & (Attempt.is_correct.is_(True)),
+                )
+                .where(TaskConcept.is_primary.is_(True), Task.is_active.is_(True))
+                .group_by(Concept.code)
+            ).all()
+        )
+
         badge_rows = session.execute(
             select(Badge.code)
             .join(UserBadge, UserBadge.badge_id == Badge.id)
@@ -500,7 +531,14 @@ def _read_profile(user_id: int) -> dict | None:
             "mastery_threshold": MASTERY_THRESHOLD,
             "current_streak": user.current_streak,
             "longest_streak": user.longest_streak,
-            "mastery": [{"concept": code, "p_l": p_l} for code, p_l in mastery_rows],
+            "mastery": [
+                {
+                    "concept": code,
+                    "p_l": p_l,
+                    "solved_task_count": solved_counts.get(code, 0),
+                }
+                for code, p_l in mastery_rows
+            ],
             "badges": list(badge_rows),
             "remaining": hint_remaining,
             "next_refill_at": hint_refill,
@@ -642,21 +680,6 @@ def _read_modules() -> list[dict]:
         ).all()
         primary_counts: dict[int, int] = dict(count_rows)
 
-        # entry_task_id (self-test fix 4.6-eval): reprezentativan ZADATAK za klik
-        # na koncept u Module overviewu. STATIČKI (bez user-konteksta → /modules
-        # ostaje čist katalog, cacheable): AKTIVAN PRIMARY zadatak, najlakši prvi
-        # (difficulty ↑, pa id ↑ radi determinizma). Ista maska (is_primary +
-        # is_active) kao primary_task_count → entry postoji točno kad je count>0.
-        entry_rows = session.execute(
-            select(TaskConcept.concept_id, Task.id)
-            .join(Task, Task.id == TaskConcept.task_id)
-            .where(TaskConcept.is_primary.is_(True), Task.is_active.is_(True))
-            .order_by(TaskConcept.concept_id, Task.difficulty, Task.id)
-        ).all()
-        entry_task_by_concept: dict[int, int] = {}
-        for concept_id, task_id in entry_rows:
-            entry_task_by_concept.setdefault(concept_id, task_id)
-
     prereqs_by_concept: dict[int, list[str]] = {}
     for concept_id, prereq_code in edge_rows:
         prereqs_by_concept.setdefault(concept_id, []).append(prereq_code)
@@ -674,7 +697,6 @@ def _read_modules() -> list[dict]:
                 "order_index": c.order_index,
                 "prerequisites": prereqs_by_concept.get(c.id, []),
                 "primary_task_count": primary_counts.get(c.id, 0),
-                "entry_task_id": entry_task_by_concept.get(c.id),
             }
         )
 
@@ -698,6 +720,52 @@ async def get_modules(
 ) -> list[ModuleNode]:
     data = await asyncio.to_thread(_read_modules)
     return [ModuleNode(**m) for m in data]
+
+
+# ---------------------------------------------------------------------------
+# GET /task-for-concept/{code} — zadatak koncepta ZA OVOG korisnika
+#
+# Postoji jer je `/modules` katalog bez korisničkog konteksta. Ondje je do
+# 2026-08-14 stajao `entry_task_id` (najlakši aktivni zadatak, isti za svakoga) i
+# klik na koncept vodio je na već riješen zadatak; polje je uklonjeno, a odredište
+# bira ova ruta kroz `resolve_task_for_concept` — jedini kod koji zna što je
+# student riješio.
+#
+# 🔴 BEZ FIPA lanca, izravan DB read: ovaj put ne dira Prolog (za razliku od
+# `/next-task`), pa bi bridge dodao round-trip bez ijedne koristi. Presedan je
+# `/modules`, koji je isto `to_thread` read.
+# ---------------------------------------------------------------------------
+
+
+def _read_task_for_concept(concept_code: str, user_id: int) -> dict | None:
+    """Sinkroni read. Vraća None za nepoznat koncept, {} za koncept bez zadataka."""
+    with SessionLocal() as session:
+        exists = session.scalar(
+            select(Concept.id).where(Concept.code == concept_code)
+        )
+        if exists is None:
+            return None
+
+        task_id, repeat = resolve_task_for_concept(session, user_id, concept_code)
+        if task_id is None:
+            return {}
+        return {"task_id": task_id, "concept": concept_code, "repeat": repeat}
+
+
+@router.get("/task-for-concept/{code}", response_model=TaskForConceptResponse)
+async def get_task_for_concept(
+    code: str = Path(...),
+    user: User = Depends(get_current_user),
+) -> TaskForConceptResponse:
+    data = await asyncio.to_thread(_read_task_for_concept, code, user.id)
+    if data is None:
+        raise HTTPException(status_code=404, detail="concept_not_found")
+    if not data:
+        # Koncept postoji ali nema aktivnih primary zadataka (transverzalni,
+        # deaktivirani M6). Klijent taj link ionako ne renderira
+        # (`primary_task_count === 0` → nije klikabilno), pa je ovo obrana u dubinu.
+        raise HTTPException(status_code=404, detail="concept_has_no_tasks")
+    return TaskForConceptResponse(**data)
 
 
 # ---------------------------------------------------------------------------

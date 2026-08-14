@@ -200,6 +200,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/task-for-concept/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Task For Concept */
+        get: operations["get_task_for_concept_task_for_concept__code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/badges": {
         parameters: {
             query?: never;
@@ -448,8 +465,6 @@ export interface components {
             prerequisites: string[];
             /** Primary Task Count */
             primary_task_count: number;
-            /** Entry Task Id */
-            entry_task_id?: number | null;
         };
         /** ConceptRef */
         ConceptRef: {
@@ -571,6 +586,11 @@ export interface components {
             concept: string;
             /** P L */
             p_l: number;
+            /**
+             * Solved Task Count
+             * @default 0
+             */
+            solved_task_count: number;
         };
         /** MeResponse */
         MeResponse: {
@@ -747,6 +767,24 @@ export interface components {
             solved: boolean;
             /** Last Attempt Error Type */
             last_attempt_error_type?: string | null;
+        };
+        /**
+         * TaskForConceptResponse
+         * @description Odgovor `GET /task-for-concept/{code}` — zadatak koncepta za OVOG korisnika.
+         *
+         *     `/modules` je katalog bez korisničkog konteksta i namjerno ne nosi nijedan
+         *     `task_id`; odredište klika na koncept bira ova ruta, koja preskače riješene.
+         */
+        TaskForConceptResponse: {
+            /** Task Id */
+            task_id: number;
+            /** Concept */
+            concept: string;
+            /**
+             * Repeat
+             * @default false
+             */
+            repeat: boolean;
         };
         /** TokenResponse */
         TokenResponse: {
@@ -1039,6 +1077,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModuleNode"][];
+                };
+            };
+        };
+    };
+    get_task_for_concept_task_for_concept__code__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskForConceptResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

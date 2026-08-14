@@ -29,8 +29,14 @@ Sub-floor strategija — DVIJE kategorije s RAZLIČITIM tretmanom:
     implementiran) → task tog koncepta NIKAD ne može postati is_correct → nikad
     "riješen" → recommender bi ga vraćao zauvijek, uz 0 XP i BKT kaznu po pokušaju
     (trajni ćorsokak, nalaz 4.4-0c B4). Tretman: ISTA maska kao Kat. B (0.99).
-    NAPOMENA: subfloor ih NE hvata — explain_plan ima 2, index_usage 3 aktivna
-    primary taska, a subfloor prag je < 2. Zato je potreban eksplicitan popis.
+
+    🔴 NAPOMENA (ispravljena 2026-08-14): raniji tekst je tvrdio da ih „subfloor NE
+    hvata jer explain_plan ima 2, a index_usage 3 aktivna primary taska". Izmjereno:
+    OBA imaju 0 aktivnih — svih 5 M6 zadataka je namjerno deaktivirano, pa ih
+    subfloor (< 2) trenutno hvata. Eksplicitan popis svejedno mora ostati: čim se
+    M6 vrati u igru i count naraste iznad praga, subfloor ih ispušta, a
+    neevaluabilni su i dalje. Popis je time obrana koja ne ovisi o sadržaju
+    kataloga; brojke iz njega se NE citiraju jer se mijenjaju s aktivacijom.
 
 Redoslijed je bitan: prior → skill_mastery → subfloor → transverzalni (zadnji,
 jer ovisi o mastery ostalih koncepata u snapshotu).
@@ -44,6 +50,7 @@ recommend() UVIJEK vraća dict (nikad goli None) jer reason ne smije biti izgubl
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
@@ -92,27 +99,109 @@ def _concept_task_stats(session: Session) -> dict[str, tuple[int, int]]:
     return {code: (module_number, count) for code, module_number, count in rows}
 
 
-def transversal_concepts(session: Session) -> set[str]:
+def transversal_concepts(
+    session: Session, stats: dict[str, tuple[int, int]] | None = None
+) -> set[str]:
     """Kat. A: koncepti modula 0 BEZ ijednog aktivnog primary taska (strukturni glue).
 
     Npr. column_alias, join_condition. null_handling je modul 0 ALI ima taskove →
     NIJE ovdje (tretira se kao normalan koncept).
+
+    `stats` je izlaz `_concept_task_stats` — proslijedi ga kad ista transakcija
+    treba više kategorija, da se isti upit ne ponovi (v. `recommend`).
     """
+    stats = _concept_task_stats(session) if stats is None else stats
     return {
         code
-        for code, (module_number, count) in _concept_task_stats(session).items()
+        for code, (module_number, count) in stats.items()
         if module_number == 0 and count == 0
     }
 
 
-def subfloor_concepts(session: Session) -> set[str]:
+def concepts_with_available_tasks(
+    session: Session,
+    user_id: int,
+    code_order: Iterable[str] | None = None,
+) -> list[str]:
+    """Koncepti koji OVOM korisniku mogu dati zadatak — ulaz za `recommendable/1`.
+
+    Definicija je „ima barem jedan aktivan primary zadatak koji korisnik NIJE
+    riješio". Slabija definicija („ima zadatke", bez obzira na riješeno) ostavlja
+    ćorsokak: koncept kojemu je sve riješeno, a mastery ispod praga, ostaje
+    kandidat zauvijek, `select_task_for_concept` vrati None i student dobije
+    „Nema novih zadataka" uz neriješene zadatke drugdje.
+
+    🔴 Izmjereno na `admin` računu 2026-08-14: `where_filter` (3/3 riješena,
+    p_l 0.7728) i `insert` (2/2, p_l 0.7702) su ga trajno zaglavljivali uz **71
+    neriješen zadatak**. Prva izvedba ovog popravka koristila je slabiju
+    definiciju i zatvorila samo ćorsokak Kat. A (koncept BEZ zadataka).
+
+    🔴 Zato je predikat PO KORISNIKU, ne globalan iz kataloga. Injektira se i
+    briše unutar iste kritične sekcije kao `mastery/3` (`prolog_lock`).
+
+    🔴 Vraća LISTU u kanonskom poretku (`load_concept_code_map`). Poredak
+    injektiranih fakata je ulaz u Prolog, ne detalj implementacije: set bi dao
+    poredak ovisan o hashu, dakle promjenjiv između procesa — mehanizam
+    ERRATE #60.
+
+    Ne zamjenjuje maske Kat. B/C (0.99); te ostaju kakve jesu.
+    """
+    order = load_concept_code_map(session) if code_order is None else code_order
+
+    # JEDAN upit: `select_task_for_concept` po konceptu bio bi 30 upita po pozivu
+    # i pojeo bi cijeli dobitak iz `perf` commita.
+    solved = select(Attempt.task_id).where(
+        Attempt.user_id == user_id, Attempt.is_correct.is_(True)
+    )
+    available = set(
+        session.execute(
+            select(Concept.code)
+            .join(TaskConcept, TaskConcept.concept_id == Concept.id)
+            .join(Task, Task.id == TaskConcept.task_id)
+            .where(
+                TaskConcept.is_primary.is_(True),
+                Task.is_active.is_(True),
+                Task.id.not_in(solved),
+            )
+            .distinct()
+        ).scalars()
+    )
+    # Kat. C nikad ne smije proći — guard u dubinu uz masku 0.99 i onaj u
+    # `resolve_task_for_concept`; ne oslanja se na to da M6 nema aktivnih zadataka.
+    return [c for c in order if c in available and c not in UNSUPPORTED_CONCEPTS]
+
+
+def concepts_with_tasks(
+    session: Session,
+    stats: dict[str, tuple[int, int]] | None = None,
+    code_order: Iterable[str] | None = None,
+) -> list[str]:
+    """Koncepti s >= 1 aktivnim primary zadatkom, bez obzira na riješeno.
+
+    Širi skup od `concepts_with_available_tasks` i koristi se SAMO kao rezerva u
+    `recommend()`: kad nijedan koncept nema neriješen zadatak unutar ZPD-a,
+    ponavljanje riješenog je jedini put naprijed (v. `recommend`).
+    """
+    stats = _concept_task_stats(session) if stats is None else stats
+    order = load_concept_code_map(session) if code_order is None else code_order
+    return [
+        c
+        for c in order
+        if stats.get(c, (None, 0))[1] > 0 and c not in UNSUPPORTED_CONCEPTS
+    ]
+
+
+def subfloor_concepts(
+    session: Session, stats: dict[str, tuple[int, int]] | None = None
+) -> set[str]:
     """Kat. B: koncepti modula != 0 s < 2 aktivna primary taska (pod-resursirani).
 
     Npr. insert, right_join. Maskiraju se kao mastered da ih Prolog ne preporuči.
     """
+    stats = _concept_task_stats(session) if stats is None else stats
     return {
         code
-        for code, (module_number, count) in _concept_task_stats(session).items()
+        for code, (module_number, count) in stats.items()
         if module_number != 0 and count < 2
     }
 
@@ -128,6 +217,7 @@ def build_mastery_snapshot(
     user_id: int,
     transversal: set[str],
     subfloor: set[str],
+    code_map: dict[str, int] | None = None,
 ) -> dict[str, float]:
     """Izgradi {concept_code: p_l} za SVIH 30 koncepata za injekciju u Prolog.
 
@@ -137,7 +227,10 @@ def build_mastery_snapshot(
       3. subfloor (kat. B) → 0.99 (ravna maska)
       4. transverzalni (kat. A) → 0.99 ako su svi all_prereqs mastered, inače 0.0
     """
-    code_map = load_concept_code_map(session)  # code -> id, KANONSKI redoslijed
+    # `code_map` se smije proslijediti kad ga pozivatelj već ima (recommend) —
+    # isti upit inače ide dvaput po pozivu.
+    if code_map is None:
+        code_map = load_concept_code_map(session)  # code -> id, KANONSKI redoslijed
     id_map = load_concept_id_map(session)  # id -> code
 
     # 1. tier-točan prior za svih 30
@@ -190,39 +283,75 @@ def solved_task_ids(session: Session, user_id: int) -> set[int]:
     )
 
 
-def select_task_for_concept(
+def resolve_task_for_concept(
     session: Session, user_id: int, concept_code: str
-) -> int | None:
-    """Najlakši aktivni primary task koncepta koji korisnik još NIJE riješio.
+) -> tuple[int | None, bool]:
+    """Vrati `(task_id, repeat)` — zadatak koncepta za ovog korisnika.
 
-    Vraća None ako koncept nema (nerješenih) aktivnih primary taskova.
+    Tri ishoda koja pozivatelji moraju razlikovati:
+      * `(id, False)` — najlakši NERIJEŠEN aktivan primary zadatak;
+      * `(id, True)`  — svi su riješeni, vraćen najlakši **za ponavljanje**
+        (Task ekran ga označava bedžom „Riješeno"; ponovna predaja ne nosi XP);
+      * `(None, False)` — koncept nema nijedan aktivan primary zadatak.
+
+    🔴 JEDINI izvor pravila „koncept → zadatak". `select_task_for_concept`
+    delegira ovamo; dvije implementacije istog upita bile bi mehanizam N-8.
     """
     # Obrana u dubinu (Kat. C): neevaluabilan koncept NIKAD ne smije dati task —
     # ni ako ga netko zatraži izravno, zaobilazeći masku u recommend(). Takav
     # task ne može postati is_correct → nikad "riješen" → trajna petlja.
     if concept_code in UNSUPPORTED_CONCEPTS:
-        return None
+        return None, False
 
     concept_id = load_concept_code_map(session).get(concept_code)
     if concept_id is None:
-        return None
+        return None, False
+
+    candidate_ids = list(
+        session.execute(
+            select(Task.id)
+            .join(TaskConcept, TaskConcept.task_id == Task.id)
+            .where(
+                TaskConcept.concept_id == concept_id,
+                TaskConcept.is_primary.is_(True),
+                Task.is_active.is_(True),
+            )
+            .order_by(Task.difficulty.asc(), Task.id.asc())
+        ).scalars()
+    )
+    if not candidate_ids:
+        return None, False
 
     solved = solved_task_ids(session, user_id)
-    candidate_ids = session.execute(
-        select(Task.id)
-        .join(TaskConcept, TaskConcept.task_id == Task.id)
-        .where(
-            TaskConcept.concept_id == concept_id,
-            TaskConcept.is_primary.is_(True),
-            Task.is_active.is_(True),
-        )
-        .order_by(Task.difficulty.asc(), Task.id.asc())
-    ).scalars()
-
     for task_id in candidate_ids:
         if task_id not in solved:
-            return task_id
-    return None
+            return task_id, False
+
+    return candidate_ids[0], True
+
+
+def select_task_for_concept(
+    session: Session, user_id: int, concept_code: str
+) -> int | None:
+    """Najlakši aktivni primary zadatak koncepta koji korisnik NIJE riješio.
+
+    Vraća None ako koncept nema NERIJEŠENIH aktivnih primary zadataka — dakle i
+    kad ih ima, ali su svi riješeni. Zadatak za ponavljanje nudi samo
+    `resolve_task_for_concept`, kroz `repeat=True`.
+
+    🔴 NEMA produkcijskih pozivatelja — `recommend()` i ruta zovu
+    `resolve_task_for_concept` izravno. Zadržano jer je čitljiv izraz pravila
+    „preskoči riješeno" i koristi ga suita. Tko mijenja politiku odabira,
+    mijenja `resolve_task_for_concept`; izmjena OVDJE ne mijenja ponašanje
+    sustava.
+
+    🔴 Raniji docstring tvrdio je da `recommend()` iz ovog `None` radi
+    reason="exhausted". To više nije istina (v. `recommend`) i uklonjeno je
+    2026-08-14 — ali `None` ostaje, jer bi bez njega funkcija tiho vraćala
+    riješen zadatak onima koji je zovu kao „daj neriješen".
+    """
+    task_id, repeat = resolve_task_for_concept(session, user_id, concept_code)
+    return None if repeat else task_id
 
 
 # ---------------------------------------------------------------------------
@@ -236,28 +365,68 @@ def recommend(session: Session, engine: "PrologEngine", user_id: int) -> dict:
     Sinkroni Prolog dio (inject → recommend_next → clear) pozivatelj u 3C.2 omota
     u asyncio.to_thread + asyncio.Lock (pyswip je jedan globalni sync VM).
     """
-    transversal = transversal_concepts(session)
+    # Jedan upit za sve tri kategorije: bez ovoga se `_concept_task_stats` vrti
+    # TRI puta po pozivu (izmjereno 1,43 ms svaki), a `load_concept_code_map`
+    # dvaput. Zatečeno je bilo dvostruko; recommendable/1 bi bio treći.
+    stats = _concept_task_stats(session)
+    code_order = load_concept_code_map(session)
+    transversal = transversal_concepts(session, stats)
     # Kat. B (subfloor) + Kat. C (NEEVALUABILNI) dijele ISTI tretman: maska 0.99
     # → Prolog ih ne preporučuje. Maskiranje je na razini KONCEPTA, ne taska:
     # filtriranje tek u select_task_for_concept dalo bi reason="exhausted"
     # (task_id=None) = tiši ćorsokak umjesto rješenja (4.4-0d KORAK 4).
-    masked = subfloor_concepts(session) | UNSUPPORTED_CONCEPTS
-    snapshot = build_mastery_snapshot(session, engine, user_id, transversal, masked)
+    masked = subfloor_concepts(session, stats) | UNSUPPORTED_CONCEPTS
+    snapshot = build_mastery_snapshot(
+        session, engine, user_id, transversal, masked, code_order
+    )
+
+    # Kandidat je koncept koji OVOM korisniku može dati zadatak. Pokriva oba
+    # oblika ćorsokaka: Kat. A (koncept bez zadataka; p_l 0.0 mora ostati radi
+    # blokade nizvodnog, a 0.0 ga je činila `weak` pa je pretjecao prave koncepte)
+    # i "sve riješeno, mastery ispod praga" (vječni kandidat bez zadatka).
+    recommendable = concepts_with_available_tasks(session, user_id, code_order)
 
     uid = str(user_id)
-    engine.inject_mastery(uid, snapshot)
-    try:
-        rec = engine.recommend_next(uid)
-    finally:
-        # Počisti mastery fakte da ne cure u dijeljeni VM (cross-user leak).
-        engine.clear_mastery(uid)
+
+    def _ask(candidates: list[str]) -> tuple[str, str] | None:
+        """Jedan Prolog krug s danim skupom kandidata. Uvijek čisti za sobom."""
+        try:
+            # 🔴 Injekcije su UNUTAR try: da stoje iznad njega, iznimka u drugoj
+            # (npr. neispravan kod koncepta) ostavila bi fakte prve u dijeljenom
+            # VM-u, a `finally` se ne bi izvršio. RecommendBehaviour hvata
+            # Exception i nastavlja, pa bi zaprljani VM preživio zahtjev.
+            engine.inject_recommendable(candidates)
+            engine.inject_mastery(uid, snapshot)
+            return engine.recommend_next(uid)
+        finally:
+            # Počisti da fakti ne cure u dijeljeni VM (cross-user leak). Oboje je
+            # pod istom bravom (pozivatelj u 3C.2 drži prolog_lock preko cijelog
+            # recommend()), a `recommendable/1` se briše globalnim retractallom.
+            engine.clear_mastery(uid)
+            engine.clear_recommendable()
+
+    rec = _ask(recommendable)
+
+    # 🔴 REZERVA. Ako nijedan koncept nema NERIJEŠEN zadatak unutar ZPD-a, to još
+    # ne znači „sve savladano": tipičan slučaj je da je korijenski koncept
+    # (`select_basic`) iscrpljen a nije savladan, pa `prereqs_met` blokira sve
+    # nizvodno. Ondje je PONAVLJANJE riješenog jedini put naprijed — bez ove
+    # grane vratili bismo `no_recommendation`, koji sučelje prikazuje kao
+    # slavljeničko „Sve savladano" iako student ima neriješenih zadataka.
+    # Drugi Prolog krug plaća se samo u tom rijetkom stanju.
+    if rec is None:
+        rec = _ask(concepts_with_tasks(session, stats, code_order))
 
     if rec is None:
         return {"task_id": None, "concept": None, "reason": "no_recommendation"}
 
     concept, reason = rec
-    task_id = select_task_for_concept(session, user_id, concept)
+    task_id, repeat = resolve_task_for_concept(session, user_id, concept)
     if task_id is None:
         return {"task_id": None, "concept": concept, "reason": "exhausted"}
+    if repeat:
+        # Zadatak je već riješen: nosi bedž „Riješeno" i ne donosi XP, ali diže
+        # mastery kroz BKT — a to je jedino što otključava ostatak grafa.
+        return {"task_id": task_id, "concept": concept, "reason": "repeat_practice"}
 
     return {"task_id": task_id, "concept": concept, "reason": reason}

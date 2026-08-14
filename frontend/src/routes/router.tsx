@@ -10,6 +10,7 @@ import { DashboardPage } from "@/pages/DashboardPage"
 import { LoginPage } from "@/pages/LoginPage"
 import { ModulesPage } from "@/pages/ModulesPage"
 import { RegisterPage } from "@/pages/RegisterPage"
+import { ConceptEntryPage } from "@/pages/ConceptEntryPage"
 import { TaskEntryPage } from "@/pages/TaskEntryPage"
 import { AdminRoute, ProtectedRoute, PublicOnlyRoute } from "./guards"
 
@@ -57,6 +58,10 @@ export const router = createBrowserRouter([
           // /next-task i redirect na /task/:taskId. Eager import: lagana
           // komponenta (bez monaca), ne treba vlastiti chunk/Suspense.
           { path: "/task", element: <TaskEntryPage /> },
+          // Ulaz preko KONCEPTA (Dashboard „Za ojačati", redak u Modulima).
+          // Poslužitelj bira zadatak jer jedini zna što je student riješio —
+          // `entry_task_id` iz /modules je statičan i vodio je na riješeno.
+          { path: "/koncept/:code", element: <ConceptEntryPage /> },
           {
             path: "/task/:taskId",
             // LoadingState (ne FullPageLoading): fallback renderira UNUTAR

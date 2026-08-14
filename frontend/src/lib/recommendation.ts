@@ -26,7 +26,18 @@ const REASON_TEXT: Record<string, string> = {
   fallback: "Sljedeći logičan korak na tvom putu učenja.",
   exhausted:
     "Riješio si sve dostupne zadatke za preporučeni koncept — nove preporuke stižu kako budeš napredovao.",
-  no_recommendation: "Trenutno nema koncepta za preporuku — sve je savladano.",
+  // 🔴 Govori o SAVLADANOSTI, ne o dovršenosti. Preporučivač je iscrpljen kad su
+  // svi koncepti iznad praga, a to se dogodi PRIJE nego su svi zadaci riješeni
+  // (koncepti imaju 2–5 zadataka, a BKT saturira brže). Ranija formulacija
+  // („sve je savladano") čitala se kao „nema više što raditi" i studentu s
+  // desecima neriješenih zadataka bila je terminalna.
+  no_recommendation:
+    "Savladao si sve koncepte koji imaju zadatke. Preostale zadatke i dalje možeš rješavati kroz Module.",
+  // Rezervna grana preporučivača: ponestalo je NERIJEŠENIH zadataka unutar
+  // dosega, pa se nudi već riješen zadatak. Task ekran ga označava bedžom
+  // „Riješeno"; ponovna predaja ne nosi XP, ali diže mastery kroz BKT.
+  repeat_practice:
+    "Ovaj si zadatak već riješio — ponovi ga za vježbu. Ne nosi XP, ali učvršćuje koncept.",
 }
 
 const FALLBACK_TEXT = "Preporučeni sljedeći korak."

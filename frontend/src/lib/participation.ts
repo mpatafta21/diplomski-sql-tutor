@@ -25,6 +25,10 @@
  *  - checkbox suglasnosti — bilježena suglasnost traži novu kolonu, dakle
  *    backend izmjenu; backend je zamrznut (🔒 errata) → Faza 5, ne 4.7.
  *    Zato je nosilac pristanka ČIN registracije, i to je izrečeno.
+ *
+ * 🔴 ODLUKA 2026-08-14 (ERRATA #59): bilježena suglasnost se NEĆE uvoditi ni u
+ * Fazi 5 ni kasnije. Nosilac pristanka trajno ostaje čin registracije. Zapisano
+ * u `docs/errata.md`, sekcija „Odluke o NERJEŠAVANJU".
  */
 
 /**
@@ -58,13 +62,26 @@ export const SUDJELOVANJE_ODLOMCI = [
   // ako FOI zatraži formalni obrazac informiranog pristanka: tada rok, pravna
   // osnova i način ostvarivanja prava dolaze iz obrasca, a ne odavde.
   // Ne mijenjati bez odluke — tvrdnja o brisanju je obveza prema sudioniku.
-  "Podaci se čuvaju do obrane rada, nakon čega se brišu. U radu ostaje samo pseudonimizirani skup podataka bez korisničkih imena i e-adresa.",
+  //
+  // 🔴 DOPUNJENO 2026-08-14 (odluka korisnika, ERRATA #46). Tekst je dotad
+  // obećavao brisanje na zahtjev, a sustav to NE MOŽE isporučiti: `agent_messages_log`
+  // nema `user_id` ni FK na `users`, pa se zapisi pojedinog sudionika ne mogu
+  // izdvojiti — izmjereno, 12,3 zapisa po pokušaju koje nijedan cleanup po
+  // korisniku ne dohvaća. Odlučeno je da se procedura NE gradi; time je jedini
+  // pošten potez reći što jest izvedivo. Ograničenje se IMENUJE umjesto da se
+  // obećanje tiho ukloni — sudionik ima pravo znati zašto.
+  "Podaci se čuvaju do obrane rada, nakon čega se brišu u cijelosti. Pojedinačno brisanje na zahtjev tijekom istraživanja nije moguće jer dio tehničkih zapisa o radu sustava nije vezan uz korisnički račun. U radu ostaje samo pseudonimizirani skup podataka bez korisničkih imena i e-adresa.",
   "Sudjelovanje je dobrovoljno i možeš prestati kad želiš. Registracijom pristaješ na sudjelovanje.",
 ] as const
 
-/** Zadnji odlomak — zaseban jer nosi `KONTAKT` i renderira se s linkom. */
-export const SUDJELOVANJE_KONTAKT_UVOD =
-  "Za pitanja ili zahtjev za brisanje podataka:"
+/**
+ * Zadnji odlomak — zaseban jer nosi `KONTAKT` i renderira se s linkom.
+ *
+ * 🔴 „zahtjev za brisanje podataka" maknut 2026-08-14 (ERRATA #46): sustav ne
+ * može obrisati podatke pojedinog sudionika, pa poziv na takav zahtjev nije smio
+ * stajati. Kontakt ostaje — pitanja, odustajanje i sve ostalo i dalje idu ovamo.
+ */
+export const SUDJELOVANJE_KONTAKT_UVOD = "Za pitanja o sudjelovanju:"
 
 /**
  * Pomoćni tekst uz polje `username` na `/register`.

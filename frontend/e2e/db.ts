@@ -23,6 +23,11 @@ export const COUNTED_TABLES = [
   "user_badges",
   "misconceptions",
   "recommendations_log",
+  // 🔴 Dodano 2026-08-14 (otvoreno iz 5.2 §F). Tablica se čisti kaskadno (FK
+  // ON DELETE CASCADE prema `users` i `attempts`) i provjereno je da ne ostaju
+  // siročad, ali dotad NIJE bila pod before/after dokazom kao ostale — a
+  // „čisti se kaskadno" je tvrdnja o shemi, ne mjerenje.
+  "hint_requests",
   "agent_messages_log",
 ] as const
 

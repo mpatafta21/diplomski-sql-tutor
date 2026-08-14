@@ -37,7 +37,8 @@ import { SqlEditor } from "@/components/task/SqlEditor"
 import { RunResultPanel } from "@/components/task/RunResultPanel"
 import { FeedbackPanel } from "@/components/task/FeedbackPanel"
 import { HintPanel } from "@/components/task/HintPanel"
-import { ApiError } from "@/lib/api/query"
+import { submitPoruka } from "@/lib/submit"
+import { SubmitError } from "@/hooks/useSubmitAttempt"
 import { ErrorState } from "@/components/state/ErrorState"
 import { LoadingState } from "@/components/state/LoadingState"
 import { useAuth } from "@/hooks/useAuth"
@@ -353,16 +354,25 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
   }, [])
 
   // Točno jedan slot renderira: v5 status je enum (isError ⇒ !isPending).
-  // 504 (agent pipeline ne odgovara) ≠ error_type:"timeout" (200, SQL predug).
+  // Pad pipelinea ≠ error_type:"timeout" (200, studentov SQL predug).
+  //
+  // 🔴 Jedan slot za sve neuspjehe, a poruka se bira po UZROKU (`lib/submit.ts`).
+  // Prije 2026-08-14 stajale su dvije grane po statusu (504 vs ostalo), pa je
+  // `503 coordinator_busy` — uveden popravkom #62 — padao u poruku „Veza prema
+  // poslužitelju nije uspjela". To je bilo netočno: veza JE uspjela, poslužitelj
+  // je odgovorio, sustav je bio zauzet i ponovni pokušaj odmah ima smisla.
   const submitSlot = submitM.isPending
     ? ("pending" as const)
     : submitM.isError
-      ? submitM.error instanceof ApiError && submitM.error.status === 504
-        ? ("gateway" as const)
-        : ("infra" as const)
+      ? ("failed" as const)
       : lastAttempt
         ? ("feedback" as const)
         : null
+
+  // Mrežni/transportni pad nema tijelo → `unknown`, generička poruka s retryjem.
+  const submitPad = submitPoruka(
+    submitM.error instanceof SubmitError ? submitM.error.reason : "unknown",
+  )
 
   // code→ime koncepta za CTA (nepoznat code → sirovi code bolji od ničega).
   const conceptName = useCallback(
@@ -672,17 +682,10 @@ function TaskView({ task, conceptIndex }: TaskViewProps) {
               className="rounded-md border border-border p-3"
             />
           )}
-          {submitSlot === "gateway" && (
+          {submitSlot === "failed" && (
             <ErrorState
-              title="Sustav ne odgovara"
-              message="Evaluacija je predugo trajala — pokušaj ponovno predati."
-              onRetry={retrySubmit}
-            />
-          )}
-          {submitSlot === "infra" && (
-            <ErrorState
-              title="Predaja nije uspjela"
-              message="Veza prema poslužitelju nije uspjela — rješenje nije ocijenjeno."
+              title={submitPad.title}
+              message={submitPad.message}
               onRetry={retrySubmit}
             />
           )}

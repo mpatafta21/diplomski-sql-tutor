@@ -20,9 +20,7 @@ from sqlalchemy import select
 from agents.hint_payload import (
     CLASSIFICATION_ONLY_TYPES,
     DETAIL_SAFE_TYPES,
-    _detect_order,
     build_hint_payload,
-    expected_shape,
 )
 from app.db.models import Task
 from app.db.session import SessionLocal
@@ -183,10 +181,6 @@ def test_payload_fields_are_a_closed_set() -> None:
         "error_type",
         "error_detail",
         "expected_columns",
-        # ERRATA #64 — strukturni opis očekivanog rezultata za `row_mismatch`.
-        # Oblik, ne vrijednosti; v. `expected_shape`.
-        "expected_row_count",
-        "expected_order",
         "sqlstate",
     }
     for et in SVI_TIPOVI:
@@ -199,33 +193,9 @@ def test_payload_fields_are_a_closed_set() -> None:
             p_l=0.5,
         )
         assert set(p) <= dopusteno, f"[{et}] nepoznata polja: {set(p) - dopusteno}"
-
-        # 🔴 Pravilo PREOZNAČENO 2026-08-14 (ERRATA #64), ne ublaženo.
-        #
-        # Prije: „najviše jedan nosač" i `expected_columns` se brojao među njima.
-        # Sada se razlikuju DVIJE vrste polja, jer nose podatke o dvije različite
-        # strane:
-        #
-        #   (a) nosači signala O STUDENTU — `error_detail`, `sqlstate`. Ovih i
-        #       dalje smije biti NAJVIŠE JEDAN; to je granica koju je postavila
-        #       privatnosna odluka 5.0 i ona se ne pomiče.
-        #   (b) strukturni opis OČEKIVANOG rezultata — `expected_columns`,
-        #       `expected_row_count`, `expected_order`. Izvodi se iz
-        #       `expected_result`, ne nosi nijedan znak studentovog rada, pa
-        #       ograničenje iz (a) na njega ne odgovara.
-        #
-        # Zašto je razlika bitna: pod starim pravilom `row_mismatch` je smio
-        # nositi SAMO `detail` („Row 0 differs"), pa je model izmišljao —
-        # to je bio kvar, ne mjera zaštite.
-        o_studentu = {"error_detail", "sqlstate"} & set(p)
-        assert len(o_studentu) <= 1, f"[{et}] više nosača o studentu: {o_studentu}"
-
-        # Strukturna polja smiju postojati SAMO ondje gdje su odlučena.
-        strukturna = {"expected_columns", "expected_row_count", "expected_order"} & set(p)
-        if strukturna:
-            assert et in {"row_mismatch", "wrong_columns"}, (
-                f"[{et}] strukturni opis ondje gdje nije odlučen: {strukturna}"
-            )
+        # Najviše JEDAN nosač signala greške.
+        nosaci = {"error_detail", "expected_columns", "sqlstate"} & set(p)
+        assert len(nosaci) <= 1, f"[{et}] više nosača odjednom: {nosaci}"
 
 
 def test_expected_query_is_never_read() -> None:
@@ -264,18 +234,7 @@ def test_guard_no_expected_query_leaks_for_any_active_task() -> None:
 
 
 #: Polja koja payload SINTETIZIRA — nad njima guard vrijedi bez izuzetka.
-# 🔴 Nova polja MORAJU ući ovamo, inače ih guard tiho preskače — polje koje
-# guard ne zna provjeriti jednako je polju bez guarda (ERRATA #64 dodala je
-# expected_row_count / expected_order za `row_mismatch`).
-_SINTETIZIRANA = (
-    "error_detail",
-    "expected_columns",
-    "expected_row_count",
-    "expected_order",
-    "sqlstate",
-    "error_type",
-    "mastery",
-)
+_SINTETIZIRANA = ("error_detail", "expected_columns", "sqlstate", "error_type", "mastery")
 
 
 def test_guard_no_expected_result_values_in_synthesized_fields() -> None:
@@ -346,74 +305,3 @@ def test_mastery_is_a_coarse_band_never_a_number() -> None:
         )
         assert p["mastery"] == ocekivano, f"p_l={p_l} → {p['mastery']!r}"
         assert str(p_l) not in _blob(p), f"sirovi p_l={p_l} procurio u payload"
-
-
-# ---------------------------------------------------------------------------
-# ERRATA #64 — strukturni opis očekivanog rezultata za `row_mismatch`
-# ---------------------------------------------------------------------------
-
-
-def test_row_mismatch_carries_expected_shape() -> None:
-    """🔴 `row_mismatch` više ne ide s golim `Row 0 differs`.
-
-    Prije popravka payload je za taj tip nosio SAMO interni dijagnostički string,
-    pa je model prazninu popunjavao izmišljanjem i jednom dao netočan SQL
-    („prvo LIMIT, pa ORDER BY"). Sada uz njega idu tvrde činjenice izvedene iz
-    `expected_result`.
-    """
-    task = next(t for t in _ZADACI if t.expected_result)
-    p = build_hint_payload(
-        task=task,
-        error_type="row_mismatch",
-        detail="Row 0 differs",
-        sqlstate=None,
-        concept_code="order_by",
-        p_l=0.4,
-    )
-    # 🔴 Šalje se SAMO poredak. `expected_columns` i `expected_row_count` su
-    # odbačeni nakon mjerenja na živom modelu — v. `expected_shape` za razloge.
-    assert "expected_columns" not in p
-    assert "expected_row_count" not in p
-    if p.get("expected_order"):
-        assert p["expected_order"]["direction"] in {"asc", "desc"}
-    # `detail` OSTAJE — u drugim oblicima nosi brojeve redaka koji su korisni.
-    assert p["error_detail"] == "Row 0 differs"
-
-
-def test_expected_order_is_strict_and_absent_when_ambiguous() -> None:
-    """Smjer sortiranja se tvrdi SAMO kad je strogo monoton.
-
-    Kod ponovljenih vrijednosti poredak nije određen tim stupcem, pa bi tvrdnja
-    „sortirano po X" bila nagađanje — a nagađanje je ono što #64 popravlja.
-    """
-    assert _detect_order([{"id": 1}, {"id": 2}, {"id": 3}]) == {
-        "column": "id",
-        "direction": "asc",
-    }
-    assert _detect_order([{"id": 3}, {"id": 2}, {"id": 1}]) == {
-        "column": "id",
-        "direction": "desc",
-    }
-    assert _detect_order([{"id": 1}, {"id": 1}, {"id": 2}]) is None, "ties → bez tvrdnje"
-    assert _detect_order([{"id": 1}]) is None, "jedan redak ne definira poredak"
-    assert _detect_order([{"id": 1}, {"id": None}]) is None, "NULL → bez tvrdnje"
-    assert _detect_order([{"x": 1}, {"x": "a"}]) is None, "nehomogen tip → bez tvrdnje"
-
-
-def test_expected_shape_never_carries_row_values() -> None:
-    """🔴 Iz `expected_result` izlazi OBLIK, nikad vrijednost retka.
-
-    Provjera nad svim aktivnim zadacima: nijedna tekstualna vrijednost ne smije
-    se pojaviti u strukturnim poljima. Brojevi se ne provjeravaju iz istog
-    razloga kao u glavnom guardu — `expected_row_count` je legitiman broj.
-    """
-    pogodci: list[str] = []
-    for task in _ZADACI:
-        shape = expected_shape(task)
-        if not shape:
-            continue
-        blob = _blob(shape)
-        for v in _vrijednosti(task):
-            if len(v) >= 3 and not v.replace(".", "", 1).isdigit() and v in blob:
-                pogodci.append(f"task {task.id}: vrijednost {v!r} u {shape}")
-    assert not pogodci, "oblik nosi vrijednosti:\n  " + "\n  ".join(pogodci[:15])

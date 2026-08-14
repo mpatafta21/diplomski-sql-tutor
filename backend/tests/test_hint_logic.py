@@ -276,29 +276,30 @@ def test_credit_is_per_user(hint_user, drugi_user) -> None:
         assert hint_credit(s, drugi_user, now=_NOW)[0] == config.HINT_MAX
 
 
-def test_requests_newer_than_now_do_not_count(hint_user) -> None:
-    """🔴 Zahtjev noviji od `now` NE ulazi u računicu — bucket ne smije u minus.
+def test_future_request_counts_but_credit_never_goes_negative(hint_user) -> None:
+    """🔴 Zahtjev noviji od `now` se BROJI, ali ne smije obarati bucket u minus.
 
-    `hint_credit` je filtrirao samo DONJU granicu prozora, pa je redak s
-    `created_at > now` prolazio, a `level += (now - prev) / refill` s negativnim
-    razmakom obarao bucket ispod nule. Za `now` udaljen dva dana u prošlost to je
-    davalo `remaining = -8`.
+    `level += (now - prev) / refill` s negativnim razmakom davao je `remaining = -8`
+    za `now` dva dana u prošlosti. To je rušilo `test_credit_is_per_user` u punoj
+    suiti, a brojka se pogoršavala s vremenom (−6 → −7 → −8).
 
-    Zašto to nije samo test-artefakt: `now` se uzima prije upita, pa istovremeni
-    upis hinta može leći s `created_at > now` i u produkciji. Parametar `now`
-    mora značiti „stanje u tom trenutku", a to traži i gornju granicu.
+    🔴 Popravak je KLAMP prirasta, ne izbacivanje retka filtrom `created_at <= now`.
+    `hint_credit` je gate za 429: `now` se uzima u Pythonu prije upita, a
+    `created_at` dolazi iz PG `now()`, pa istovremena druga predaja može leći s
+    `created_at > now`. Filtar bi je isključio iz računice i pustio hint PREKO
+    limita; klamp je i dalje broji.
     """
     uid, tid = hint_user["user_id"], hint_user["task_id"]
     aid = _attempt(uid, tid, n=1, correct=False, et="row_mismatch")
     _request(uid, tid, aid, source="llm", at=_NOW + timedelta(days=2))
 
     with SessionLocal() as s:
-        remaining, refill = hint_credit(s, uid, now=_NOW)
+        remaining, _ = hint_credit(s, uid, now=_NOW)
 
-    assert remaining == config.HINT_MAX, (
-        f"budući zahtjev je ušao u prozor → remaining={remaining}"
+    assert remaining == config.HINT_MAX - 1, (
+        f"budući zahtjev se mora BROJITI, a ne izbaciti → remaining={remaining}"
     )
-    assert refill is None, "pun bucket nema sljedeću nadopunu"
+    assert remaining >= 0, "bucket nikad ispod nule"
 
 
 # ---------------------------------------------------------------------------

@@ -25,13 +25,15 @@ import { submitFailure, type SubmitFailure } from "@/lib/submit"
 
 /** Greška predaje s razlučenim uzrokom (v. `lib/submit.ts`). */
 export class SubmitError extends Error {
-  readonly status: number
   readonly reason: SubmitFailure
 
+  // 🔴 BEZ `status` polja, namjerno. Status više ne razlučuje ishod (tri ishoda
+  // dijele dva statusa), pa bi polje samo pozivalo na granu po statusu — obrazac
+  // koji `lib/submit.ts` izrijekom zabranjuje. Status ostaje u poruci greške radi
+  // dijagnostike, ne kao podatak za odlučivanje.
   constructor(status: number, reason: SubmitFailure) {
-    super(`submit_failed_${reason}`)
+    super(`submit_failed_${reason}_http${status}`)
     this.name = "SubmitError"
-    this.status = status
     this.reason = reason
   }
 }

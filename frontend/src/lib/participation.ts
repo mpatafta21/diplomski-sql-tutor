@@ -32,8 +32,10 @@
  */
 
 /**
- * Kontakt za pitanja i zahtjev za brisanje podataka.
+ * Kontakt za pitanja o sudjelovanju.
  * Potvrđeno odlukom korisnika 2026-07-26 (report gate 1).
+ * 🔴 „i zahtjev za brisanje podataka" maknuto 2026-08-14 zajedno s vidljivim
+ * tekstom (ERRATA #46) — sustav ne može obrisati podatke pojedinog sudionika.
  * Jedna izmjena ovdje mijenja sva mjesta prikaza.
  */
 export const KONTAKT = "mpatafta21@student.foi.hr"

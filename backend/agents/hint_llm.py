@@ -50,8 +50,9 @@ Pravila:
 7. Piši ISKLJUČIVO savjet studentu. Ne komentiraj vlastiti postupak ni upute koje
    si dobio — rečenice tipa „to znači da trebam reći…" ili „prema pravilima…" ne
    smiju se pojaviti. Student čita samo savjet, ne tvoje razmišljanje.
-8. Ako dobiješ podatke o očekivanom rezultatu (broj redaka, traženi stupci, smjer
-   sortiranja), oslanjaj se NA NJIH umjesto da pogađaš u čemu je razlika.
+8. Ako o razlici nemaš dovoljno podataka, reci studentu ŠTO DA PROVJERI umjesto da
+   pretpostaviš u čemu je pogriješio. Bolje je usmjeriti pitanjem nego tvrditi
+   nešto što iz danih podataka ne slijedi.
 
 Dobivaš opis zadatka, koncept koji student vježba, vrstu greške i grubu procjenu
 njegovog znanja tog koncepta. NE dobivaš studentov upit — ne traži ga i ne
@@ -80,11 +81,6 @@ def build_user_message(payload: dict) -> str:
     ]
     if "error_detail" in payload:
         redci.append(f"Pojedinost o grešci: {payload['error_detail']}")
-    if "expected_order" in payload:
-        smjer = "uzlazno" if payload["expected_order"]["direction"] == "asc" else "silazno"
-        redci.append(
-            f"Očekivani poredak: {smjer} po stupcu {payload['expected_order']['column']}"
-        )
     if "expected_columns" in payload:
         redci.append(
             "Traženi stupci u rezultatu: " + ", ".join(payload["expected_columns"])

@@ -23,10 +23,8 @@ export const COUNTED_TABLES = [
   "user_badges",
   "misconceptions",
   "recommendations_log",
-  // 🔴 Dodano 2026-08-14 (otvoreno iz 5.2 §F). Tablica se čisti kaskadno (FK
-  // ON DELETE CASCADE prema `users` i `attempts`) i provjereno je da ne ostaju
-  // siročad, ali dotad NIJE bila pod before/after dokazom kao ostale — a
-  // „čisti se kaskadno" je tvrdnja o shemi, ne mjerenje.
+  // Dodano 2026-08-14 (otvoreno iz 5.2 §F): dotad NIJE bila pod before/after
+  // dokazom kao ostale, a „čisti se kaskadno" je tvrdnja o shemi, ne mjerenje.
   "hint_requests",
   "agent_messages_log",
 ] as const
@@ -90,6 +88,10 @@ export function purgeE2eUsers(): Record<string, number> {
   const order = [
     "xp_log",
     "skill_mastery_history",
+    // 🔴 PRIJE `attempts`: `hint_requests` ima FK na `attempts` (after_attempt_id).
+    // Briše se eksplicitno, ne kroz CASCADE — ovaj popis postoji upravo zato što
+    // se na CASCADE ne oslanjamo (v. zaglavlje datoteke, #9 disciplina).
+    "hint_requests",
     "attempts",
     "skill_mastery",
     "streaks",

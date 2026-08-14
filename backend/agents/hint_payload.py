@@ -43,63 +43,30 @@ _WEAK_THRESHOLD = 0.30
 _MASTERED_THRESHOLD = 0.85
 
 
-def _detect_order(rows: list[dict]) -> dict[str, str] | None:
-    """Je li očekivani rezultat strogo monoton po nekom stupcu → (stupac, smjer).
-
-    STROGA monotonost namjerno: kod jednakih vrijednosti poredak nije određen tim
-    stupcem, pa bi tvrdnja „sortirano po X" bila nagađanje — a nagađanje je upravo
-    ono što ERRATA #64 popravlja.
-
-    Vraća oblik, ne vrijednosti: ime stupca (ključ, ne podatak) i smjer.
-    """
-    if len(rows) < 2:
-        return None
-    for col in rows[0]:
-        vals = [r.get(col) for r in rows]
-        if any(v is None for v in vals):
-            continue
-        try:
-            if all(a < b for a, b in zip(vals, vals[1:])):
-                return {"column": col, "direction": "asc"}
-            if all(a > b for a, b in zip(vals, vals[1:])):
-                return {"column": col, "direction": "desc"}
-        except TypeError:
-            # Nehomogen tip u stupcu — usporedba nije definirana, preskoči.
-            continue
-    return None
-
-
-def expected_shape(task: Task) -> dict[str, Any]:
-    """Strukturni opis OČEKIVANOG rezultata — oblik, nikad vrijednosti.
-
-    🔴 ERRATA #64. Za `row_mismatch` je payload nosio samo `detail`, a taj string
-    zna biti `Row 0 differs` — interna dijagnostika bez ijedne činjenice o tome
-    ŠTO se očekuje. Model je prazninu popunjavao izmišljanjem i u jednom mjerenju
-    dao **netočan SQL** („prvo LIMIT, pa ORDER BY"). Kad payload nosi tvrdu
-    činjenicu (kao `expected_columns` kod `wrong_columns`), savjet je bio točan.
-
-    Sve troje se izvodi iz `expected_result`, **bez ijednog znaka studentovog
-    upita** — privatnosna odluka 5.0 (selektivni B+) ostaje netaknuta.
-    """
-    expected = task.expected_result or []
-    if not expected or not isinstance(expected[0], dict):
-        return {}
-    # 🔴 Šalje se SAMO poredak, i to je suženo DVAPUT nakon mjerenja na živom
-    # modelu (2026-08-14). Obje odbačene stavke izgledale su korisno na papiru:
-    #
-    #   `expected_columns` — model sortiranu listu čita kao PROPISANI REDOSLIJED
-    #   stupaca i savjetuje preslagivanje SELECT-a („stupci su (country, id,
-    #   name)" — to je abecedni poredak, ne poredak rezultata). Uz to je suvišan:
-    #   `row_mismatch` po definiciji znači da su stupci TOČNI.
-    #
-    #   `expected_row_count` — kad se brojevi RAZLIKUJU, `detail` ih već nosi
-    #   („Row count mismatch: actual=30 vs expected=3"). Kad se poklapaju (oblik
-    #   „Row 0 differs"), broj retka navodi model da govori o broju redaka,
-    #   dakle o nečemu što nije problem.
-    #
-    # Ostaje jedina činjenica koju `detail` NIKAD ne nosi: očekivani poredak.
-    order = _detect_order(expected)
-    return {"expected_order": order} if order is not None else {}
+# 🔴 ERRATA #64 — POKUŠAJ POVUČEN 2026-08-14, prije mergea.
+#
+# Ovdje su stajali `_detect_order` i `expected_shape`: iz `expected_result` se
+# izvodio očekivani poredak (stupac + smjer) i slao modelu, da za `row_mismatch`
+# ne mora nagađati.
+#
+# IZMJERENO nad svih 80 aktivnih zadataka: poredak je detektiran u 40, a u **10**
+# je PROTURJEČIO `ORDER BY`-u referentnog upita; još 2 zadatka poredak uopće
+# nemaju. Najgori oblik su zadaci s višestrukim ključem (`ORDER BY
+# prosjecna_ocjena DESC, product_id ASC`): primarni ključ ima izjednačenja pa nije
+# monoton, sekundarni jest — pa bi se TIEBREAKER proglasio poretkom.
+#
+# Sužavanje na „točno jedan monoton stupac" ne spašava: 4 od 24 i dalje
+# proturječe. Uz to Python uspoređuje stringove po codepointu, a `expected_result`
+# je poredao PostgreSQL pod svojom kolacijom — za `['apple', 'Banana']` Python
+# zaključi `desc`, dakle obrnuto od istine.
+#
+# 🔴 Poanta: tvrdnja bi išla uz prompt pravilo „osloni se na dane podatke", pa bi
+# model netočan poredak iznosio SIGURNIJE nego kad nagađa. To je ista klasa kvara
+# koju #64 opisuje, samo sustavna umjesto povremene.
+#
+# Jedini pouzdan izvor poretka je `ORDER BY` referentnog upita — a ovaj modul ga
+# po dizajnu NE SMIJE ni spomenuti (`test_expected_query_is_never_read`). Proširenje
+# tog opsega je odluka korisnika, ne izvedbeni detalj. ERRATA #64 ostaje OTVORENA.
 
 
 def mastery_band(p_l: float | None) -> str | None:
@@ -145,15 +112,7 @@ def build_hint_payload(
 
     Returns:
         Dict s poljima: `task_description`, `concept`, `mastery`, `error_type`,
-        te najviše jedan NOSAČ SIGNALA O STUDENTU (`error_detail` / `sqlstate`).
-
-        🔴 Pravilo „najviše jedno polje" prošireno je 2026-08-14 (ERRATA #64):
-        `row_mismatch` uz `error_detail` nosi i strukturni opis očekivanog
-        rezultata (`expected_row_count`, `expected_columns`, `expected_order`).
-        To NIJE slabljenje: ta polja se izvode iz `expected_result` i ne nose
-        nijedan znak studentovog rada, pa se ne zbrajaju s nosačem o studentu.
-        Ograničenje koje ostaje: iz `expected_result` izlazi samo OBLIK (broj
-        redaka, imena stupaca, smjer sortiranja) — nikad vrijednost retka.
+        te NAJVIŠE JEDNO od `error_detail` / `expected_columns` / `sqlstate`.
 
     🔴 `task_description` je JEDINO polje koje se doslovno citira iz zadatka.
     Izuzeto je iz guard provjere VRIJEDNOSTI jer je problemski tekst koji student
@@ -171,12 +130,6 @@ def build_hint_payload(
     if error_type in DETAIL_SAFE_TYPES:
         if detail:
             payload["error_detail"] = detail
-        if error_type == "row_mismatch":
-            # 🔴 ERRATA #64: `detail` sam („Row 0 differs") ne kaže NIŠTA o tome
-            # što se očekuje, pa je model izmišljao. Strukturni opis dolazi uz
-            # njega, ne umjesto njega — `detail` u drugim oblicima nosi brojeve
-            # redaka koji su korisni („actual=30 vs expected=3").
-            payload.update(expected_shape(task))
     elif error_type == RECONSTRUCT_COLUMNS_TYPE:
         # 🔴 REKONSTRUKCIJA, ne parsiranje pohranjenog `detail`a: taj string
         # miješa očekivane stupce sa STUDENTOVIM ALIASIMA.

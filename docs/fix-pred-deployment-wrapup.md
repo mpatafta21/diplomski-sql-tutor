@@ -8,10 +8,14 @@ preformulacija teksta o sudjelovanju. Nijedna nije uvedena ovom granom.
 | commit | sadržaj |
 |---|---|
 | `0999883` | kredit za hint više ne može u minus — gornja granica prozora |
-| `738ea72` | payload za `row_mismatch` nosi očekivani poredak (ERRATA #64) |
+| `738ea72` | prompt-pravila protiv curenja glasa; payload POVUČEN (v. §B) |
 | `3528092` | predaja razlikuje tri ishoda + `hint_requests` pod dokazom + tekst #46 |
 
-**Nula promjena sheme. Nula novih ovisnosti.** 11 datoteka, +526 / −39.
+**Nula promjena sheme. Nula novih ovisnosti.**
+
+🔴 Grana sadrži i **jedan povučen popravak** (§B). Zapisan je jednako podrobno kao
+isporučeni — odluka da se nešto NE isporuči nosi jednako informacije kao isporuka, a ovdje
+i više: mjerenje koje ju je izazvalo vrijedi i za svaki idući pokušaj.
 
 ---
 
@@ -43,62 +47,67 @@ najjači dokaz dijagnoze — kvar koji se sam pogoršava ne može biti slučajan
 
 ---
 
-# B — ERRATA #64: savjet za `row_mismatch`
+# B — ERRATA #64: pokušaj POVUČEN prije mergea
 
-## B.1 Što je popravljeno
+## B.1 Što je isporučeno
 
-Payload je za taj tip nosio samo `detail`, a taj string zna biti `Row 0 differs` — interna
-dijagnostika bez ijedne činjenice o očekivanom rezultatu. Sada uz njega ide
-**`expected_order`** (stupac + smjer), izveden iz `expected_result` **strogom**
-monotonošću.
+Samo **prompt-pravila**: 7 (ne komentiraj vlastiti postupak — curenje glasa modela, drugi
+nalaz iz #64) i 8 (kad nemaš dovoljno podataka, reci što provjeriti umjesto da
+pretpostaviš u čemu je greška).
 
-🔴 Stroga monotonost namjerno: kod ponovljenih vrijednosti poredak nije određen tim
-stupcem, pa bi tvrdnja „sortirano po X" bila **nagađanje** — a nagađanje je upravo ono što
-#64 popravlja.
+**Payload je nedirnut.** #64 ostaje OTVORENA.
 
-Privatnosna odluka 5.0 (selektivni B+) ostaje netaknuta: sve se izvodi iz
-`expected_result`, bez ijednog znaka studentovog upita.
+## B.2 🔴 Zašto je popravak payloada povučen
 
-## B.2 🔴 Dvije stavke uvedene pa ODBAČENE nakon živog mjerenja
+Ideja: za `row_mismatch` slati `expected_order` (stupac + smjer), izveden iz
+`expected_result` strogom monotonošću, da model ne mora nagađati. Prošao je sve testove i
+na tri živa primjera davao bolje savjete od zatečenog stanja.
 
-Obje su na papiru izgledale korisno. Mock ih ne bi razotkrio — **sadržaj savjeta ne gleda
-nijedan test**, i to je i dalje istina.
+**Code review je posumnjao, a mjerenje nad svih 80 aktivnih zadataka potvrdilo:**
 
-| stavka | zašto je odbačena |
+| ishod | zadataka |
 |---|---|
-| `expected_columns` | model **sortiranu** listu čita kao PROPISANI REDOSLIJED stupaca i savjetuje preslagivanje SELECT-a. Izmjereno: „stupci su (country, id, name)" — to je abecedni poredak, ne poredak rezultata. **Ista klasa kvara koju #64 popravlja, samo pomaknuta.** Uz to suvišan: `row_mismatch` po definiciji znači da su stupci točni |
-| `expected_row_count` | kad se brojevi razlikuju, `detail` ih **već** nosi („actual=30 vs expected=3"); kad se poklapaju (oblik „Row 0 differs"), broj navodi model da govori o broju redaka — dakle o nečemu što nije problem |
+| poredak detektiran | 40 |
+| — slaže se s `ORDER BY` referentnog upita | 28 |
+| — 🔴 **PROTURJEČI mu** | **10** |
+| — zadatak uopće nema `ORDER BY` | 2 |
 
-Ostaje jedina činjenica koju `detail` **nikad** ne nosi: očekivani poredak.
+Najgori oblik su višestruki ključevi: `ORDER BY prosjecna_ocjena DESC, product_id ASC` —
+primarni ključ ima izjednačenja pa nije monoton, sekundarni jest, pa bi se **tiebreaker
+proglasio poretkom**. Sužavanje na „točno jedan monoton stupac" ne spašava: **4 od 24** i
+dalje proturječe.
 
-## B.3 Što se NE može tvrditi
+Uz to: Python uspoređuje stringove po codepointu, a `expected_result` je poredao PostgreSQL
+pod svojom kolacijom — za `['apple', 'Banana']` Python zaključi `desc`, dakle obrnuto.
 
-🔴 **Izvorni kvar se nije reproducirao.** Netočan SQL iz #64 („prvo `LIMIT`, pa
-`ORDER BY`") nije se pojavio ni u jednom od **18 živih poziva**, ni prije ni poslije
-izmjene. Bio je to jedan opažen slučaj, pa se ne smije tvrditi da ga je popravak
-eliminirao — samo da model sada ima činjenicu koja mu je nedostajala, i da je **koristi**
-(imenuje točan stupac i smjer: „`category_id` uzlazno", „silazno jer tražite najveće").
+🔴 **Zašto je to gore od zatečenog stanja, a ne samo „nepotpuno":** netočna tvrdnja išla bi
+uz prompt-pravilo „osloni se na dane podatke", pa bi model krivi poredak iznosio
+**sigurnije** nego kad nagađa. Ista klasa kvara koju #64 opisuje — samo **sustavna umjesto
+povremene**, u ~30 % slučajeva s detektiranim poretkom.
 
-Usput opaženo, bez popravka: jedan odgovor sadržavao je zalutali ćirilički token
-(„первих"). To je model, ne payload.
+## B.3 Dvije uže varijante, također odbačene nakon živog mjerenja
 
-**Potrošnja: 18 živih poziva, ~$0,02.**
+| stavka | zašto |
+|---|---|
+| `expected_columns` | model **sortiranu** listu čita kao PROPISANI redoslijed stupaca i savjetuje preslagivanje SELECT-a („stupci su (country, id, name)" — abecedni poredak). Uz to suvišan: `row_mismatch` znači da su stupci točni |
+| `expected_row_count` | kad se brojevi razlikuju, `detail` ih **već** nosi; kad se poklapaju („Row 0 differs"), navodi model na temu koja nije problem |
 
-## B.4 Pravilo o payloadu PREOZNAČENO, ne ublaženo
+## B.4 Što bi trebalo za pravi popravak
 
-Modul je propisivao „najviše JEDNO od `error_detail` / `expected_columns` / `sqlstate`".
-Sada se razlikuju dvije vrste polja:
+Jedini pouzdan izvor poretka je `ORDER BY` **referentnog upita**, a `hint_payload` ga po
+dizajnu ne smije ni spomenuti — čuva to `test_expected_query_is_never_read`. Proširenje tog
+opsega je **odluka korisnika**, jer je klauzula dio rješenja. Alternativa bez diranja
+guarda: evaluacijska jezgra emitira strukturiran podatak o poretku umjesto stringa
+`Row 0 differs`.
 
-- **nosači signala O STUDENTU** (`error_detail`, `sqlstate`) — i dalje **najviše jedan**;
-  to je granica iz privatnosne odluke 5.0 i ne pomiče se;
-- **strukturni opis OČEKIVANOG rezultata** — izvodi se iz `expected_result`, ne nosi
-  nijedan znak studentovog rada, pa ograničenje iz prve skupine na njega ne odgovara.
+## B.5 Što je ovaj pokušaj ipak dao
 
-Zatvoreni skup polja i guard §G2.3 prošireni su novim poljem — **inače bi ga tiho
-preskočili**, a polje koje guard ne zna provjeriti jednako je polju bez guarda.
-
-Prompt je dobio pravilo 7 (ne komentiraj vlastiti postupak — curenje glasa iz #64) i
-pravilo 8 (osloni se na dane podatke umjesto pogađanja).
+- **18 živih poziva (~$0,02)** i mjerenje nad 80 zadataka koje je pretvorilo #64 iz
+  „model ponekad izmišlja" u „znamo točno koji izvor podataka je pouzdan, a koji nije".
+- Potvrda da je izvorni netočan SQL bio **jedan opažen slučaj** — nije se reproducirao ni
+  u jednom od 18 poziva, ni prije ni poslije.
+- 🔴 Potvrda da **kvalitetu savjeta ne čuva nijedan test**: sve tri odbačene varijante
+  prošle su punu suitu. Uhvatilo ih je tek čitanje odgovora i mjerenje nad katalogom.
 
 ---
 
@@ -152,7 +161,7 @@ datoteci zabilježena odluka o #59 — nosilac pristanka trajno ostaje čin regi
 
 | gate | ishod |
 |---|---|
-| `pytest` | ✅ **786 passed, 1 skipped, 0 failed** |
+| `pytest` | ✅ **783 passed, 1 skipped, 0 failed** |
 | `make preflight` | ✅ zelen |
 | `npm run e2e` | ✅ **4 passed** (3 zatečena + novi gate), teardown čist |
 | `tsc -b` · `build` · `prettier` · `oxlint` | ✅ |
@@ -161,6 +170,8 @@ datoteci zabilježena odluka o #59 — nosilac pristanka trajno ostaje čin regi
 
 # G — Otvoreno
 
+- 🔴 **ERRATA #64 ostaje OTVORENA** — v. §B.4 za ono što joj treba i zašto je jeftini put
+  odbačen.
 - **Kvaliteta savjeta i dalje nema automatsku provjeru.** `test_hint_route.py` mocka LLM i
   provjerava mehaniku; sadržaj ne gleda nitko. Zato su dvije stavke iz §B.2 uhvaćene tek
   čitanjem stvarnih odgovora. Ako se to želi zatvoriti, treba zaseban, ručno pokretan

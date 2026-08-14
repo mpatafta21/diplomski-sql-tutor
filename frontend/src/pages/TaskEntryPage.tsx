@@ -87,9 +87,19 @@ export function TaskEntryPage() {
               {reasonText(rec.reason)}
             </p>
           </div>
-          <Button asChild variant="outline">
-            <Link to="/">Natrag na Dashboard</Link>
-          </Button>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {/* Savladanost ≠ dovršenost: kad preporučivač nema što ponuditi, a
+                zadaci su možda ostali, Moduli su jedini put do njih. Zato je to
+                ovdje PRIMARNA akcija, a Dashboard ostaje sporedna. */}
+            {allMastered && (
+              <Button asChild>
+                <Link to="/modules">Pregledaj module</Link>
+              </Button>
+            )}
+            <Button asChild variant="outline">
+              <Link to="/">Natrag na Dashboard</Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -35,7 +35,7 @@ from agents.db_helpers import load_concept_code_map
 from agents.evaluation import UNSUPPORTED_CONCEPTS
 from agents.recommender_logic import (
     build_mastery_snapshot,
-    concepts_with_tasks,
+    concepts_with_available_tasks,
     recommend,
     select_task_for_concept,
     subfloor_concepts,
@@ -338,22 +338,89 @@ def test_solved_task_excluded(recommender_env):
 
 
 # ---------------------------------------------------------------------------
-# T7 — Iscrpljen koncept (svi taskovi riješeni) → None + reason="exhausted"
+# T7 — Koncept kojemu je SVE riješeno, a mastery nizak → preporuka ide DALJE
+#
+# 🔴 IZMIJENJENO 2026-08-14. Ovaj je test prije tvrdio suprotno: da isti slučaj
+# daje `task_id=None, reason="exhausted"`. Bio je pisan prema PROMATRANOM
+# ponašanju i time zaključao ćorsokak kao specifikaciju (klasa NALAZA #57).
+#
+# Posljedica u praksi, izmjerena na računu `admin`: `where_filter` (3/3 riješena,
+# p_l 0.7728) i `insert` (2/2, p_l 0.7702) bili su vječni kandidati — Prolog ih
+# preporuči, task selekcija nema što vratiti, student vidi „Nema novih zadataka"
+# uz **71 neriješen zadatak** drugdje. Mastery im ne može narasti jer se do
+# zadatka ne dolazi kroz preporuku.
+#
+# Odluka korisnika 2026-08-14: preporuka prelazi na drugi koncept. Put do
+# ponavljanja ostaje kroz Module (klik na koncept → riješen zadatak uz oznaku).
 # ---------------------------------------------------------------------------
 
 
-def test_exhausted_concept_returns_exhausted(recommender_env, prolog_engine):
-    """select_basic weak (0.1) ali SVI taskovi riješeni → exhausted, task_id=None."""
+def test_all_tasks_solved_moves_on_when_alternative_exists(
+    recommender_env, prolog_engine
+):
+    """🔴 Stanje s računa `admin`: koncept iscrpljen, ALI drugdje ima zadataka.
+
+    select_basic savladan (0.9) i sav riješen → nizvodni koncepti su otključani i
+    imaju neriješene zadatke → preporuka mora otići NA DRUGI koncept, ne vratiti
+    „Nema novih zadataka".
+    """
     user_id = recommender_env["user_id"]
-    _seed_mastery(user_id, {"select_basic": 0.1})
+    _seed_mastery(user_id, {"select_basic": 0.9})
     _seed_solved(user_id, _primary_task_ids("select_basic"))
 
     with SessionLocal() as sess:
         result = recommend(sess, prolog_engine, user_id)
 
-    assert result["concept"] == "select_basic"
-    assert result["task_id"] is None
-    assert result["reason"] == "exhausted"
+    assert result["reason"] != "exhausted", f"ćorsokak: {result}"
+    assert result["concept"] != "select_basic", (
+        f"koncept bez raspoloživog zadatka ostao je kandidat: {result}"
+    )
+    assert result["task_id"] is not None, f"nema izlaza kroz sučelje: {result}"
+
+
+def test_dead_end_falls_back_to_repeat_instead_of_false_celebration(
+    recommender_env, prolog_engine
+):
+    """🔴 Kad NEMA kamo dalje, ponavljanje je jedini put — ne „Sve savladano".
+
+    select_basic je JEDINI korijen grafa. Ako mu je sve riješeno a nije savladan
+    (0.1), `prereqs_met` blokira sve nizvodno, pa nijedan koncept nema neriješen
+    zadatak unutar ZPD-a.
+
+    Bez rezerve `recommend_next` ovdje padne → reason="no_recommendation", što
+    sučelje prikazuje kao slavljeničko „Sve savladano" — laž, jer student ima
+    neriješenih zadataka. Ponavljanje diže mastery kroz BKT i time otključava
+    ostatak grafa.
+    """
+    user_id = recommender_env["user_id"]
+    _seed_mastery(user_id, {"select_basic": 0.1})
+    solved = _primary_task_ids("select_basic")
+    _seed_solved(user_id, solved)
+
+    with SessionLocal() as sess:
+        result = recommend(sess, prolog_engine, user_id)
+
+    assert result["reason"] != "no_recommendation", (
+        f"lažno slavlje: {result} — student ima neriješenih zadataka"
+    )
+    assert result["task_id"] is not None, f"nema izlaza kroz sučelje: {result}"
+    assert result["reason"] == "repeat_practice", f"neočekivan reason: {result}"
+    assert result["task_id"] in solved, "ponavljanje mora ponuditi riješen zadatak"
+
+
+def test_concept_with_all_solved_is_not_recommendable(recommender_env):
+    """Skup kandidata je PO KORISNIKU: riješeno mijenja tko u njemu je."""
+    user_id = recommender_env["user_id"]
+
+    with SessionLocal() as sess:
+        assert "select_basic" in concepts_with_available_tasks(sess, user_id)
+
+    _seed_solved(user_id, _primary_task_ids("select_basic"))
+
+    with SessionLocal() as sess:
+        assert "select_basic" not in concepts_with_available_tasks(sess, user_id), (
+            "koncept sa svim riješenim zadacima i dalje je kandidat"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -704,13 +771,14 @@ def test_recommendable_order_does_not_change_recommendation(prolog_engine):
     )
 
 
-def test_concepts_with_tasks_is_canonically_ordered():
+def test_candidate_set_is_canonically_ordered(recommender_env):
     """Skup za injekciju je LISTA u kanonskom poretku, ne set.
 
     Set bi dao poredak ovisan o hashu stringova, dakle promjenjiv između procesa.
     """
+    user_id = recommender_env["user_id"]
     with SessionLocal() as sess:
-        got = concepts_with_tasks(sess)
+        got = concepts_with_available_tasks(sess, user_id)
         canonical = list(load_concept_code_map(sess))
 
     assert isinstance(got, list), "set ne jamči poredak između procesa"

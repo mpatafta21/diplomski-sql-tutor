@@ -112,30 +112,77 @@ def transversal_concepts(
     }
 
 
+def concepts_with_available_tasks(
+    session: Session,
+    user_id: int,
+    code_order: Iterable[str] | None = None,
+) -> list[str]:
+    """Koncepti koji OVOM korisniku mogu dati zadatak — ulaz za `recommendable/1`.
+
+    Definicija je „ima barem jedan aktivan primary zadatak koji korisnik NIJE
+    riješio". Slabija definicija („ima zadatke", bez obzira na riješeno) ostavlja
+    ćorsokak: koncept kojemu je sve riješeno, a mastery ispod praga, ostaje
+    kandidat zauvijek, `select_task_for_concept` vrati None i student dobije
+    „Nema novih zadataka" uz neriješene zadatke drugdje.
+
+    🔴 Izmjereno na `admin` računu 2026-08-14: `where_filter` (3/3 riješena,
+    p_l 0.7728) i `insert` (2/2, p_l 0.7702) su ga trajno zaglavljivali uz **71
+    neriješen zadatak**. Prva izvedba ovog popravka koristila je slabiju
+    definiciju i zatvorila samo ćorsokak Kat. A (koncept BEZ zadataka).
+
+    🔴 Zato je predikat PO KORISNIKU, ne globalan iz kataloga. Injektira se i
+    briše unutar iste kritične sekcije kao `mastery/3` (`prolog_lock`).
+
+    🔴 Vraća LISTU u kanonskom poretku (`load_concept_code_map`). Poredak
+    injektiranih fakata je ulaz u Prolog, ne detalj implementacije: set bi dao
+    poredak ovisan o hashu, dakle promjenjiv između procesa — mehanizam
+    ERRATE #60.
+
+    Ne zamjenjuje maske Kat. B/C (0.99); te ostaju kakve jesu.
+    """
+    order = load_concept_code_map(session) if code_order is None else code_order
+
+    # JEDAN upit: `select_task_for_concept` po konceptu bio bi 30 upita po pozivu
+    # i pojeo bi cijeli dobitak iz `perf` commita.
+    solved = select(Attempt.task_id).where(
+        Attempt.user_id == user_id, Attempt.is_correct.is_(True)
+    )
+    available = set(
+        session.execute(
+            select(Concept.code)
+            .join(TaskConcept, TaskConcept.concept_id == Concept.id)
+            .join(Task, Task.id == TaskConcept.task_id)
+            .where(
+                TaskConcept.is_primary.is_(True),
+                Task.is_active.is_(True),
+                Task.id.not_in(solved),
+            )
+            .distinct()
+        ).scalars()
+    )
+    # Kat. C nikad ne smije proći — guard u dubinu uz masku 0.99 i onaj u
+    # `resolve_task_for_concept`; ne oslanja se na to da M6 nema aktivnih zadataka.
+    return [c for c in order if c in available and c not in UNSUPPORTED_CONCEPTS]
+
+
 def concepts_with_tasks(
     session: Session,
     stats: dict[str, tuple[int, int]] | None = None,
     code_order: Iterable[str] | None = None,
 ) -> list[str]:
-    """Koncepti s >= 1 aktivnim primary zadatkom — ulaz za `recommendable/1`.
+    """Koncepti s >= 1 aktivnim primary zadatkom, bez obzira na riješeno.
 
-    🔴 Definicija je „IMA zadatke", ne „ima NERIJEŠENE zadatke". Da je potonje,
-    koncept čije je sve riješeno tiho bi nestao iz preporuka umjesto da vrati
-    reason="exhausted" — a to je stanje koje sučelje mora moći prikazati
-    (v. test_all_tasks_solved_gives_exhausted).
-
-    🔴 Vraća LISTU u kanonskom poretku (`load_concept_code_map`), ne set. Poredak
-    injektiranih fakata je ulaz u Prolog, ne detalj implementacije: set bi ovdje
-    dao poredak ovisan o hashu, dakle promjenjiv između procesa — mehanizam
-    ERRATE #60. `recommendable/1` je u rules.pl namjerno zadnji cilj pa ne
-    nabraja, ali kanonski poredak je druga brana i ne košta ništa.
-
-    Ne zamjenjuje maske Kat. B/C (0.99); te ostaju kakve jesu. Ovaj skup je
-    obrana za Kat. A, koju maska po dizajnu ne pokriva.
+    Širi skup od `concepts_with_available_tasks` i koristi se SAMO kao rezerva u
+    `recommend()`: kad nijedan koncept nema neriješen zadatak unutar ZPD-a,
+    ponavljanje riješenog je jedini put naprijed (v. `recommend`).
     """
     stats = _concept_task_stats(session) if stats is None else stats
     order = load_concept_code_map(session) if code_order is None else code_order
-    return [code for code in order if stats.get(code, (None, 0))[1] > 0]
+    return [
+        c
+        for c in order
+        if stats.get(c, (None, 0))[1] > 0 and c not in UNSUPPORTED_CONCEPTS
+    ]
 
 
 def subfloor_concepts(
@@ -319,30 +366,49 @@ def recommend(session: Session, engine: "PrologEngine", user_id: int) -> dict:
         session, engine, user_id, transversal, masked, code_order
     )
 
-    # Kat. A se NE maskira nego se izbacuje iz KANDIDATA: p_l mora ostati 0.0 da
-    # blokira nizvodne koncepte, a 0.0 ga ujedno čini `weak` pa je preticao prave
-    # koncepte kroz klauzulu 1 i završavao kao "exhausted". recommendable/1 je
-    # razdvajanje te dvije uloge — v. rules.pl.
-    recommendable = concepts_with_tasks(session, stats, code_order)
+    # Kandidat je koncept koji OVOM korisniku može dati zadatak. Pokriva oba
+    # oblika ćorsokaka: Kat. A (koncept bez zadataka; p_l 0.0 mora ostati radi
+    # blokade nizvodnog, a 0.0 ga je činila `weak` pa je pretjecao prave koncepte)
+    # i "sve riješeno, mastery ispod praga" (vječni kandidat bez zadatka).
+    recommendable = concepts_with_available_tasks(session, user_id, code_order)
 
     uid = str(user_id)
-    engine.inject_recommendable(recommendable)
-    engine.inject_mastery(uid, snapshot)
-    try:
-        rec = engine.recommend_next(uid)
-    finally:
-        # Počisti mastery fakte da ne cure u dijeljeni VM (cross-user leak).
-        engine.clear_mastery(uid)
-        # recommendable/1 je globalan; čisti se pod istom bravom pod kojom je i
-        # ubačen (pozivatelj u 3C.2 drži prolog_lock preko cijelog recommend()).
-        engine.clear_recommendable()
+
+    def _ask(candidates: list[str]) -> tuple[str, str] | None:
+        """Jedan Prolog krug s danim skupom kandidata. Uvijek čisti za sobom."""
+        engine.inject_recommendable(candidates)
+        engine.inject_mastery(uid, snapshot)
+        try:
+            return engine.recommend_next(uid)
+        finally:
+            # Počisti da fakti ne cure u dijeljeni VM (cross-user leak). Oboje je
+            # pod istom bravom (pozivatelj u 3C.2 drži prolog_lock preko cijelog
+            # recommend()), a `recommendable/1` se briše globalnim retractallom.
+            engine.clear_mastery(uid)
+            engine.clear_recommendable()
+
+    rec = _ask(recommendable)
+
+    # 🔴 REZERVA. Ako nijedan koncept nema NERIJEŠEN zadatak unutar ZPD-a, to još
+    # ne znači „sve savladano": tipičan slučaj je da je korijenski koncept
+    # (`select_basic`) iscrpljen a nije savladan, pa `prereqs_met` blokira sve
+    # nizvodno. Ondje je PONAVLJANJE riješenog jedini put naprijed — bez ove
+    # grane vratili bismo `no_recommendation`, koji sučelje prikazuje kao
+    # slavljeničko „Sve savladano" iako student ima neriješenih zadataka.
+    # Drugi Prolog krug plaća se samo u tom rijetkom stanju.
+    if rec is None:
+        rec = _ask(concepts_with_tasks(session, stats, code_order))
 
     if rec is None:
         return {"task_id": None, "concept": None, "reason": "no_recommendation"}
 
     concept, reason = rec
-    task_id = select_task_for_concept(session, user_id, concept)
+    task_id, repeat = resolve_task_for_concept(session, user_id, concept)
     if task_id is None:
         return {"task_id": None, "concept": concept, "reason": "exhausted"}
+    if repeat:
+        # Zadatak je već riješen: nosi bedž „Riješeno" i ne donosi XP, ali diže
+        # mastery kroz BKT — a to je jedino što otključava ostatak grafa.
+        return {"task_id": task_id, "concept": concept, "reason": "repeat_practice"}
 
     return {"task_id": task_id, "concept": concept, "reason": reason}

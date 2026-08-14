@@ -27,6 +27,11 @@ const REASON_TEXT: Record<string, string> = {
   exhausted:
     "Riješio si sve dostupne zadatke za preporučeni koncept — nove preporuke stižu kako budeš napredovao.",
   no_recommendation: "Trenutno nema koncepta za preporuku — sve je savladano.",
+  // Rezervna grana preporučivača: ponestalo je NERIJEŠENIH zadataka unutar
+  // dosega, pa se nudi već riješen zadatak. Task ekran ga označava bedžom
+  // „Riješeno"; ponovna predaja ne nosi XP, ali diže mastery kroz BKT.
+  repeat_practice:
+    "Ovaj si zadatak već riješio — ponovi ga za vježbu. Ne nosi XP, ali učvršćuje koncept.",
 }
 
 const FALLBACK_TEXT = "Preporučeni sljedeći korak."

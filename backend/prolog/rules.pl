@@ -7,16 +7,28 @@
 
 :- dynamic(mastery/3).  % Python injecta BKT snapshot: mastery(UserID, Concept, P_L)
 
-% Python injecta koncepte koji IMAJU barem jedan aktivan primary zadatak.
-% NIJE po korisniku — izvedeno iz kataloga, jednako za sve; injektira se i briše
-% unutar iste kritične sekcije kao mastery/3 (prolog_lock u RecommenderAgentu).
+% Python injecta koncepte koji OVOM korisniku mogu dati zadatak, tj. imaju barem
+% jedan aktivan primary zadatak koji korisnik NIJE riješio.
 %
-% Zašto postoji: transverzalni koncepti (Kat. A, npr. join_condition) po dizajnu
-% nemaju zadatke, a u snapshotu dobivaju 0.0 da bi BLOKIRALI nizvodne koncepte.
-% Ta 0.0 ih ujedno čini `weak`, pa su pretjecali prave koncepte kroz klauzulu 1 i
-% završavali kao reason="exhausted" — ćorsokak bez izlaza kroz sučelje.
-% Jedna vrijednost je nosila dvije uloge; recommendable/1 ih razdvaja tako da
-% 0.0 zadrži SAMO ulogu blokade.
+% 🔴 JEST po korisniku (skup ovisi o riješenom), pa se injektira i briše unutar
+% iste kritične sekcije kao mastery/3 (prolog_lock u RecommenderAgentu).
+%
+% Zašto postoji — DVA oblika istog ćorsokaka, oba su davala „Nema novih zadataka"
+% uz neriješene zadatke drugdje:
+%
+%   (a) transverzalni koncepti (Kat. A, npr. join_condition) po dizajnu nemaju
+%       zadatke, a u snapshotu dobivaju 0.0 da bi BLOKIRALI nizvodne koncepte.
+%       Ta 0.0 ih ujedno čini `weak`, pa su pretjecali prave koncepte kroz
+%       klauzulu 1. Jedna vrijednost je nosila dvije uloge; ovaj predikat ih
+%       razdvaja tako da 0.0 zadrži SAMO ulogu blokade.
+%
+%   (b) koncept kojemu je student riješio SVE zadatke, a mastery mu je ispod
+%       praga, ostajao je kandidat zauvijek — Prolog ga preporuči, task selekcija
+%       nema što vratiti. Izmjereno na `admin`: where_filter (3/3, p_l 0.77) uz
+%       71 neriješen zadatak drugdje.
+%
+% Invarijanta je zato „koncept može dati zadatak OVOM korisniku", ne „koncept ima
+% zadatke" — potonja pokriva samo (a).
 :- dynamic(recommendable/1).
 
 % --- Pragovi ---

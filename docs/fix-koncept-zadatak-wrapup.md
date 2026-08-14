@@ -24,6 +24,8 @@ Dva zatečena nalaza sa zajedničkim korijenom, oba zatvorena. Nijedan nije uveo
 | `97cdfb8` | kvačica znači „nema novog zadatka", ne „savladano" (v. C.3) |
 | `ef479b6` | tooltip: postotak je procjena znanja (v. C.4) |
 | `28daf4b` | podcrtana samo brojka, ne separator ispred nje |
+| `89851dd` | falsifikacijski gate (200 stanja) + zaostala papirologija |
+| `bda5e36` | nalazi iz `code-review` prije mergea (v. §G) |
 
 **Novih testova:** 20 (recommender 11, ruta 8, `/profile` 1) + 1 e2e.
 **Nula promjena sheme.** **Nula novih ovisnosti** (`radix-ui` je bio u `package.json`).
@@ -375,7 +377,7 @@ mjerenja, ne svojstvo sustava.
 
 | gate | ishod |
 |---|---|
-| `pytest` | **780 passed, 1 skipped, 1 failed** — pad je ZATEČEN, v. F |
+| `pytest` | **781 passed, 1 skipped, 1 failed** — pad je ZATEČEN, v. F |
 | `make preflight` | ✅ zelen (80/80 zadataka, smoke kroz pun lanac) |
 | `npm run e2e` | ✅ **3 passed** (2 zatečena + novi gate), teardown čist |
 | `tsc -b` · `prettier` · `oxlint` | ✅ (oxlint samo zatečeni `only-export-components`) |
@@ -431,6 +433,44 @@ Po disciplini iz 5.2 §D.2 — test koji nije viđen kako pada ne čuva ništa:
 | 1 | rubni slučaj traži novo stanje na Task ekranu | nula izmjena ondje | bedž „Riješeno" i `already_solved` put već postoje (B.3) |
 | 2 | „p95 nepromijenjen" | p95 **pao** 43,8 → 39,2 | mjerenje je otkrilo zatečeni dvostruki upit; popravljen usput (D.2) |
 | 3 | — | dodan `perf` commit | nije bio u planu; izmjereni porast tražio je uzrok, ne objašnjenje |
+
+---
+
+# G — Code review prije mergea
+
+14 nalaza; 12 popravljeno u istom krugu (v. commit poruku). Tri koja vrijedi
+izdvojiti jer nisu bila vidljiva iz testova:
+
+**1. Prolog atomi bez navodnika — fail-closed je bio fail-OPEN.**
+`assertz(f"recommendable({code})")` s kodom koji nije `snake_case` (npr. `CTE`)
+asertira klauzulu s **varijablom** — `recommendable(_)`, činjenicu koja se poklapa sa
+svime. Guard bi prestao filtrirati i ćorsokak bi se tiho vratio. Katalog danas nema takav
+kod, pa je kvar latentan; dodan je `_atom()` koji navodi i **odbija** sve izvan
+`^[a-z][a-zA-Z0-9_]*$`. Isto je vrijedilo za `mastery/3` — zatečeno od Faze 1.
+
+**2. `aria-label` je potiskivao `sr-only` objašnjenje.** Uz tooltip je stavljena `sr-only`
+inačica, uz tvrdnju „tooltip nije jedini nositelj". Ta tvrdnja **nije stajala**:
+`aria-label` na `<Link>`u zamjenjuje sadržaj potomaka pri računanju pristupačnog imena, pa
+čitač ekrana nije dobivao ni `sr-only` tekst ni brojač — i to baš na **klikabilnim**
+retcima, gdje informacija najviše treba. Brojač i postotak sada su u samom `aria-label`u, a
+objašnjenje stoji **jednom** u zaglavlju stranice umjesto ~30 puta.
+
+**3. Popravak jednog nalaza uveo je regresiju, i ništa je nije uhvatilo.**
+Pri ispravljanju netočnog docstringa `select_task_for_concept`a ispala je provjera
+`None if repeat else task_id`, čime bi funkcija tiho vraćala **riješen** zadatak onome tko
+je zove kao „daj neriješen". Suita je ostala zelena. Dodan je test koji tu semantiku pribija
+— pouka je da je funkcija bez produkcijskih pozivatelja bila i bez pokrića.
+
+## Svjesno NIJE popravljeno
+
+- **`(is_primary AND is_active)` maska živi na pet mjesta** (`_concept_task_stats`,
+  `_read_modules`, `resolve_task_for_concept`, `concepts_with_available_tasks`,
+  `_read_profile`), a brojnik i nazivnik prikazanog omjera dolaze iz dvije **različite**
+  kopije. To je N-8 klasa i realan rizik: promjena predikata na jednom mjestu daje
+  „3/2 zadataka". Objedinjavanje dira preporučivač i dvije rute, pa je zaseban zadatak.
+- **`resolve_task_for_concept` ponavlja `load_concept_code_map` i upit riješenih** koje je
+  `concepts_with_available_tasks` upravo izvršio. p95 je izmjeren i **unutar baselinea**
+  (43,5 vs 43,8 ms), pa dobitak ne opravdava izmjenu prije mergea.
 
 ---
 

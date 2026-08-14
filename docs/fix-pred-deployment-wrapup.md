@@ -100,6 +100,18 @@ opsega je **odluka korisnika**, jer je klauzula dio rješenja. Alternativa bez d
 guarda: evaluacijska jezgra emitira strukturiran podatak o poretku umjesto stringa
 `Row 0 differs`.
 
+## B.4a Što je umjesto toga isporučeno — i zašto svjesno slabo
+
+Odluka korisnika 2026-08-14: pravi popravak čeka Fazu 6, sada ide samo prompt-razina.
+
+Dodano **pravilo 9: nikad ne iznositi pravila o redoslijedu SQL klauzula.** Gađa točno
+opaženu štetu — kvar iz #64 nije bio neodređen savjet nego **netočna tvrdnja o sintaksi**
+(„prvo `LIMIT`, pa `ORDER BY`"), koju bi student prepisao u upit koji ne parsira.
+
+🔴 **Bez zavaravanja: prompt-pravilo ne jamči ništa**, a upravo je ova grana pokazala da
+mock ne vidi kvalitetu savjeta. Odabrano je jer je jedina mjera koja ne košta migraciju na
+zamrznutom backendu tjedan prije evala, a pokriva jedini dokumentirani konkretan slučaj.
+
 ## B.5 Što je ovaj pokušaj ipak dao
 
 - **18 živih poziva (~$0,02)** i mjerenje nad 80 zadataka koje je pretvorilo #64 iz
@@ -131,6 +143,23 @@ zahtjev ne dođe do baze, pa teardown ostaje čist.
 
 🔴 **Dokazano namjernim kvarom:** sa `submitFailure` koji uvijek vraća `unknown` test pada
 s **točno starom porukom** „Predaja nije uspjela".
+
+---
+
+# C2 — ERRATA #47: weekly ljestvica govorila je neistinu
+
+Sva tri korisniku vidljiva teksta govorila su o **tjednu** („Ovaj tjedan", „u tekućem
+tjednu", „Ovaj tjedan još nema osvojenog XP-a"), a backend računa **klizni prozor zadnjih
+7 dana**. To su različiti skupovi — u srijedu klizni prozor obuhvaća i prošli četvrtak,
+kalendarski ne.
+
+Popravak je copy-only: **„Zadnjih 7 dana"** na sva tri mjesta. Odluka 4.5 da tekst bude
+generički **ostaje na snazi** — „zadnjih 7 dana" ne traži nijedan podatak iz odgovora, pa
+se granica prozora i dalje ne rekonstruira na klijentu. Slijedi se i pravilo iz
+`attempt-stats.ts`: mjera nad prozorom mora nositi svoj prozor u labeli.
+
+🔴 **Sam nalaz #47 ostaje otvoren kao nalaz o dizajnu:** weekly i dalje mjeri svježinu, ne
+trud, i ne smije se čitati kao ukupan doprinos. Popravljen je opis, ne mjera.
 
 ---
 

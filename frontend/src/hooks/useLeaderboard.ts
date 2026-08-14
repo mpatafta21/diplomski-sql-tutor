@@ -12,7 +12,7 @@
  * prethodni podaci se zadržavaju SAMO unutar istog scopea (prelazak stranice →
  * bez skeleton-flasha, isti obrazac kao useAttempts). Pri prebacivanju
  * global↔weekly se ODBACUJU — inače bi tablica na trenutak prikazivala brojke
- * jednog razdoblja ispod naslova drugog („Ovaj tjedan" nad ukupnim XP-om), što
+ * jednog razdoblja ispod naslova drugog („Zadnjih 7 dana" nad ukupnim XP-om), što
  * je tiha neistina o podatku, a ne samo kozmetički flash.
  */
 import { useQuery } from "@tanstack/react-query"

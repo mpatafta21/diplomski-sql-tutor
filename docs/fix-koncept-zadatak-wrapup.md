@@ -20,8 +20,17 @@ Dva zatečena nalaza sa zajedničkim korijenom, oba zatvorena. Nijedan nije uveo
 | `d0f4904` | `/modules` više ne nosi `entry_task_id` (v. B.5) |
 | `c138e00` | „Sve savladano" više ne zvuči kao kraj puta (v. B.6) |
 | `b9d4091` | ispravak zastarjelih brojki u opisu Kat. C |
+| `a3366f9` | brojač riješeno/ukupno uz postotak — ERRATA #42 (v. C.2) |
+| `97cdfb8` | kvačica znači „nema novog zadatka", ne „savladano" (v. C.3) |
+| `ef479b6` | tooltip: postotak je procjena znanja (v. C.4) |
+| `28daf4b` | podcrtana samo brojka, ne separator ispred nje |
 
-**Novih testova:** 19 (recommender 11, ruta 8) + 1 e2e. **Nula promjena sheme.**
+**Novih testova:** 20 (recommender 11, ruta 8, `/profile` 1) + 1 e2e.
+**Nula promjena sheme.** **Nula novih ovisnosti** (`radix-ui` je bio u `package.json`).
+
+🔴 **Opseg je narastao nakon prvog zatvaranja** — kvarove 2 i 3 (§A.6, §C) korisnik je
+našao testiranjem popravljenog sučelja, ne plan. Oba su zatečena; drugi je popravak prvog
+učinio vidljivim.
 
 ---
 
@@ -235,9 +244,91 @@ je tek falsifikacija učinila vidljivim.
 
 ---
 
-# C — Izmjereno
+# C — Kvar 3: ekran je miješao ZNANJE i NAPREDAK
 
-## C.1 Oba kvara, na živom sustavu kroz HTTP
+Nađen tek kad je korisnik prošao kroz popravljeno sučelje. Nije regresija ove grane —
+zatečeno stanje koje je popravak kvara 2 učinio vidljivim: kad klik konačno vodi na
+neriješen zadatak, postaje očito da redak ne govori koliko ih je ostalo.
+
+## C.1 Jedan korijen, tri pritužbe
+
+Postotak na Modulima je **BKT procjena znanja**, ne napredak kroz zadatke. Razilaze se u
+**oba** smjera, izmjereno na `admin`u:
+
+| koncept | prikazano | riješeno (primarni) |
+|---|---|---|
+| `select_basic` | Savladano · 99 % | **1/2** |
+| `from_clause` | Savladano · 99 % | **1/3** |
+| `where_filter` | 77 % | **3/3** |
+| `insert` | 77 % | **2/2** |
+
+Posljedice koje je korisnik prijavio, sve tri iz istog korijena: (a) koncept na 99 % ima
+neriješenih zadataka; (b) klik na koncept sa 77 % vraća **već riješen** zadatak — jer ondje
+doista nema neriješenog; (c) `limit_offset` je na 75 % uz **0/3** riješena.
+
+Treći slučaj ima vlastiti mehanizam: **BKT ažurira SVE koncepte zadatka, ne samo primarni.**
+Potvrđeno u kodu — `evaluator_agent.py:200-204` šalje sve koncepte, `knowledge_agent.py:49`
+ih uzima **bez filtriranja po `is_primary`**. Dakle `order_by` je na 77 % jer su riješena
+tri zadatka u kojima je **sporedan**, a nijedan kojemu je glavna tema.
+
+🔴 Preporučivač se sve vrijeme ponašao ispravno. Ekran je odgovarao na „koliko znam", a
+čitao se kao „koliko mi je ostalo".
+
+## C.2 Brojač — i zašto u `/profile`, a ne u `/modules`
+
+`solved_task_count` je dodan u **`/profile.mastery`**; ukupan broj i dalje nosi
+`primary_task_count` iz `/modules`.
+
+🔴 ERRATA #42 je predlagala proširenje **`/modules`**. Odbijeno iz razloga koji taj redak
+nije imao: `["modules"]` se na klijentu **ne invalidira ni na jednu predaju**
+(`staleTime` 5 min), pa bi brojač ondje pokazivao neriješenim ono što je student upravo
+riješio. `["profile"]` se invalidira u `useSubmitAttempt`, dakle osvježi se točno kad se
+promijeni. Time je i odgoda iz 2026-07-25 pala — obrazloženje odgode („mastery % već
+komunicira napredak") pokazalo se netočnim, v. tablicu u C.1.
+
+Brojač namjerno broji **samo primarne** zadatke, jer klik ide kroz
+`select_task_for_concept`, koji također bira samo primarne. Da uključi sporedne, `order_by`
+bi pisao „3/18" a klik bi dao prvi od 2 — vratili bismo „brojač kaže jedno, klik da drugo",
+dakle kvar koji je ova grana upravo zatvorila.
+
+## C.3 Ikona više ne znači „savladano" nego „nema novog zadatka"
+
+Odluka korisnika. Ikona odgovara na pitanje koje student postavlja **prije** klika.
+
+🔴 **Stanje `mastered` NIJE dirano, i to je bilo nužno.** Isti predikat (`isMastered`)
+određuje i `satisfied` u prereq walku i zrcali `rules.pl mastery_threshold`; da mu se
+promijeni značenje, klijent bi zaključavao koncepte drukčije nego Prolog, koji je
+autoritativan. Zato je izmjena isključivo u prikazu — natpis, postotak, bar, zaključavanje
+i „X/Y savladano" po modulu ostaju na znanju.
+
+Posljedica koja je uz odluku izrijekom navedena i prihvaćena: kvačica se sada pojavljuje i
+uz „U tijeku · 77 %", dakle uz koncept koji **nije** savladan. Prebacivanje ide samo za
+`in_progress` i `mastered`; `not_started` zadržava isprekidani krug (takav koncept ne može
+imati riješenih — prvi točan pokušaj stvorio bi mu BKT redak), `locked` i `unavailable`
+zadržavaju svoje. Isto pravilo primijenjeno i na Dashboard, inače bi isti simbol u istoj
+aplikaciji značio dvije stvari.
+
+## C.4 Tooltip — i a11y ograničenje koje ga je oblikovalo
+
+Postotak je dobio tooltip s objašnjenjem (`radix-ui`, **već u ovisnostima** — nova nije
+dodana).
+
+🔴 **Trigger NIJE fokusabilan, i to je ograničen izbor, ne previd.** Postotak je unutar
+`<Link>`a koji pokriva cijeli redak; fokusabilan element ondje je ugniježđena interaktivna
+kontrola (WCAG 4.1.2) i razbija tab redoslijed. Provjereno u pregledniku da Radix ne
+ubacuje `tabindex` (`asChild` nad spanom → `tabindex=null`). Posljedica je da tipkovnica i
+čitači ekrana ne dohvaćaju tooltip, pa uz njega ide **`sr-only` inačica istog teksta** —
+tooltip nikad nije jedini nositelj informacije.
+
+Podcrtan je **samo** broj: separator „·" i razmaci izvučeni su iz triggera u vanjski span,
+koji ostaje jedan flex item da se `gap-1` ne udvostruči. Izmjereno: podcrtani element
+sadrži točno `"33 %"`, `textDecorationLine` je `underline` na brojci i `none` na roditelju.
+
+---
+
+# D — Izmjereno
+
+## D.1 Oba kvara, na živom sustavu kroz HTTP
 
 ```
 1) /next-task na profilu iz nalaza
@@ -253,7 +344,7 @@ je tek falsifikacija učinila vidljivim.
 Preporuka pada na `select_basic`, što je i pedagoški točno — to je stvarna slaba točka
 profila.
 
-## C.2 🔴 p95 `/next-task` — porast pa neto pad
+## D.2 🔴 p95 `/next-task` — porast pa neto pad
 
 | mjerenje | p95 | p50 | stdev | n |
 |---|---|---|---|---|
@@ -280,17 +371,40 @@ Kategorizatori sada primaju već izračunat `stats`, `build_mastery_snapshot` pr
 **Ograda (ista kao 5.1 §B.1):** jedan stroj (WSL2), jedan proces, `n=40`. Svojstvo lokalnog
 mjerenja, ne svojstvo sustava.
 
-## C.3 Gateovi
+## D.3 Gateovi
 
 | gate | ishod |
 |---|---|
-| `pytest` | **778 passed, 1 skipped, 1 failed** — pad je ZATEČEN, v. E |
+| `pytest` | **779 passed, 1 skipped, 1 failed** — pad je ZATEČEN, v. F |
 | `make preflight` | ✅ zelen (80/80 zadataka, smoke kroz pun lanac) |
 | `npm run e2e` | ✅ **3 passed** (2 zatečena + novi gate), teardown čist |
 | `tsc -b` · `prettier` · `oxlint` | ✅ (oxlint samo zatečeni `only-export-components`) |
-| ugovor | `gen:api` + `openapi-snapshot`: **134 dodana retka, 0 obrisanih** |
+| ugovor | `gen:api` + `openapi-snapshot`: `/task-for-concept` dodan, `entry_task_id` uklonjen, `solved_task_count` dodan |
 
-## C.4 Testovi dokazani namjernim kvarom
+## D.4a Falsifikacija: 200 nasumičnih stanja, i dokaz da hvata
+
+`tests/test_recommender_no_dead_end.py` zove **stvarni** `recommend()` nad stvarnim
+Prolog motorom (ne repliku pravila) i tvrdi četiri stvari nad nasumičnim stanjima:
+nikad `exhausted` (P1), `no_recommendation` samo kad su svi koncepti sa zadacima
+savladani (P2), `repeat_practice` nudi doista riješen zadatak (P3), vraćeni zadatak je
+aktivan i primaran za vraćeni koncept (P4). Svako stanje ide u `SAVEPOINT` i rollbacka,
+pa u živu `tutor_main` ne ostaje ništa (ERRATA #40).
+
+Default je 200 stanja (**4,2 s**); dubinski prolaz `FALSIFY_TRIALS=1500` — oba čista,
+uz dva različita sjemena. Sjeme je fiksno da pad bude reproducibilan.
+
+🔴 **Dokazano namjernim kvarom, i prvi pokušaj je PROMAŠIO** — vrijedi zapisati.
+Vraćanje samo slabije definicije kandidata (`concepts_with_tasks`) test **nije** srušilo:
+`resolve_task_for_concept` vraća zadatak za ponavljanje umjesto `None`, pa sam maskira
+ćorsokak. Dakle protiv drugog oblika postoje **dvije neovisne brane**, a ne jedna.
+Vjerna sabotaža tražila je sva tri mjesta (slab skup kandidata + uklonjena rezerva +
+`select_task_for_concept` umjesto `resolve_`), i tek tada: **20 povreda u 200 stanja**,
+među njima `where_filter` — točno koncept na kojem je korisnik zapeo.
+
+🔴 Test uz to tvrdi da je grana `repeat_practice` **pogođena barem jednom**. Bez toga bi
+P3 mogao prolaziti zato što se taj put nikad ne izvrši.
+
+## D.4 Testovi dokazani namjernim kvarom
 
 Po disciplini iz 5.2 §D.2 — test koji nije viđen kako pada ne čuva ništa:
 
@@ -310,17 +424,17 @@ Po disciplini iz 5.2 §D.2 — test koji nije viđen kako pada ne čuva ništa:
 
 ---
 
-# D — Odstupanja od plana
+# E — Odstupanja od plana
 
 | # | plan | izvedeno | zašto |
 |---|---|---|---|
 | 1 | rubni slučaj traži novo stanje na Task ekranu | nula izmjena ondje | bedž „Riješeno" i `already_solved` put već postoje (B.3) |
-| 2 | „p95 nepromijenjen" | p95 **pao** 43,8 → 39,2 | mjerenje je otkrilo zatečeni dvostruki upit; popravljen usput (C.2) |
+| 2 | „p95 nepromijenjen" | p95 **pao** 43,8 → 39,2 | mjerenje je otkrilo zatečeni dvostruki upit; popravljen usput (D.2) |
 | 3 | — | dodan `perf` commit | nije bio u planu; izmjereni porast tražio je uzrok, ne objašnjenje |
 
 ---
 
-# E — Otvoreno
+# F — Otvoreno
 
 - 🔴 **ZATEČEN pad: `test_hint_logic.py::test_credit_is_per_user`** (`assert -6 == 5`).
   **Nije iz ove grane** — provjereno pokretanjem istog testa na `main`u u zasebnom

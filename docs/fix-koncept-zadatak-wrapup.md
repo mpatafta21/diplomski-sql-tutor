@@ -17,6 +17,9 @@ Dva zatečena nalaza sa zajedničkim korijenom, oba zatvorena. Nijedan nije uveo
 | `2fb0035` | frontend linkovi kroz `/koncept/:code` + e2e gate |
 | `c82d1a1` | jedan upit za sve kategorije umjesto tri |
 | `ae39cb6` | drugi oblik ćorsokaka — koncept kojemu je sve riješeno (v. A.6) |
+| `d0f4904` | `/modules` više ne nosi `entry_task_id` (v. B.5) |
+| `c138e00` | „Sve savladano" više ne zvuči kao kraj puta (v. B.6) |
+| `b9d4091` | ispravak zastarjelih brojki u opisu Kat. C |
 
 **Novih testova:** 19 (recommender 11, ruta 8) + 1 e2e. **Nula promjena sheme.**
 
@@ -296,13 +299,16 @@ Po disciplini iz 5.2 §D.2 — test koji nije viđen kako pada ne čuva ništa:
   Klasa ERRATE #40 (suite čita živu `tutor_main`). Popravak je izvan opsega ove grane;
   kandidat za zasebnu granu s ostalim fixevima prije deploya.
 
-- 🔴 **Docstring `recommender_logic.py:32` je zastario.** Tvrdi da `explain_plan` ima 2 a
+- ~~Docstring `recommender_logic.py:32`~~ → ✅ ispravljeno (`b9d4091`). Zatečeni tekst: Tvrdi da `explain_plan` ima 2 a
   `index_usage` 3 aktivna primary zadatka, i da ih zato subfloor ne hvata. **Izmjereno:
   oba imaju 0 aktivnih** (M6 deaktiviran, nalaz 4.4-0c B4), pa ih subfloor **hvata**.
   Popis `UNSUPPORTED_CONCEPTS` i dalje treba stajati (ako se M6 ikad vrati, count raste
-  iznad praga i subfloor ih ispušta), ali navedeni razlog više ne vrijedi. Ispravak je
-  komentar-only, dakle ista klasa kao ERRATA #45 — nije rađen bez odluke.
-- `entry_task_id` bez potrošača za navigaciju (B.4).
+  iznad praga i subfloor ih ispušta), ali navedeni razlog više ne vrijedi.
+- ~~`entry_task_id` bez potrošača za navigaciju~~ → ✅ **uklonjen iz ugovora** (`d0f4904`).
+  🔴 Ispravak ranije tvrdnje iz ovog dokumenta: polje **nije** bilo bez potrošača — još je
+  određivalo **klikabilnost** (`ConceptRow.tsx`, `MasteryHighlights.tsx`). Točna tvrdnja je
+  bila „bez potrošača **za navigaciju**". Taj posao je preuzeo `primary_task_count > 0`,
+  ekvivalencija koju je zatečena suita već tvrdila.
 - Nalazi iz Faze 5 na svojim granama: ERRATA #64 (kvaliteta hinta), #46, #59, N-21,
   zadaci za M6.
 

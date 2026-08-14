@@ -375,7 +375,7 @@ mjerenja, ne svojstvo sustava.
 
 | gate | ishod |
 |---|---|
-| `pytest` | **779 passed, 1 skipped, 1 failed** — pad je ZATEČEN, v. F |
+| `pytest` | **780 passed, 1 skipped, 1 failed** — pad je ZATEČEN, v. F |
 | `make preflight` | ✅ zelen (80/80 zadataka, smoke kroz pun lanac) |
 | `npm run e2e` | ✅ **3 passed** (2 zatečena + novi gate), teardown čist |
 | `tsc -b` · `prettier` · `oxlint` | ✅ (oxlint samo zatečeni `only-export-components`) |
@@ -436,7 +436,10 @@ Po disciplini iz 5.2 §D.2 — test koji nije viđen kako pada ne čuva ništa:
 
 # F — Otvoreno
 
-- 🔴 **ZATEČEN pad: `test_hint_logic.py::test_credit_is_per_user`** (`assert -6 == 5`).
+- 🔴 **ZATEČEN pad: `test_hint_logic.py::test_credit_is_per_user`** (`assert -8 == 5`).
+  🔴 **Brojka RASTE sa svakim danom** — kroz rad na ovoj grani išla je −6 → −7 → −8, što
+  samo po sebi potvrđuje dijagnozu (v. niže: `_NOW` je fiksiran u prošlosti, pa razmak
+  raste s protokom stvarnog vremena).
   **Nije iz ove grane** — provjereno pokretanjem istog testa na `main`u u zasebnom
   worktreeju, gdje pada identično. Dva uzroka zajedno:
   1. `_NOW` je tvrdo kodiran na **2026-08-12**, a `admin` ima stvarne `hint_requests` iz

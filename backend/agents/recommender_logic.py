@@ -29,8 +29,14 @@ Sub-floor strategija — DVIJE kategorije s RAZLIČITIM tretmanom:
     implementiran) → task tog koncepta NIKAD ne može postati is_correct → nikad
     "riješen" → recommender bi ga vraćao zauvijek, uz 0 XP i BKT kaznu po pokušaju
     (trajni ćorsokak, nalaz 4.4-0c B4). Tretman: ISTA maska kao Kat. B (0.99).
-    NAPOMENA: subfloor ih NE hvata — explain_plan ima 2, index_usage 3 aktivna
-    primary taska, a subfloor prag je < 2. Zato je potreban eksplicitan popis.
+
+    🔴 NAPOMENA (ispravljena 2026-08-14): raniji tekst je tvrdio da ih „subfloor NE
+    hvata jer explain_plan ima 2, a index_usage 3 aktivna primary taska". Izmjereno:
+    OBA imaju 0 aktivnih — svih 5 M6 zadataka je namjerno deaktivirano, pa ih
+    subfloor (< 2) trenutno hvata. Eksplicitan popis svejedno mora ostati: čim se
+    M6 vrati u igru i count naraste iznad praga, subfloor ih ispušta, a
+    neevaluabilni su i dalje. Popis je time obrana koja ne ovisi o sadržaju
+    kataloga; brojke iz njega se NE citiraju jer se mijenjaju s aktivacijom.
 
 Redoslijed je bitan: prior → skill_mastery → subfloor → transverzalni (zadnji,
 jer ovisi o mastery ostalih koncepata u snapshotu).

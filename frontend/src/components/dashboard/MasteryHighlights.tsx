@@ -27,28 +27,31 @@ interface MasteryHighlightsProps {
 
 function MasteryRow({
   item,
-  masteryThreshold,
   clickable,
 }: {
   item: EnrichedMastery
-  masteryThreshold: number
   /** Redak vodi na zadatak koncepta (samo ako koncept ima vlastiti zadatak). */
   clickable: boolean
 }) {
   const pct = Math.round(item.p_l * 100)
-  const mastered = item.p_l >= masteryThreshold
   const isLink = clickable && item.hasOwnTasks
+  // 🔴 Kvačica znači „nema više novog zadatka", NE „savladano" — isto pravilo kao
+  // u ConceptRow. Da ovdje ostane vezana uz mastery, isti bi simbol u istoj
+  // aplikaciji značio dvije stvari; a upravo je ta dvoznačnost bila kvar (ERRATA
+  // #42): koncept sa 99 % i 1/2 riješenih nosio je kvačicu i djelovao gotovo.
+  const allSolved =
+    item.hasOwnTasks && item.solvedTaskCount >= item.totalTaskCount
 
   const body = (
     <>
       <div className="flex items-baseline justify-between gap-2">
         <span className="flex items-center gap-1.5 font-mono text-sm font-medium">
           {item.name}
-          {mastered && (
+          {allSolved && (
             <CheckCircle2
               role="img"
               className="size-3.5 text-correct"
-              aria-label="Savladano"
+              aria-label="Svi zadaci riješeni"
             />
           )}
           {/* ERRATA #42 — postotak je znanje, ne prijeđeni sadržaj; bez brojača
@@ -104,13 +107,11 @@ function HighlightCard({
   title,
   description,
   items,
-  masteryThreshold,
   clickable = false,
 }: {
   title: string
   description: string
   items: EnrichedMastery[]
-  masteryThreshold: number
   /** Retci vode na zadatak koncepta (za „Za ojačati" karticu). */
   clickable?: boolean
 }) {
@@ -123,12 +124,7 @@ function HighlightCard({
       <CardContent>
         <ul className="space-y-4">
           {items.map((item) => (
-            <MasteryRow
-              key={item.code}
-              item={item}
-              masteryThreshold={masteryThreshold}
-              clickable={clickable}
-            />
+            <MasteryRow key={item.code} item={item} clickable={clickable} />
           ))}
         </ul>
       </CardContent>
@@ -158,7 +154,6 @@ export function MasteryHighlights({
           title="Za ojačati"
           description="Koncepti s najnižom procjenom znanja — klikni za zadatak."
           items={weakest}
-          masteryThreshold={masteryThreshold}
           clickable
         />
       )}
@@ -167,7 +162,6 @@ export function MasteryHighlights({
           title="Savladani koncepti"
           description="Ovdje ti model znanja daje najviše povjerenja."
           items={strongest}
-          masteryThreshold={masteryThreshold}
         />
       )}
     </div>

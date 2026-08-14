@@ -53,7 +53,43 @@ const STATE_META: Record<
 }
 
 export function ConceptRow({ concept }: { concept: ConceptProgress }) {
-  const { label, icon: Icon, iconClass } = STATE_META[concept.state]
+  const meta = STATE_META[concept.state]
+
+  // 🔴 IKONA GOVORI O ZADACIMA, NATPIS O ZNANJU — namjerno različite stvari.
+  //
+  // Zelena kvačica znači „ovdje više nema novog zadatka", ne „savladano".
+  // Razlog: to je pitanje na koje student odgovara PRIJE klika. Dok je kvačica
+  // značila mastery, koncept sa 99 % i 1/3 riješenih izgledao je gotov, a onaj
+  // sa 77 % i 3/3 izgledao je kao da ima još — pa je klik na njega vraćao već
+  // riješen zadatak i djelovao kao kvar (ERRATA #42).
+  //
+  // 🔴 Stanje `mastered` se NE dira. Isti predikat (`isMastered`) određuje i
+  // `satisfied` u prereq walku (progress.ts) i zrcali `rules.pl
+  // mastery_threshold`; da mu se ovdje promijeni značenje, klijent bi
+  // zaključavao koncepte drukčije nego Prolog, koji je autoritativan. Zato je
+  // ovo isključivo prikaz — natpis, postotak, bar, zaključavanje i „X/Y
+  // savladano" po modulu ostaju na znanju.
+  // Samo `in_progress` i `mastered`: ondje je kvačica značila mastery i
+  // zavaravala. `not_started` zadržava isprekidani krug (radi se o konceptu
+  // koji student nije ni dirnuo — a takav ne može imati riješenih zadataka, jer
+  // bi mu prvi točan pokušaj stvorio BKT redak i maknuo ga iz tog stanja),
+  // `locked` i `unavailable` zadržavaju svoje.
+  const iconFollowsTasks =
+    concept.hasOwnTasks &&
+    (concept.state === "in_progress" || concept.state === "mastered")
+  const allSolved = concept.solvedTaskCount >= concept.totalTaskCount
+
+  const label = meta.label
+  const Icon = iconFollowsTasks
+    ? allSolved
+      ? CheckCircle2
+      : CircleDot
+    : meta.icon
+  const iconClass = iconFollowsTasks
+    ? allSolved
+      ? "text-correct"
+      : "text-mastery-50"
+    : meta.iconClass
   // "unavailable": NIŠTA što sugerira dostižnost — bez postotka, bez bara, bez
   // "Traži: …". Koncept nema zadataka, pa napredak nije ni definiran.
   const unavailable = concept.state === "unavailable"

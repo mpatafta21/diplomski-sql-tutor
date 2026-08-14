@@ -35,6 +35,10 @@ export interface EnrichedMastery {
   /** Ima li koncept vlastiti zadatak — jedini uvjet klikabilnosti. Odredište
    *  bira `/task-for-concept/{code}`, pa ovdje NE stoji nikakav `task_id`. */
   hasOwnTasks: boolean
+  /** Riješenih / ukupno. 🔴 Ne prati `p_l` — v. ConceptProgress u lib/progress.ts
+   *  i ERRATU #42. Bez ovoga „Za ojačati" nudi koncept kojemu je sve riješeno. */
+  solvedTaskCount: number
+  totalTaskCount: number
 }
 
 /** Join + sort po p_l uzlazno. Koncepti bez unosa u /modules se preskaču. */
@@ -53,6 +57,8 @@ export function enrichMastery(
       moduleName: info.moduleName,
       p_l: item.p_l,
       hasOwnTasks: hasOwnTasks(info),
+      solvedTaskCount: item.solved_task_count ?? 0,
+      totalTaskCount: info.primary_task_count,
     })
   }
   out.sort((a, b) => a.p_l - b.p_l)

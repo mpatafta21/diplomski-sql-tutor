@@ -472,6 +472,35 @@ def _read_profile(user_id: int) -> dict | None:
             .order_by(Concept.code)
         ).all()
 
+        # solved_task_count (ERRATA #42): koliko je AKTIVNIH PRIMARNIH zadataka
+        # koncepta korisnik točno riješio. Ukupan broj nosi `primary_task_count` iz
+        # `/modules` — ondje je katalog, ovdje osobni napredak.
+        #
+        # 🔴 Zašto OVDJE, a ne u `/modules`: `["modules"]` se na klijentu ne
+        # invalidira ni na jednu predaju (staleTime 5 min), pa bi brojač ondje
+        # zaostajao i pokazivao neriješenim ono što je upravo riješeno.
+        # `["profile"]` se invalidira u `useSubmitAttempt`, dakle podatak se osvježi
+        # točno kad se promijeni.
+        #
+        # Ista (is_primary + is_active) maska kao `primary_task_count`, inače bi
+        # omjer mogao dati „3/2".
+        solved_counts = dict(
+            session.execute(
+                select(Concept.code, func.count(func.distinct(Task.id)))
+                .select_from(Concept)
+                .join(TaskConcept, TaskConcept.concept_id == Concept.id)
+                .join(Task, Task.id == TaskConcept.task_id)
+                .join(
+                    Attempt,
+                    (Attempt.task_id == Task.id)
+                    & (Attempt.user_id == user_id)
+                    & (Attempt.is_correct.is_(True)),
+                )
+                .where(TaskConcept.is_primary.is_(True), Task.is_active.is_(True))
+                .group_by(Concept.code)
+            ).all()
+        )
+
         badge_rows = session.execute(
             select(Badge.code)
             .join(UserBadge, UserBadge.badge_id == Badge.id)
@@ -502,7 +531,14 @@ def _read_profile(user_id: int) -> dict | None:
             "mastery_threshold": MASTERY_THRESHOLD,
             "current_streak": user.current_streak,
             "longest_streak": user.longest_streak,
-            "mastery": [{"concept": code, "p_l": p_l} for code, p_l in mastery_rows],
+            "mastery": [
+                {
+                    "concept": code,
+                    "p_l": p_l,
+                    "solved_task_count": solved_counts.get(code, 0),
+                }
+                for code, p_l in mastery_rows
+            ],
             "badges": list(badge_rows),
             "remaining": hint_remaining,
             "next_refill_at": hint_refill,

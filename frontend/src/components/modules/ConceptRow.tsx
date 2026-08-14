@@ -79,6 +79,18 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
         <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
           {label}
           {pct !== null && <span className="tabular-nums"> · {pct} %</span>}
+          {/* 🔴 ERRATA #42 — postotak je BKT procjena ZNANJA, ne napredak kroz
+              zadatke, i to dvoje se razilazi u OBA smjera: 99 % uz dva
+              neriješena zadatka, 77 % uz sve riješeno. Bez ovog brojača ekran
+              odgovara na „koliko znam", a čita se kao „koliko mi je ostalo" —
+              pa klik na koncept s visokim postotkom izgleda kao kvar kad vrati
+              već riješen zadatak. `solved` iz /profile, `total` iz /modules. */}
+          {concept.hasOwnTasks && (
+            <span className="tabular-nums">
+              {" "}
+              · {concept.solvedTaskCount}/{concept.totalTaskCount} zadataka
+            </span>
+          )}
           {clickable && (
             // Afordancija klika (uz hover/cursor) — strelica „otvori".
             <ChevronRight aria-hidden="true" className="size-3.5 shrink-0" />

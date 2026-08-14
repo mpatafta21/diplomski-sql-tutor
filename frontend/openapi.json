@@ -1353,6 +1353,11 @@
           "p_l": {
             "type": "number",
             "title": "P L"
+          },
+          "solved_task_count": {
+            "type": "integer",
+            "title": "Solved Task Count",
+            "default": 0
           }
         },
         "type": "object",

@@ -586,6 +586,11 @@ export interface components {
             concept: string;
             /** P L */
             p_l: number;
+            /**
+             * Solved Task Count
+             * @default 0
+             */
+            solved_task_count: number;
         };
         /** MeResponse */
         MeResponse: {

@@ -78,6 +78,15 @@ class RecommendationModel(BaseModel):
 class MasteryItem(BaseModel):
     concept: str
     p_l: float
+    #: Koliko je AKTIVNIH PRIMARNIH zadataka koncepta korisnik točno riješio.
+    #: Ukupan broj je `primary_task_count` u `/modules` (katalog); ovo je osobni
+    #: napredak, pa stoji ovdje — `["profile"]` se invalidira na svaku predaju.
+    #:
+    #: 🔴 `p_l` i ovo mjere RAZLIČITE stvari i namjerno se razilaze: `p_l` je BKT
+    #: procjena znanja, ovo je prijeđeni sadržaj. Koncept može biti 99 % savladan
+    #: uz neriješene zadatke (ERRATA #42) i 77 % uz sve riješeno. Sučelje mora
+    #: prikazati OBOJE — postotak sam po sebi se čitao kao napredak.
+    solved_task_count: int = 0
 
 
 # ---------------------------------------------------------------------------

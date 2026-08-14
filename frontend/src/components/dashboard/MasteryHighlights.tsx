@@ -51,6 +51,13 @@ function MasteryRow({
               aria-label="Savladano"
             />
           )}
+          {/* ERRATA #42 — postotak je znanje, ne prijeđeni sadržaj; bez brojača
+              „Za ojačati" nudi koncept kojemu je sve riješeno (klik → ponavljanje). */}
+          {item.hasOwnTasks && (
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {item.solvedTaskCount}/{item.totalTaskCount}
+            </span>
+          )}
           {isLink && (
             <ChevronRight
               aria-hidden="true"

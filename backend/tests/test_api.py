@@ -29,6 +29,7 @@ from app.db.models import (
     Misconception,
     SkillMastery,
     Task,
+    TaskConcept,
     User,
     UserBadge,
     XpLog,
@@ -318,6 +319,85 @@ async def test_get_profile_pure_db_read(api_user):
     assert body["longest_streak"] == 9
     assert len(body["mastery"]) == 1
     assert body["mastery"][0]["p_l"] == pytest.approx(0.72)
+
+
+@pytest.mark.asyncio
+async def test_profile_mastery_carries_solved_task_count(api_user):
+    """🔴 ERRATA #42 — `p_l` i `solved_task_count` mjere RAZLIČITE stvari.
+
+    Zatečeno stanje na `admin`u: `select_basic` 99 % uz 1/2 riješena, a
+    `where_filter` 77 % uz 3/3. Ekran je prikazivao samo postotak, pa se čitao kao
+    napredak kroz zadatke — klik na koncept s visokim postotkom vraćao je „već
+    riješen zadatak" i izgledao kao kvar.
+
+    Test drži da su to dva neovisna broja: mastery ostaje nizak, a brojač raste
+    isključivo s riješenim zadacima.
+    """
+    user_id = api_user["user_id"]
+    with SessionLocal() as sess:
+        code, concept_id = sess.execute(
+            select(Concept.code, Concept.id)
+            .join(TaskConcept, TaskConcept.concept_id == Concept.id)
+            .join(Task, Task.id == TaskConcept.task_id)
+            .where(TaskConcept.is_primary.is_(True), Task.is_active.is_(True))
+            .order_by(Concept.code)
+            .limit(1)
+        ).one()
+        task_ids = list(
+            sess.execute(
+                select(Task.id)
+                .join(TaskConcept, TaskConcept.task_id == Task.id)
+                .where(
+                    TaskConcept.concept_id == concept_id,
+                    TaskConcept.is_primary.is_(True),
+                    Task.is_active.is_(True),
+                )
+                .order_by(Task.id)
+            ).scalars()
+        )
+        # Namjerno NIZAK p_l uz riješen zadatak — da test ne bi prošao slučajno,
+        # zato što brojač prati mastery.
+        sess.add(SkillMastery(user_id=user_id, concept_id=concept_id, p_l=0.11))
+        sess.add(
+            Attempt(
+                user_id=user_id,
+                task_id=task_ids[0],
+                submitted_query="SELECT 1",
+                is_correct=True,
+                attempt_number=1,
+            )
+        )
+        sess.commit()
+
+    app = create_app()
+    async with _client(app) as client:
+        resp = await client.get("/profile", headers=auth_header(user_id))
+
+    assert resp.status_code == 200, resp.text
+    item = next(m for m in resp.json()["mastery"] if m["concept"] == code)
+    assert item["solved_task_count"] == 1, item
+    assert item["p_l"] == pytest.approx(0.11), "brojač ne smije dirati mastery"
+
+    # Netočan pokušaj NE povećava brojač — broji se riješeno, ne pokušano.
+    if len(task_ids) > 1:
+        with SessionLocal() as sess:
+            sess.add(
+                Attempt(
+                    user_id=user_id,
+                    task_id=task_ids[1],
+                    submitted_query="SELECT 2",
+                    is_correct=False,
+                    # ck_attempts_error_type_when_incorrect: netočan pokušaj MORA
+                    # nositi tip greške.
+                    error_type="row_mismatch",
+                    attempt_number=1,
+                )
+            )
+            sess.commit()
+        async with _client(app) as client:
+            resp = await client.get("/profile", headers=auth_header(user_id))
+        item = next(m for m in resp.json()["mastery"] if m["concept"] == code)
+        assert item["solved_task_count"] == 1, "netočan pokušaj se ne broji"
 
 
 @pytest.mark.asyncio

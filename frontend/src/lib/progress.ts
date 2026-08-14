@@ -60,6 +60,15 @@ export interface ConceptProgress {
    * `/task-for-concept/{code}`.
    */
   hasOwnTasks: boolean
+  /**
+   * Riješenih / ukupno aktivnih primarnih zadataka. 🔴 NIJE isto što i `pL`:
+   * `pL` je BKT procjena ZNANJA, ovo je prijeđeni SADRŽAJ, i namjerno se
+   * razilaze (ERRATA #42 — 99 % uz neriješene, 77 % uz sve riješeno).
+   * `solved` dolazi iz `/profile` (invalidira se na predaju), `total` iz
+   * `/modules` (katalog).
+   */
+  solvedTaskCount: number
+  totalTaskCount: number
 }
 
 export interface ModuleProgress {
@@ -86,6 +95,10 @@ export function deriveProgress(
   masteryThreshold: number,
 ): ProgressOverview {
   const pLByCode = new Map(mastery.map((m) => [m.concept, m.p_l]))
+  // Riješeno po konceptu iz /profile; koncept bez unosa nije ni dirnut → 0.
+  const solvedByCode = new Map(
+    mastery.map((m) => [m.concept, m.solved_task_count ?? 0]),
+  )
   // Isti index kao Dashboard join (lib/mastery.ts) — jedan izvor taksonomije.
   const index: Map<string, ConceptInfo> = buildConceptIndex(modules)
 
@@ -151,6 +164,8 @@ export function deriveProgress(
           pL,
           missingPrereqs: [],
           hasOwnTasks: hasOwnTasks(c),
+          solvedTaskCount: solvedByCode.get(c.code) ?? 0,
+          totalTaskCount: c.primary_task_count,
         }
       }
 
@@ -167,6 +182,8 @@ export function deriveProgress(
           pL,
           missingPrereqs: [],
           hasOwnTasks: hasOwnTasks(c),
+          solvedTaskCount: solvedByCode.get(c.code) ?? 0,
+          totalTaskCount: c.primary_task_count,
         }
       }
 
@@ -186,6 +203,8 @@ export function deriveProgress(
         pL,
         missingPrereqs: missing.map((p) => index.get(p)?.name ?? p),
         hasOwnTasks: hasOwnTasks(c),
+        solvedTaskCount: solvedByCode.get(c.code) ?? 0,
+        totalTaskCount: c.primary_task_count,
       }
     })
 

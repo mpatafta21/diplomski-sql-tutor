@@ -17,8 +17,25 @@ import {
 import { ConceptChip, TIER_LABEL } from "@/components/ConceptChip"
 import { MasteryBar } from "@/components/MasteryBar"
 import { masteryFillClass } from "@/lib/mastery"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import type { ConceptProgress, ConceptState } from "@/lib/progress"
 import { cn } from "@/lib/utils"
+
+/**
+ * 🔴 Zašto ovo objašnjenje uopće treba: ekran nosi TRI broja koja mjere tri
+ * različite stvari — postotak (znanje), brojač (prijeđeni sadržaj) i ikonu (ima
+ * li novog zadatka). Postotak je pritom najmanje očit, jer raste i od zadataka u
+ * kojima je koncept SPOREDAN: BKT ažurira sve koncepte zadatka, ne samo primarni
+ * (`evaluator_agent.py` šalje sve, `knowledge_agent.py` ne filtrira po
+ * `is_primary`). Izmjereno: `order_by` je na 77 % uz 0/2 riješena primarna
+ * zadatka, jer su riješena tri zadatka u kojima je sporedan.
+ */
+const MASTERY_TOOLTIP =
+  "Procjena znanja iz modela, ne postotak riješenih zadataka. Raste i kad koncept riješiš kao sporedni dio nekog drugog zadatka, zato može biti visoka i kad ovdje još nema riješenih."
 
 const STATE_META: Record<
   ConceptState,
@@ -114,7 +131,22 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
         />
         <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
           {label}
-          {pct !== null && <span className="tabular-nums"> · {pct} %</span>}
+          {pct !== null && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {/* Bez `tabIndex`: ovaj span je unutar `<Link>`a koji pokriva
+                    redak, pa bi fokusabilan trigger bio ugniježđena interaktivna
+                    kontrola (WCAG 4.1.2). Tipkovnica i čitači ekrana zato dobivaju
+                    `sr-only` inačicu ispod — tooltip nije jedini nositelj. */}
+                <span className="cursor-help tabular-nums underline decoration-dotted underline-offset-2">
+                  {" "}
+                  · {pct} %
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{MASTERY_TOOLTIP}</TooltipContent>
+            </Tooltip>
+          )}
+          {pct !== null && <span className="sr-only">{MASTERY_TOOLTIP}</span>}
           {/* 🔴 ERRATA #42 — postotak je BKT procjena ZNANJA, ne napredak kroz
               zadatke, i to dvoje se razilazi u OBA smjera: 99 % uz dva
               neriješena zadatka, 77 % uz sve riješeno. Bez ovog brojača ekran

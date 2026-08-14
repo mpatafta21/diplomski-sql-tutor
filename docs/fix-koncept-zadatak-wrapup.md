@@ -16,8 +16,9 @@ Dva zatečena nalaza sa zajedničkim korijenom, oba zatvorena. Nijedan nije uveo
 | `9f5ea65` | `GET /task-for-concept/{code}` + `resolve_task_for_concept` |
 | `2fb0035` | frontend linkovi kroz `/koncept/:code` + e2e gate |
 | `c82d1a1` | jedan upit za sve kategorije umjesto tri |
+| `ae39cb6` | drugi oblik ćorsokaka — koncept kojemu je sve riješeno (v. A.6) |
 
-**Novih testova:** 17 (recommender 9, ruta 8) + 1 e2e. **Nula promjena sheme.**
+**Novih testova:** 19 (recommender 11, ruta 8) + 1 e2e. **Nula promjena sheme.**
 
 ---
 
@@ -100,6 +101,57 @@ recommendable i nemaskiran. Transverzalni je 0,0 samo ako mu je neki uzvodni kon
 nesavladan; penjanjem uz lanac uvijek se stigne do nesavladanog **recommendable** koncepta
 s ispunjenim prereqs.
 
+🔴 **Ovaj dokaz vrijedi SAMO za tadašnju, slabiju definiciju kandidata** („koncept ima
+zadatke"). Per-user invarijanta iz A.6 ga poništava — ondje korijen može ispasti iz
+kandidata a ostati nesavladan. Zato A.7 uvodi rezervu. Zapisano ovdje da se dokaz ne
+citira izvan uvjeta pod kojima je izveden.
+
+---
+
+# A.6 🔴 DRUGI OBLIK ISTOG ĆORSOKAKA — nađen nakon prvog zatvaranja
+
+Nakon prvih pet commitova korisnik je javio da na računu `admin` i dalje piše „Nema novih
+zadataka". Izmjereno:
+
+```
+admin: riješeno 9 / 80 → 71 NERIJEŠEN zadatak
+preporuka: where_filter — 3 zadatka, SVA TRI riješena, p_l = 0,7728
+→ select_task_for_concept → None → "exhausted"
+```
+
+Isti simptom, drugi uzrok: kvar iz nalaza bio je koncept **bez ijednog zadatka**
+(transverzalni); ovaj je koncept **sa zadacima kojih je student sve riješio**, a mastery mu
+je ispod praga — pa ostaje kandidat zauvijek. `insert` (2/2, p_l 0,7702) bio je drugi takav.
+
+🔴 **Ovo je bila pogrešna procjena, ne propust u analizi.** U `concepts_with_tasks` je
+izrijekom pisalo da definicija namjerno glasi „IMA zadatke", a ne „ima NERIJEŠENE zadatke",
+da bi se sačuvalo stanje `exhausted` koje zatečeni test očekuje. Sačuvano je očekivanje
+testa, a posljedica je trajna slijepa ulica. **Ispravna invarijanta je „koncept može dati
+zadatak OVOM korisniku"**, a prva izvedba je provela njezinu slabiju verziju.
+
+Zatečeni `test_exhausted_concept_returns_exhausted` tvrdio je upravo to ponašanje i time
+zaključao ćorsokak kao specifikaciju — klasa NALAZA #57 (test pisan prema promatranom
+ponašanju).
+
+**Odluka korisnika 2026-08-14:** preporuka prelazi na drugi koncept.
+
+## A.7 Rezerva, jer nova invarijanta otvara stanje koje stara nije imala
+
+Per-user invarijanta poništava dokaz iz A.5. Ako **korijenski** koncept (`select_basic`,
+jedini korijen) ispadne iz kandidata a nije savladan, `prereqs_met` blokira sve nizvodno →
+`recommend_next` padne → `no_recommendation` → sučelje javi **„Sve savladano"**. To je laž,
+i gore od početnog kvara.
+
+Zato ljestvica, ne prekidač:
+
+1. koncept s **neriješenim** zadatkom unutar ZPD-a;
+2. ako takvog nema → drugi Prolog krug sa širim skupom (koncepti koji imaju zadatke) →
+   `reason="repeat_practice"` + riješen zadatak za ponavljanje. Ponavljanje diže mastery
+   kroz BKT i time otključava ostatak grafa;
+3. tek ako ni to → `no_recommendation` (istinito).
+
+Drugi krug se plaća samo u tom rijetkom stanju. Obje grane imaju vlastiti test.
+
 ---
 
 # B — Kvar 2: klik na koncept vodio na riješen zadatak
@@ -169,6 +221,13 @@ profila.
 | **baseline** (prije ijedne izmjene) | 43,8 ms | 40,0 | 2,5 | 40 |
 | nakon `recommendable/1`, naivno | **47,2 ms** | 44,0 | 2,5 | 40 |
 | nakon uklanjanja ponovljenog upita | **39,2 ms** | 34,6 | 3,1 | 40 |
+| nakon per-user invarijante (A.6) | 45,6 ms | 38,8 | 4,4 | 40 |
+| ista, **ponovljeno** | **43,5 ms** | 40,2 | 2,5 | 40 |
+
+🔴 Redak 45,6 napuhao je **jedan outlier od 61,3 ms** (max u ponovljenom mjerenju je 44,0,
+stdev 2,5 umjesto 4,4). Mjerodavan je ponovljeni: **43,5 ms, jednako baselineu**. Per-user
+upit košta 1,43 ms i ne može se poslužiti iz keširanog kataloga (0,00 ms) — to je cijena
+ispravne invarijante, plaćena iz dobitka na ponovljenim upitima.
 
 🔴 **Porast od 3,4 ms nije bio šum** — stdev je 2,5 u oba mjerenja. Razlaganje po
 koracima pokazalo je da uzrok **nije** injekcija u Prolog (0,39 ms) nego ponovljeni upit:
@@ -186,7 +245,7 @@ mjerenja, ne svojstvo sustava.
 
 | gate | ishod |
 |---|---|
-| `pytest` | ✅ **777 passed, 1 skipped** (prije 760 — plus 17 novih, nula regresija) |
+| `pytest` | **778 passed, 1 skipped, 1 failed** — pad je ZATEČEN, v. E |
 | `make preflight` | ✅ zelen (80/80 zadataka, smoke kroz pun lanac) |
 | `npm run e2e` | ✅ **3 passed** (2 zatečena + novi gate), teardown čist |
 | `tsc -b` · `prettier` · `oxlint` | ✅ (oxlint samo zatečeni `only-export-components`) |
@@ -223,6 +282,19 @@ Po disciplini iz 5.2 §D.2 — test koji nije viđen kako pada ne čuva ništa:
 ---
 
 # E — Otvoreno
+
+- 🔴 **ZATEČEN pad: `test_hint_logic.py::test_credit_is_per_user`** (`assert -6 == 5`).
+  **Nije iz ove grane** — provjereno pokretanjem istog testa na `main`u u zasebnom
+  worktreeju, gdje pada identično. Dva uzroka zajedno:
+  1. `_NOW` je tvrdo kodiran na **2026-08-12**, a `admin` ima stvarne `hint_requests` iz
+     13./14. 8. (živi LLM prolaz iz 5.2 §E2). `hint_credit` filtrira samo **donju** granicu
+     prozora (`created_at > window_start`), pa retci noviji od `now` ulaze u računicu i
+     bucket ode u minus.
+  2. test bira „nekog drugog korisnika" s `select(User.id).where(User.id != uid).limit(1)`
+     — **bez `ORDER BY`**, dakle proizvoljan redak (mehanizam ERRATE #60).
+
+  Klasa ERRATE #40 (suite čita živu `tutor_main`). Popravak je izvan opsega ove grane;
+  kandidat za zasebnu granu s ostalim fixevima prije deploya.
 
 - 🔴 **Docstring `recommender_logic.py:32` je zastario.** Tvrdi da `explain_plan` ima 2 a
   `index_usage` 3 aktivna primary zadatka, i da ih zato subfloor ne hvata. **Izmjereno:

@@ -132,19 +132,25 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
         <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
           {label}
           {pct !== null && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                {/* Bez `tabIndex`: ovaj span je unutar `<Link>`a koji pokriva
-                    redak, pa bi fokusabilan trigger bio ugniježđena interaktivna
-                    kontrola (WCAG 4.1.2). Tipkovnica i čitači ekrana zato dobivaju
-                    `sr-only` inačicu ispod — tooltip nije jedini nositelj. */}
-                <span className="cursor-help tabular-nums underline decoration-dotted underline-offset-2">
-                  {" "}
-                  · {pct} %
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{MASTERY_TOOLTIP}</TooltipContent>
-            </Tooltip>
+            // Vanjski span drži separator IZVAN triggera: podcrtava se i hovera
+            // samo brojka, a razmak i „·" ostaju obična interpunkcija. Sve je i
+            // dalje jedan flex item, pa se `gap-1` ne udvostručuje.
+            <span className="tabular-nums">
+              {" · "}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {/* Bez `tabIndex`: ovaj span je unutar `<Link>`a koji pokriva
+                      redak, pa bi fokusabilan trigger bio ugniježđena interaktivna
+                      kontrola (WCAG 4.1.2). Tipkovnica i čitači ekrana zato
+                      dobivaju `sr-only` inačicu ispod — tooltip nije jedini
+                      nositelj. */}
+                  <span className="cursor-help underline decoration-dotted underline-offset-2">
+                    {pct} %
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{MASTERY_TOOLTIP}</TooltipContent>
+              </Tooltip>
+            </span>
           )}
           {pct !== null && <span className="sr-only">{MASTERY_TOOLTIP}</span>}
           {/* 🔴 ERRATA #42 — postotak je BKT procjena ZNANJA, ne napredak kroz

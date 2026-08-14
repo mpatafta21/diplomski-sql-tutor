@@ -190,12 +190,50 @@ na eval-verificiranom Task ekranu. **Ne traži** — bedž „Riješeno" postoji
 (`TaskPage.tsx:449-457`), a komentar uz njega već propisuje baš to ponašanje; poslije
 predaje `FeedbackPanel` pokaže „Već riješeno · bez XP".
 
-## B.4 `entry_task_id` ostaje
+## B.4 `entry_task_id` ostaje _(nadiđeno u B.5)_
 
-Nije uklonjen: i dalje je točan signal „koncept ima aktivnih zadataka" i time uvjet
-klikabilnosti u oba potrošača. `/modules` zato nije trebao nikakvu izmjenu ugovora, a
-`404 concept_has_no_tasks` je obrana u dubinu. Polje je sada bez potrošača za navigaciju —
-kandidat za čišćenje, ne obveza.
+Prva odluka: ne uklanjati. Polje je i dalje bilo točan signal „koncept ima aktivnih
+zadataka" i time uvjet klikabilnosti u oba potrošača, pa `/modules` nije trebao izmjenu
+ugovora. Zapisano kao „kandidat za čišćenje, ne obveza".
+
+## B.5 …pa je ipak uklonjen
+
+**Ispravak tvrdnje iz B.4 i iz ranije verzije §E:** ondje je pisalo da je polje ostalo
+„bez potrošača". To **nije bilo točno** — točna tvrdnja je „bez potrošača **za
+navigaciju**". Klikabilnost je i dalje visjela o njemu
+(`ConceptRow.tsx:68`, `MasteryHighlights.tsx:40`).
+
+Taj posao je preuzeo `primary_task_count > 0`. Ekvivalencija nije pretpostavljena — ruta ju
+je gradila po konstrukciji (ista `is_primary + is_active` maska), a **zatečena suita ju je
+već tvrdila**:
+
+```python
+assert (c["entry_task_id"] is not None) == (c["primary_task_count"] > 0)
+```
+
+🔴 **Zašto uklanjanje, a ne ostavljanje mrtvog polja.** Kao polje s konkretnim `task_id`-em
+pozivalo je da se na njega opet linka — dakle da se vrati kvar koji je ova grana upravo
+zatvorila. Brojač nema odredište u sebi i ne može se tako zloupotrijebiti.
+
+Zamjenski test je namjerno **širi od imena polja**: nijedan ključ u čvoru koncepta ne smije
+sadržavati `task_id`, jer bi isti kvar pod drugim imenom prošao. Klijent koristi postojeći
+`hasOwnTasks()` (`lib/mastery.ts`), jedini izvor tog pravila za cijeli frontend od 4.4b.
+
+Ugovor: `openapi.json` −11 redaka, `schema.d.ts` −2. Nula promjena sheme baze.
+
+## B.6 „Sve savladano" više ne zvuči kao kraj puta
+
+Uočeno pri falsifikaciji (`no_recommendation` u 397 od 1500 stanja): taj reason znači da su
+svi koncepti **iznad praga**, ne da su svi zadaci riješeni. To dvoje se razilazi — koncepti
+imaju 2–5 zadataka, a BKT saturira brže nego što se svi riješe.
+
+Zatečeni tekst („Trenutno nema koncepta za preporuku — sve je savladano.") čitao se kao
+„nema više što raditi" i studentu s desetcima neriješenih zadataka bio je terminalan. Sada
+govori o savladanosti i upućuje na Module, uz gumb na `/modules` kao primarnu akciju u tom
+stanju.
+
+🔴 **Zatečeno ponašanje ZPD dizajna, ne kvar koji je uvela ova grana.** Zabilježeno jer ga
+je tek falsifikacija učinila vidljivim.
 
 ---
 

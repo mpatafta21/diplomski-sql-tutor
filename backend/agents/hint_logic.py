@@ -101,6 +101,17 @@ def hint_credit(
                 HintRequest.user_id == user_id,
                 HintRequest.source.in_(CONSUMING_SOURCES),
                 HintRequest.created_at > window_start,
+                # 🔴 GORNJA granica je obavezna, ne simetrija radi urednosti.
+                # Bez nje redak s `created_at > now` ulazi u petlju, a
+                # `level += (now - prev) / refill` s negativnim razmakom obara
+                # bucket ispod nule — izmjereno `remaining = -8` za `now` dva
+                # dana u prošlosti.
+                #
+                # Nije samo test-artefakt: `now` se uzima PRIJE upita, pa
+                # istovremeni upis hinta može leći s `created_at > now` i u
+                # produkciji. Parametar `now` znači „stanje u tom trenutku", a to
+                # traži obje granice.
+                HintRequest.created_at <= now,
             )
             .order_by(HintRequest.created_at.asc())
         ).all()

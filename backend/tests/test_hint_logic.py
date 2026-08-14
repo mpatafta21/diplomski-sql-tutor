@@ -56,6 +56,35 @@ def hint_user():
         s.commit()
 
 
+@pytest.fixture
+def drugi_user():
+    """Drugi committed korisnik — za tvrdnju „kredit je PO KORISNIKU".
+
+    Vlastiti, a ne zatečeni redak iz `users`: suita dijeli bazu s aplikacijom
+    (ERRATA #40), pa bi „bilo koji drugi korisnik" značilo mjeriti stvarne
+    podatke `admina` ili sudionika.
+    """
+    with SessionLocal() as s:
+        s.execute(delete(User).where(User.username == "hint_logic_51_drugi"))
+        s.commit()
+        u = User(
+            username="hint_logic_51_drugi",
+            email="hint-logic-51-drugi@test.example",
+            password_hash="dummy_hash_51b",
+        )
+        s.add(u)
+        s.commit()
+        uid = u.id
+
+    yield uid
+
+    with SessionLocal() as s:
+        s.execute(delete(HintRequest).where(HintRequest.user_id == uid))
+        s.execute(delete(Attempt).where(Attempt.user_id == uid))
+        s.execute(delete(User).where(User.id == uid))
+        s.commit()
+
+
 def _attempt(uid: int, task_id: int, *, n: int, correct: bool, et: str | None) -> int:
     with SessionLocal() as s:
         a = Attempt(
@@ -229,14 +258,47 @@ def test_next_refill_is_when_the_counter_actually_moves(hint_user) -> None:
     assert timedelta(hours=2.9) < (refill - _NOW) < timedelta(hours=3.1)
 
 
-def test_credit_is_per_user(hint_user) -> None:
+def test_credit_is_per_user(hint_user, drugi_user) -> None:
+    """Potrošnja jednog korisnika ne dira kredit drugoga.
+
+    🔴 Drugi korisnik je VLASTITI, ne „bilo koji drugi redak iz `users`". Ranija
+    izvedba uzimala je `select(User.id).where(User.id != uid).limit(1)` — bez
+    `ORDER BY`, dakle proizvoljan redak (mehanizam ERRATE #60), koji je u živoj
+    `tutor_main` (ERRATA #40) znao biti `admin` sa stvarnim hint zapisima. Test
+    je time mjerio tuđe podatke umjesto vlastite tvrdnje.
+    """
     uid, tid = hint_user["user_id"], hint_user["task_id"]
     aid = _attempt(uid, tid, n=1, correct=False, et="row_mismatch")
     _request(uid, tid, aid, source="llm", at=_NOW - timedelta(minutes=5))
+
     with SessionLocal() as s:
-        drugi = s.scalar(select(User.id).where(User.id != uid).limit(1))
-        rem_drugi, _ = hint_credit(s, drugi, now=_NOW)
-    assert rem_drugi == config.HINT_MAX
+        assert hint_credit(s, uid, now=_NOW)[0] == config.HINT_MAX - 1
+        assert hint_credit(s, drugi_user, now=_NOW)[0] == config.HINT_MAX
+
+
+def test_requests_newer_than_now_do_not_count(hint_user) -> None:
+    """🔴 Zahtjev noviji od `now` NE ulazi u računicu — bucket ne smije u minus.
+
+    `hint_credit` je filtrirao samo DONJU granicu prozora, pa je redak s
+    `created_at > now` prolazio, a `level += (now - prev) / refill` s negativnim
+    razmakom obarao bucket ispod nule. Za `now` udaljen dva dana u prošlost to je
+    davalo `remaining = -8`.
+
+    Zašto to nije samo test-artefakt: `now` se uzima prije upita, pa istovremeni
+    upis hinta može leći s `created_at > now` i u produkciji. Parametar `now`
+    mora značiti „stanje u tom trenutku", a to traži i gornju granicu.
+    """
+    uid, tid = hint_user["user_id"], hint_user["task_id"]
+    aid = _attempt(uid, tid, n=1, correct=False, et="row_mismatch")
+    _request(uid, tid, aid, source="llm", at=_NOW + timedelta(days=2))
+
+    with SessionLocal() as s:
+        remaining, refill = hint_credit(s, uid, now=_NOW)
+
+    assert remaining == config.HINT_MAX, (
+        f"budući zahtjev je ušao u prozor → remaining={remaining}"
+    )
+    assert refill is None, "pun bucket nema sljedeću nadopunu"
 
 
 # ---------------------------------------------------------------------------

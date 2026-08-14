@@ -55,12 +55,11 @@ export interface ConceptProgress {
   /** Imena nezadovoljenih preduvjeta (samo za state === "locked"). */
   missingPrereqs: string[]
   /**
-   * Meta za klik na koncept → `/task/<id>` (self-test fix 4.6-eval). Reprezentativan
-   * aktivan primary zadatak (najlakši prvi, iz `/modules`). null ⟺ koncept nema
-   * vlastitih zadataka (glue/izvan opsega). UI čini redak klikabilnim samo kad je
-   * ne-null I koncept NIJE "locked".
+   * Ima li koncept vlastitih aktivnih zadataka (`primary_task_count > 0`). UI čini
+   * redak klikabilnim kad je `true` I koncept NIJE "locked"; odredište bira
+   * `/task-for-concept/{code}`.
    */
-  entryTaskId: number | null
+  hasOwnTasks: boolean
 }
 
 export interface ModuleProgress {
@@ -151,7 +150,7 @@ export function deriveProgress(
           state: "mastered",
           pL,
           missingPrereqs: [],
-          entryTaskId: c.entry_task_id ?? null,
+          hasOwnTasks: hasOwnTasks(c),
         }
       }
 
@@ -167,7 +166,7 @@ export function deriveProgress(
           state: "unavailable",
           pL,
           missingPrereqs: [],
-          entryTaskId: c.entry_task_id ?? null,
+          hasOwnTasks: hasOwnTasks(c),
         }
       }
 
@@ -186,7 +185,7 @@ export function deriveProgress(
         state,
         pL,
         missingPrereqs: missing.map((p) => index.get(p)?.name ?? p),
-        entryTaskId: c.entry_task_id ?? null,
+        hasOwnTasks: hasOwnTasks(c),
       }
     })
 

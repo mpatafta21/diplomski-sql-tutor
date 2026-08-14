@@ -644,20 +644,6 @@ def _read_modules() -> list[dict]:
         ).all()
         primary_counts: dict[int, int] = dict(count_rows)
 
-        # entry_task_id (self-test fix 4.6-eval): reprezentativan ZADATAK za klik
-        # na koncept u Module overviewu. STATIČKI (bez user-konteksta → /modules
-        # ostaje čist katalog, cacheable): AKTIVAN PRIMARY zadatak, najlakši prvi
-        # (difficulty ↑, pa id ↑ radi determinizma). Ista maska (is_primary +
-        # is_active) kao primary_task_count → entry postoji točno kad je count>0.
-        entry_rows = session.execute(
-            select(TaskConcept.concept_id, Task.id)
-            .join(Task, Task.id == TaskConcept.task_id)
-            .where(TaskConcept.is_primary.is_(True), Task.is_active.is_(True))
-            .order_by(TaskConcept.concept_id, Task.difficulty, Task.id)
-        ).all()
-        entry_task_by_concept: dict[int, int] = {}
-        for concept_id, task_id in entry_rows:
-            entry_task_by_concept.setdefault(concept_id, task_id)
 
     prereqs_by_concept: dict[int, list[str]] = {}
     for concept_id, prereq_code in edge_rows:
@@ -676,7 +662,6 @@ def _read_modules() -> list[dict]:
                 "order_index": c.order_index,
                 "prerequisites": prereqs_by_concept.get(c.id, []),
                 "primary_task_count": primary_counts.get(c.id, 0),
-                "entry_task_id": entry_task_by_concept.get(c.id),
             }
         )
 
@@ -705,9 +690,11 @@ async def get_modules(
 # ---------------------------------------------------------------------------
 # GET /task-for-concept/{code} — zadatak koncepta ZA OVOG korisnika
 #
-# Postoji jer je `entry_task_id` u `/modules` statičan (bez usera), pa je klik na
-# koncept vodio na već riješen zadatak. Ovdje se riješeni preskaču kroz
-# `resolve_task_for_concept` — jedini kod koji zna što je student riješio.
+# Postoji jer je `/modules` katalog bez korisničkog konteksta. Ondje je do
+# 2026-08-14 stajao `entry_task_id` (najlakši aktivni zadatak, isti za svakoga) i
+# klik na koncept vodio je na već riješen zadatak; polje je uklonjeno, a odredište
+# bira ova ruta kroz `resolve_task_for_concept` — jedini kod koji zna što je
+# student riješio.
 #
 # 🔴 BEZ FIPA lanca, izravan DB read: ovaj put ne dira Prolog (za razliku od
 # `/next-task`), pa bi bridge dodao round-trip bez ijedne koristi. Presedan je

@@ -37,7 +37,7 @@ function MasteryRow({
 }) {
   const pct = Math.round(item.p_l * 100)
   const mastered = item.p_l >= masteryThreshold
-  const isLink = clickable && item.entryTaskId !== null
+  const isLink = clickable && item.hasOwnTasks
 
   const body = (
     <>
@@ -75,10 +75,10 @@ function MasteryRow({
     <li>
       {isLink ? (
         <Link
-          // Odredište je KONCEPT, ne zadatak: `entryTaskId` je statičan (bez
-          // usera) pa je vodio na već riješeno. `/koncept/:code` pušta
-          // poslužitelj da odabere neriješen. `entryTaskId` ostaje uvjet
-          // klikabilnosti — on i dalje točno znači „koncept ima zadataka".
+          // Odredište je KONCEPT, ne zadatak. `/modules` je do 2026-08-14 nosio
+          // `entry_task_id` (statičan, bez usera) i klik je vodio na već riješeno;
+          // sada `/koncept/:code` pušta poslužitelj da odabere neriješen.
+          // Klikabilnost nosi `hasOwnTasks` — signal, ne odredište.
           to={`/koncept/${item.code}`}
           aria-label={`Otvori zadatak za koncept ${item.name}`}
           // -mx-2 px-2: hover diše u padding kartice, sadržaj se ne pomiče.

@@ -107,8 +107,8 @@ class NextTaskResponse(BaseModel):
 class TaskForConceptResponse(BaseModel):
     """Odgovor `GET /task-for-concept/{code}` — zadatak koncepta za OVOG korisnika.
 
-    Za razliku od `entry_task_id` u `/modules`, koji je statičan katalog bez
-    korisničkog konteksta, ovdje se riješeni zadaci preskaču.
+    `/modules` je katalog bez korisničkog konteksta i namjerno ne nosi nijedan
+    `task_id`; odredište klika na koncept bira ova ruta, koja preskače riješene.
     """
 
     task_id: int
@@ -233,11 +233,16 @@ class ConceptNode(BaseModel):
     tier: str
     order_index: int
     prerequisites: list[str]
+    #: Broj AKTIVNIH primary zadataka. `> 0` je ujedno jedini uvjet klikabilnosti
+    #: koncepta na klijentu — odredište bira `GET /task-for-concept/{code}`, koje
+    #: zna što je korisnik riješio.
+    #:
+    #: 🔴 Ovdje je do 2026-08-14 stajao i `entry_task_id` (najlakši aktivni primary
+    #: zadatak, statičan i bez korisničkog konteksta). Uklonjen je: jedini mu je
+    #: preostali posao bio biti boolean proxy za `primary_task_count > 0`, a kao
+    #: polje s konkretnim `task_id` pozivao je da se na njega opet linka — što je
+    #: bio kvar u kojem je klik na koncept vodio na VEĆ RIJEŠEN zadatak.
     primary_task_count: int
-    #: Reprezentativan AKTIVAN primary zadatak koncepta (najlakši prvi) — meta za
-    #: klik na koncept u Module overviewu → `/task/<id>`. None ⟺ koncept nema
-    #: vlastitih aktivnih primary zadataka (glue/izvan opsega) → UI ne nudi klik.
-    entry_task_id: int | None = None
 
 
 class ModuleNode(BaseModel):

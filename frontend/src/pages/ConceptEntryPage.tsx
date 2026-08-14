@@ -2,7 +2,7 @@
  * ConceptEntryPage — ulaz u zadatak preko KONCEPTA (`/koncept/:code`).
  *
  * Kartica „Za ojačati" (Dashboard) i redak koncepta (Moduli) prije su linkali
- * izravno na `/task/${entryTaskId}`, a to je polje statično i bez korisničkog
+ * izravno na `/task/${entry_task_id}`, a to je polje bilo statično i bez korisničkog
  * konteksta — vodilo je na već riješen zadatak. Sada linkaju ovamo, a zadatak
  * bira poslužitelj (`resolve_task_for_concept`), koji jedini zna što je riješeno.
  *

@@ -465,8 +465,6 @@ export interface components {
             prerequisites: string[];
             /** Primary Task Count */
             primary_task_count: number;
-            /** Entry Task Id */
-            entry_task_id?: number | null;
         };
         /** ConceptRef */
         ConceptRef: {
@@ -769,8 +767,8 @@ export interface components {
          * TaskForConceptResponse
          * @description Odgovor `GET /task-for-concept/{code}` — zadatak koncepta za OVOG korisnika.
          *
-         *     Za razliku od `entry_task_id` u `/modules`, koji je statičan katalog bez
-         *     korisničkog konteksta, ovdje se riješeni zadaci preskaču.
+         *     `/modules` je katalog bez korisničkog konteksta i namjerno ne nosi nijedan
+         *     `task_id`; odredište klika na koncept bira ova ruta, koja preskače riješene.
          */
         TaskForConceptResponse: {
             /** Task Id */

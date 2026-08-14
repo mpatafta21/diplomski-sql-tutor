@@ -62,10 +62,10 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
   // stanje još "U tijeku" (prikaz mora biti konzistentan sa stanjem).
   const pct = pL !== null ? Math.floor(pL * 100) : null
 
-  // Klik → otvara zadatak koncepta. Dopušteno SAMO kad koncept ima zadatak
-  // (entryTaskId) I nije zaključan — zaključani (nezadovoljeni preduvjeti) i oni
-  // bez vlastitih zadataka (glue/izvan opsega) ostaju neklikabilni.
-  const clickable = concept.entryTaskId !== null && concept.state !== "locked"
+  // Klik → otvara zadatak koncepta. Dopušteno SAMO kad koncept ima vlastitih
+  // zadataka I nije zaključan — zaključani (nezadovoljeni preduvjeti) i oni bez
+  // vlastitih zadataka (glue/izvan opsega) ostaju neklikabilni.
+  const clickable = concept.hasOwnTasks && concept.state !== "locked"
 
   const body = (
     <>

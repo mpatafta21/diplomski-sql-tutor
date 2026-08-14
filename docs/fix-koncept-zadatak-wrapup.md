@@ -109,9 +109,7 @@ zadatke"). Per-user invarijanta iz A.6 ga poništava — ondje korijen može isp
 kandidata a ostati nesavladan. Zato A.7 uvodi rezervu. Zapisano ovdje da se dokaz ne
 citira izvan uvjeta pod kojima je izveden.
 
----
-
-# A.6 🔴 DRUGI OBLIK ISTOG ĆORSOKAKA — nađen nakon prvog zatvaranja
+## A.6 🔴 DRUGI OBLIK ISTOG ĆORSOKAKA — nađen nakon prvog zatvaranja
 
 Nakon prvih pet commitova korisnik je javio da na računu `admin` i dalje piše „Nema novih
 zadataka". Izmjereno:

@@ -49,8 +49,19 @@ const SCOPE_META: Record<
   },
   weekly: {
     // Granica prozora NIJE u odgovoru → generički opis, nikad izračunat datum.
-    description: "Osvojeni XP u tekućem tjednu (Europe/Zagreb).",
-    label: "Ovaj tjedan",
+    //
+    // 🔴 ERRATA #47, popravljeno 2026-08-14. Prije je pisalo „Ovaj tjedan" i
+    // „u tekućem tjednu", a backend računa KLIZNI PROZOR zadnjih 7 dana
+    // (`routes.py` `cutoff = now - timedelta(days=7)`). „Tekući tjedan" se čita
+    // kao KALENDARSKI (pon–ned), a to je drugi skup: u srijedu klizni prozor
+    // obuhvaća i prošli četvrtak, kalendarski ne.
+    //
+    // „Zadnjih 7 dana" je jednako generično — ne traži nijedan podatak iz
+    // odgovora, pa odluka 4.5 o generičkom tekstu ostaje na snazi — a točno je.
+    // Time se slijedi i pravilo iz `attempt-stats.ts`: mjera nad prozorom MORA
+    // nositi svoj prozor u labeli.
+    description: "Osvojeni XP u zadnjih 7 dana (Europe/Zagreb).",
+    label: "Zadnjih 7 dana",
   },
 }
 
@@ -131,7 +142,7 @@ export function LeaderboardPage() {
               icon={Trophy}
               title={
                 scope === "weekly"
-                  ? "Ovaj tjedan još nema osvojenog XP-a"
+                  ? "U zadnjih 7 dana nitko još nije osvojio XP"
                   : "Ljestvica je još prazna"
               }
               description="Čim netko riješi zadatak i osvoji XP, pojavit će se ovdje."

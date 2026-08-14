@@ -43,6 +43,32 @@ _WEAK_THRESHOLD = 0.30
 _MASTERED_THRESHOLD = 0.85
 
 
+# 🔴 ERRATA #64 — POKUŠAJ POVUČEN 2026-08-14, prije mergea.
+#
+# Ovdje su stajali `_detect_order` i `expected_shape`: iz `expected_result` se
+# izvodio očekivani poredak (stupac + smjer) i slao modelu, da za `row_mismatch`
+# ne mora nagađati.
+#
+# IZMJERENO nad svih 80 aktivnih zadataka: poredak je detektiran u 40, a u **10**
+# je PROTURJEČIO `ORDER BY`-u referentnog upita; još 2 zadatka poredak uopće
+# nemaju. Najgori oblik su zadaci s višestrukim ključem (`ORDER BY
+# prosjecna_ocjena DESC, product_id ASC`): primarni ključ ima izjednačenja pa nije
+# monoton, sekundarni jest — pa bi se TIEBREAKER proglasio poretkom.
+#
+# Sužavanje na „točno jedan monoton stupac" ne spašava: 4 od 24 i dalje
+# proturječe. Uz to Python uspoređuje stringove po codepointu, a `expected_result`
+# je poredao PostgreSQL pod svojom kolacijom — za `['apple', 'Banana']` Python
+# zaključi `desc`, dakle obrnuto od istine.
+#
+# 🔴 Poanta: tvrdnja bi išla uz prompt pravilo „osloni se na dane podatke", pa bi
+# model netočan poredak iznosio SIGURNIJE nego kad nagađa. To je ista klasa kvara
+# koju #64 opisuje, samo sustavna umjesto povremene.
+#
+# Jedini pouzdan izvor poretka je `ORDER BY` referentnog upita — a ovaj modul ga
+# po dizajnu NE SMIJE ni spomenuti (`test_expected_query_is_never_read`). Proširenje
+# tog opsega je odluka korisnika, ne izvedbeni detalj. ERRATA #64 ostaje OTVORENA.
+
+
 def mastery_band(p_l: float | None) -> str | None:
     """Pretvori BKT vjerojatnost u grubu oznaku.
 

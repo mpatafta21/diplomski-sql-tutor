@@ -10,26 +10,48 @@
  * mastery barovima koji čitaju iz /profile.
  * `/next-task` je skup (XMPP→Prolog) — invalidacija, NE poll (4.2a odluka).
  *
- * Greške: HTTP 504 = AGENT PIPELINE ne odgovara (orchestration/evaluation
- * timeout) — NIJE isto što i error_type:"timeout" (200; studentov SQL predug).
- * ApiError.status razlikuje grane u UI-ju.
+ * Greške: pipeline ne odgovara — NIJE isto što i error_type:"timeout" (200;
+ * studentov SQL predug).
+ *
+ * 🔴 Ishod se razlučuje po `detail`, ne po statusu (obrazac `useHint`, 5.2 §C.1).
+ * Nakon #62/#63 postoje TRI ishoda na DVA statusa: `503 coordinator_busy`,
+ * `504 evaluation_timeout`, `504 orchestration_timeout`. `ApiError` nosi samo
+ * `status`, pa se tijelo greške čita ovdje i pretvara u `SubmitError.reason`.
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import type { ProfileResponse } from "@/lib/api/types"
 import { api } from "@/lib/api/client"
-import { unwrap } from "@/lib/api/query"
+import { submitFailure, type SubmitFailure } from "@/lib/submit"
+
+/** Greška predaje s razlučenim uzrokom (v. `lib/submit.ts`). */
+export class SubmitError extends Error {
+  readonly reason: SubmitFailure
+
+  // 🔴 BEZ `status` polja, namjerno. Status više ne razlučuje ishod (tri ishoda
+  // dijele dva statusa), pa bi polje samo pozivalo na granu po statusu — obrazac
+  // koji `lib/submit.ts` izrijekom zabranjuje. Status ostaje u poruci greške radi
+  // dijagnostike, ne kao podatak za odlučivanje.
+  constructor(status: number, reason: SubmitFailure) {
+    super(`submit_failed_${reason}_http${status}`)
+    this.name = "SubmitError"
+    this.reason = reason
+  }
+}
 
 export function useSubmitAttempt(taskId: number) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (submittedQuery: string) =>
-      unwrap(
-        await api.POST("/attempt", {
-          // attempt_number NE šaljemo — backend ga računa sam (COUNT+1).
-          body: { task_id: taskId, submitted_query: submittedQuery },
-        }),
-      ),
+    mutationFn: async (submittedQuery: string) => {
+      const { data, error, response } = await api.POST("/attempt", {
+        // attempt_number NE šaljemo — backend ga računa sam (COUNT+1).
+        body: { task_id: taskId, submitted_query: submittedQuery },
+      })
+      if (!response.ok || data === undefined) {
+        throw new SubmitError(response.status, submitFailure(error))
+      }
+      return data
+    },
     onSuccess: (data) => {
       // Patch /profile cachea autoritativnim gamification snapshotom PRIJE
       // invalidacije: na /task ruti nema aktivnog profile observera pa

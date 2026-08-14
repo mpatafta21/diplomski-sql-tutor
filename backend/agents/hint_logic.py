@@ -114,7 +114,19 @@ def hint_credit(
         level = max(0.0, level - 1.0)
         prev = t
     if prev is not None:
-        level = min(float(config.HINT_MAX), level + (now - prev) / refill)
+        # 🔴 KLAMP, ne izbacivanje retka. Bez `max(0, …)` redak s
+        # `created_at > now` daje NEGATIVAN prirast i obara bucket ispod nule —
+        # izmjereno `remaining = -8` za `now` dva dana u prošlosti.
+        #
+        # Zašto klamp, a ne filtar `created_at <= now`: `hint_credit` je gate za
+        # 429 (`routes.py` odbija kad `remaining <= 0`). `now` se uzima u Pythonu
+        # PRIJE upita, a `created_at` dolazi iz PG `now()`. Istovremena druga
+        # predaja može leći s `created_at > now`; filtar bi je ISKLJUČIO iz
+        # računice, pa bi `remaining` bio veći od stvarnog i korisnik bi dobio
+        # hint preko limita. Klamp redak i dalje broji (level −1), a samo
+        # sprječava negativan prirast. Isto vrijedi ako sat baze ide ispred sata
+        # aplikacije.
+        level = min(float(config.HINT_MAX), level + max(0.0, (now - prev) / refill))
 
     remaining = int(math.floor(level))
     if remaining >= config.HINT_MAX:

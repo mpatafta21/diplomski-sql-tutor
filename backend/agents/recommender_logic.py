@@ -333,14 +333,22 @@ def resolve_task_for_concept(
 def select_task_for_concept(
     session: Session, user_id: int, concept_code: str
 ) -> int | None:
-    """Najlakši aktivni primary task koncepta koji korisnik još NIJE riješio.
+    """Najlakši aktivni primary zadatak koncepta koji korisnik NIJE riješio.
 
-    Vraća None ako koncept nema (nerješenih) aktivnih primary taskova.
+    Vraća None ako koncept nema NERIJEŠENIH aktivnih primary zadataka — dakle i
+    kad ih ima, ali su svi riješeni. Zadatak za ponavljanje nudi samo
+    `resolve_task_for_concept`, kroz `repeat=True`.
 
-    🔴 „Sve riješeno" OSTAJE None — `recommend()` iz toga radi reason="exhausted",
-    stanje koje sučelje mora moći prikazati. Zadatak za ponavljanje nudi samo
-    izravni put kroz `resolve_task_for_concept` (klik na koncept), gdje ga je
-    korisnik izrijekom zatražio.
+    🔴 NEMA produkcijskih pozivatelja — `recommend()` i ruta zovu
+    `resolve_task_for_concept` izravno. Zadržano jer je čitljiv izraz pravila
+    „preskoči riješeno" i koristi ga suita. Tko mijenja politiku odabira,
+    mijenja `resolve_task_for_concept`; izmjena OVDJE ne mijenja ponašanje
+    sustava.
+
+    🔴 Raniji docstring tvrdio je da `recommend()` iz ovog `None` radi
+    reason="exhausted". To više nije istina (v. `recommend`) i uklonjeno je
+    2026-08-14 — ali `None` ostaje, jer bi bez njega funkcija tiho vraćala
+    riješen zadatak onima koji je zovu kao „daj neriješen".
     """
     task_id, repeat = resolve_task_for_concept(session, user_id, concept_code)
     return None if repeat else task_id
@@ -382,9 +390,13 @@ def recommend(session: Session, engine: "PrologEngine", user_id: int) -> dict:
 
     def _ask(candidates: list[str]) -> tuple[str, str] | None:
         """Jedan Prolog krug s danim skupom kandidata. Uvijek čisti za sobom."""
-        engine.inject_recommendable(candidates)
-        engine.inject_mastery(uid, snapshot)
         try:
+            # 🔴 Injekcije su UNUTAR try: da stoje iznad njega, iznimka u drugoj
+            # (npr. neispravan kod koncepta) ostavila bi fakte prve u dijeljenom
+            # VM-u, a `finally` se ne bi izvršio. RecommendBehaviour hvata
+            # Exception i nastavlja, pa bi zaprljani VM preživio zahtjev.
+            engine.inject_recommendable(candidates)
+            engine.inject_mastery(uid, snapshot)
             return engine.recommend_next(uid)
         finally:
             # Počisti da fakti ne cure u dijeljeni VM (cross-user leak). Oboje je

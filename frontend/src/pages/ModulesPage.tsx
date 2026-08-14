@@ -148,6 +148,15 @@ export function ModulesPage() {
         <p className="text-sm text-muted-foreground">
           Put kroz SQL — koncepti se otključavaju savladavanjem preduvjeta.
         </p>
+        {/* 🔴 Objašnjenje stoji JEDNOM po stranici, ne po retku. Prije je isti
+            tekst bio `sr-only` u svakom ConceptRowu — ondje ga čitač ekrana ne
+            bi ni pročitao (redak je `<Link aria-label>`, koji poništava
+            sadržaj), a gdje bi ga pročitao, ponovio bi se ~30 puta. */}
+        <p className="text-xs text-muted-foreground">
+          Postotak uz koncept je procjena znanja iz modela, ne udio riješenih
+          zadataka — raste i kad koncept riješiš kao sporedni dio drugog
+          zadatka. Uz njega stoji broj riješenih zadataka tog koncepta.
+        </p>
       </div>
 
       {isFresh && rootConcept && (

@@ -27,13 +27,12 @@ function TooltipProvider({
 function Tooltip({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
-  // Provider je ugrađen da se ne mora montirati na korijenu aplikacije —
-  // Radix ga tolerira ugniježđenog.
-  return (
-    <TooltipProvider>
-      <TooltipPrimitive.Root {...props} />
-    </TooltipProvider>
-  )
+  // 🔴 BEZ ugrađenog Providera. Prva izvedba ga je montirala po instanci, pa je
+  // ModulesPage dizao ~30 providera — a `skipDelayDuration` (preskoči odgodu pri
+  // prelasku između susjednih tooltipa) je provider-scoped, dakle bio je mrtav:
+  // svaki prelazak mišem čekao je punih 200 ms. Provider se montira JEDNOM, u
+  // korijenu aplikacije.
+  return <TooltipPrimitive.Root {...props} />
 }
 
 function TooltipTrigger({

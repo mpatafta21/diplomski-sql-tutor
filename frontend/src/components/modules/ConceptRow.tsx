@@ -141,9 +141,13 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
                 <TooltipTrigger asChild>
                   {/* Bez `tabIndex`: ovaj span je unutar `<Link>`a koji pokriva
                       redak, pa bi fokusabilan trigger bio ugniježđena interaktivna
-                      kontrola (WCAG 4.1.2). Tipkovnica i čitači ekrana zato
-                      dobivaju `sr-only` inačicu ispod — tooltip nije jedini
-                      nositelj. */}
+                      kontrola (WCAG 4.1.2) i razbio tab redoslijed.
+                      🔴 Tooltip zato NIJE dostupan tipkovnici; informacija je
+                      pokrivena drugdje — brojač i postotak idu u `aria-label`
+                      linka, a objašnjenje što postotak znači stoji JEDNOM u
+                      zaglavlju stranice (ModulesPage). Ranije je ovdje stajala
+                      `sr-only` kopija po retku, ali `aria-label` na linku
+                      potiskuje potomke pa je čitač ekrana nije ni dobivao. */}
                   <span className="cursor-help underline decoration-dotted underline-offset-2">
                     {pct} %
                   </span>
@@ -152,7 +156,6 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
               </Tooltip>
             </span>
           )}
-          {pct !== null && <span className="sr-only">{MASTERY_TOOLTIP}</span>}
           {/* 🔴 ERRATA #42 — postotak je BKT procjena ZNANJA, ne napredak kroz
               zadatke, i to dvoje se razilazi u OBA smjera: 99 % uz dva
               neriješena zadatka, 77 % uz sve riješeno. Bez ovog brojača ekran
@@ -199,7 +202,15 @@ export function ConceptRow({ concept }: { concept: ConceptProgress }) {
         <Link
           // Odredište je KONCEPT, ne zadatak — v. MasteryHighlights.
           to={`/koncept/${concept.code}`}
-          aria-label={`Otvori zadatak za koncept ${concept.name}`}
+          // 🔴 `aria-label` POTISKUJE sadržaj potomaka pri računanju pristupačnog
+          // imena, pa brojač i postotak iz retka čitač ekrana inače ne dobiva.
+          // Zato su ovdje eksplicitno — bez toga bi tipkovnički korisnik čuo samo
+          // „Otvori zadatak za koncept X" i ne bi znao ima li ondje još ičega.
+          aria-label={
+            `Otvori zadatak za koncept ${concept.name}. ` +
+            (pct !== null ? `Procjena znanja ${pct} posto. ` : "") +
+            `Riješeno ${concept.solvedTaskCount} od ${concept.totalTaskCount} zadataka.`
+          }
           // -mx-2 px-2: hover pozadina diše u padding kartice, sadržaj se ne pomiče.
           className="-mx-2 block space-y-1.5 rounded-md px-2 py-3 transition-colors duration-fast ease-standard hover:bg-sidebar-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
         >

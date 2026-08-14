@@ -680,7 +680,6 @@ def _read_modules() -> list[dict]:
         ).all()
         primary_counts: dict[int, int] = dict(count_rows)
 
-
     prereqs_by_concept: dict[int, list[str]] = {}
     for concept_id, prereq_code in edge_rows:
         prereqs_by_concept.setdefault(concept_id, []).append(prereq_code)

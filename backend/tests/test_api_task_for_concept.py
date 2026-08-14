@@ -34,7 +34,18 @@ async def _client(app):
 
 @pytest.fixture
 def student():
-    """Committed student; teardown briše attempte pa usera (FK red)."""
+    """Committed student; teardown briše attempte pa usera (FK red).
+
+    🔴 Pre-clean prije inserta: prekinut run (Ctrl-C, pali teardown) ostavlja
+    usera, pa bi svaki idući run pao na unique constraint — greškom koja nema
+    veze s kodom pod testom i ruši svih 8 testova modula u setupu. Obrazac je
+    preuzet iz `falsify_user` (`test_recommender_no_dead_end.py`).
+    """
+    with SessionLocal() as s:
+        s.execute(
+            delete(User).where(User.username.in_(["tfc_student", "tfc_other"]))
+        )
+        s.commit()
     with SessionLocal() as s:
         u = User(
             username="tfc_student",

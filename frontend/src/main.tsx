@@ -2,6 +2,7 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { RouterProvider } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import "./index.css"
 import { AuthProvider } from "@/lib/auth/AuthProvider"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
@@ -33,10 +34,16 @@ createRoot(document.getElementById("root")!).render(
       {/* Faza 4.7 stage 1: `ThemeProvider` uklonjen — aplikacija je dark-only.
           Tokeni stoje u `:root` (index.css), pa nema klase koju bi netko togglao. */}
       <AuthProvider>
-        <ErrorBoundary>
-          <RouterProvider router={router} />
-        </ErrorBoundary>
-        <Toaster position="top-right" />
+        {/* Jedan TooltipProvider za cijelu aplikaciju: `skipDelayDuration`
+            (preskoči odgodu pri prelasku između susjednih tooltipa) je
+            provider-scoped, pa bi provider po instanci značio da svaki prelazak
+            čeka punih 200 ms — v. components/ui/tooltip.tsx. */}
+        <TooltipProvider>
+          <ErrorBoundary>
+            <RouterProvider router={router} />
+          </ErrorBoundary>
+          <Toaster position="top-right" />
+        </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,

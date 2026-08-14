@@ -408,6 +408,33 @@ def test_dead_end_falls_back_to_repeat_instead_of_false_celebration(
     assert result["task_id"] in solved, "ponavljanje mora ponuditi riješen zadatak"
 
 
+def test_select_task_returns_none_when_all_solved(recommender_env):
+    """🔴 `select_task_for_concept` MORA vratiti None kad su svi riješeni.
+
+    Nema produkcijskih pozivatelja, pa ga ništa drugo ne čuva — a delegira na
+    `resolve_task_for_concept`, koji u tom slučaju vraća zadatak za PONAVLJANJE.
+    Bez provjere `repeat` funkcija bi tiho vraćala riješen zadatak onome tko je
+    zove kao „daj neriješen". Uhvaćeno u code reviewu 2026-08-14, kad je upravo
+    ta provjera bila slučajno ispuštena.
+    """
+    user_id = recommender_env["user_id"]
+    task_ids = _primary_task_ids("select_basic")
+    assert len(task_ids) >= 2, "zlatni katalog mora imati >= 2 zadatka"
+
+    with SessionLocal() as sess:
+        assert select_task_for_concept(sess, user_id, "select_basic") == task_ids[0]
+
+    _seed_solved(user_id, task_ids[:1])
+    with SessionLocal() as sess:
+        assert select_task_for_concept(sess, user_id, "select_basic") == task_ids[1]
+
+    _seed_solved(user_id, task_ids[1:])
+    with SessionLocal() as sess:
+        assert select_task_for_concept(sess, user_id, "select_basic") is None, (
+            "sve riješeno → None, ne zadatak za ponavljanje"
+        )
+
+
 def test_concept_with_all_solved_is_not_recommendable(recommender_env):
     """Skup kandidata je PO KORISNIKU: riješeno mijenja tko u njemu je."""
     user_id = recommender_env["user_id"]

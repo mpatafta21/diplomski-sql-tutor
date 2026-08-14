@@ -171,7 +171,10 @@ def test_recommender_never_dead_ends(falsify_user):
                         uid,
                         transversal_concepts(s, stats),
                         subfloor_concepts(s, stats) | UNSUPPORTED_CONCEPTS,
-                        codes,
+                        # `code_map`, ne `codes`: parametar je dict[str, int].
+                        # Lista bi radila slucajno (tijelo samo iterira kljuceve)
+                        # i pukla cim netko doda `code_map[code]`.
+                        code_map,
                     )
                     nesavladani = [
                         c

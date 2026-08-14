@@ -25,6 +25,22 @@ export function ConceptEntryPage() {
   const { code } = useParams<{ code: string }>()
   const query = useTaskForConcept(code)
 
+  // 🔴 Bez `code` upit je `enabled: false`, a onemogućen TanStack upit ostaje
+  // `isPending` ZAUVIJEK — spinner bez izlaza. Danas se ne može dogoditi (ruta je
+  // `/koncept/:code`, pa parametar uvijek postoji), ali refaktor rutera ili novo
+  // pozivno mjesto to tiho mijenjaju, a simptom bi bio ekran koji se vrti bez
+  // greške u konzoli. Zato eksplicitna grana prije provjere `isPending`.
+  if (!code) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <ErrorState
+          title="Koncept nije naveden"
+          message="Ova adresa treba kod koncepta. Odaberi koncept u Modulima."
+        />
+      </div>
+    )
+  }
+
   if (query.isPending) {
     return <LoadingState label="Tražim zadatak za taj koncept" />
   }

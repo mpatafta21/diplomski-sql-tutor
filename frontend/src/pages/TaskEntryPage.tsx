@@ -16,7 +16,7 @@
  * (zamka beskonačnog vraćanja).
  */
 import { Link, Navigate } from "react-router-dom"
-import { CircleSlash2, PartyPopper } from "lucide-react"
+import { CircleCheck, CircleSlash2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { LoadingState } from "@/components/state/LoadingState"
@@ -57,7 +57,10 @@ export function TaskEntryPage() {
   // PREPORUČENI koncept (user može imati nesavladane koncepte), pa neutralna
   // kartica, ne slavlje. Samo `no_recommendation` znači potpunu savladanost.
   const allMastered = rec.reason === "no_recommendation"
-  const DoneIcon = allMastered ? PartyPopper : CircleSlash2
+  // 🔴 Bez slavlja: `no_recommendation` znači da su svi koncepti IZNAD PRAGA, ne
+  // da su svi zadaci riješeni. Konfeti uz poruku koja upućuje na Module bili su
+  // proturječje — naslov je najistaknutiji element i čitao se kao kraj puta.
+  const DoneIcon = allMastered ? CircleCheck : CircleSlash2
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -81,7 +84,7 @@ export function TaskEntryPage() {
           </div>
           <div className="space-y-1">
             <h1 className="text-lg font-semibold">
-              {allMastered ? "Sve savladano" : "Nema novih zadataka"}
+              {allMastered ? "Svi koncepti savladani" : "Nema novih zadataka"}
             </h1>
             <p className="text-sm text-muted-foreground">
               {reasonText(rec.reason)}

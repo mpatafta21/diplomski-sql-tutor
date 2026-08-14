@@ -44,6 +44,7 @@ recommend() UVIJEK vraća dict (nikad goli None) jer reason ne smije biti izgubl
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
@@ -92,20 +93,30 @@ def _concept_task_stats(session: Session) -> dict[str, tuple[int, int]]:
     return {code: (module_number, count) for code, module_number, count in rows}
 
 
-def transversal_concepts(session: Session) -> set[str]:
+def transversal_concepts(
+    session: Session, stats: dict[str, tuple[int, int]] | None = None
+) -> set[str]:
     """Kat. A: koncepti modula 0 BEZ ijednog aktivnog primary taska (strukturni glue).
 
     Npr. column_alias, join_condition. null_handling je modul 0 ALI ima taskove →
     NIJE ovdje (tretira se kao normalan koncept).
+
+    `stats` je izlaz `_concept_task_stats` — proslijedi ga kad ista transakcija
+    treba više kategorija, da se isti upit ne ponovi (v. `recommend`).
     """
+    stats = _concept_task_stats(session) if stats is None else stats
     return {
         code
-        for code, (module_number, count) in _concept_task_stats(session).items()
+        for code, (module_number, count) in stats.items()
         if module_number == 0 and count == 0
     }
 
 
-def concepts_with_tasks(session: Session) -> list[str]:
+def concepts_with_tasks(
+    session: Session,
+    stats: dict[str, tuple[int, int]] | None = None,
+    code_order: Iterable[str] | None = None,
+) -> list[str]:
     """Koncepti s >= 1 aktivnim primary zadatkom — ulaz za `recommendable/1`.
 
     🔴 Definicija je „IMA zadatke", ne „ima NERIJEŠENE zadatke". Da je potonje,
@@ -122,22 +133,22 @@ def concepts_with_tasks(session: Session) -> list[str]:
     Ne zamjenjuje maske Kat. B/C (0.99); te ostaju kakve jesu. Ovaj skup je
     obrana za Kat. A, koju maska po dizajnu ne pokriva.
     """
-    stats = _concept_task_stats(session)
-    return [
-        code
-        for code in load_concept_code_map(session)  # KANONSKI redoslijed
-        if stats.get(code, (None, 0))[1] > 0
-    ]
+    stats = _concept_task_stats(session) if stats is None else stats
+    order = load_concept_code_map(session) if code_order is None else code_order
+    return [code for code in order if stats.get(code, (None, 0))[1] > 0]
 
 
-def subfloor_concepts(session: Session) -> set[str]:
+def subfloor_concepts(
+    session: Session, stats: dict[str, tuple[int, int]] | None = None
+) -> set[str]:
     """Kat. B: koncepti modula != 0 s < 2 aktivna primary taska (pod-resursirani).
 
     Npr. insert, right_join. Maskiraju se kao mastered da ih Prolog ne preporuči.
     """
+    stats = _concept_task_stats(session) if stats is None else stats
     return {
         code
-        for code, (module_number, count) in _concept_task_stats(session).items()
+        for code, (module_number, count) in stats.items()
         if module_number != 0 and count < 2
     }
 
@@ -153,6 +164,7 @@ def build_mastery_snapshot(
     user_id: int,
     transversal: set[str],
     subfloor: set[str],
+    code_map: dict[str, int] | None = None,
 ) -> dict[str, float]:
     """Izgradi {concept_code: p_l} za SVIH 30 koncepata za injekciju u Prolog.
 
@@ -162,7 +174,10 @@ def build_mastery_snapshot(
       3. subfloor (kat. B) → 0.99 (ravna maska)
       4. transverzalni (kat. A) → 0.99 ako su svi all_prereqs mastered, inače 0.0
     """
-    code_map = load_concept_code_map(session)  # code -> id, KANONSKI redoslijed
+    # `code_map` se smije proslijediti kad ga pozivatelj već ima (recommend) —
+    # isti upit inače ide dvaput po pozivu.
+    if code_map is None:
+        code_map = load_concept_code_map(session)  # code -> id, KANONSKI redoslijed
     id_map = load_concept_id_map(session)  # id -> code
 
     # 1. tier-točan prior za svih 30
@@ -289,19 +304,26 @@ def recommend(session: Session, engine: "PrologEngine", user_id: int) -> dict:
     Sinkroni Prolog dio (inject → recommend_next → clear) pozivatelj u 3C.2 omota
     u asyncio.to_thread + asyncio.Lock (pyswip je jedan globalni sync VM).
     """
-    transversal = transversal_concepts(session)
+    # Jedan upit za sve tri kategorije: bez ovoga se `_concept_task_stats` vrti
+    # TRI puta po pozivu (izmjereno 1,43 ms svaki), a `load_concept_code_map`
+    # dvaput. Zatečeno je bilo dvostruko; recommendable/1 bi bio treći.
+    stats = _concept_task_stats(session)
+    code_order = load_concept_code_map(session)
+    transversal = transversal_concepts(session, stats)
     # Kat. B (subfloor) + Kat. C (NEEVALUABILNI) dijele ISTI tretman: maska 0.99
     # → Prolog ih ne preporučuje. Maskiranje je na razini KONCEPTA, ne taska:
     # filtriranje tek u select_task_for_concept dalo bi reason="exhausted"
     # (task_id=None) = tiši ćorsokak umjesto rješenja (4.4-0d KORAK 4).
-    masked = subfloor_concepts(session) | UNSUPPORTED_CONCEPTS
-    snapshot = build_mastery_snapshot(session, engine, user_id, transversal, masked)
+    masked = subfloor_concepts(session, stats) | UNSUPPORTED_CONCEPTS
+    snapshot = build_mastery_snapshot(
+        session, engine, user_id, transversal, masked, code_order
+    )
 
     # Kat. A se NE maskira nego se izbacuje iz KANDIDATA: p_l mora ostati 0.0 da
     # blokira nizvodne koncepte, a 0.0 ga ujedno čini `weak` pa je preticao prave
     # koncepte kroz klauzulu 1 i završavao kao "exhausted". recommendable/1 je
     # razdvajanje te dvije uloge — v. rules.pl.
-    recommendable = concepts_with_tasks(session)
+    recommendable = concepts_with_tasks(session, stats, code_order)
 
     uid = str(user_id)
     engine.inject_recommendable(recommendable)

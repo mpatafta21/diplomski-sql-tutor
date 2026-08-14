@@ -1161,6 +1161,27 @@ Detalji: `docs/fix-62-63-wrapup.md`.
 
 ## #64 🔴 KVALITETA SAVJETA: hint za `row_mismatch` je nagađanje, i zna dati NETOČAN SQL
 
+**Status:** ✅ **popravljeno 2026-08-14**, grana `fix-pred-deployment` — payload za
+`row_mismatch` nosi `expected_order` (stupac + smjer iz `expected_result`, stroga
+monotonost). Prompt je dobio pravilo protiv curenja glasa modela.
+
+🔴 **Dvije stavke uvedene pa ODBAČENE** nakon čitanja stvarnih odgovora, obje jer su
+model vodile u krivo: `expected_columns` (sortiranu listu čita kao PROPISANI redoslijed
+stupaca i savjetuje preslagivanje SELECT-a — ista klasa kvara, samo pomaknuta; uz to
+suvišan jer `row_mismatch` znači da su stupci točni) i `expected_row_count` (kad se
+brojevi razlikuju `detail` ih već nosi; kad se poklapaju, navodi model da govori o broju
+redaka, dakle o nečemu što nije problem).
+
+🔴 **Što se NE tvrdi:** izvorni netočan SQL („prvo `LIMIT`, pa `ORDER BY`") **nije se
+reproducirao** ni u jednom od 18 živih poziva, ni prije ni poslije izmjene. Bio je jedan
+opažen slučaj. Tvrdi se samo da model sada ima činjenicu koja mu je nedostajala i da je
+koristi (imenuje točan stupac i smjer). Puna analiza:
+[`docs/fix-pred-deployment-wrapup.md`](fix-pred-deployment-wrapup.md) §B.
+
+🔴 **Ostaje otvoreno:** kvaliteta savjeta nema automatsku provjeru — `test_hint_route.py`
+mocka LLM i gleda mehaniku, sadržaj ne gleda nitko. Zato su gornje dvije stavke uhvaćene
+tek ručnim čitanjem odgovora.
+
 **Kad:** izmjereno 2026-08-13, prvi prolaz kroz UI s uključenim `USE_LLM_HINTS` i živim
 `ANTHROPIC_API_KEY` (5 stvarnih poziva, `claude-haiku-4-5`, `source='llm'`).
 

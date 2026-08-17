@@ -23,8 +23,18 @@ from app.db.models import Task
 
 #: Tipovi kojima cijeli `detail` smije van — sadrže isključivo brojeve, indekse
 #: redaka ili konstantan tekst. Provjereno nad svim granama `evaluation.py`.
+#: 🔴 `plan_mismatch` je dodan 2026-08-14 (ERRATA #66): njegov `detail` sastavlja
+#: `_plan_mismatch_detail` iz IMENA ČVOROVA I INDEKSA plana, bez ijednog znaka
+#: studentovog upita i bez teksta referentnog rješenja (tvrdi test
+#: `test_detail_NE_SADRZI_referentni_upit`).
 DETAIL_SAFE_TYPES = frozenset(
-    {"row_mismatch", "empty_result", "syntax_error", "unsupported_eval"}
+    {
+        "row_mismatch",
+        "empty_result",
+        "syntax_error",
+        "unsupported_eval",
+        "plan_mismatch",
+    }
 )
 
 #: Tip kojem se `detail` NE šalje, nego se oblik rješenja REKONSTRUIRA iz sheme.

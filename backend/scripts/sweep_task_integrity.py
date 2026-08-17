@@ -15,9 +15,11 @@ koristi ČISTU evaluacijsku jezgru ``agents.evaluation.evaluate`` — ISTI put
 kojim ide studentov upit (ista taksonomija grešaka, ista ``runner.compare``
 normalizacija) — samo bez perzistencije.
 
-NAPOMENA: koncepti ``explain_plan``/``index_usage`` (modul 6) po dizajnu vraćaju
-``unsupported_eval`` (plan-presence evaluacija nije implementirana) — to NISU
-pokvareni taskovi i izvještaj ih broji odvojeno.
+🔴 ERRATA #66: koncepti ``explain_plan``/``index_usage`` (modul 6) VIŠE NE vraćaju
+``unsupported_eval`` — ocjenjuju se plan-presence evaluacijom i njihovi padovi su
+STVARNI padovi. Uz redovni sweep za njih se pokreće i ``check_plan_stability``:
+referentni upit mora birati indeks (ili strategiju spoja) bezuvjetno, inače bi
+ocjena ovisila o statistici umjesto o upitu.
 """
 
 from __future__ import annotations
@@ -30,20 +32,17 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from agents.evaluation import (
-    PLAN_CHECKED_CONCEPTS,
-    UNSUPPORTED_CONCEPTS,
-    evaluate,
-    plan_is_stable,
-)
+from agents.evaluation import PLAN_CHECKED_CONCEPTS, evaluate, plan_is_stable
 from agents.evaluator_agent import _sandbox_conn_string
 from app.db.models import Attempt, Concept, Module, Task, TaskConcept
 from app.db.session import SessionLocal
 from scripts.lib.sandbox_runner import SandboxRunner
 
-# Vraćaju unsupported_eval PO DIZAJNU — dijeljena konstanta iz evaluacijske
-# jezgre (NE kopija popisa; jedan izvor istine).
-_BY_DESIGN_UNSUPPORTED = UNSUPPORTED_CONCEPTS
+# 🔴 PRAZAN od ERRATE #66. Dotad su M6 koncepti vraćali `unsupported_eval` po
+# dizajnu, pa su se njihovi padovi izuzimali iz `failing_genuine`. Sada su M6
+# zadaci AKTIVNI i evaluabilni — da je popis ostao, svaki bi njihov pad bio tiho
+# izuzet iz gatea i sweep bi prolazio zelen nad pokvarenim zadatkom.
+_BY_DESIGN_UNSUPPORTED: frozenset[str] = frozenset()
 
 
 @dataclass

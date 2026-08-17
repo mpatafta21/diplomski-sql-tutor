@@ -47,6 +47,12 @@ const ERROR_TEXT: Record<string, string> = {
   empty_result: "Upit nije vratio nijedan redak, a rezultat se očekuje.",
   wrong_columns: "Upit vraća krive stupce.",
   row_mismatch: "Skoro! Stupci su točni, ali redovi nisu.",
+  // M6 (ERRATA #66): rezultat je točan, ali se upit izvodi drukčije nego što
+  // zadatak traži. 🔴 Poruka NE smije zvučati kao kvar sustava — student je
+  // napisao ispravan SQL, samo ne onaj koji zadatak uči.
+  plan_mismatch: "Rezultat je točan, ali upit se ne izvodi kako zadatak traži.",
+  // Nova zamka: upit koji je i sam EXPLAIN (v. `evaluate`).
+  explain_submitted: "Predaj obični upit, bez EXPLAIN.",
 }
 
 const FALLBACK_ERROR_TEXT =
@@ -81,6 +87,12 @@ const TEXT_DETAIL_TYPES = new Set([
   "empty_result",
   "syntax_error",
   "unsupported_eval",
+  // 🔴 M6 detail je PEDAGOŠKI hrvatski tekst („upit ne koristi indeks, a
+  // rješenje ga koristi; strategija spoja je Hash Join…"), ne tehnički ispis.
+  // U mono bloku bi izgledao kao dijagnostika kvara, a to je jedina uputa koju
+  // student o svojoj grešci dobiva.
+  "plan_mismatch",
+  "explain_submitted",
 ])
 const MONO_DETAIL_TYPES = new Set([
   "execution_error",

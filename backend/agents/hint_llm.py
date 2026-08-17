@@ -78,6 +78,8 @@ _TIP_OPIS = {
         "rezultat je točan, ali upit se izvodi drukčije nego što zadatak traži "
         "(pogrešan plan izvedbe)"
     ),
+    "explain_submitted": "student je predao EXPLAIN umjesto samog upita",
+    "plan_unavailable": "plan izvedbe nije bilo moguće dohvatiti",
 }
 
 

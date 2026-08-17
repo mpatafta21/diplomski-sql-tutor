@@ -146,7 +146,10 @@ def test_predani_EXPLAIN_daje_uputu_a_ne_gresku_baze(index_task, sandbox_runner)
         primary_concept_code="index_usage",
     )
 
-    assert outcome.error_type == "plan_mismatch"
+    # 🔴 VLASTITI tip, ne `plan_mismatch` (nalaz code reviewa): ovo je omaška u
+    # obliku predaje, a `plan_mismatch` je konceptualni signal koji nosi
+    # misconception i BKT kaznu. Zalijepljen EXPLAIN nije zabluda o indeksima.
+    assert outcome.error_type == "explain_submitted"
     assert "EXPLAIN" in outcome.detail
     assert outcome.rows_returned == 0
 
@@ -176,3 +179,37 @@ def test_detail_NE_SADRZI_referentni_upit(index_task, sandbox_runner):
 
     assert "customer_id = 42" not in outcome.detail
     assert "SELECT" not in outcome.detail.upper()
+
+
+def test_detail_imenuje_PROPUSTENI_INDEKS_kad_oba_plana_koriste_indeks(
+    sandbox_runner,
+):
+    """🔴 Nalaz code reviewa: `uses_index` je jednak, pa je poruka bila prazna.
+
+    Ovo je točno oblik zadatka 83: referentni upit koristi ciljani indeks, a
+    anti-pattern usputni `orders_pkey` koji mu u plan uvuče `ORDER BY id LIMIT 1`.
+    Oba „koriste indeks", pa bez grane po `index_names` student dobije
+    „plan izvedbe se razlikuje" — što ne kaže ništa upotrebljivo.
+    """
+    ref = (
+        "SELECT id, customer_id, status FROM orders "
+        "WHERE customer_id = 108 ORDER BY id LIMIT 1"
+    )
+    anti = (
+        "SELECT id, customer_id, status FROM orders "
+        "WHERE CAST(customer_id AS TEXT) = '108' ORDER BY id LIMIT 1"
+    )
+    ref_sig = sandbox_runner.explain(ref)
+    anti_sig = sandbox_runner.explain(anti)
+    assert "Index Scan" in anti_sig.node_types or "Bitmap Index Scan" in anti_sig.node_types
+    assert set(ref_sig.index_names) != set(anti_sig.index_names), (
+        "Preduvjet: planovi moraju koristiti RAZLIČITE indekse"
+    )
+
+    task = _plan_task(ref, sandbox_runner.execute(ref).rows)
+    outcome = evaluate(task, anti, sandbox_runner, primary_concept_code="index_usage")
+
+    assert outcome.error_type == "plan_mismatch"
+    assert "idx_orders_customer" in outcome.detail, (
+        f"detail mora imenovati propušteni indeks, a glasi: {outcome.detail!r}"
+    )

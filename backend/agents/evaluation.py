@@ -6,12 +6,19 @@ Eksponira:
 
 Taksonomija grešaka (redoslijed provjere):
   syntax_error      — prazan/whitespace upit (sqlparse vrati prazan parse)
-  unsupported_eval  — explain_plan / index_usage (plan-presence put nije implementiran)
+  explain_submitted — M6: predani upit je i sam EXPLAIN (omaška u obliku predaje)
   execution_error   — runner.execute() success=False (timeout → poseban error_type="timeout")
   correct           — compare().matches == True
   empty_result      — 0 actual redova, > 0 expected
   wrong_columns     — set stupaca se razlikuje (jak signal krivog upita)
   row_mismatch      — stupci OK, redovi krivi → verdict="partial"
+  plan_mismatch     — M6: redci TOČNI, ali izvedbeni plan nije onaj koji zadatak
+                      traži (ERRATA #66). KONCEPTUALNI signal → ulazi u misconceptions.
+  plan_unavailable  — M6: EXPLAIN nije uspio; infrastrukturna smetnja, ne zadatak
+
+🔴 `unsupported_eval` VIŠE NITKO NE EMITIRA (ERRATA #66). Ostaje u taksonomiji
+uzvodnih potrošača jer ga nose zatečeni `attempts` retci, a `sweep_task_integrity`
+tvrdi da ih je nula — ta tvrdnja je sada regresijski detektor, ne opis stanja.
 
 NAPOMENA za sqlparse: parser je lenijentan — keyword typo-vi ("SELECT FORM x") prolaze
 kroz sintaktičku provjeru i padaju na execution_error. Za robustnu sintaktičku provjeru
@@ -59,8 +66,18 @@ JOIN_METHOD_NODES = frozenset({"Nested Loop", "Hash Join", "Merge Join"})
 #: Predani upit koji je i sam EXPLAIN — hvata se prije izvršavanja (v. `evaluate`).
 _IS_EXPLAIN_RE = re.compile(r"^\s*EXPLAIN\b", re.IGNORECASE)
 
-#: Perturbacije planera za `plan_is_stable`. Obje samo DODAJU planeru opcije koje
-#: bi inače odbacio, pa plan koji se pod njima ne pomakne nije na rubu odluke.
+#: Perturbacije planera za `plan_is_stable`.
+#:
+#: 🔴 ISPRAVAK ranije tvrdnje (code review, 2026-08-14): NIJE točno da ove
+#: zastavice „samo dodaju opcije". `enable_seqscan=off` prisiljava indeksni put
+#: i time PREVRĆE `uses_index` svakom planu koji legitimno ne koristi indeks.
+#:
+#: Posljedica koju treba znati: gate propušta **samo referentne upite koji indeks
+#: biraju BEZUVJETNO**. Zadatak čija bi pouka bila „ovdje indeks NE pomaže" ne
+#: može proći — i to je namjerno, jer je upravo takav plan onaj koji se prevrće
+#: na promjenu statistike (mehanizam kojim su pala zadatka 79/80/82). Restrikcija
+#: je uža od idealne, ali je na sigurnoj strani: radije odbije zadatak koji bi
+#: mogao biti dobar, nego propusti onaj koji daje nasumične ocjene.
 #:
 #: 🔴 `enable_nestloop` NIJE ovdje: on izravno zabranjuje strategiju koju
 #: `explain_plan` zadaci uče, pa bi gate odbacio upravo ono što treba propustiti.
@@ -206,10 +223,13 @@ def _verify_plan_if_needed(
     reference_plan = runner.explain(task.expected_query, schema=task.sandbox_schema)
 
     if not submitted_plan.success or not reference_plan.success:
+        # 🔴 NE `unsupported_eval`: sweep tvrdi da takvih attempta ima TOČNO
+        # NULA, pa bi jedan prolazni timeout EXPLAIN-a trajno oborio
+        # `make preflight`. Ovo je infrastrukturna smetnja, ne svojstvo zadatka.
         return EvaluationOutcome(
             is_correct=False,
             verdict="incorrect",
-            error_type="unsupported_eval",
+            error_type="plan_unavailable",
             execution_time_ms=correct_outcome.execution_time_ms,
             rows_returned=correct_outcome.rows_returned,
             detail="Plan izvedbe nije bilo moguće dohvatiti.",
@@ -246,6 +266,18 @@ def _plan_mismatch_detail(submitted: PlanSignature, reference: PlanSignature) ->
             if reference.uses_index
             else "upit koristi indeks, a traži se izvedba bez njega"
         )
+    elif submitted.index_names != reference.index_names:
+        # 🔴 Oba plana koriste indeks, ali NE isti — točno slučaj zbog kojeg
+        # `index_names` postoji (zadatak 83: ciljani `idx_orders_customer` vs
+        # usputni `orders_pkey` iz `ORDER BY`). Bez ove grane student bi dobio
+        # „plan izvedbe se razlikuje", što ne kaže ništa upotrebljivo.
+        propusteni = sorted(reference.index_names - submitted.index_names)
+        if propusteni:
+            dijelovi.append(
+                "upit ne koristi indeks " + ", ".join(propusteni)
+            )
+        else:
+            dijelovi.append("upit koristi drugi indeks nego rješenje")
 
     if submitted.join_methods != reference.join_methods:
         dobiveno = ", ".join(sorted(submitted.join_methods)) or "bez spoja"
@@ -296,10 +328,13 @@ def evaluate(
     # ------------------------------------------------------------------
     plan_checked = primary_concept_code in PLAN_CHECKED_CONCEPTS
     if plan_checked and _IS_EXPLAIN_RE.match(stripped):
+        # 🔴 VLASTITI tip, ne `plan_mismatch`. `plan_mismatch` je KONCEPTUALNI
+        # signal (bilježi se kao misconception i nosi BKT kaznu), a ovo je
+        # omaška u obliku predaje — student je samo zalijepio EXPLAIN.
         return EvaluationOutcome(
             is_correct=False,
             verdict="incorrect",
-            error_type="plan_mismatch",
+            error_type="explain_submitted",
             execution_time_ms=0,
             rows_returned=0,
             detail=(

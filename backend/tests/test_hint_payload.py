@@ -34,6 +34,10 @@ SVI_TIPOVI = (
     "wrong_columns",
     "execution_error",
     "timeout",
+    # ERRATA #66 — M6 grana
+    "plan_mismatch",
+    "explain_submitted",
+    "plan_unavailable",
 )
 
 #: Realni `detail` uzorci iz žive baze — uključujući ona dva koja CURE.
@@ -54,6 +58,14 @@ DETAIL_UZORCI = {
         "                          ^"
     ),
     "timeout": "Statement timeout after 5000ms: canceling statement",
+    # 🔴 NE CURI: sastavljen iz imena čvorova i indeksa plana, bez ijednog znaka
+    # studentovog upita i bez teksta referentnog rješenja.
+    "plan_mismatch": (
+        "Rezultat je točan, ali upit ne koristi indeks, a rješenje ga koristi; "
+        "strategija spoja je Hash Join, a traži se Nested Loop."
+    ),
+    "explain_submitted": "Predaj obični upit, bez EXPLAIN.",
+    "plan_unavailable": "Plan izvedbe nije bilo moguće dohvatiti.",
 }
 
 

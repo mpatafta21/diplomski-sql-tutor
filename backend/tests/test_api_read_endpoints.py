@@ -291,7 +291,10 @@ async def test_get_modules_primary_task_count(student_auth):
     # Sidra iz živog inventara (KORAK 0): transverzalni glue bez primary taskova
     # vs null_handling koji JE modul 0 ali IMA primary taskove (nije prozirni).
     assert api_counts["join_condition"] == 0
-    assert api_counts["column_alias"] == 0
+    # 🔴 `column_alias` je 2026-08-14 dobio 3 zadatka (ERRATA #66) i time prestao
+    # biti transverzalan. `join_condition` iznad njega ostaje na 0 — odluka je
+    # bila da zadatke NE dobiva.
+    assert api_counts["column_alias"] == 3
     assert api_counts["null_handling"] > 0
 
 
@@ -323,7 +326,7 @@ async def test_get_modules_has_no_static_entry_task(student_auth):
 
     # Sidra za signal koji je preuzeo klikabilnost: glue bez zadataka → 0.
     assert concepts["join_condition"]["primary_task_count"] == 0
-    assert concepts["column_alias"]["primary_task_count"] == 0
+    assert concepts["column_alias"]["primary_task_count"] == 3
     assert concepts["null_handling"]["primary_task_count"] > 0
 
 

@@ -20,7 +20,6 @@ from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from agents.evaluation import UNSUPPORTED_CONCEPTS
 from app.db.models import Concept, Module, Task, TaskConcept
 from app.db.session import SessionLocal
 
@@ -92,13 +91,18 @@ def import_tasks(session: Session, tasks: list[dict]) -> ImportResult:
             expected_result=task_data["expected_result"],
             difficulty=int(task_data["difficulty"]),
             estimated_time_sec=task_data.get("estimated_time_sec"),
-            # 🔴 NALAZ #19 (4.4-0e): taskovi neevaluabilnih koncepata ulaze NEAKTIVNI.
-            # Evaluacijska jezgra ih ne zna ocijeniti (unsupported_eval) → aktivni bi
-            # značili: recommender ih nudi, student dobiva 0 XP + BKT kaznu, a modul
-            # izgleda "otključiv" iako nije. Izvedeno iz UNSUPPORTED_CONCEPTS (jedan
-            # izvor istine) pa PREŽIVLJAVA re-import; kad plan-presence evaluacija
-            # bude gotova, brisanje koncepta iz seta ih automatski vraća u igru.
-            is_active=task_data["primary_concept"] not in UNSUPPORTED_CONCEPTS,
+            # 🔴 ERRATA #66: `is_active` je od m6-plan-presence EKSPLICITAN po
+            # zadatku, ne izveden iz koncepta.
+            #
+            # Dosad je vrijedio NALAZ #19: taskovi neevaluabilnih koncepata ulaze
+            # neaktivni, izvedeno iz `UNSUPPORTED_CONCEPTS`. Taj kriterij je pao —
+            # plan-presence evaluacija postoji, pa su M6 koncepti evaluabilni.
+            # Neispravni su POJEDINI ZADACI (3 tvrde Index Scan a dobivaju Seq
+            # Scan; 1 ne razlikuje anti-pattern), a to koncept ne može izraziti.
+            #
+            # Razlog deaktivacije stoji uz zadatak (`deactivation_reason` u
+            # datasetu), pa preživljava re-import i ne živi samo u errati.
+            is_active=str(task_data.get("is_active", "True")).lower() == "true",
         )
         stmt = ins.on_conflict_do_update(
             constraint="uq_tasks_source_id",

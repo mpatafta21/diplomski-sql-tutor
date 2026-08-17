@@ -12,31 +12,33 @@ Tok recommend():
 
 Sub-floor strategija — DVIJE kategorije s RAZLIČITIM tretmanom:
 
-  Kat. A — TRANSVERZALNI (modul 0, 0 aktivnih primary taskova; npr. column_alias,
+  Kat. A — TRANSVERZALNI (modul 0, 0 aktivnih primary taskova; npr.
     join_condition). To su strukturni prerequisite-čvorovi koji po dizajnu nemaju
     zadatke. Tretman: PROZIRAN — p_l = 0.99 SAMO ako su svi all_prereqs već
     mastered u snapshotu, inače 0.0. Tako readiness teče kroz njih tek kad su im
     vlastiti prereqs gotovi (sprječava lažno otključavanje nizvodnih koncepata
     novaku — npr. inner_join čiji je jedini prereq join_condition).
 
+    🔴 `column_alias` VIŠE NIJE ovdje (2026-08-14, odluka korisnika): dobio je 3
+    aktivna primarna zadatka, pa `transversal_concepts` (traži count == 0) ne
+    hvata više ni njega. Kako je modul 0, ne hvata ga ni subfloor (traži modul
+    != 0) — postaje običan koncept s tier priorom. Posljedica koja se MORA
+    pratiti: nizvodni `group_by` sada traži stvarno savladan `column_alias`,
+    umjesto da readiness kroz njega teče prozirno. Čuva je simulacijski test.
+
   Kat. B — SUBFLOOR (modul != 0, < 2 aktivna primary taska; npr. insert,
     right_join). Pod-resursirani realni koncepti. Tretman: MASK kao mastered
     (0.99) da ih Prolog preskoči kroz vlastite klauzule i ne preporuči ih (premalo
     zadataka za vježbu). Sigurno jer nisu kritični prereqs (provjereno testom).
 
-  Kat. C — NEEVALUABILNI (agents.evaluation.UNSUPPORTED_CONCEPTS: explain_plan,
-    index_usage). Evaluacijska jezgra ih ne zna ocijeniti (plan-presence put nije
-    implementiran) → task tog koncepta NIKAD ne može postati is_correct → nikad
-    "riješen" → recommender bi ga vraćao zauvijek, uz 0 XP i BKT kaznu po pokušaju
-    (trajni ćorsokak, nalaz 4.4-0c B4). Tretman: ISTA maska kao Kat. B (0.99).
-
-    🔴 NAPOMENA (ispravljena 2026-08-14): raniji tekst je tvrdio da ih „subfloor NE
-    hvata jer explain_plan ima 2, a index_usage 3 aktivna primary taska". Izmjereno:
-    OBA imaju 0 aktivnih — svih 5 M6 zadataka je namjerno deaktivirano, pa ih
-    subfloor (< 2) trenutno hvata. Eksplicitan popis svejedno mora ostati: čim se
-    M6 vrati u igru i count naraste iznad praga, subfloor ih ispušta, a
-    neevaluabilni su i dalje. Popis je time obrana koja ne ovisi o sadržaju
-    kataloga; brojke iz njega se NE citiraju jer se mijenjaju s aktivacijom.
+  Kat. C — UKLONJENA 2026-08-14 (ERRATA #66). Bila je: „neevaluabilni koncepti
+    (explain_plan, index_usage) dijele masku 0.99 sa subfloorom, jer im task
+    nikad ne može postati is_correct → trajni ćorsokak". Plan-presence
+    evaluacija (`agents.evaluation.PLAN_CHECKED_CONCEPTS`) taj razlog je
+    uklonila: M6 se sada ocjenjuje usporedbom izvedbenog plana. Maska bi od
+    obrane postala blokada — koncept s ispravnim zadacima nikad ne bi bio
+    ponuđen. Neispravni POJEDINI zadaci rješavaju se `is_active=False` u
+    katalogu, ne maskiranjem cijelog koncepta.
 
 Redoslijed je bitan: prior → skill_mastery → subfloor → transverzalni (zadnji,
 jer ovisi o mastery ostalih koncepata u snapshotu).
@@ -57,7 +59,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from agents.db_helpers import load_concept_code_map, load_concept_id_map
-from agents.evaluation import UNSUPPORTED_CONCEPTS
 from app.db.models import Attempt, Concept, Module, SkillMastery, Task, TaskConcept
 from bkt.parameters import create_bkt_for_concept
 
@@ -166,9 +167,7 @@ def concepts_with_available_tasks(
             .distinct()
         ).scalars()
     )
-    # Kat. C nikad ne smije proći — guard u dubinu uz masku 0.99 i onaj u
-    # `resolve_task_for_concept`; ne oslanja se na to da M6 nema aktivnih zadataka.
-    return [c for c in order if c in available and c not in UNSUPPORTED_CONCEPTS]
+    return [c for c in order if c in available]
 
 
 def concepts_with_tasks(
@@ -187,7 +186,7 @@ def concepts_with_tasks(
     return [
         c
         for c in order
-        if stats.get(c, (None, 0))[1] > 0 and c not in UNSUPPORTED_CONCEPTS
+        if stats.get(c, (None, 0))[1] > 0
     ]
 
 
@@ -297,12 +296,6 @@ def resolve_task_for_concept(
     🔴 JEDINI izvor pravila „koncept → zadatak". `select_task_for_concept`
     delegira ovamo; dvije implementacije istog upita bile bi mehanizam N-8.
     """
-    # Obrana u dubinu (Kat. C): neevaluabilan koncept NIKAD ne smije dati task —
-    # ni ako ga netko zatraži izravno, zaobilazeći masku u recommend(). Takav
-    # task ne može postati is_correct → nikad "riješen" → trajna petlja.
-    if concept_code in UNSUPPORTED_CONCEPTS:
-        return None, False
-
     concept_id = load_concept_code_map(session).get(concept_code)
     if concept_id is None:
         return None, False
@@ -371,11 +364,16 @@ def recommend(session: Session, engine: "PrologEngine", user_id: int) -> dict:
     stats = _concept_task_stats(session)
     code_order = load_concept_code_map(session)
     transversal = transversal_concepts(session, stats)
-    # Kat. B (subfloor) + Kat. C (NEEVALUABILNI) dijele ISTI tretman: maska 0.99
-    # → Prolog ih ne preporučuje. Maskiranje je na razini KONCEPTA, ne taska:
-    # filtriranje tek u select_task_for_concept dalo bi reason="exhausted"
-    # (task_id=None) = tiši ćorsokak umjesto rješenja (4.4-0d KORAK 4).
-    masked = subfloor_concepts(session, stats) | UNSUPPORTED_CONCEPTS
+    # Kat. B (subfloor) — maska 0.99 → Prolog ih ne preporučuje. Maskiranje je
+    # na razini KONCEPTA, ne taska: filtriranje tek u select_task_for_concept
+    # dalo bi reason="exhausted" (task_id=None) = tiši ćorsokak (4.4-0d KORAK 4).
+    #
+    # 🔴 Kat. C je UKLONJENA (ERRATA #66). Dok M6 nije bio evaluabilan, njegovi
+    # su koncepti dijelili masku sa subfloorom jer bi inače dali trajni ćorsokak
+    # (task koji ne može postati is_correct). Plan-presence evaluacija to je
+    # uklonila: M6 se sada ocjenjuje, pa maskiranje više nije obrana nego
+    # blokada — koncept s ispravnim zadacima nikad ne bi bio ponuđen.
+    masked = subfloor_concepts(session, stats)
     snapshot = build_mastery_snapshot(
         session, engine, user_id, transversal, masked, code_order
     )

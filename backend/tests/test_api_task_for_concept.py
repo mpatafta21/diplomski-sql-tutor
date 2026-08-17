@@ -18,7 +18,7 @@ import httpx
 import pytest
 from sqlalchemy import delete, select
 
-from agents.evaluation import UNSUPPORTED_CONCEPTS
+from agents.evaluation import PLAN_CHECKED_CONCEPTS
 from app.db.models import Attempt, Concept, Task, TaskConcept, User
 from app.db.session import SessionLocal
 from app.main import create_app
@@ -187,18 +187,24 @@ async def test_transversal_concept_has_no_tasks_404(student):
 
 
 @pytest.mark.asyncio
-async def test_unsupported_concept_never_yields_task(student):
-    """🔴 Kat. C (neevaluabilni) ne smije dati zadatak ni izravnim pozivom rute.
+async def test_plan_checked_concepts_yield_tasks(student):
+    """🔴 OBRAT (ERRATA #66): M6 koncepti sada DAJU zadatak i kroz rutu.
 
-    Takav zadatak nikad ne može postati `is_correct` → 0 XP + BKT kazna po
-    pokušaju (nalaz 4.4-0c B4). Guard je u `resolve_task_for_concept`.
+    Dotad je ovaj test tvrdio 404 za oba: zadatak neevaluabilnog koncepta nikad
+    nije mogao postati `is_correct`, pa bi svaki pokušaj dao 0 XP + BKT kaznu
+    (nalaz 4.4-0c B4), a guard u `resolve_task_for_concept` to je sprječavao.
+
+    Plan-presence evaluacija uklonila je i razlog i guard. Ruta je ujedno JEDINI
+    put kojim student do M6 zadatka dolazi svjesno (klikom na koncept), pa 404
+    ovdje ne bi bio obrana nego skrivanje modula koji sada radi.
     """
     async with _client(create_app()) as c:
-        for code in sorted(UNSUPPORTED_CONCEPTS):
+        for code in sorted(PLAN_CHECKED_CONCEPTS):
             r = await c.get(
                 f"/task-for-concept/{code}", headers=auth_header(student)
             )
-            assert r.status_code == 404, f"{code} je ponudio zadatak: {r.text}"
+            assert r.status_code == 200, f"{code} nije ponudio zadatak: {r.text}"
+            assert r.json()["concept"] == code
 
 
 @pytest.mark.asyncio

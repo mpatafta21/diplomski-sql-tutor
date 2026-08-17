@@ -144,13 +144,17 @@ govori što plan radi, a to opis zadatka od studenta ionako traži.
 
 | gate | ishod |
 |---|---|
-| `pytest` | ✅ **819 passed, 1 skipped, 0 failed** (bilo 783) |
+| `pytest` | ✅ **821 passed, 1 skipped, 0 failed** (bilo 783) |
 | `make preflight` — sweep | ✅ **88/88**, 0 nestabilnih planova |
 | `make preflight` — smoke | ✅ pun agentski lanac |
+| `npm run e2e` | ✅ **4 passed**, teardown čist |
+| `npm run build` (tsc + vite) | ✅ |
+| `prettier --check` · `oxlint` | ✅ (samo zatečena `only-export-components` upozorenja) |
 | `make backup` | ✅ (nakon popravka #67), restore verificiran |
+| `code-review` (high) | ✅ 9 nalaza, svi popravljeni — v. §G2 |
 
 Novi testovi: `test_plan_signature`, `test_plan_stability`, `test_sandbox_explain`,
-`test_evaluation_plan`, `test_m6_reachability` (36 tvrdnji).
+`test_evaluation_plan`, `test_m6_reachability` (38 tvrdnji).
 
 ⚠️ **`ruff` nije instaliran u okolini** i Makefile nema lint target, pa formatiranje nije
 strojno provjereno — stil je usklađen ručno prema okolnom kodu. Nova ovisnost se ne dodaje
@@ -170,6 +174,40 @@ Po 🔒 politici, uz izričito odobrenje korisnika (2026-08-14):
 
 `plan_mismatch` je **konceptualni** signal pa namjerno NIJE u `_MECHANICAL_ERRORS` —
 anti-pattern je stvarna zabluda, ne omaška.
+
+---
+
+# G2 — Code review: 9 nalaza, svi popravljeni (`8807288`)
+
+Recenzija je čitala `main...HEAD` i **provjeravala hipoteze nad živom bazom**, ne
+rezoniranjem — time je jedan sumnjivi nalaz i oborila (zatečeni aktivni zadatak 81 *ipak*
+razlikuje svoj anti-pattern).
+
+**Najozbiljniji nalaz je bio u frontendu, ne u novoj logici.** `plan_mismatch` nije bio ni u
+`ERROR_TEXT` ni u `TEXT_DETAIL_TYPES`, pa je student na anti-pattern vidio *„Ocjenjivanje
+nije uspjelo — pokušaj ponovno predati rješenje"*, a jedinu upotrebljivu uputu — pedagoški
+detalj — u sivom mono bloku za tehničke ispise. 🔴 Poruka je tvrdila **kvar sustava** ondje
+gdje je student napisao ispravan SQL. Backend je bio točan cijelo vrijeme; isporuka nije.
+
+Ostali nalazi po klasama:
+
+| # | nalaz | zašto je bitno |
+|---|---|---|
+| 2 | EXPLAIN guard posuđivao `plan_mismatch` | konceptualni signal nosi misconception + BKT kaznu; zalijepljen EXPLAIN je omaška → vlastiti `explain_submitted` |
+| 3 | neuspjeh EXPLAIN-a → `unsupported_eval` | sweep tvrdi da ih ima **točno nula** → jedan prolazni timeout trajno obori `make preflight` → `plan_unavailable` |
+| 4 | `_plan_mismatch_detail` nije gledao `index_names` | grana zbog koje su imena indeksa i uvedena degradirala je na „plan izvedbe se razlikuje" |
+| 5 | `_BY_DESIGN_UNSUPPORTED` ostao jednak M6 konceptima | 🔴 od aktivacije bi se **svaki M6 pad tiho izuzimao iz gatea** |
+| 6 | `plan_mismatch` izvan `DETAIL_SAFE_TYPES` | LLM ne bi dobio jedini koristan podatak o grešci |
+| 7 | `is_active` parsiranje nije fail-closed | nepoznata vrijednost tiho znači NEAKTIVAN → zadatak nestane bez poruke |
+| 8 | komentar tvrdio da zastavice „samo dodaju opcije" | netočno: `enable_seqscan=off` prevrće `uses_index`; stvarna restrikcija sada zapisana |
+| 9 | zastarjeli docstring modula | opisivao uklonjenu granu i nepostojeću konstantu |
+
+🔴 **Obrazac vrijedan bilježenja:** nalazi 2, 3 i 5 su svi ista greška — **novo ponašanje
+ugurano u zatečenu kategoriju** (`plan_mismatch` za dvije različite stvari,
+`unsupported_eval` za treću, M6 koncepti i dalje „by design unsupported"). Svaki put je
+posljedica bila da neki uzvodni potrošač tiho radi krivu stvar. Taksonomija grešaka je
+ugovor s pet potrošača (frontend, misconceptions, hint payload, hint LLM, sweep); dodavanje
+ponašanja bez novog imena znači da barem jedan od njih dobije laž.
 
 ---
 

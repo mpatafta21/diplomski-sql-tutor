@@ -51,6 +51,11 @@ class PlanResult:
 
     success: bool
     node_types: list[str] = field(default_factory=list)
+    #: Imena indeksa koje plan STVARNO dira.
+    #: 🔴 Bez ovoga je „koristi indeks" prazna tvrdnja: `ORDER BY id LIMIT 1`
+    #: dovede pkey indeks u plan pa i anti-pattern ispadne index-friendly.
+    #: Točno to je učinilo zadatak 83 neupotrebljivim (ERRATA #66).
+    index_names: list[str] = field(default_factory=list)
     error: str | None = None
     sqlstate: str | None = None
 
@@ -96,8 +101,8 @@ def _values_equal(a, b) -> bool:
     return _normalize_value(a) == _normalize_value(b)
 
 
-def _collect_node_types(payload) -> list[str]:
-    """Rekurzivno pokupi svaki `Node Type` iz `EXPLAIN (FORMAT JSON)` stabla.
+def _collect_plan_keys(payload, key: str) -> list[str]:
+    """Rekurzivno pokupi svaku vrijednost `key` iz `EXPLAIN (FORMAT JSON)` stabla.
 
     Struktura je `[{"Plan": {"Node Type": …, "Plans": [ {…}, … ]}}]`, a djeca se
     gnijezde proizvoljno duboko. Hoda se generički (svaki dict/list), da promjena
@@ -107,11 +112,11 @@ def _collect_node_types(payload) -> list[str]:
 
     def walk(node) -> None:
         if isinstance(node, dict):
-            nt = node.get("Node Type")
-            if isinstance(nt, str):
-                found.append(nt)
-            for value in node.values():
-                walk(value)
+            value = node.get(key)
+            if isinstance(value, str):
+                found.append(value)
+            for nested in node.values():
+                walk(nested)
         elif isinstance(node, list):
             for item in node:
                 walk(item)
@@ -277,7 +282,11 @@ class SandboxRunner:
         _log.debug(
             "EXPLAIN dohvaćen u %d ms", int((time.perf_counter() - start) * 1000)
         )
-        return PlanResult(success=True, node_types=_collect_node_types(payload))
+        return PlanResult(
+            success=True,
+            node_types=_collect_plan_keys(payload, "Node Type"),
+            index_names=_collect_plan_keys(payload, "Index Name"),
+        )
 
     def compare(
         self,

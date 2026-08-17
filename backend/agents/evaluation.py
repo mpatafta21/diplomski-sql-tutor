@@ -27,7 +27,7 @@ from dataclasses import dataclass
 import sqlparse
 
 from app.db.models import Task
-from scripts.lib.sandbox_runner import SandboxRunner
+from scripts.lib.sandbox_runner import PlanResult, SandboxRunner
 
 # ---------------------------------------------------------------------------
 # Domenske konstante — JEDAN izvor istine (dijele ih evaluator, recommender i
@@ -75,19 +75,35 @@ class PlanSignature:
     `Sort`, `Limit`, `Aggregate`, `Hash` i `Bitmap Heap Scan` variraju s
     formulacijom upita i nisu cilj nijednog M6 koncepta; da ulaze u usporedbu,
     točno rješenje bi padalo na kozmetici.
+
+    🔴 `index_names` je tu jer `uses_index` sam po sebi LAŽE. Zadatak 83 traži
+    index-friendly filtar, ali mu `ORDER BY id LIMIT 1` uvuče `orders_pkey` u
+    plan — pa i CAST anti-pattern ispadne „koristi indeks" i prođe kao točan.
+    Tek ime indeksa razlikuje „koristi indeks koji zadatak uči" od „koristi bilo
+    koji indeks usput". ERRATA #66.
     """
 
     uses_index: bool
+    index_names: frozenset[str]
     join_methods: frozenset[str]
 
 
-def plan_signature(node_types: Iterable[str]) -> PlanSignature:
-    """Svedi popis čvorova plana na ono što se uspoređuje."""
+def plan_signature(
+    node_types: Iterable[str], index_names: Iterable[str] = ()
+) -> PlanSignature:
+    """Svedi plan na ono što se uspoređuje."""
     nodes = set(node_types)
     return PlanSignature(
         uses_index=bool(nodes & INDEX_ACCESS_NODES),
+        index_names=frozenset(index_names),
         join_methods=frozenset(nodes & JOIN_METHOD_NODES),
     )
+
+
+def signature_of(plan: PlanResult) -> PlanSignature:
+    """`PlanResult` → `PlanSignature`; jedini put kojim ide ocjenjivanje."""
+    return plan_signature(plan.node_types, plan.index_names)
+
 
 #: Koncepti čiji `expected_query` je DML (INSERT/UPDATE/DELETE) → moraju se
 #: izvršiti kroz `sandbox_readwrite` rolu u transakciji koja se UVIJEK rollbacka
@@ -141,13 +157,13 @@ def plan_is_stable(
     if not osnovni.success:
         return False, f"plan nije dohvatljiv: {osnovni.error or 'nepoznata greška'}"
 
-    osnovni_sig = plan_signature(osnovni.node_types)
+    osnovni_sig = signature_of(osnovni)
 
     for flag in STABILITY_FLAGS:
         pod_flagom = runner.explain(query, schema=schema, planner_flags=(flag,))
         if not pod_flagom.success:
             return False, f"plan nije dohvatljiv uz {flag}"
-        if plan_signature(pod_flagom.node_types) != osnovni_sig:
+        if signature_of(pod_flagom) != osnovni_sig:
             return False, (
                 f"potpis plana se mijenja uz {flag} — planer je na rubu odluke, "
                 "pa bi ocjena ovisila o statistici umjesto o upitu"
@@ -199,8 +215,8 @@ def _verify_plan_if_needed(
             detail="Plan izvedbe nije bilo moguće dohvatiti.",
         )
 
-    submitted_sig = plan_signature(submitted_plan.node_types)
-    reference_sig = plan_signature(reference_plan.node_types)
+    submitted_sig = signature_of(submitted_plan)
+    reference_sig = signature_of(reference_plan)
 
     if submitted_sig == reference_sig:
         return correct_outcome

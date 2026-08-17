@@ -30,7 +30,12 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from agents.evaluation import UNSUPPORTED_CONCEPTS, evaluate
+from agents.evaluation import (
+    PLAN_CHECKED_CONCEPTS,
+    UNSUPPORTED_CONCEPTS,
+    evaluate,
+    plan_is_stable,
+)
 from agents.evaluator_agent import _sandbox_conn_string
 from app.db.models import Attempt, Concept, Module, Task, TaskConcept
 from app.db.session import SessionLocal
@@ -122,6 +127,36 @@ def deep_compare(task_id: int) -> dict:
         }
 
 
+def check_plan_stability() -> list[tuple[str, str]]:
+    """Uvozni gate za M6: referentni upit mora imati STABILAN plan.
+
+    Vraća `[(source_id, razlog), …]` za aktivne zadatke koji padaju.
+
+    🔴 **Zašto gate postoji.** Tri zatečena M6 zadatka (79, 80, 82) tražila su od
+    studenta index-friendly upit, a njihov referentni upit nad `customers` (200
+    redaka) daje **Seq Scan** — planer je u pravu, zadatak nije. Nijedna
+    provjera to nije hvatala jer se integritet mjerio samo usporedbom redaka, a
+    redci su se poklapali. ERRATA #66.
+
+    Zadatak čiji plan ovisi o prolaznoj statistici daje **nasumične ocjene**:
+    isti upit istog studenta prolazi ili pada ovisno o tome je li autovacuum
+    upravo prošao. Provjerava se samo za `PLAN_CHECKED_CONCEPTS` — ostali se po
+    planu i ne ocjenjuju.
+    """
+    runner = SandboxRunner(_sandbox_conn_string())
+    out: list[tuple[str, str]] = []
+    with SessionLocal() as session:
+        for task, primary, _module in _load_tasks(session):
+            if primary not in PLAN_CHECKED_CONCEPTS:
+                continue
+            stabilan, razlog = plan_is_stable(
+                task.expected_query, runner, schema=task.sandbox_schema
+            )
+            if not stabilan:
+                out.append((task.source_id or f"task:{task.id}", razlog))
+    return out
+
+
 def count_unsupported_attempts() -> int:
     """Broj perzistiranih attempta s error_type='unsupported_eval'.
 
@@ -198,6 +233,8 @@ def main() -> None:
     rows = run_sweep()
     summary = _summarize(rows)
     summary["unsupported_eval_attempts"] = count_unsupported_attempts()
+    unstable = check_plan_stability()
+    summary["unstable_plan_tasks"] = [sid for sid, _ in unstable]
 
     if not args.json:
         _print_table(rows)
@@ -227,6 +264,21 @@ def main() -> None:
             f"\n🔴 GATE PAO: {summary['failing_genuine']} referentni upit(a) ne "
             f"reproducira expected_result: {summary['genuine_source_ids']}. "
             "Vidi tablicu iznad; regeneracija: scripts.regenerate_expected_result."
+        )
+        raise SystemExit(1)
+
+    # Gate (ERRATA #66): aktivan M6 zadatak mora imati stabilan plan, inače mu je
+    # ocjena nasumična. Prije ovog gatea tri su zadatka tvrdila Index Scan a
+    # dobivala Seq Scan, i to je preživjelo tri faze jer se mjerila samo
+    # usporedba redaka — a redci su se poklapali.
+    if unstable:
+        print("\n🔴 GATE PAO: M6 zadatak s NESTABILNIM planom izvedbe:")
+        for source_id, razlog in unstable:
+            print(f"   [{source_id}] {razlog}")
+        print(
+            "   Referentni upit mora birati indeks (ili strategiju spoja) BEZUVJETNO.\n"
+            "   Tipičan uzrok: upit gađa premalu tablicu (npr. customers, 200 redaka),\n"
+            "   gdje je Seq Scan stvarno jeftiniji pa planer indeks odbija."
         )
         raise SystemExit(1)
 

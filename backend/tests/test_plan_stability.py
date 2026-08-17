@@ -29,7 +29,7 @@ Pokretanje: uv run pytest tests/test_plan_stability.py -v
 
 from __future__ import annotations
 
-from agents.evaluation import STABILITY_FLAGS, plan_is_stable, plan_signature
+from agents.evaluation import STABILITY_FLAGS, plan_is_stable, signature_of
 
 # ---------------------------------------------------------------------------
 # Upiti iz mjerenja
@@ -88,11 +88,11 @@ def test_propusta_stabilne_kandidate(sandbox_runner):
 
 def test_stabilan_spoj_zadrzava_nested_loop_pod_perturbacijom(sandbox_runner):
     """Potpis spoja s filtrom je isti pod svakom zastavicom iz gatea."""
-    osnovni = plan_signature(sandbox_runner.explain(_STABILAN_SPOJ).node_types)
+    osnovni = signature_of(sandbox_runner.explain(_STABILAN_SPOJ))
 
     for flag in STABILITY_FLAGS:
-        pod_flagom = plan_signature(
-            sandbox_runner.explain(_STABILAN_SPOJ, planner_flags=(flag,)).node_types
+        pod_flagom = signature_of(
+            sandbox_runner.explain(_STABILAN_SPOJ, planner_flags=(flag,))
         )
         assert pod_flagom == osnovni, f"Potpis se promijenio pod {flag}"
 

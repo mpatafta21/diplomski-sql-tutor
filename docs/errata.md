@@ -74,6 +74,9 @@ broj** — referencira ih se opisno, nikad izmišljenim brojem. Zatečeni primje
 | **#51** | 📌 **Gamifikacijske površine su najslabiji a11y teren u aplikaciji — strukturno, ne slučajno** | 📌 **nalaz o dizajnu (za rad); tekst popravljen u 4c, plohe ostaju** | Sva tri pada izvan `-soft` bila su **gamifikacijski čipovi**: `BadgeGallery.tsx:73,97` (`muted-foreground` na `bg-muted` = 4,34), `:96` (`accent-warm-text` na `bg-accent-warm/20` = **3,89**, tekst od **10,4 px** — najmanji u aplikaciji) i `BadgeStrip.tsx:47` (4,32). Uz #48 (`ConceptCurveCard` „odabrano" 2,51) i #50 (XP čip, streak, level-up, badge čip u FeedbackPanelu) obrazac je **sustavan**. **Strukturni uzrok:** par `earned`/`unearned` traži **dvije plohe niskog kontrasta** da bi razlika djelovala suptilno → tekst pada na obje. Tokeni su AA-verificirani u 4.1b vs **pune** plohe; bedževi su **jedini potrošači alpha-kompozitiranih ploha** i nastali su u 4.4a, dvije faze kasnije, **bez ponovljenog mjerenja**. **Izmjereno 2026-08-10:** same plohe `accent-warm/5,10,20` vs `card` daju **1,05–1,52:1** u obje teme, dakle **daleko ispod 3:1** — ali **nisu nosilac informacije**: stanje nose **ikona + tekst** (`Check`/`Lock` + „Osvojeno"/„Zaključano", `BadgeGallery.tsx:100-110`; `CircleUserRound` + `font-semibold` + `aria-current` u `LeaderboardTable.tsx:57-79`), pa je tint **ukras**, isto rezoniranje kao #33. Razlučivost čipova nakon 4c: ΔE(Oklab) **0,121** (zatečeno 0,120) — nositelj je **chroma**, ne svjetlina, pa potamnjenje teksta razliku **ne dira**. **Formulacija za rad:** nagradne površine su **dizajnirane da budu suptilne**, a suptilnost je u izravnom sukobu s kontrastnim zahtjevom — to je **tenzija dizajna gamifikacije**, ne previd implementacije. Srodno #48, #50, #33 |
 | **#46** | 🔴 **Brisanje POJEDINOG sudionika nije dokazano izvedivo, a obećanje o njemu trajno stoji na Profilu** | 📌 **ODLUKA 2026-08-14: procedura se NEĆE graditi** (v. „Odluke o nerješavanju" na dnu) | Informacija o sudjelovanju (4.7-1a) obećava „za zahtjev za brisanje podataka: <kontakt>" i „podaci se čuvaju do obrane rada, nakon čega se brišu". Od 4.7-1a-dopune taj tekst je i na **Profilu** (`ParticipationSection`), dakle stoji **trajno pred svakim prijavljenim korisnikom**, ne jednokratno prije registracije — zato je rok „prije slanja linka", a ne „prije deploya". **Mehanizam:** `agent_messages_log` **nema `user_id`** (`models.py:394-409` — 7 stupaca, nijedan ne referencira korisnika, nema FK na `users` pa ni CASCADE ne pomaže), a njegov `content` JSONB nosi `submitted_query` studenta (4.5b README to navodi kao osobni podatak). **Nijedan cleanup ga ne dohvaća po korisniku:** `purge_demo_users.py:61-75` pokriva 9 tablica (3 eksplicitno + 5 CASCADE + `users`) i te tablice **nema među njima jer nema po čemu filtrirati**; jedino mjesto koje je uopće briše je `TRUNCATE TABLE agent_messages_log RESTART IDENTITY` u `prepare_eval_baseline.py:435` — **sve ili ništa**, iza `--confirm`. **IZMJERENO 2026-07-26** (brojači prije i poslije, `seed_demo_user` → 27 attempta kroz pravi `POST /attempt` → `purge_demo_users`): `users` 1→1, `attempts` 12→12, `skill_mastery_history` 22→22 (sve točno na baseline ✅), a `agent_messages_log` **363→696 = +333 zapisa koje ništa ne može obrisati po korisniku**. To je **12,3 zapisa po attemptu**, što se poklapa s izmjerenih 12/attempt iz #34. **Ekstrapolacija na eval volumen:** 20 sudionika × 30 attempta = 600 attempta → **~7 400 zapisa** s upitima sudionika, bez ijednog puta do brisanja po osobi (isti red veličine kao procjena ~7 200 u #34). **Moguć put bez izmjene sheme:** prikupiti `correlation_id`-eve iz `attempts` tog korisnika PRIJE brisanja attempta, pa obrisati logove po tom skupu — ali to **ne pokriva poruke bez `correlation_id`** ni one koje prethode stvaranju attempta (#40: samo 5 od 12 poruka po attemptu nosi `attempt_id`), i mora biti **verificirano u OBA smjera** (poučak iz #39). **Odluka je korisnikova:** (a) izgraditi i verificirati proceduru prije slanja linka, ili (b) preformulirati odlomak da ne obećava više od dokazano izvedivog. 🔴 **ODLUKA 2026-08-14: (a) se NE radi, (b) JE IZVEDEN** (grana `fix-pred-deployment`). Tekst više ne poziva na zahtjev za brisanje, a odlomak o čuvanju sada IMENUJE ograničenje umjesto da obećanje tiho nestane: podaci se brišu u cijelosti nakon obrane, a pojedinačno brisanje tijekom istraživanja nije moguće jer dio tehničkih zapisa nije vezan uz korisnički račun. Jedna izmjena pokriva `/register` i Profil. Srodno: #37, #40, #34 |
 | **#43** | **Koncept-retci u Module overviewu nisu bili klikabilni (nije bilo puta koncept→zadatak)** | ✅ **4.6-eval (backend escalation, bez migracije)** | UI je imao koncepte ali nijedan endpoint nije mapirao koncept → `task_id` (task se dohvaća samo po ID-u; `/modules` nije nosio ID-eve). **Popravak:** `/modules` ConceptNode dobio `entry_task_id` — reprezentativan AKTIVAN primary zadatak (najlakši prvi: `difficulty ↑, id ↑`), **statički** (bez user-konteksta → `/modules` ostaje čist katalog, cacheable). `entry_task_id != null` ⟺ `primary_task_count > 0` (ista maska). Frontend: ConceptRow je `<Link>` na `/task/<id>` kad je klikabilan = **`entryTaskId != null && state !== "locked"`** — zaključani (nezadovoljeni preduvjeti) i glue/izvan-opsega (0 zadataka) ostaju neklikabilni, savladani su klikabilni za vježbu (bez XP-a, #41). „Koji zadatak": najlakši primary; **NE** „sljedeći neriješen" (to bi tražilo user-aware `/modules`) — kandidat za dogradnju. 1 novi test (`entry_task_id` == DB ground truth + invarijanta). ⚠️ eskalacija zamrznutog backenda (kao #41) |
+| **#66** | 🔴 **Tri M6 zadatka tvrdila su o bazi neistinu, a četvrti nije razlikovao ništa — preživjelo jer se mjerila samo usporedba redaka** | ✅ **zatvoren 2026-08-14** (`m6-plan-presence`) | Grana je otvorena da M6 dobije zadatke, a mjerenje je srušilo pretpostavku na kojoj je stajala. **(a)** Rezultatska evaluacija M6 ne može ocijeniti: anti-pattern (`LOWER(email) = …`, `customer_id::text = …`) vraća **bajt-identične retke**. **(b)** 🔴 Gore: referentni upiti zadataka **79, 80, 82** daju **Seq Scan** iako im opis tvrdi Index Scan — sva tri gađaju `customers` (200 redaka), gdje je Seq Scan (5.50) stvarno jeftiniji od Index Scana (8.16). Planer je u pravu, zadatak nije. **(c)** Zadatak **83** ima stabilan plan ali **praznu tvrdnju**: `ORDER BY id LIMIT 1` uvuče `orders_pkey` u plan, pa i referentni i CAST anti-pattern daju `Index Scan / orders_pkey` — identičan potpis, dakle prolazi ono što zadatak zabranjuje. Od 5 zatečenih M6 zadataka **zdrav je bio samo 81**. **Popravak:** plan-presence evaluacija koja EXPLAIN-a **oba** upita u istom trenutku i uspoređuje `PlanSignature(uses_index, index_names, join_methods)`; tvrdnja o planu nigdje se ne pohranjuje jer je zadatak već nosi — to je njegov `expected_query` (nema migracije, ne može zastarjeti, preživljava reseed). Uz to **dva gatea**: `plan_is_stable` (potpis nepromijenjen pod `enable_seqscan=off` i `enable_hashjoin=off`) i gate diskriminacije pri autorstvu (anti-pattern mora dati iste retke a drugi potpis). 🔴 **Gate stabilnosti nije izveden iz teorije nego iz FLAKY TESTA:** tvrdnja o zadatku 79 prošla je izolirano a pala u punoj datoteci, jer mrtvi redci iz rollbackanog DML-a drugog testa podignu `relpages` i prevrnu izbor plana. Posljedice: Kat. C maska u recommenderu **uklonjena** (bila obrana, postala bi blokada), subfloor je time **prazan**, `is_active` je sada **eksplicitan po zadatku** (ne izveden iz koncepta) uz `deactivation_reason`. Katalog: `index_usage` 3 aktivna, `explain_plan` 2, oba +2 trajno deaktivirana (ne brišu se — dokaz nalaza i negativan primjer gatea). Srodno #29 (rezultatska evaluacija), #19, #27, #57 |
+| **#68** | 🟡 **`column_alias` je dobio zadatke koje preporučivač nikad ne nudi** | 📌 **nalaz o dizajnu (za rad); ne popravlja se** | Odlukom korisnika (2026-08-14) dobio je 3 ručno autorska zadatka i time ispao iz Kat. A. Simulacija savršenog studenta: p_l dosegne **0.9356 — iznad praga 0.85 — a koncept nije ponuđen NIJEDNOM**. Uzrok: 4 sekundarna pojavljivanja saturiraju BKT prije nego koncept dođe na red, a Prolog bira samo koncepte **ispod** praga. **ERRATA #35 (ZPD escape) po drugi put**, sada potvrđena prospektivno. Strah iz plana (da će zapeti ISPOD praga i zaključati `group_by`) **nije se ostvario** — `group_by` je uredno otključan (0.99999). Zadaci nisu mrtvi: dosežni su klikom na koncept (`resolve_task_for_concept`, put iz #42/#43), ali ne kroz „Sljedeći zadatak"; razlika je zaključana testom. Popravak bi tražio da BKT razlikuje primarna od sekundarnih ažuriranja = izmjena ugovora `/mastery-history`, isto što #35 navodi kao nemoguće bez novog polja. **Za rad:** dodavanje zadataka konceptu s puno sekundarnih pojavljivanja NE čini ga podučavanim. Srodno #35, #31, #66 |
+| **#67** | 🔴 **`make backup` nikad nije radio iz čistog klona** | ✅ **popravljen 2026-08-14** (`1e48bbb`) | `scripts/backup_eval_data.sh` stajao je u gitu kao **`100644`** — bez izvršnog bita. `make backup` je padao na „Permission denied", pa je target bio neupotrebljiv bez ručnog `bash scripts/…`. Pogađa **jedini mehanizam koji štiti nenadoknadive evaluacijske podatke** (#37); verifikacija u 4.6-eval očito je išla kroz `bash`, pa izvršni bit nikad nije ušao u indeks. Ista klasa kao **#26** (`make dev` nije bio from-scratch sposoban) i **#39** (`dev-reset` guard neupotrebljiv): **target koji nije pokrenut onako kako ga dokumentacija propisuje nije provjeren target.** Audit: `backup_eval_data.sh` je JEDINA `.sh` datoteka u repou i jedina koju Makefile poziva izravno, pa druge rupe ovog oblika nema |
 
 ---
 
@@ -1320,3 +1323,156 @@ B+, odluka 5.0) — šalje se opis greške, ne tekst rješenja.
 
 **Za rad:** oboje se prijavljuje u poglavlju o ograničenjima, ne prešućuje. Odluka je
 donesena svjesno i uz poznat mehanizam, što je razlika u odnosu na previd.
+
+---
+
+## #66 🔴 STRUKTURNI: zadatak je tvrdio o bazi nešto što baza ne radi, i to je preživjelo tri faze
+
+**Kad:** 2026-08-14, grana `m6-plan-presence`. Otvorena da M6 dobije zadatke; mjerenje je
+srušilo pretpostavku na kojoj je grana stajala.
+
+### Što je zatečeno
+
+TODO je tri dana stajao na tvrdnji „M6 je neevaluabilan jer jezgra ocjenjuje po rezultatu".
+Tvrdnja je **točna, ali nije bila cijeli problem**.
+
+| task | koncept | plan REFERENTNOG upita | opis zadatka tvrdi | ishod |
+|---|---|---|---|---|
+| 79 | `explain_plan` | 🔴 Seq Scan | „izvesti Index Scan" | deaktiviran |
+| 80 | `explain_plan` | 🔴 Seq Scan | Index Scan | deaktiviran |
+| 81 | `index_usage` | Bitmap Index Scan / `idx_orders_customer` | slaže se | **zadržan** |
+| 82 | `index_usage` | 🔴 Seq Scan | Index Scan | deaktiviran |
+| 83 | `index_usage` | Index Scan / `orders_pkey` | „koristi `idx_orders_customer`" | deaktiviran |
+
+**Od pet zadataka zdrav je bio jedan.**
+
+### Dva različita kvara, ne jedan
+
+**(a) Tri zadatka gađaju premalu tablicu.** `customers` ima 200 redaka i 3 stranice.
+Izmjereno: **Seq Scan 5.50 vs Index Scan 8.16** — planer indeks odbija jer je sekvencijalni
+prolaz stvarno jeftiniji. `customers_email_key` postoji i upotrebljiv je (uz
+`enable_seqscan=off` plan prelazi na Index Scan). 🔴 **Planer je u pravu, zadatak nije.**
+
+**(b) Zadatak 83 ima prazan potpis.** Njegov `ORDER BY id LIMIT 1` dopušta planeru da
+prošeta `orders_pkey` indeksom i stane. Posljedica:
+
+```
+REF  83 (customer_id = 5)     Limit, Index Scan, orders_pkey
+ANTI 83 (CAST na TEXT)        Limit, Index Scan, orders_pkey    ← IDENTIČNO
+```
+
+Oba plana „koriste indeks", pa bi svaka provjera oblika „koristi li indeks" propustila
+anti-pattern koji zadatak izrijekom zabranjuje. Ciljani `idx_orders_customer` referentni
+upit **uopće ne dira**.
+
+### Zašto je preživjelo tri faze
+
+`sweep_task_integrity` provjerava da referentni upit reproducira `expected_result`. Za sva
+tri pokvarena zadatka **redci se poklapaju savršeno** — kvar je isključivo u načinu
+izvođenja, a njega nijedan gate nije gledao. Isti obrazac kao metodološki zaključak 4.7:
+**instrument je mjerio vrijednosti, ne učinak.**
+
+### Popravak — tvrdnja o planu se NE pohranjuje
+
+Odbačeni su i nova kolona (`tasks.plan_assertion`) i konstanta s popisom po `source_id`:
+prva je migracija sheme tjedan prije evala, druga stavlja sadržaj kataloga u evaluacijsku
+jezgru gdje tiho zastari (klasa #45).
+
+**Zadatak već nosi tvrdnju o planu — to je njegov `expected_query`.** Evaluacija zato
+EXPLAIN-a **oba** upita u istom trenutku i uspoređuje potpise:
+
+```
+PlanSignature(uses_index: bool, index_names: frozenset, join_methods: frozenset)
+```
+
+Nema migracije; tvrdnja ne može zastarjeti (referentni upit i tvrdnja su isti objekt);
+preživljava reseed sandboxa jer se obje strane mjere nad istim podacima.
+
+🔴 **`index_names` nije kozmetika** — bez njega `uses_index` laže, i točno zbog toga
+zadatak 83 nije bio uhvaćen prvom verzijom potpisa.
+
+### Gate stabilnosti — izveden iz FLAKY TESTA, ne iz teorije
+
+Prva verzija testa tvrdila je konkretan ishod za zadatak 79. **Prošla je izolirano a pala u
+punoj datoteci.** Uzrok: rollbackani DML iz drugog testa ostavlja mrtve retke, `relpages`
+naraste, cijena Seq Scana poraste i planer se prebaci na Index Scan. Ocjena bi ovisila o
+tome je li autovacuum upravo prošao.
+
+Izmjerena margina izbora plana (cijena alternative / cijena odabranog):
+
+| upit | margina | stabilan |
+|---|---|---|
+| `customers WHERE email = …` (79/80/82) | **1.48x** | 🔴 NE |
+| `orders WHERE customer_id = 42` | 1.00x | ✅ |
+| `order_items WHERE order_id = 500` | 1.00x | ✅ |
+| `orders ORDER BY order_date DESC LIMIT 10` | 1.00x | ✅ |
+| spoj `orders × order_items` **bez** filtra | — | 🔴 NE |
+| spoj `orders × order_items` **s** filtrom | — | ✅ |
+
+Margina 1.00x znači da gašenje seq scana **ne mijenja cijenu** — indeks je izabran
+bezuvjetno, nema ruba s kojeg bi se prebacio. `plan_is_stable` zato traži da potpis ostane
+nepromijenjen pod `enable_seqscan=off` i `enable_hashjoin=off`. `enable_nestloop` NIJE u
+gateu: on zabranjuje strategiju koju `explain_plan` uči, pa bi odbio upravo ono što treba
+propustiti — zastavica koja zabranjuje cilj nije test stabilnosti nego test postojanja.
+
+### Nizvodne posljedice
+
+- **Kat. C maska uklonjena** iz `recommender_logic`. Dok M6 nije bio evaluabilan, maska
+  0.99 bila je obrana od ćorsokaka; sada bi bila blokada (Prolog preskače koncepte iznad
+  praga → zadaci nikad ponuđeni). **Subfloor je time prazan.**
+- **`is_active` je eksplicitan po zadatku**, ne izveden iz koncepta (#19 kriterij je pao):
+  neispravni su POJEDINI zadaci, a to koncept ne može izraziti. Razlog stoji uz zadatak
+  (`deactivation_reason`) pa preživljava re-import.
+- **Bedž `explorer` sada traži i M6** (kriterij je dinamičan). Provjereno **simulacijom**,
+  ne rezoniranjem (poučak #25): savršen student posjeti module **0–6**, dakle bedž ostaje
+  dostižan.
+- Zadaci 79/80/82/83 se **ne brišu** — dokaz su nalaza i negativan primjer na kojem se gate
+  provjerava (poučak #39).
+
+### Za rad
+
+Ovo je najčišći primjer granice rezultatske evaluacije u projektu: postoji cijela klasa
+koncepata (izvedbeni plan, upotreba indeksa) gdje je **točan rezultat nužan ali ne i
+dovoljan uvjet točnog rješenja**. Uz #29 (ekvivalentne formulacije) i #35 (ZPD escape) ide
+u raspravu o konstruktnoj valjanosti. Dodatno: sandbox je namjerno malen zbog brzine, a ta
+odluka **isključuje** dio gradiva — planer na 200 redaka ne bira indeks ni kad postoji.
+
+---
+
+## #68 🟡 `column_alias` je dobio zadatke koje preporučivač nikad ne nudi (ZPD escape, druga potvrda)
+
+**Kad:** 2026-08-14, ista grana. Odluka korisnika bila je da `column_alias` dobije zadatke,
+a `join_condition` ne.
+
+**Izvedeno:** 3 ručno autorska zadatka. Koncept time ispada iz Kat. A
+(`transversal_concepts` traži count == 0). Kako je modul 0, **ne hvata ga ni subfloor**
+(traži modul ≠ 0) — ostaje bez ikakve mreže.
+
+**Strah iz plana bio je pogrešan, a stvarni ishod drukčiji.** Plan je strahovao da će
+koncept zapeti **ispod** praga i zaključati nizvodni `group_by`. Simulacija savršenog
+studenta (46 zadataka):
+
+| mjera | vrijednost |
+|---|---|
+| `column_alias` p_l | **0.9356** |
+| `group_by` p_l | 0.99999 |
+| je li `group_by` otključan | ✅ DA |
+| koliko je puta `column_alias` **ponuđen** | 🔴 **0** |
+
+🔴 **Koncept saturira IZNAD praga prije nego dođe na red.** Ima 4 sekundarna pojavljivanja,
+BKT ažurira sve koncepte zadatka, a Prolog bira samo koncepte **ispod** praga. To je
+**ERRATA #35 (ZPD escape) po drugi put**, sada na konceptu koji je zadatke dobio namjerno i
+mjereno.
+
+**Što to znači za isporuku:** tri nova zadatka **nisu mrtva** — `resolve_task_for_concept`
+ih vraća, pa su dosežni klikom na redak koncepta u pregledu Modula (put iz #42/#43). Ali
+kroz „Sljedeći zadatak" se ne nude. Razlika „dosežno navigacijom" vs „nuđeno preporukom"
+zaključana je testom, da se stanje ne čita kao potpuna pokrivenost.
+
+**Ne popravlja se.** Popravak bi tražio da BKT razlikuje primarna od sekundarnih
+ažuriranja, što je izmjena ugovora `/mastery-history` i jezgre modela — isto što #35 već
+navodi kao nemoguće bez novog polja.
+
+**Za rad:** dodavanje zadataka konceptu s puno sekundarnih pojavljivanja **ne čini ga
+podučavanim**. Nalaz je koristan jer je nastao iz namjernog pokušaja da se koncept pokrije,
+pa je mehanizam potvrđen prospektivno, a ne samo retrospektivno kao u #35.

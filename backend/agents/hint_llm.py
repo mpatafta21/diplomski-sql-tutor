@@ -71,6 +71,13 @@ _TIP_OPIS = {
     "timeout": "upit je predugo trajao pa je prekinut",
     "syntax_error": "editor je bio prazan ili sadržaj nije SQL",
     "unsupported_eval": "ovaj tip zadatka se ne ocjenjuje automatski",
+    # M6: redci su točni, ali izvedbeni plan nije onaj koji zadatak traži.
+    # 🔴 Model NE dobiva plan ni referentni upit — samo ovu oznaku i `error_detail`
+    # (npr. „upit ne koristi indeks"), što je isto što opis zadatka već traži.
+    "plan_mismatch": (
+        "rezultat je točan, ali upit se izvodi drukčije nego što zadatak traži "
+        "(pogrešan plan izvedbe)"
+    ),
 }
 
 

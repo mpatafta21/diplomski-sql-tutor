@@ -348,7 +348,7 @@ Puni tekst je u [`docs/errata.md`](errata.md). Ovdje sažetak.
 | **#81** | 🔴 `syntax_error` je kroz sučelje NEDOSTIŽAN — klijentski gard blokira predaju praznog upita, a to je jedini ulaz u tu granu | rupa u taksonomiji |
 | **#82** | 🟡 Stanje „Svi koncepti savladani" ne nastaje ni sa 88/88 — `repeat_practice` uvijek vrati `task_id` | mrtav ekran |
 | **#83** | 🟢 Zalutali ćirilični znak u tekstu savjeta (`vidišь`) | kozmetika |
-| **#84** | 🟡 Ispuštanje `ORDER BY` ocjenjuje se TOČNIM jer se `order_matters` izvodi iz **predanog** upita — izmjereno **44/88 (50,0 %)** aktivnih zadataka | pedagoška rupa |
+| **#84** | 🟡 Ispuštanje `ORDER BY` ocjenjuje se TOČNIM — najmanje **44/88** aktivnih; jednoredni popravak izmjeren i **odbačen** (v. §G) | pedagoška rupa, odluka donesena |
 
 ### Potvrde i opovrgnuća zatečenih nalaza
 
@@ -397,7 +397,95 @@ kroz `agents.evaluation.evaluate`, pa se u prolaz nije ušlo s pretpostavkom.
 
 ---
 
-## G — Kako se prolaz ponavlja
+## G — Mjerni krug oko #84: popravak obranjen pa oboren
+
+Nakon prolaza je #84 (`ORDER BY` se izostavi, a ocjena je „Točno") dobio zaseban
+mjerni krug jer se činio jednorednim: `evaluation.py:410` prosljeđuje
+`submitted_query` u `compare()`, pa `order_matters` dolazi iz **studentovog**
+upita; kandidat je bio proslijediti `expected_query`. Sve niže je izmjereno
+READ-ONLY, uz `COUNTED_TABLES` prije i poslije **identične**.
+
+### Opseg rupe
+
+| | |
+|---|---|
+| Zadataka s `ORDER BY` u referenci | **56 / 88 (63,6 %)** — M1 15/15, M6 5/5, M4 0/10 |
+| Ocijenjeno **Točno** bez `ORDER BY` | **44 / 88 (50,0 %)** |
+| `LIMIT` bez `ORDER BY` | **nužan ali nedovoljan** uvjet otpornosti: bez njega prolazi **19/19**, s njim svejedno **25 od 37** |
+| Oba zadatka koncepta `order_by` | **pogođena** |
+
+🔴 **44 je donja granica, ne brojka.** Onih 12 „otpornih" otporno je samo zato
+što im se traženi poredak ne poklapa s fizičkim poretkom redaka; `VACUUM FULL`,
+reseed ili `UPDATE` mogu ih prebaciti među pogođene. U rad ide **„najmanje 44 od
+88, gornja granica 56"**.
+
+### Popravak: prvo obranjen…
+
+Bojazan je bila da uređena usporedba obori **ispravna** rješenja ako referentni
+`ORDER BY` ima izjednačenja. Nije se potvrdila:
+
+- **izjednačenja: 0 / 56** (47 izmjereno nad rezultatom, 8 po shemi — `id` je
+  jedini PK stupac u `ecommerce_v1`, 1 ručno);
+- **nedeterminizam reference: 0 / 56** kroz 14 izvršavanja (8 čistih + 6
+  perturbacija planera);
+- **lažni negativi: 0** — simulirani popravak nad svih 88 referentnih rješenja
+  ostavlja sva 88 `Točno`.
+
+### …pa oboren
+
+Isti simulirani popravak nad 56 rješenja **bez** `ORDER BY` uhvatio je samo **24**;
+**32 i dalje prolaze**. Zatvara **12 od 44**.
+
+🔴 **Zadaci 13 i 14 — oba zadatka koncepta `order_by` — i dalje prolaze.**
+Popravak ne popravlja koncept zbog kojeg je razmatran. Uz to bi **22 zadatka
+postala plan-ovisna** (3 odmah s nestabilnim ishodom). Stabilna poznata rupa
+zamijenila bi se **užom rupom s nestabilnim rubom**, tjedan pred pisanje.
+
+**Odluka (korisnik, 2026-08-18): ne popravlja se.**
+
+### Što mjerenje zapravo tvrdi
+
+Rupu ne uzrokuje **odakle dolazi** `order_matters`, nego to što je poredak
+**izveden iz teksta upita umjesto deklariran u zadatku**. Popravak izvora ne dira
+uzrok. Ispravno rješenje je **`order_required` po zadatku** — migracija sheme i
+re-anotacija svih 88 zadataka. To je ograničenje s **poznatom cijenom**, a takvo
+se u rad piše bolje nego popravak koji radi upola.
+
+**Četvrti primjerak granice rezultatske evaluacije**, uz #29 (ne razlikuje
+ekvivalentne formulacije), #30 i #66 (ne može ocijeniti plan izvedbe).
+
+🔴 **Mehanizam je već bio zapisan — kao zaštita.** ERRATA #30 ga navodi kao
+ublažavanje drugog rizika: *„Rizik je dodatno ublažen time što `runner.compare`
+bez `ORDER BY` u upitu koristi set-usporedbu (redoslijed nebitan)."* Isto
+ponašanje je ondje korist, ovdje rupa, i četiri faze nitko ta dva retka nije
+spojio. Obrnuti razred od #71: ondje kod koji *podnosi* stanje nije dokaz da
+stanje nastaje; ovdje ponašanje zabilježeno kao *pogodnost* nikad nije ispitano
+kao hazard.
+
+### Tri pravila o instrumentu (za poglavlje o metodi)
+
+Sva tri su nalazi jednako kao i mjerenje koje su omogućila; zavedena su i kao
+🔒 DOC politika uz #84.
+
+1. **Nemoguć rezultat prijavljuje sebe.** Prvo mjerenje determinizma javilo je
+   „2 različita poretka" za **svih 56** zadataka — uključujući one s **jednim
+   retkom**, gdje dva poretka ne postoje. Ta nemogućnost je otkrila kvar:
+   `SandboxRunner.execute()` ne prima planner flagove (samo `explain()`), pa je
+   `SET LOCAL …; <upit>` prošao kao multi-statement i psycopg je vratio rezultat
+   prve naredbe — prazan. **Pouka je asimetrična:** instrument koji proizvede
+   nemoguć broj prijavljuje sam sebe; onaj koji proizvede **uvjerljiv** krivi
+   broj ne prijavljuje ništa i uđe u rad.
+2. **Ponavljanje bez perturbacije ne mjeri determinizam.** Osam identičnih
+   izvršavanja daje isti poredak i kad izjednačenja postoje — jer je plan isti.
+   Determinizam se mjeri **mijenjanjem plana**. Obrazac je posuđen iz
+   `plan_is_stable` / `STABILITY_FLAGS` (#66) i imenovan kao posudba, da se ne
+   izvodi treći put iz početka.
+3. **Otpornost mjerena nad jednim fizičkim poretkom je donja granica.** V. gore:
+   zato „najmanje 44", nikad gola brojka. Isti razred hazarda kao #60.
+
+---
+
+## H — Kako se prolaz ponavlja
 
 ```bash
 cd backend && uv run python ../scripts/prolaz/1_kandidati.py   # mutacije + verifikacija

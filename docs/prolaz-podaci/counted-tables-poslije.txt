@@ -1,0 +1,11 @@
+users|3
+attempts|199
+xp_log|137
+skill_mastery|51
+skill_mastery_history|488
+streaks|12
+user_badges|6
+misconceptions|35
+recommendations_log|431
+hint_requests|8
+agent_messages_log|34294

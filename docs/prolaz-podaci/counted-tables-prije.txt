@@ -1,0 +1,13 @@
+?column?|count
+users|2
+attempts|69
+xp_log|36
+skill_mastery|22
+skill_mastery_history|149
+streaks|11
+user_badges|2
+misconceptions|14
+recommendations_log|292
+hint_requests|3
+agent_messages_log|32284
+(11 rows)

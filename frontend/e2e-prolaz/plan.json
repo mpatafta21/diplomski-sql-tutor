@@ -1,0 +1,2398 @@
+{
+ "meta": {
+  "opis": "Plan e2e prolaza kroz svih 88 aktivnih zadataka. Netocni upiti su izvedeni iz expected_query imenovanim studentskim greskama i VERIFICIRANI kroz agents.evaluation.evaluate prije prolaza.",
+  "broj_zadataka": 88,
+  "raspodjela": {
+   "tocno_iz_prve": 54,
+   "jedna_netocna": 26,
+   "dvije_netocne": 8
+  },
+  "ocekivani_tipovi_gresaka": {
+   "empty_result": 5,
+   "row_mismatch": 9,
+   "execution_error": 9,
+   "wrong_columns": 14,
+   "timeout": 1,
+   "plan_mismatch": 2,
+   "explain_submitted": 2
+  },
+  "hint_zadaci": [
+   30,
+   35,
+   55,
+   3784,
+   62
+  ],
+  "redoslijed_zadataka": [
+   15,
+   16,
+   7,
+   8,
+   9,
+   17,
+   18,
+   19,
+   13,
+   14,
+   10,
+   11,
+   12,
+   5,
+   6,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   20,
+   21,
+   22,
+   23,
+   27,
+   28,
+   29,
+   24,
+   25,
+   26,
+   44,
+   45,
+   46,
+   47,
+   48,
+   49,
+   50,
+   84,
+   56,
+   41,
+   42,
+   43,
+   39,
+   40,
+   57,
+   58,
+   59,
+   51,
+   52,
+   53,
+   54,
+   55,
+   67,
+   85,
+   68,
+   69,
+   70,
+   71,
+   63,
+   64,
+   65,
+   66,
+   77,
+   78,
+   74,
+   75,
+   76,
+   72,
+   73,
+   60,
+   61,
+   62,
+   1,
+   2,
+   3,
+   4,
+   3786,
+   3787,
+   3788,
+   3784,
+   3785,
+   81,
+   3782,
+   3783
+  ],
+  "sonda_bez_order_by": 13
+ },
+ "zadaci": {
+  "15": {
+   "task_id": 15,
+   "koncept": "select_basic",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 1,
+   "naslov": "Naziv i zemlja porijekla dobavljača",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT id, name, country FROM suppliers ORDER BY id LIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "16": {
+   "task_id": 16,
+   "koncept": "select_basic",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 3,
+   "naslov": "Prikaz identifikatora, naziva i ocjene dobavljača",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT id, name, rating FROM suppliers ORDER BY id LIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "7": {
+   "task_id": 7,
+   "koncept": "from_clause",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 1,
+   "naslov": "Dohvati zaposlenike — ime, prezime i odjel",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT id, first_name, last_name, department\nFROM employees\nORDER BY id\nLIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "8": {
+   "task_id": 8,
+   "koncept": "from_clause",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 1,
+   "naslov": "Dohvati podatke o dobavljačima",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT id, name, country\nFROM suppliers\nORDER BY id\nLIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "9": {
+   "task_id": 9,
+   "koncept": "from_clause",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 2,
+   "naslov": "Dohvati naziv, zemlju i ocjenu dobavljača",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT name, country, rating\nFROM suppliers\nORDER BY id\nLIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "17": {
+   "task_id": 17,
+   "koncept": "where_filter",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 1,
+   "naslov": "Kupci iz Hrvatske",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "krivi_literal",
+     "opis": "krivo napisan tekstualni literal",
+     "query": "SELECT id, first_name, last_name, city\nFROM customers\nWHERE country = 'croatia'\nORDER BY id\nLIMIT 3",
+     "error_type": "empty_result",
+     "is_correct": false,
+     "detail": "Prazan rezultat, očekivano 3 redova",
+     "namjera": "netocno",
+     "ocekivano": "empty_result"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT id, first_name, last_name, city\nFROM customers\nWHERE country = 'Croatia'\nORDER BY id\nLIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "18": {
+   "task_id": 18,
+   "koncept": "where_filter",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 2,
+   "naslov": "Narudžbe u obradi s visokim iznosom",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "krivi_literal",
+     "opis": "krivo napisan tekstualni literal",
+     "query": "SELECT id, status, total_amount\nFROM orders\nWHERE status = 'Processing'\n  AND total_amount > 1000\nORDER BY id\nLIMIT 5",
+     "error_type": "empty_result",
+     "is_correct": false,
+     "detail": "Prazan rezultat, očekivano 5 redova",
+     "namjera": "netocno",
+     "ocekivano": "empty_result"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT id, status, total_amount\nFROM orders\nWHERE status = 'processing'\n  AND total_amount > 1000\nORDER BY id\nLIMIT 5",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "19": {
+   "task_id": 19,
+   "koncept": "where_filter",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 3,
+   "naslov": "Dostavljene narudžbe s visokim iznosom — WHERE ili HAVING?",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "krivi_literal",
+     "opis": "krivo napisan tekstualni literal",
+     "query": "SELECT id, status, total_amount\nFROM orders\nWHERE status = 'Delivered'\n  AND total_amount > 3000\nORDER BY id\nLIMIT 2",
+     "error_type": "empty_result",
+     "is_correct": false,
+     "detail": "Prazan rezultat, očekivano 2 redova",
+     "namjera": "netocno",
+     "ocekivano": "empty_result"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT id, status, total_amount\nFROM orders\nWHERE status = 'delivered'\n  AND total_amount > 3000\nORDER BY id\nLIMIT 2",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "13": {
+   "task_id": 13,
+   "koncept": "order_by",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 2,
+   "naslov": "Dostupni proizvodi sortirani po ID-u — WHERE prije ORDER BY",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "smjer_sortiranja",
+     "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+     "query": "SELECT id, name, price\nFROM products\nWHERE stock > 0\nORDER BY id DESC\nLIMIT 3",
+     "error_type": "row_mismatch",
+     "is_correct": false,
+     "detail": "Row 0 differs",
+     "namjera": "netocno",
+     "ocekivano": "row_mismatch"
+    },
+    {
+     "mutacija": "bez_order_by",
+     "opis": "zaboravljen ORDER BY",
+     "query": "SELECT id, name, price\nFROM products\nWHERE stock > 0 LIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "detail": "OK",
+     "namjera": "sonda",
+     "ocekivano": "correct"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT id, name, price\nFROM products\nWHERE stock > 0\nORDER BY id ASC\nLIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "14": {
+   "task_id": 14,
+   "koncept": "order_by",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 3,
+   "naslov": "Proizvodi na zalihi — WHERE dolazi prije ORDER BY",
+   "profil": 2,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "smjer_sortiranja",
+     "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+     "query": "SELECT name, stock\nFROM products\nWHERE is_discontinued = FALSE\nORDER BY id DESC\nLIMIT 3",
+     "error_type": "row_mismatch",
+     "is_correct": false,
+     "detail": "Row 0 differs",
+     "namjera": "netocno",
+     "ocekivano": "row_mismatch"
+    },
+    {
+     "mutacija": "krivi_limit",
+     "opis": "krivo procitan broj redaka u LIMIT-u",
+     "query": "SELECT name, stock\nFROM products\nWHERE is_discontinued = FALSE\nORDER BY id ASC\nLIMIT 5",
+     "error_type": "row_mismatch",
+     "is_correct": false,
+     "detail": "Row count mismatch: actual=5 vs expected=3",
+     "namjera": "netocno",
+     "ocekivano": "row_mismatch"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT name, stock\nFROM products\nWHERE is_discontinued = FALSE\nORDER BY id ASC\nLIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "10": {
+   "task_id": 10,
+   "koncept": "limit_offset",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 1,
+   "naslov": "Prvih 3 kupca sortirano po ID-u",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT first_name, last_name\nFROM customers\nORDER BY id ASC\nLIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "11": {
+   "task_id": 11,
+   "koncept": "limit_offset",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 2,
+   "naslov": "Kategorije — druga stranica po 2 retka",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT id, name\nFROM categories\nORDER BY id ASC\nLIMIT 2 OFFSET 2",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "12": {
+   "task_id": 12,
+   "koncept": "limit_offset",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 3,
+   "naslov": "Dobavljači — prva stranica paginacije s ispravnim OFFSET-om",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT id, name, country, rating\nFROM suppliers\nORDER BY id ASC\nLIMIT 3 OFFSET 0",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "5": {
+   "task_id": 5,
+   "koncept": "distinct",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 1,
+   "naslov": "Različiti statusi narudžbi bez GROUP BY",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT DISTINCT status\nFROM orders\nORDER BY status ASC",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "6": {
+   "task_id": 6,
+   "koncept": "distinct",
+   "tier": "easy",
+   "modul": 1,
+   "difficulty": 3,
+   "naslov": "DISTINCT na kombinaciji status–self_service u narudžbama",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT DISTINCT status, (employee_id IS NULL) AS self_service\nFROM orders\nORDER BY status ASC, self_service ASC\nLIMIT 5",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "30": {
+   "task_id": 30,
+   "koncept": "group_by",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 1,
+   "naslov": "Broj proizvoda po kategoriji",
+   "profil": 1,
+   "hint": true,
+   "pokusaji": [
+    {
+     "mutacija": "bez_group_by",
+     "opis": "zaboravljen GROUP BY uz agregat",
+     "query": "SELECT category_id, COUNT(*) AS broj_proizvoda FROM products ORDER BY category_id ASC",
+     "error_type": "execution_error",
+     "is_correct": false,
+     "detail": "column \"products.category_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT category_id, COUNT(*) AS broj_proizvoda FROM products...\n               ^",
+     "namjera": "netocno",
+     "ocekivano": "execution_error"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT category_id, COUNT(*) AS broj_proizvoda FROM products GROUP BY category_id ORDER BY category_id ASC",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "31": {
+   "task_id": 31,
+   "koncept": "group_by",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 2,
+   "naslov": "Broj kupaca po zemlji — TOP 5",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "bez_group_by",
+     "opis": "zaboravljen GROUP BY uz agregat",
+     "query": "SELECT country, COUNT(*) AS broj_kupaca FROM customers ORDER BY broj_kupaca DESC, country ASC LIMIT 5",
+     "error_type": "execution_error",
+     "is_correct": false,
+     "detail": "column \"customers.country\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT country, COUNT(*) AS broj_kupaca FROM customers ORDER...\n               ^",
+     "namjera": "netocno",
+     "ocekivano": "execution_error"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT country, COUNT(*) AS broj_kupaca FROM customers GROUP BY country ORDER BY broj_kupaca DESC, country ASC LIMIT 5",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "32": {
+   "task_id": 32,
+   "koncept": "group_by",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 3,
+   "naslov": "Ukupna količina prodanih proizvoda po proizvodu — TOP 10",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "bez_group_by",
+     "opis": "zaboravljen GROUP BY uz agregat",
+     "query": "SELECT product_id, SUM(quantity) AS ukupna_kolicina, COUNT(*) AS broj_stavki FROM order_items ORDER BY ukupna_kolicina DESC, product_id ASC LIMIT 10",
+     "error_type": "execution_error",
+     "is_correct": false,
+     "detail": "column \"order_items.product_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT product_id, SUM(quantity) AS ukupna_kolicina, COUNT(*...\n               ^",
+     "namjera": "netocno",
+     "ocekivano": "execution_error"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT product_id, SUM(quantity) AS ukupna_kolicina, COUNT(*) AS broj_stavki FROM order_items GROUP BY product_id ORDER BY ukupna_kolicina DESC, product_id ASC LIMIT 10",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "33": {
+   "task_id": 33,
+   "koncept": "group_by",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 3,
+   "naslov": "Prosječna ocjena recenzija po proizvodu — sortiranje silazno",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "bez_group_by",
+     "opis": "zaboravljen GROUP BY uz agregat",
+     "query": "SELECT product_id, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena, COUNT(*) AS broj_recenzija FROM reviews ORDER BY prosjecna_ocjena DESC, product_id ASC LIMIT 5",
+     "error_type": "execution_error",
+     "is_correct": false,
+     "detail": "column \"reviews.product_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT product_id, ROUND(AVG(rating)::numeric, 2) AS prosjec...\n               ^",
+     "namjera": "netocno",
+     "ocekivano": "execution_error"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT product_id, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena, COUNT(*) AS broj_recenzija FROM reviews GROUP BY product_id ORDER BY prosjecna_ocjena DESC, product_id ASC LIMIT 5",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "34": {
+   "task_id": 34,
+   "koncept": "group_by",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 4,
+   "naslov": "Ukupni iznos narudžbi po kupcu i statusu — multi-column GROUP BY",
+   "profil": 2,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "bez_group_by",
+     "opis": "zaboravljen GROUP BY uz agregat",
+     "query": "SELECT customer_id, status, SUM(total_amount) AS ukupni_iznos FROM orders ORDER BY customer_id ASC, ukupni_iznos DESC LIMIT 10",
+     "error_type": "execution_error",
+     "is_correct": false,
+     "detail": "column \"orders.customer_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT customer_id, status, SUM(total_amount) AS ukupni_izno...\n               ^",
+     "namjera": "netocno",
+     "ocekivano": "execution_error"
+    },
+    {
+     "mutacija": "smjer_sortiranja",
+     "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+     "query": "SELECT customer_id, status, SUM(total_amount) AS ukupni_iznos FROM orders GROUP BY customer_id, status ORDER BY customer_id ASC, ukupni_iznos ASC LIMIT 10",
+     "error_type": "row_mismatch",
+     "is_correct": false,
+     "detail": "Row 0 differs",
+     "namjera": "netocno",
+     "ocekivano": "row_mismatch"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT customer_id, status, SUM(total_amount) AS ukupni_iznos FROM orders GROUP BY customer_id, status ORDER BY customer_id ASC, ukupni_iznos DESC LIMIT 10",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "35": {
+   "task_id": 35,
+   "koncept": "having_filter",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 2,
+   "naslov": "Kategorije s više od 6 proizvoda — HAVING",
+   "profil": 1,
+   "hint": true,
+   "pokusaji": [
+    {
+     "mutacija": "smjer_sortiranja",
+     "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+     "query": "SELECT category_id, COUNT(*) AS broj_proizvoda FROM products GROUP BY category_id HAVING COUNT(*) > 6 ORDER BY broj_proizvoda ASC, category_id ASC",
+     "error_type": "row_mismatch",
+     "is_correct": false,
+     "detail": "Row 0 differs",
+     "namjera": "netocno",
+     "ocekivano": "row_mismatch"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT category_id, COUNT(*) AS broj_proizvoda FROM products GROUP BY category_id HAVING COUNT(*) > 6 ORDER BY broj_proizvoda DESC, category_id ASC",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "36": {
+   "task_id": 36,
+   "koncept": "having_filter",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 3,
+   "naslov": "Kupci s ukupno više od 10 narudžbi — WHERE + HAVING",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT customer_id, COUNT(*) AS broj_narudzbi FROM orders WHERE status != 'cancelled' GROUP BY customer_id HAVING COUNT(*) > 10 ORDER BY broj_narudzbi DESC, customer_id ASC",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "37": {
+   "task_id": 37,
+   "koncept": "having_filter",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 3,
+   "naslov": "Zemlje s prosječnim ratingom dobavljača iznad 3.5",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT country, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena FROM suppliers GROUP BY country HAVING AVG(rating) > 3.5 ORDER BY prosjecna_ocjena DESC, country ASC",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "38": {
+   "task_id": 38,
+   "koncept": "having_filter",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 4,
+   "naslov": "Top kategorije s visokim prosječnim prihodom — WHERE + GROUP BY + HAVING + ORDER",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT category_id, COUNT(*) AS broj_proizvoda, ROUND(AVG(price), 2) AS prosjecna_cijena FROM products GROUP BY category_id HAVING AVG(price) > 200 AND COUNT(*) >= 3 ORDER BY prosjecna_cijena DESC, category_id ASC",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "20": {
+   "task_id": 20,
+   "koncept": "agg_count",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 1,
+   "naslov": "Ukupan broj recenzija u sustavu",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS ukupno FROM reviews",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "21": {
+   "task_id": 21,
+   "koncept": "agg_count",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 2,
+   "naslov": "Broj kupaca bez ikoje narudžbe",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS kupaca_bez_narudzbi FROM customers c LEFT JOIN orders o ON c.id = o.customer_id WHERE o.id IS NULL",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "22": {
+   "task_id": 22,
+   "koncept": "agg_count",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 3,
+   "naslov": "Broj narudžbi po statusu — uključujući 0 za neaktivne statuse",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "zaboravljen_alias",
+     "opis": "zaboravljen AS alias na agregatu",
+     "query": "SELECT status, COUNT(*) FROM orders GROUP BY status ORDER BY status ASC",
+     "error_type": "wrong_columns",
+     "is_correct": false,
+     "detail": "Stupci se razlikuju — dobiveni: ['count', 'status'], očekivani: ['broj_narudzbi', 'status']",
+     "namjera": "netocno",
+     "ocekivano": "wrong_columns"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT status, COUNT(*) AS broj_narudzbi FROM orders GROUP BY status ORDER BY status ASC",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "23": {
+   "task_id": 23,
+   "koncept": "agg_count",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 4,
+   "naslov": "Broj distinct kupaca koji su naručivali u svakoj kategoriji",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "zaboravljen_alias",
+     "opis": "zaboravljen AS alias na agregatu",
+     "query": "SELECT p.category_id, COUNT(DISTINCT o.customer_id) FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id GROUP BY p.category_id ORDER BY broj_distinct_kupaca DESC, p.category_id ASC",
+     "error_type": "execution_error",
+     "is_correct": false,
+     "detail": "column \"broj_distinct_kupaca\" does not exist\nLINE 1: ...i.order_id = o.id GROUP BY p.category_id ORDER BY broj_disti...\n                                                             ^",
+     "namjera": "netocno",
+     "ocekivano": "execution_error"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT p.category_id, COUNT(DISTINCT o.customer_id) AS broj_distinct_kupaca FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id GROUP BY p.category_id ORDER BY broj_distinct_kupaca DESC, p.category_id ASC",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "27": {
+   "task_id": 27,
+   "koncept": "agg_sum_avg",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 2,
+   "naslov": "Prosječna cijena proizvoda",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "zaboravljen_alias",
+     "opis": "zaboravljen AS alias na agregatu",
+     "query": "SELECT ROUND(AVG(price), 2), ROUND(SUM(price), 2) AS ukupna_vrijednost FROM products",
+     "error_type": "wrong_columns",
+     "is_correct": false,
+     "detail": "Stupci se razlikuju — dobiveni: ['round', 'ukupna_vrijednost'], očekivani: ['prosjecna_cijena', 'ukupna_vrijednost']",
+     "namjera": "netocno",
+     "ocekivano": "wrong_columns"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT ROUND(AVG(price), 2) AS prosjecna_cijena, ROUND(SUM(price), 2) AS ukupna_vrijednost FROM products",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "28": {
+   "task_id": 28,
+   "koncept": "agg_sum_avg",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 3,
+   "naslov": "Ukupna potrošnja po kupcu — TOP 5 najvećih spenders",
+   "profil": 2,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "zaboravljen_alias",
+     "opis": "zaboravljen AS alias na agregatu",
+     "query": "SELECT customer_id, ROUND(SUM(total_amount), 2) FROM orders GROUP BY customer_id ORDER BY ukupna_potrosnja DESC, customer_id ASC LIMIT 5",
+     "error_type": "execution_error",
+     "is_correct": false,
+     "detail": "column \"ukupna_potrosnja\" does not exist\nLINE 1: ...nt), 2) FROM orders GROUP BY customer_id ORDER BY ukupna_pot...\n                                                             ^",
+     "namjera": "netocno",
+     "ocekivano": "execution_error"
+    },
+    {
+     "mutacija": "bez_group_by",
+     "opis": "zaboravljen GROUP BY uz agregat",
+     "query": "SELECT customer_id, ROUND(SUM(total_amount), 2) AS ukupna_potrosnja FROM orders ORDER BY ukupna_potrosnja DESC, customer_id ASC LIMIT 5",
+     "error_type": "execution_error",
+     "is_correct": false,
+     "detail": "column \"orders.customer_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT customer_id, ROUND(SUM(total_amount), 2) AS ukupna_po...\n               ^",
+     "namjera": "netocno",
+     "ocekivano": "execution_error"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT customer_id, ROUND(SUM(total_amount), 2) AS ukupna_potrosnja FROM orders GROUP BY customer_id ORDER BY ukupna_potrosnja DESC, customer_id ASC LIMIT 5",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "29": {
+   "task_id": 29,
+   "koncept": "agg_sum_avg",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 4,
+   "naslov": "Mjesečni prihod po kategoriji proizvoda u 2025",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT EXTRACT(MONTH FROM o.order_date)::int AS mjesec, p.category_id, ROUND(SUM(oi.quantity * oi.unit_price), 2) AS ukupni_prihod FROM orders o JOIN order_items oi ON o.id = oi.order_id JOIN products p ON oi.product_id = p.id WHERE o.status = 'delivered' AND EXTRACT(YEAR FROM o.order_date) = 2025 GROUP BY mjesec, p.category_id ORDER BY mjesec ASC, ukupni_prihod DESC LIMIT 10",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "24": {
+   "task_id": 24,
+   "koncept": "agg_min_max",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 1,
+   "naslov": "Najjeftiniji i najskuplji proizvod",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT MIN(price) AS min_cijena, MAX(price) AS max_cijena FROM products",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "25": {
+   "task_id": 25,
+   "koncept": "agg_min_max",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 2,
+   "naslov": "Najraniji i najkasniji datum narudžbe po statusu",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT status, MIN(order_date) AS najranija_narudzba, MAX(order_date) AS najkasnija_narudzba FROM orders GROUP BY status ORDER BY status ASC",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "26": {
+   "task_id": 26,
+   "koncept": "agg_min_max",
+   "tier": "medium",
+   "modul": 2,
+   "difficulty": 3,
+   "naslov": "Najveća pojedinačna stavka narudžbe po kategoriji proizvoda",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT p.category_id, ROUND(MAX(oi.quantity * oi.unit_price), 2) AS max_vrijednost_stavke FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY p.category_id ORDER BY max_vrijednost_stavke DESC, p.category_id ASC",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "44": {
+   "task_id": 44,
+   "koncept": "inner_join",
+   "tier": "medium",
+   "modul": 3,
+   "difficulty": 1,
+   "naslov": "Ukupan broj proizvoda s dodijeljenom kategorijom",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS total_products\nFROM products p\nINNER JOIN categories c ON p.category_id = c.id",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "45": {
+   "task_id": 45,
+   "koncept": "inner_join",
+   "tier": "medium",
+   "modul": 3,
+   "difficulty": 2,
+   "naslov": "Ukupan broj narudžbi spojenih s kupcima",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS broj_narudzbi\nFROM orders o\nINNER JOIN customers c ON o.customer_id = c.id",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "46": {
+   "task_id": 46,
+   "koncept": "inner_join",
+   "tier": "medium",
+   "modul": 3,
+   "difficulty": 3,
+   "naslov": "Ukupan broj stavki narudžbi s valjanim proizvodom i kategorijom",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "zaboravljen_alias",
+     "opis": "zaboravljen AS alias na agregatu",
+     "query": "SELECT COUNT(*)\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN categories c ON p.category_id = c.id",
+     "error_type": "wrong_columns",
+     "is_correct": false,
+     "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['total_order_items']",
+     "namjera": "netocno",
+     "ocekivano": "wrong_columns"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS total_order_items\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN categories c ON p.category_id = c.id",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "47": {
+   "task_id": 47,
+   "koncept": "inner_join",
+   "tier": "medium",
+   "modul": 3,
+   "difficulty": 4,
+   "naslov": "Ukupna prodana količina po kategoriji proizvoda",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "zaboravljen_alias",
+     "opis": "zaboravljen AS alias na agregatu",
+     "query": "SELECT c.id AS category_id, c.name AS category_name, SUM(oi.quantity)\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN categories c ON p.category_id = c.id\nGROUP BY c.id, c.name\nORDER BY c.id\nLIMIT 5",
+     "error_type": "wrong_columns",
+     "is_correct": false,
+     "detail": "Stupci se razlikuju — dobiveni: ['category_id', 'category_name', 'sum'], očekivani: ['category_id', 'category_name', 'total_quantity_sold']",
+     "namjera": "netocno",
+     "ocekivano": "wrong_columns"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT c.id AS category_id, c.name AS category_name, SUM(oi.quantity) AS total_quantity_sold\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN categories c ON p.category_id = c.id\nGROUP BY c.id, c.name\nORDER BY c.id\nLIMIT 5",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "48": {
+   "task_id": 48,
+   "koncept": "left_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 2,
+   "naslov": "Broj kupaca bez ijedne narudžbe",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "zaboravljen_alias",
+     "opis": "zaboravljen AS alias na agregatu",
+     "query": "SELECT COUNT(*)\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL",
+     "error_type": "wrong_columns",
+     "is_correct": false,
+     "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['customers_without_orders']",
+     "namjera": "netocno",
+     "ocekivano": "wrong_columns"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS customers_without_orders\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "49": {
+   "task_id": 49,
+   "koncept": "left_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 3,
+   "naslov": "Kupci bez ijedne narudžbe — Anti-join uzorak",
+   "profil": 2,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "zaboravljen_alias",
+     "opis": "zaboravljen AS alias na agregatu",
+     "query": "SELECT COUNT(*)\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL",
+     "error_type": "wrong_columns",
+     "is_correct": false,
+     "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['customers_without_orders']",
+     "namjera": "netocno",
+     "ocekivano": "wrong_columns"
+    },
+    {
+     "mutacija": "tipfeler_stupca",
+     "opis": "tipfeler u nazivu stupca",
+     "query": "SELECT COUNT(*) AS customerswithout_orders\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL",
+     "error_type": "wrong_columns",
+     "is_correct": false,
+     "detail": "Stupci se razlikuju — dobiveni: ['customerswithout_orders'], očekivani: ['customers_without_orders']",
+     "namjera": "netocno",
+     "ocekivano": "wrong_columns"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS customers_without_orders\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "50": {
+   "task_id": 50,
+   "koncept": "left_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 4,
+   "naslov": "Broj narudžbi 'delivered' statusa po kupcu — ON vs WHERE filter",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT c.id, c.first_name, c.last_name, COUNT(o.id) AS delivered_count\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id AND o.status = 'delivered'\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY c.id\nLIMIT 5",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "84": {
+   "task_id": 84,
+   "koncept": "right_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 2,
+   "naslov": "Kupci bez ijedne narudžbe (RIGHT JOIN)",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT c.id AS customer_id,\n       c.first_name,\n       c.last_name\nFROM orders o\nRIGHT JOIN customers c ON o.customer_id = c.id\nWHERE o.id IS NULL\nORDER BY c.id\nLIMIT 5",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "56": {
+   "task_id": 56,
+   "koncept": "right_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 3,
+   "naslov": "Dobavljači i broj proizvoda koje isporučuju (RIGHT JOIN)",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT s.id AS supplier_id,\n       s.name AS supplier_name,\n       COUNT(p.id) AS product_count\nFROM products p\nRIGHT JOIN suppliers s ON p.supplier_id = s.id\nGROUP BY s.id, s.name\nORDER BY s.id\nLIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "41": {
+   "task_id": 41,
+   "koncept": "full_outer_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 3,
+   "naslov": "Prebrojavanje nepovezanih redova s FULL OUTER JOIN-om",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT\n    CASE\n        WHEN c.id IS NULL THEN 'Narudžba bez kupca'\n        WHEN o.id IS NULL THEN 'Kupac bez narudžbe'\n    END AS kategorija,\n    COUNT(*) AS broj\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nWHERE c.id IS NULL OR o.id IS NULL\nGROUP BY kategorija\nORDER BY kategorija",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "42": {
+   "task_id": 42,
+   "koncept": "full_outer_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 4,
+   "naslov": "Dvostruki anti-join: kupci bez narudžbi i narudžbe bez kupca",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT\n    CASE\n        WHEN o.id IS NULL THEN 'Kupac bez narudžbe'\n        WHEN c.id IS NULL THEN 'Narudžba bez kupca'\n    END AS kategorija,\n    COUNT(*) AS broj\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL OR c.id IS NULL\nGROUP BY kategorija\nORDER BY kategorija",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "43": {
+   "task_id": 43,
+   "koncept": "full_outer_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 5,
+   "naslov": "FULL OUTER JOIN analiza: kategorizacija kupaca i narudžbi s agregatima",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT\n    CASE\n        WHEN c.id IS NULL THEN 'Narudžbe bez kupca'\n        WHEN o.id IS NULL THEN 'Kupci bez narudžbi'\n        ELSE 'Kupci s narudžbama'\n    END AS kategorija,\n    COUNT(*) AS broj_redova,\n    COUNT(DISTINCT c.id) AS broj_kupaca,\n    COUNT(DISTINCT o.id) AS broj_narudžbi\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nGROUP BY 1\nORDER BY kategorija",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "39": {
+   "task_id": 39,
+   "koncept": "cross_join",
+   "tier": "medium",
+   "modul": 3,
+   "difficulty": 2,
+   "naslov": "Generiraj sve kombinacije kategorija i statusa narudžbi (CROSS JOIN)",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "krivi_limit",
+     "opis": "krivo procitan broj redaka u LIMIT-u",
+     "query": "SELECT c.name AS category_name,\n       s.status AS order_status\nFROM categories c\nCROSS JOIN (SELECT DISTINCT status FROM orders) s\nORDER BY c.name, s.status\nLIMIT 7",
+     "error_type": "row_mismatch",
+     "is_correct": false,
+     "detail": "Row count mismatch: actual=7 vs expected=5",
+     "namjera": "netocno",
+     "ocekivano": "row_mismatch"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT c.name AS category_name,\n       s.status AS order_status\nFROM categories c\nCROSS JOIN (SELECT DISTINCT status FROM orders) s\nORDER BY c.name, s.status\nLIMIT 5",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "40": {
+   "task_id": 40,
+   "koncept": "cross_join",
+   "tier": "medium",
+   "modul": 3,
+   "difficulty": 3,
+   "naslov": "Provjera kardinalnosti: CROSS JOIN kategorija i statusa narudžbi",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "zaboravljen_alias",
+     "opis": "zaboravljen AS alias na agregatu",
+     "query": "SELECT\n    COUNT(*),\n    COUNT(DISTINCT c.id)    AS category_count,\n    COUNT(DISTINCT s.status) AS status_count\nFROM categories c\nCROSS JOIN (SELECT DISTINCT status FROM orders) s",
+     "error_type": "wrong_columns",
+     "is_correct": false,
+     "detail": "Stupci se razlikuju — dobiveni: ['category_count', 'count', 'status_count'], očekivani: ['category_count', 'status_count', 'total_combinations']",
+     "namjera": "netocno",
+     "ocekivano": "wrong_columns"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT\n    COUNT(*)                AS total_combinations,\n    COUNT(DISTINCT c.id)    AS category_count,\n    COUNT(DISTINCT s.status) AS status_count\nFROM categories c\nCROSS JOIN (SELECT DISTINCT status FROM orders) s",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "57": {
+   "task_id": 57,
+   "koncept": "self_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 3,
+   "naslov": "Broj zaposlenika s neposrednim managerom (SELF JOIN)",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "zaboravljen_alias",
+     "opis": "zaboravljen AS alias na agregatu",
+     "query": "SELECT COUNT(*)\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id",
+     "error_type": "wrong_columns",
+     "is_correct": false,
+     "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['total_with_manager']",
+     "namjera": "netocno",
+     "ocekivano": "wrong_columns"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS total_with_manager\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "58": {
+   "task_id": 58,
+   "koncept": "self_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 4,
+   "naslov": "Zaposlenici u drugom odjelu od svog managera",
+   "profil": 2,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "krivi_limit",
+     "opis": "krivo procitan broj redaka u LIMIT-u",
+     "query": "SELECT e.first_name || ' ' || e.last_name AS employee_name,\n       e.department AS employee_department,\n       m.first_name || ' ' || m.last_name AS manager_name,\n       m.department AS manager_department\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id\nWHERE e.department <> m.department\nORDER BY e.id\nLIMIT 4",
+     "error_type": "row_mismatch",
+     "is_correct": false,
+     "detail": "Row count mismatch: actual=4 vs expected=2",
+     "namjera": "netocno",
+     "ocekivano": "row_mismatch"
+    },
+    {
+     "mutacija": "tipfeler_stupca",
+     "opis": "tipfeler u nazivu stupca",
+     "query": "SELECT e.firstname || ' ' || e.last_name AS employee_name,\n       e.department AS employee_department,\n       m.first_name || ' ' || m.last_name AS manager_name,\n       m.department AS manager_department\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id\nWHERE e.department <> m.department\nORDER BY e.id\nLIMIT 2",
+     "error_type": "execution_error",
+     "is_correct": false,
+     "detail": "column e.firstname does not exist\nLINE 1: SELECT e.firstname || ' ' || e.last_name AS employee_name,\n               ^\nHINT:  Perhaps you meant to reference the column \"e.first_name\".",
+     "namjera": "netocno",
+     "ocekivano": "execution_error"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT e.first_name || ' ' || e.last_name AS employee_name,\n       e.department AS employee_department,\n       m.first_name || ' ' || m.last_name AS manager_name,\n       m.department AS manager_department\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id\nWHERE e.department <> m.department\nORDER BY e.id\nLIMIT 2",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "59": {
+   "task_id": 59,
+   "koncept": "self_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 5,
+   "naslov": "Dvostruki SELF JOIN: zaposlenici s dva nivoa nadređenih",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS total\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id\nINNER JOIN employees gm ON m.manager_id = gm.id",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "51": {
+   "task_id": 51,
+   "koncept": "multi_table_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 3,
+   "naslov": "Ukupan broj stavki narudžbi kroz tri JOIN-ana tablica",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS total_items\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN suppliers s ON p.supplier_id = s.id",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "52": {
+   "task_id": 52,
+   "koncept": "multi_table_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 3,
+   "naslov": "Prebroji kupce, narudžbe i stavke spajanjem triju tablica",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "bez_uvjeta_spajanja",
+     "opis": "zaboravljen uvjet spajanja u troclanom JOIN-u (kartezijev produkt)",
+     "query": "SELECT COUNT(*) AS total_order_items,\n       COUNT(DISTINCT o.id) AS distinct_orders,\n       COUNT(DISTINCT c.id) AS distinct_customers\nFROM customers c, orders o, order_items oi",
+     "error_type": "timeout",
+     "is_correct": false,
+     "detail": "Statement timeout after 5000ms",
+     "namjera": "netocno",
+     "ocekivano": "timeout"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS total_order_items,\n       COUNT(DISTINCT o.id) AS distinct_orders,\n       COUNT(DISTINCT c.id) AS distinct_customers\nFROM customers c\nINNER JOIN orders o ON c.id = o.customer_id\nINNER JOIN order_items oi ON o.id = oi.order_id",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "53": {
+   "task_id": 53,
+   "koncept": "multi_table_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 4,
+   "naslov": "Prihod i broj naručenih proizvoda po kategoriji (JOIN 4 tablice)",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT cat.name AS category,\n       COUNT(DISTINCT p.id) AS product_count,\n       SUM(oi.quantity * oi.unit_price) AS total_revenue\nFROM categories cat\nINNER JOIN products p ON p.category_id = cat.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON oi.order_id = o.id\nGROUP BY cat.id, cat.name\nORDER BY total_revenue DESC\nLIMIT 5",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "54": {
+   "task_id": 54,
+   "koncept": "multi_table_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 4,
+   "naslov": "Ukupni prihod i broj narudžbi po dobavljaču (JOIN 4 tablice)",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT s.name AS supplier_name,\n       SUM(oi.quantity * oi.unit_price) AS total_revenue,\n       COUNT(DISTINCT o.id) AS order_count\nFROM suppliers s\nINNER JOIN products p ON p.supplier_id = s.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON o.id = oi.order_id\nGROUP BY s.id, s.name\nORDER BY total_revenue DESC\nLIMIT 5",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "55": {
+   "task_id": 55,
+   "koncept": "multi_table_join",
+   "tier": "hard",
+   "modul": 3,
+   "difficulty": 5,
+   "naslov": "Prihod i prosječna ocjena po dobavljaču — 4-stolični JOIN",
+   "profil": 1,
+   "hint": true,
+   "pokusaji": [
+    {
+     "mutacija": "zaboravljen_alias",
+     "opis": "zaboravljen AS alias na agregatu",
+     "query": "SELECT s.name AS supplier_name,\n       COUNT(DISTINCT p.id),\n       SUM(oi.quantity) AS total_quantity,\n       ROUND(AVG(r.rating), 2) AS avg_review_rating\nFROM suppliers s\nINNER JOIN products p ON s.id = p.supplier_id\nINNER JOIN order_items oi ON p.id = oi.product_id\nLEFT JOIN reviews r ON p.id = r.product_id\nGROUP BY s.id, s.name\nORDER BY total_quantity DESC\nLIMIT 5",
+     "error_type": "wrong_columns",
+     "is_correct": false,
+     "detail": "Stupci se razlikuju — dobiveni: ['avg_review_rating', 'count', 'supplier_name', 'total_quantity'], očekivani: ['avg_review_rating', 'distinct_products_sold', 'supplier_name', 'total_quantity']",
+     "namjera": "netocno",
+     "ocekivano": "wrong_columns"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT s.name AS supplier_name,\n       COUNT(DISTINCT p.id) AS distinct_products_sold,\n       SUM(oi.quantity) AS total_quantity,\n       ROUND(AVG(r.rating), 2) AS avg_review_rating\nFROM suppliers s\nINNER JOIN products p ON s.id = p.supplier_id\nINNER JOIN order_items oi ON p.id = oi.product_id\nLEFT JOIN reviews r ON p.id = r.product_id\nGROUP BY s.id, s.name\nORDER BY total_quantity DESC\nLIMIT 5",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "67": {
+   "task_id": 67,
+   "koncept": "insert",
+   "tier": "medium",
+   "modul": 4,
+   "difficulty": 2,
+   "naslov": "Unos novog kupca s eksplicitnom listom stupaca",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "bez_returning",
+     "opis": "DML bez RETURNING",
+     "query": "INSERT INTO customers (first_name, last_name, email, country, city)\nVALUES ('Petra', 'Novak', 'petra.novak.test@example.com', 'Croatia', 'Zagreb')",
+     "error_type": "empty_result",
+     "is_correct": false,
+     "detail": "Prazan rezultat, očekivano 1 redova",
+     "namjera": "netocno",
+     "ocekivano": "empty_result"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "INSERT INTO customers (first_name, last_name, email, country, city)\nVALUES ('Petra', 'Novak', 'petra.novak.test@example.com', 'Croatia', 'Zagreb')\nRETURNING first_name, last_name, email",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "85": {
+   "task_id": 85,
+   "koncept": "insert",
+   "tier": "medium",
+   "modul": 4,
+   "difficulty": 3,
+   "naslov": "Unos dvaju dobavljača jednom naredbom (multi-row VALUES)",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "INSERT INTO suppliers (name, country, contact_email, rating)\nVALUES ('Adriatic Supply', 'Croatia', 'kontakt@adriatic-supply.test', 4.50),\n       ('Nordic Parts', 'Sweden', 'info@nordic-parts.test', 3.80)\nRETURNING name, country, rating",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "68": {
+   "task_id": 68,
+   "koncept": "update",
+   "tier": "medium",
+   "modul": 4,
+   "difficulty": 2,
+   "naslov": "Ažuriranje email adrese kupca s id = 1",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "UPDATE customers\nSET email = 'leon.car@example.com'\nWHERE id = 1\nRETURNING id, first_name, last_name, email",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "69": {
+   "task_id": 69,
+   "koncept": "update",
+   "tier": "medium",
+   "modul": 4,
+   "difficulty": 3,
+   "naslov": "Sniženje cijene i povećanje zalihe za proizvod id=1",
+   "profil": 2,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "update_bez_where",
+     "opis": "UPDATE/DELETE bez WHERE",
+     "query": "UPDATE products\nSET price = ROUND(price * 0.90, 2),\n    stock = stock + 100\n RETURNING id, name, price, stock",
+     "error_type": "row_mismatch",
+     "is_correct": false,
+     "detail": "Row count mismatch: actual=100 vs expected=1",
+     "namjera": "netocno",
+     "ocekivano": "row_mismatch"
+    },
+    {
+     "mutacija": "bez_returning",
+     "opis": "DML bez RETURNING",
+     "query": "UPDATE products\nSET price = ROUND(price * 0.90, 2),\n    stock = stock + 100\nWHERE id = 1",
+     "error_type": "empty_result",
+     "is_correct": false,
+     "detail": "Prazan rezultat, očekivano 1 redova",
+     "namjera": "netocno",
+     "ocekivano": "empty_result"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "UPDATE products\nSET price = ROUND(price * 0.90, 2),\n    stock = stock + 100\nWHERE id = 1\nRETURNING id, name, price, stock",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "70": {
+   "task_id": 70,
+   "koncept": "update",
+   "tier": "medium",
+   "modul": 4,
+   "difficulty": 3,
+   "naslov": "Unapređenje zaposlenika: ažuriranje odjela i plaće u jednom iskazu",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "UPDATE employees\nSET salary = salary * 1.20,\n    department = 'Management'\nWHERE id = 2\nRETURNING id, first_name, last_name, department, salary",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "71": {
+   "task_id": 71,
+   "koncept": "update",
+   "tier": "medium",
+   "modul": 4,
+   "difficulty": 4,
+   "naslov": "Ažuriranje cijene i zalihe proizvoda koristeći subquery u SET klauzuli",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "UPDATE products\nSET price = price * (SELECT rating FROM suppliers WHERE id = products.supplier_id) / 5,\n    stock = stock - 10\nWHERE id = 1\nRETURNING id, name, price, stock",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "63": {
+   "task_id": 63,
+   "koncept": "delete",
+   "tier": "medium",
+   "modul": 4,
+   "difficulty": 2,
+   "naslov": "Brisanje jedne otkazane narudžbe po ID-u",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "DELETE FROM orders\nWHERE id = 2\nRETURNING id, status",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "64": {
+   "task_id": 64,
+   "koncept": "delete",
+   "tier": "medium",
+   "modul": 4,
+   "difficulty": 3,
+   "naslov": "Brisanje recenzije po ID-u s RETURNING provjerom",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "DELETE FROM reviews\nWHERE id = 1\nRETURNING id, product_id, rating",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "65": {
+   "task_id": 65,
+   "koncept": "delete",
+   "tier": "medium",
+   "modul": 4,
+   "difficulty": 3,
+   "naslov": "Brisanje specifične recenzije kupca za određeni proizvod",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "DELETE FROM reviews\nWHERE customer_id = 158\n  AND product_id = 38\nRETURNING id, rating",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "66": {
+   "task_id": 66,
+   "koncept": "delete",
+   "tier": "medium",
+   "modul": 4,
+   "difficulty": 4,
+   "naslov": "Kaskadno brisanje stavki i narudžbi otkazanog kupca (subquery)",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "DELETE FROM order_items\nWHERE order_id IN (\n    SELECT id\n    FROM orders\n    WHERE customer_id = 5\n      AND status = 'cancelled'\n)\nRETURNING id;\n\nDELETE FROM orders\nWHERE customer_id = 5\n  AND status = 'cancelled'\nRETURNING id",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "77": {
+   "task_id": 77,
+   "koncept": "scalar_subquery",
+   "tier": "hard",
+   "modul": 5,
+   "difficulty": 2,
+   "naslov": "Broj narudžbi ispod maksimalnog iznosa",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS orders_below_max\nFROM orders\nWHERE total_amount < (SELECT MAX(total_amount) FROM orders)",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "78": {
+   "task_id": 78,
+   "koncept": "scalar_subquery",
+   "tier": "hard",
+   "modul": 5,
+   "difficulty": 3,
+   "naslov": "Broj narudžbi kao referentni stupac u SELECT klauzi",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT\n    o.id,\n    o.status,\n    o.total_amount,\n    (SELECT COUNT(*) FROM orders) AS ukupno_narudzbi\nFROM orders o\nORDER BY o.id\nLIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "74": {
+   "task_id": 74,
+   "koncept": "in_subquery",
+   "tier": "hard",
+   "modul": 5,
+   "difficulty": 2,
+   "naslov": "Broj kupaca koji su napravili barem jednu narudžbu (IN s podupitom)",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS total_customers\nFROM customers c\nWHERE c.id IN (\n    SELECT o.customer_id\n    FROM orders o\n)",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "75": {
+   "task_id": 75,
+   "koncept": "in_subquery",
+   "tier": "hard",
+   "modul": 5,
+   "difficulty": 3,
+   "naslov": "Broj kupaca bez narudžbi — NOT IN s IS NOT NULL zaštitom",
+   "profil": 2,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "zaboravljen_alias",
+     "opis": "zaboravljen AS alias na agregatu",
+     "query": "SELECT COUNT(*)\nFROM customers c\nWHERE c.id NOT IN (\n    SELECT o.customer_id\n    FROM orders o\n    WHERE o.customer_id IS NOT NULL\n)",
+     "error_type": "wrong_columns",
+     "is_correct": false,
+     "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['customers_without_orders']",
+     "namjera": "netocno",
+     "ocekivano": "wrong_columns"
+    },
+    {
+     "mutacija": "tipfeler_stupca",
+     "opis": "tipfeler u nazivu stupca",
+     "query": "SELECT COUNT(*) AS customerswithout_orders\nFROM customers c\nWHERE c.id NOT IN (\n    SELECT o.customer_id\n    FROM orders o\n    WHERE o.customer_id IS NOT NULL\n)",
+     "error_type": "wrong_columns",
+     "is_correct": false,
+     "detail": "Stupci se razlikuju — dobiveni: ['customerswithout_orders'], očekivani: ['customers_without_orders']",
+     "namjera": "netocno",
+     "ocekivano": "wrong_columns"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS customers_without_orders\nFROM customers c\nWHERE c.id NOT IN (\n    SELECT o.customer_id\n    FROM orders o\n    WHERE o.customer_id IS NOT NULL\n)",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "76": {
+   "task_id": 76,
+   "koncept": "in_subquery",
+   "tier": "hard",
+   "modul": 5,
+   "difficulty": 4,
+   "naslov": "Kategorije s nadprosječnim brojem proizvoda (IN + GROUP BY + ugniježđeni podupit)",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT cat.id, cat.name\nFROM categories cat\nWHERE cat.id IN (\n    SELECT p.category_id\n    FROM products p\n    WHERE p.category_id IS NOT NULL\n    GROUP BY p.category_id\n    HAVING COUNT(*) > (\n        SELECT AVG(sub.cnt)\n        FROM (\n            SELECT COUNT(*) AS cnt\n            FROM products p2\n            WHERE p2.category_id IS NOT NULL\n            GROUP BY p2.category_id\n        ) sub\n    )\n)\nORDER BY cat.id",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "72": {
+   "task_id": 72,
+   "koncept": "exists_subquery",
+   "tier": "hard",
+   "modul": 5,
+   "difficulty": 2,
+   "naslov": "Dobavljači koji imaju barem jedan proizvod — EXISTS (SELECT 1)",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT s.id, s.name, s.country\nFROM suppliers s\nWHERE EXISTS (\n    SELECT 1\n    FROM products p\n    WHERE p.supplier_id = s.id\n)\nORDER BY s.id\nLIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "73": {
+   "task_id": 73,
+   "koncept": "exists_subquery",
+   "tier": "hard",
+   "modul": 5,
+   "difficulty": 4,
+   "naslov": "Kupci koji nemaju ni jednu narudžbu — NOT EXISTS vs NOT IN NULL zamka",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS broj_kupaca\nFROM customers c\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM orders o\n    WHERE o.customer_id = c.id\n)",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "60": {
+   "task_id": 60,
+   "koncept": "correlated_subquery",
+   "tier": "hard",
+   "modul": 5,
+   "difficulty": 3,
+   "naslov": "Kupci bez ijedne narudžbe pomoću koreliranog podupita",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS count_customers_no_orders\nFROM customers c\nWHERE (\n    SELECT COUNT(*)\n    FROM orders o\n    WHERE o.customer_id = c.id\n) = 0",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "61": {
+   "task_id": 61,
+   "koncept": "correlated_subquery",
+   "tier": "hard",
+   "modul": 5,
+   "difficulty": 4,
+   "naslov": "Broj kupaca bez ijedne narudžbe koristeći korelirani NOT EXISTS",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS kupci_bez_narudzbi\nFROM customers c\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM orders o\n    WHERE o.customer_id = c.id\n)",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "62": {
+   "task_id": 62,
+   "koncept": "correlated_subquery",
+   "tier": "hard",
+   "modul": 5,
+   "difficulty": 5,
+   "naslov": "Kupci kod kojih svaka narudžba premašuje prosjek ostalih njihovih narudžbi",
+   "profil": 1,
+   "hint": true,
+   "pokusaji": [
+    {
+     "mutacija": "krivi_limit",
+     "opis": "krivo procitan broj redaka u LIMIT-u",
+     "query": "SELECT\n    c.id AS customer_id,\n    c.first_name,\n    c.last_name,\n    COUNT(o.id) AS outlier_order_count\nFROM customers c\nJOIN orders o ON o.customer_id = c.id\nWHERE (\n    SELECT COUNT(*)\n    FROM orders o_all\n    WHERE o_all.customer_id = c.id\n) >= 2\nAND o.total_amount > (\n    SELECT AVG(o2.total_amount)\n    FROM orders o2\n    WHERE o2.customer_id = c.id\n      AND o2.id <> o.id\n)\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY c.id\nLIMIT 7",
+     "error_type": "row_mismatch",
+     "is_correct": false,
+     "detail": "Row count mismatch: actual=7 vs expected=5",
+     "namjera": "netocno",
+     "ocekivano": "row_mismatch"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT\n    c.id AS customer_id,\n    c.first_name,\n    c.last_name,\n    COUNT(o.id) AS outlier_order_count\nFROM customers c\nJOIN orders o ON o.customer_id = c.id\nWHERE (\n    SELECT COUNT(*)\n    FROM orders o_all\n    WHERE o_all.customer_id = c.id\n) >= 2\nAND o.total_amount > (\n    SELECT AVG(o2.total_amount)\n    FROM orders o2\n    WHERE o2.customer_id = c.id\n      AND o2.id <> o.id\n)\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY c.id\nLIMIT 5",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "1": {
+   "task_id": 1,
+   "koncept": "null_handling",
+   "tier": "hard",
+   "modul": 0,
+   "difficulty": 1,
+   "naslov": "COUNT(*) vs COUNT(kolone) — narudžbe bez zaposlenika",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT COUNT(*) AS ukupno_narudzbi,\n       COUNT(employee_id) AS narudzbe_sa_zaposlenikom\nFROM orders",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "2": {
+   "task_id": 2,
+   "koncept": "null_handling",
+   "tier": "hard",
+   "modul": 0,
+   "difficulty": 3,
+   "naslov": "Prikaz zaposlenika i njihovog nadređenog s fallback vrijednošću",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT e.id,\n       e.first_name || ' ' || e.last_name AS employee_name,\n       COALESCE(m.first_name || ' ' || m.last_name, 'Top Management') AS manager_name\nFROM employees e\nLEFT JOIN employees m ON e.manager_id = m.id\nORDER BY e.id\nLIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "3": {
+   "task_id": 3,
+   "koncept": "null_handling",
+   "tier": "hard",
+   "modul": 0,
+   "difficulty": 3,
+   "naslov": "Prikaz narudžbi s oznakom samousluge pomoću COALESCE",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT id,\n       customer_id,\n       COALESCE(employee_id::text, 'Samousluga') AS handled_by\nFROM orders\nORDER BY id\nLIMIT 3",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "4": {
+   "task_id": 4,
+   "koncept": "null_handling",
+   "tier": "hard",
+   "modul": 0,
+   "difficulty": 4,
+   "naslov": "COUNT(*) vs COUNT(employee_id) — NULL zamka u agregaciji narudžbi",
+   "profil": 2,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "zaboravljen_alias",
+     "opis": "zaboravljen AS alias na agregatu",
+     "query": "SELECT\n    COUNT(*),\n    COUNT(employee_id) AS assigned_orders,\n    COUNT(*) - COUNT(employee_id) AS self_service_orders\nFROM orders",
+     "error_type": "wrong_columns",
+     "is_correct": false,
+     "detail": "Stupci se razlikuju — dobiveni: ['assigned_orders', 'count', 'self_service_orders'], očekivani: ['assigned_orders', 'self_service_orders', 'total_orders']",
+     "namjera": "netocno",
+     "ocekivano": "wrong_columns"
+    },
+    {
+     "mutacija": "tipfeler_stupca",
+     "opis": "tipfeler u nazivu stupca",
+     "query": "SELECT\n    COUNT(*) AS totalorders,\n    COUNT(employee_id) AS assigned_orders,\n    COUNT(*) - COUNT(employee_id) AS self_service_orders\nFROM orders",
+     "error_type": "wrong_columns",
+     "is_correct": false,
+     "detail": "Stupci se razlikuju — dobiveni: ['assigned_orders', 'self_service_orders', 'totalorders'], očekivani: ['assigned_orders', 'self_service_orders', 'total_orders']",
+     "namjera": "netocno",
+     "ocekivano": "wrong_columns"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT\n    COUNT(*) AS total_orders,\n    COUNT(employee_id) AS assigned_orders,\n    COUNT(*) - COUNT(employee_id) AS self_service_orders\nFROM orders",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "3786": {
+   "task_id": 3786,
+   "koncept": "column_alias",
+   "tier": "easy",
+   "modul": 0,
+   "difficulty": 1,
+   "naslov": "Preimenuj stupce u ispisu kupaca",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT first_name AS ime, last_name AS prezime\nFROM customers\nWHERE city = 'Zagreb'\nORDER BY id",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "3787": {
+   "task_id": 3787,
+   "koncept": "column_alias",
+   "tier": "easy",
+   "modul": 0,
+   "difficulty": 2,
+   "naslov": "Alias nad izračunatim stupcem — cijena s PDV-om",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT name AS naziv, ROUND(price * 1.25, 2) AS cijena_s_pdv\nFROM products\nORDER BY id\nLIMIT 10",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "3788": {
+   "task_id": 3788,
+   "koncept": "column_alias",
+   "tier": "easy",
+   "modul": 0,
+   "difficulty": 2,
+   "naslov": "Sortiranje po aliasu stupca",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT name AS naziv, stock AS zaliha\nFROM products\nORDER BY zaliha DESC, naziv ASC\nLIMIT 10",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "3784": {
+   "task_id": 3784,
+   "koncept": "explain_plan",
+   "tier": "hard",
+   "modul": 6,
+   "difficulty": 3,
+   "naslov": "Selektivan filtar mijenja strategiju spoja u Nested Loop",
+   "profil": 1,
+   "hint": true,
+   "pokusaji": [
+    {
+     "mutacija": "cast_ubija_indeks",
+     "opis": "CAST/aritmetika nad stupcem ponistava indeks",
+     "query": "SELECT o.id, o.status, oi.product_id, oi.quantity FROM orders o JOIN order_items oi ON oi.order_id = o.id WHERE CAST(o.customer_id AS TEXT) = '42' ORDER BY o.id, oi.product_id",
+     "error_type": "plan_mismatch",
+     "is_correct": false,
+     "detail": "Rezultat je točan, ali upit ne koristi indeks, a rješenje ga koristi; strategija spoja je Hash Join, a traži se Nested Loop.",
+     "namjera": "netocno",
+     "ocekivano": "plan_mismatch"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT o.id, o.status, oi.product_id, oi.quantity\nFROM orders o\nJOIN order_items oi ON oi.order_id = o.id\nWHERE o.customer_id = 42\nORDER BY o.id, oi.product_id",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "3785": {
+   "task_id": 3785,
+   "koncept": "explain_plan",
+   "tier": "hard",
+   "modul": 6,
+   "difficulty": 4,
+   "naslov": "Aritmetika u uvjetu spoja vraća plan na Hash Join",
+   "profil": 0,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT o.id, o.order_date, oi.product_id, oi.quantity\nFROM orders o\nJOIN order_items oi ON oi.order_id = o.id\nWHERE o.customer_id = 108\nORDER BY o.id, oi.product_id",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "81": {
+   "task_id": 81,
+   "koncept": "index_usage",
+   "tier": "hard",
+   "modul": 6,
+   "difficulty": 3,
+   "naslov": "Narudžbe kupca — index-friendly lookup vs. function wrapper anti-pattern",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "explain_prefiks",
+     "opis": "predan EXPLAIN umjesto samog upita",
+     "query": "EXPLAIN SELECT id, customer_id, status, total_amount\nFROM orders\nWHERE customer_id = 108\nORDER BY id ASC\nLIMIT 1",
+     "error_type": "explain_submitted",
+     "is_correct": false,
+     "detail": "Predaj obični upit, bez EXPLAIN. Plan izvedbe provjerava se automatski; EXPLAIN slobodno koristi kroz Pokreni dok istražuješ.",
+     "namjera": "netocno",
+     "ocekivano": "explain_submitted"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT id, customer_id, status, total_amount\nFROM orders\nWHERE customer_id = 108\nORDER BY id ASC\nLIMIT 1",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "3782": {
+   "task_id": 3782,
+   "koncept": "index_usage",
+   "tier": "hard",
+   "modul": 6,
+   "difficulty": 3,
+   "naslov": "Stavke narudžbe — indeks na order_id vs. CAST anti-pattern",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "cast_ubija_indeks",
+     "opis": "CAST/aritmetika nad stupcem ponistava indeks",
+     "query": "SELECT order_id, product_id, quantity, unit_price FROM order_items WHERE CAST(order_id AS TEXT) = '500' ORDER BY product_id",
+     "error_type": "plan_mismatch",
+     "is_correct": false,
+     "detail": "Rezultat je točan, ali upit ne koristi indeks, a rješenje ga koristi.",
+     "namjera": "netocno",
+     "ocekivano": "plan_mismatch"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT order_id, product_id, quantity, unit_price\nFROM order_items\nWHERE order_id = 500\nORDER BY product_id",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  },
+  "3783": {
+   "task_id": 3783,
+   "koncept": "index_usage",
+   "tier": "hard",
+   "modul": 6,
+   "difficulty": 4,
+   "naslov": "Recenzije proizvoda — aritmetika nad kolonom poništava indeks",
+   "profil": 1,
+   "hint": false,
+   "pokusaji": [
+    {
+     "mutacija": "explain_prefiks",
+     "opis": "predan EXPLAIN umjesto samog upita",
+     "query": "EXPLAIN SELECT id, product_id, customer_id, rating\nFROM reviews\nWHERE product_id = 3\nORDER BY id",
+     "error_type": "explain_submitted",
+     "is_correct": false,
+     "detail": "Predaj obični upit, bez EXPLAIN. Plan izvedbe provjerava se automatski; EXPLAIN slobodno koristi kroz Pokreni dok istražuješ.",
+     "namjera": "netocno",
+     "ocekivano": "explain_submitted"
+    },
+    {
+     "mutacija": null,
+     "opis": "tocno rjesenje",
+     "query": "SELECT id, product_id, customer_id, rating\nFROM reviews\nWHERE product_id = 3\nORDER BY id",
+     "error_type": null,
+     "is_correct": true,
+     "namjera": "tocno",
+     "ocekivano": "correct"
+    }
+   ]
+  }
+ }
+}

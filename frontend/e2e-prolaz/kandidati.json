@@ -1,0 +1,3082 @@
+{
+ "1": {
+  "task_id": 1,
+  "koncept": "null_handling",
+  "tier": "hard",
+  "modul": 0,
+  "difficulty": 1,
+  "naslov": "COUNT(*) vs COUNT(kolone) — narudžbe bez zaposlenika",
+  "tocan_upit": "SELECT COUNT(*) AS ukupno_narudzbi,\n       COUNT(employee_id) AS narudzbe_sa_zaposlenikom\nFROM orders",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*),\n       COUNT(employee_id) AS narudzbe_sa_zaposlenikom\nFROM orders",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count', 'narudzbe_sa_zaposlenikom'], očekivani: ['narudzbe_sa_zaposlenikom', 'ukupno_narudzbi']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS ukupnonarudzbi,\n       COUNT(employee_id) AS narudzbe_sa_zaposlenikom\nFROM orders",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['narudzbe_sa_zaposlenikom', 'ukupnonarudzbi'], očekivani: ['narudzbe_sa_zaposlenikom', 'ukupno_narudzbi']"
+   }
+  ]
+ },
+ "2": {
+  "task_id": 2,
+  "koncept": "null_handling",
+  "tier": "hard",
+  "modul": 0,
+  "difficulty": 3,
+  "naslov": "Prikaz zaposlenika i njihovog nadređenog s fallback vrijednošću",
+  "tocan_upit": "SELECT e.id,\n       e.first_name || ' ' || e.last_name AS employee_name,\n       COALESCE(m.first_name || ' ' || m.last_name, 'Top Management') AS manager_name\nFROM employees e\nLEFT JOIN employees m ON e.manager_id = m.id\nORDER BY e.id\nLIMIT 3",
+  "kandidati": [
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT e.id,\n       e.first_name || ' ' || e.last_name AS employee_name,\n       COALESCE(m.first_name || ' ' || m.last_name, 'Top Management') AS manager_name\nFROM employees e\nLEFT JOIN employees m ON e.manager_id = m.id\nORDER BY e.id\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT e.id,\n       e.firstname || ' ' || e.last_name AS employee_name,\n       COALESCE(m.first_name || ' ' || m.last_name, 'Top Management') AS manager_name\nFROM employees e\nLEFT JOIN employees m ON e.manager_id = m.id\nORDER BY e.id\nLIMIT 3",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column e.firstname does not exist\nLINE 2:        e.firstname || ' ' || e.last_name AS employee_name,\n               ^\nHINT:  Perhaps you meant to reference the column \"e.first_name\"."
+   },
+   {
+    "mutacija": "krivi_literal",
+    "opis": "krivo napisan tekstualni literal",
+    "query": "SELECT e.id,\n       e.first_name || ' ' || e.last_name AS employee_name,\n       COALESCE(m.first_name || ' ' || m.last_name, 'top management') AS manager_name\nFROM employees e\nLEFT JOIN employees m ON e.manager_id = m.id\nORDER BY e.id\nLIMIT 3",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   }
+  ]
+ },
+ "3": {
+  "task_id": 3,
+  "koncept": "null_handling",
+  "tier": "hard",
+  "modul": 0,
+  "difficulty": 3,
+  "naslov": "Prikaz narudžbi s oznakom samousluge pomoću COALESCE",
+  "tocan_upit": "SELECT id,\n       customer_id,\n       COALESCE(employee_id::text, 'Samousluga') AS handled_by\nFROM orders\nORDER BY id\nLIMIT 3",
+  "kandidati": [
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT id,\n       customer_id,\n       COALESCE(employee_id::text, 'Samousluga') AS handled_by\nFROM orders\nORDER BY id\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT id,\n       customerid,\n       COALESCE(employee_id::text, 'Samousluga') AS handled_by\nFROM orders\nORDER BY id\nLIMIT 3",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"customerid\" does not exist\nLINE 2:        customerid,\n               ^\nHINT:  Perhaps you meant to reference the column \"orders.customer_id\"."
+   },
+   {
+    "mutacija": "krivi_literal",
+    "opis": "krivo napisan tekstualni literal",
+    "query": "SELECT id,\n       customer_id,\n       COALESCE(employee_id::text, 'samousluga') AS handled_by\nFROM orders\nORDER BY id\nLIMIT 3",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   }
+  ]
+ },
+ "4": {
+  "task_id": 4,
+  "koncept": "null_handling",
+  "tier": "hard",
+  "modul": 0,
+  "difficulty": 4,
+  "naslov": "COUNT(*) vs COUNT(employee_id) — NULL zamka u agregaciji narudžbi",
+  "tocan_upit": "SELECT\n    COUNT(*) AS total_orders,\n    COUNT(employee_id) AS assigned_orders,\n    COUNT(*) - COUNT(employee_id) AS self_service_orders\nFROM orders",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT\n    COUNT(*),\n    COUNT(employee_id) AS assigned_orders,\n    COUNT(*) - COUNT(employee_id) AS self_service_orders\nFROM orders",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['assigned_orders', 'count', 'self_service_orders'], očekivani: ['assigned_orders', 'self_service_orders', 'total_orders']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT\n    COUNT(*) AS totalorders,\n    COUNT(employee_id) AS assigned_orders,\n    COUNT(*) - COUNT(employee_id) AS self_service_orders\nFROM orders",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['assigned_orders', 'self_service_orders', 'totalorders'], očekivani: ['assigned_orders', 'self_service_orders', 'total_orders']"
+   }
+  ]
+ },
+ "5": {
+  "task_id": 5,
+  "koncept": "distinct",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 1,
+  "naslov": "Različiti statusi narudžbi bez GROUP BY",
+  "tocan_upit": "SELECT DISTINCT status\nFROM orders\nORDER BY status ASC",
+  "kandidati": [
+   {
+    "mutacija": "bez_distinct",
+    "opis": "zaboravljen DISTINCT",
+    "query": "SELECT status\nFROM orders\nORDER BY status ASC",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=1000 vs expected=5"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT DISTINCT status\nFROM orders\nORDER BY status DESC",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT DISTINCT statuss\nFROM orders\nORDER BY status ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"statuss\" does not exist\nLINE 1: SELECT DISTINCT statuss\n                        ^\nHINT:  Perhaps you meant to reference the column \"orders.status\"."
+   }
+  ]
+ },
+ "6": {
+  "task_id": 6,
+  "koncept": "distinct",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 3,
+  "naslov": "DISTINCT na kombinaciji status–self_service u narudžbama",
+  "tocan_upit": "SELECT DISTINCT status, (employee_id IS NULL) AS self_service\nFROM orders\nORDER BY status ASC, self_service ASC\nLIMIT 5",
+  "kandidati": [
+   {
+    "mutacija": "bez_distinct",
+    "opis": "zaboravljen DISTINCT",
+    "query": "SELECT status, (employee_id IS NULL) AS self_service\nFROM orders\nORDER BY status ASC, self_service ASC\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 1 differs"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT DISTINCT status, (employee_id IS NULL) AS self_service\nFROM orders\nORDER BY status DESC, self_service ASC\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT DISTINCT status, (employee_id IS NULL) AS self_service\nFROM orders\nORDER BY status ASC, self_service ASC\nLIMIT 7",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=7 vs expected=5"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT DISTINCT statuss, (employee_id IS NULL) AS self_service\nFROM orders\nORDER BY status ASC, self_service ASC\nLIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"statuss\" does not exist\nLINE 1: SELECT DISTINCT statuss, (employee_id IS NULL) AS self_servi...\n                        ^\nHINT:  Perhaps you meant to reference the column \"orders.status\"."
+   }
+  ]
+ },
+ "7": {
+  "task_id": 7,
+  "koncept": "from_clause",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 1,
+  "naslov": "Dohvati zaposlenike — ime, prezime i odjel",
+  "tocan_upit": "SELECT id, first_name, last_name, department\nFROM employees\nORDER BY id\nLIMIT 3",
+  "kandidati": [
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT id, firstname, last_name, department\nFROM employees\nORDER BY id\nLIMIT 3",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"firstname\" does not exist\nLINE 1: SELECT id, firstname, last_name, department\n                   ^\nHINT:  Perhaps you meant to reference the column \"employees.first_name\"."
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT id, first_name, last_name, department\nFROM employees\nORDER BY id\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   }
+  ]
+ },
+ "8": {
+  "task_id": 8,
+  "koncept": "from_clause",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 1,
+  "naslov": "Dohvati podatke o dobavljačima",
+  "tocan_upit": "SELECT id, name, country\nFROM suppliers\nORDER BY id\nLIMIT 3",
+  "kandidati": [
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT id, name, countrys\nFROM suppliers\nORDER BY id\nLIMIT 3",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"countrys\" does not exist\nLINE 1: SELECT id, name, countrys\n                         ^\nHINT:  Perhaps you meant to reference the column \"suppliers.country\"."
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT id, name, country\nFROM suppliers\nORDER BY id\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   }
+  ]
+ },
+ "9": {
+  "task_id": 9,
+  "koncept": "from_clause",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 2,
+  "naslov": "Dohvati naziv, zemlju i ocjenu dobavljača",
+  "tocan_upit": "SELECT name, country, rating\nFROM suppliers\nORDER BY id\nLIMIT 3",
+  "kandidati": [
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT name, countrys, rating\nFROM suppliers\nORDER BY id\nLIMIT 3",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"countrys\" does not exist\nLINE 1: SELECT name, countrys, rating\n                     ^\nHINT:  Perhaps you meant to reference the column \"suppliers.country\"."
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT name, country, rating\nFROM suppliers\nORDER BY id\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   }
+  ]
+ },
+ "10": {
+  "task_id": 10,
+  "koncept": "limit_offset",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 1,
+  "naslov": "Prvih 3 kupca sortirano po ID-u",
+  "tocan_upit": "SELECT first_name, last_name\nFROM customers\nORDER BY id ASC\nLIMIT 3",
+  "kandidati": [
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT first_name, last_name\nFROM customers\nORDER BY id ASC\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT first_name, last_name\nFROM customers\nORDER BY id DESC\nLIMIT 3",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT firstname, last_name\nFROM customers\nORDER BY id ASC\nLIMIT 3",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"firstname\" does not exist\nLINE 1: SELECT firstname, last_name\n               ^\nHINT:  Perhaps you meant to reference the column \"customers.first_name\"."
+   }
+  ]
+ },
+ "11": {
+  "task_id": 11,
+  "koncept": "limit_offset",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 2,
+  "naslov": "Kategorije — druga stranica po 2 retka",
+  "tocan_upit": "SELECT id, name\nFROM categories\nORDER BY id ASC\nLIMIT 2 OFFSET 2",
+  "kandidati": [
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT id, name\nFROM categories\nORDER BY id ASC\nLIMIT 4 OFFSET 2",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=4 vs expected=2"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT id, name\nFROM categories\nORDER BY id DESC\nLIMIT 2 OFFSET 2",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   }
+  ]
+ },
+ "12": {
+  "task_id": 12,
+  "koncept": "limit_offset",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 3,
+  "naslov": "Dobavljači — prva stranica paginacije s ispravnim OFFSET-om",
+  "tocan_upit": "SELECT id, name, country, rating\nFROM suppliers\nORDER BY id ASC\nLIMIT 3 OFFSET 0",
+  "kandidati": [
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT id, name, country, rating\nFROM suppliers\nORDER BY id ASC\nLIMIT 5 OFFSET 0",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT id, name, country, rating\nFROM suppliers\nORDER BY id DESC\nLIMIT 3 OFFSET 0",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT id, name, countrys, rating\nFROM suppliers\nORDER BY id ASC\nLIMIT 3 OFFSET 0",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"countrys\" does not exist\nLINE 1: SELECT id, name, countrys, rating\n                         ^\nHINT:  Perhaps you meant to reference the column \"suppliers.country\"."
+   }
+  ]
+ },
+ "13": {
+  "task_id": 13,
+  "koncept": "order_by",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 2,
+  "naslov": "Dostupni proizvodi sortirani po ID-u — WHERE prije ORDER BY",
+  "tocan_upit": "SELECT id, name, price\nFROM products\nWHERE stock > 0\nORDER BY id ASC\nLIMIT 3",
+  "kandidati": [
+   {
+    "mutacija": "bez_order_by",
+    "opis": "zaboravljen ORDER BY",
+    "query": "SELECT id, name, price\nFROM products\nWHERE stock > 0 LIMIT 3",
+    "error_type": null,
+    "is_correct": true,
+    "detail": "OK"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT id, name, price\nFROM products\nWHERE stock > 0\nORDER BY id DESC\nLIMIT 3",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT id, name, price\nFROM products\nWHERE stock > 0\nORDER BY id ASC\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT id, name, prices\nFROM products\nWHERE stock > 0\nORDER BY id ASC\nLIMIT 3",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"prices\" does not exist\nLINE 1: SELECT id, name, prices\n                         ^\nHINT:  Perhaps you meant to reference the column \"products.price\"."
+   }
+  ]
+ },
+ "14": {
+  "task_id": 14,
+  "koncept": "order_by",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 3,
+  "naslov": "Proizvodi na zalihi — WHERE dolazi prije ORDER BY",
+  "tocan_upit": "SELECT name, stock\nFROM products\nWHERE is_discontinued = FALSE\nORDER BY id ASC\nLIMIT 3",
+  "kandidati": [
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT name, stock\nFROM products\nWHERE is_discontinued = FALSE\nORDER BY id DESC\nLIMIT 3",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "bez_order_by",
+    "opis": "zaboravljen ORDER BY",
+    "query": "SELECT name, stock\nFROM products\nWHERE is_discontinued = FALSE LIMIT 3",
+    "error_type": null,
+    "is_correct": true,
+    "detail": "OK"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT name, stock\nFROM products\nWHERE is_discontinued = FALSE\nORDER BY id ASC\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT name, stocks\nFROM products\nWHERE is_discontinued = FALSE\nORDER BY id ASC\nLIMIT 3",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"stocks\" does not exist\nLINE 1: SELECT name, stocks\n                     ^\nHINT:  Perhaps you meant to reference the column \"products.stock\"."
+   }
+  ]
+ },
+ "15": {
+  "task_id": 15,
+  "koncept": "select_basic",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 1,
+  "naslov": "Naziv i zemlja porijekla dobavljača",
+  "tocan_upit": "SELECT id, name, country FROM suppliers ORDER BY id LIMIT 3",
+  "kandidati": [
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT id, name, countrys FROM suppliers ORDER BY id LIMIT 3",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"countrys\" does not exist\nLINE 1: SELECT id, name, countrys FROM suppliers ORDER BY id LIMIT 3\n                         ^\nHINT:  Perhaps you meant to reference the column \"suppliers.country\"."
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT id, name, country FROM suppliers ORDER BY id LIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   }
+  ]
+ },
+ "16": {
+  "task_id": 16,
+  "koncept": "select_basic",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 3,
+  "naslov": "Prikaz identifikatora, naziva i ocjene dobavljača",
+  "tocan_upit": "SELECT id, name, rating FROM suppliers ORDER BY id LIMIT 3",
+  "kandidati": [
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT id, name, ratings FROM suppliers ORDER BY id LIMIT 3",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"ratings\" does not exist\nLINE 1: SELECT id, name, ratings FROM suppliers ORDER BY id LIMIT 3\n                         ^\nHINT:  Perhaps you meant to reference the column \"suppliers.rating\"."
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT id, name, rating FROM suppliers ORDER BY id LIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   }
+  ]
+ },
+ "17": {
+  "task_id": 17,
+  "koncept": "where_filter",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 1,
+  "naslov": "Kupci iz Hrvatske",
+  "tocan_upit": "SELECT id, first_name, last_name, city\nFROM customers\nWHERE country = 'Croatia'\nORDER BY id\nLIMIT 3",
+  "kandidati": [
+   {
+    "mutacija": "krivi_literal",
+    "opis": "krivo napisan tekstualni literal",
+    "query": "SELECT id, first_name, last_name, city\nFROM customers\nWHERE country = 'croatia'\nORDER BY id\nLIMIT 3",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 3 redova"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT id, firstname, last_name, city\nFROM customers\nWHERE country = 'Croatia'\nORDER BY id\nLIMIT 3",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"firstname\" does not exist\nLINE 1: SELECT id, firstname, last_name, city\n                   ^\nHINT:  Perhaps you meant to reference the column \"customers.first_name\"."
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT id, first_name, last_name, city\nFROM customers\nWHERE country = 'Croatia'\nORDER BY id\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   }
+  ]
+ },
+ "18": {
+  "task_id": 18,
+  "koncept": "where_filter",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 2,
+  "naslov": "Narudžbe u obradi s visokim iznosom",
+  "tocan_upit": "SELECT id, status, total_amount\nFROM orders\nWHERE status = 'processing'\n  AND total_amount > 1000\nORDER BY id\nLIMIT 5",
+  "kandidati": [
+   {
+    "mutacija": "krivi_literal",
+    "opis": "krivo napisan tekstualni literal",
+    "query": "SELECT id, status, total_amount\nFROM orders\nWHERE status = 'Processing'\n  AND total_amount > 1000\nORDER BY id\nLIMIT 5",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 5 redova"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT id, statuss, total_amount\nFROM orders\nWHERE status = 'processing'\n  AND total_amount > 1000\nORDER BY id\nLIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"statuss\" does not exist\nLINE 1: SELECT id, statuss, total_amount\n                   ^\nHINT:  Perhaps you meant to reference the column \"orders.status\"."
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT id, status, total_amount\nFROM orders\nWHERE status = 'processing'\n  AND total_amount > 1000\nORDER BY id\nLIMIT 7",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=7 vs expected=5"
+   }
+  ]
+ },
+ "19": {
+  "task_id": 19,
+  "koncept": "where_filter",
+  "tier": "easy",
+  "modul": 1,
+  "difficulty": 3,
+  "naslov": "Dostavljene narudžbe s visokim iznosom — WHERE ili HAVING?",
+  "tocan_upit": "SELECT id, status, total_amount\nFROM orders\nWHERE status = 'delivered'\n  AND total_amount > 3000\nORDER BY id\nLIMIT 2",
+  "kandidati": [
+   {
+    "mutacija": "krivi_literal",
+    "opis": "krivo napisan tekstualni literal",
+    "query": "SELECT id, status, total_amount\nFROM orders\nWHERE status = 'Delivered'\n  AND total_amount > 3000\nORDER BY id\nLIMIT 2",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 2 redova"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT id, statuss, total_amount\nFROM orders\nWHERE status = 'delivered'\n  AND total_amount > 3000\nORDER BY id\nLIMIT 2",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"statuss\" does not exist\nLINE 1: SELECT id, statuss, total_amount\n                   ^\nHINT:  Perhaps you meant to reference the column \"orders.status\"."
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT id, status, total_amount\nFROM orders\nWHERE status = 'delivered'\n  AND total_amount > 3000\nORDER BY id\nLIMIT 4",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=4 vs expected=2"
+   }
+  ]
+ },
+ "20": {
+  "task_id": 20,
+  "koncept": "agg_count",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 1,
+  "naslov": "Ukupan broj recenzija u sustavu",
+  "tocan_upit": "SELECT COUNT(*) AS ukupno FROM reviews",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*) FROM reviews",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['ukupno']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS ukupnos FROM reviews",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['ukupnos'], očekivani: ['ukupno']"
+   }
+  ]
+ },
+ "21": {
+  "task_id": 21,
+  "koncept": "agg_count",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 2,
+  "naslov": "Broj kupaca bez ikoje narudžbe",
+  "tocan_upit": "SELECT COUNT(*) AS kupaca_bez_narudzbi FROM customers c LEFT JOIN orders o ON c.id = o.customer_id WHERE o.id IS NULL",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*) FROM customers c LEFT JOIN orders o ON c.id = o.customer_id WHERE o.id IS NULL",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['kupaca_bez_narudzbi']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS kupacabez_narudzbi FROM customers c LEFT JOIN orders o ON c.id = o.customer_id WHERE o.id IS NULL",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['kupacabez_narudzbi'], očekivani: ['kupaca_bez_narudzbi']"
+   }
+  ]
+ },
+ "22": {
+  "task_id": 22,
+  "koncept": "agg_count",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 3,
+  "naslov": "Broj narudžbi po statusu — uključujući 0 za neaktivne statuse",
+  "tocan_upit": "SELECT status, COUNT(*) AS broj_narudzbi FROM orders GROUP BY status ORDER BY status ASC",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT status, COUNT(*) FROM orders GROUP BY status ORDER BY status ASC",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count', 'status'], očekivani: ['broj_narudzbi', 'status']"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT status, COUNT(*) AS broj_narudzbi FROM orders ORDER BY status ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"orders.status\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT status, COUNT(*) AS broj_narudzbi FROM orders ORDER B...\n               ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT status, COUNT(*) AS broj_narudzbi FROM orders GROUP BY status ORDER BY status DESC",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT statuss, COUNT(*) AS broj_narudzbi FROM orders GROUP BY status ORDER BY status ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"statuss\" does not exist\nLINE 1: SELECT statuss, COUNT(*) AS broj_narudzbi FROM orders GROUP ...\n               ^\nHINT:  Perhaps you meant to reference the column \"orders.status\"."
+   }
+  ]
+ },
+ "23": {
+  "task_id": 23,
+  "koncept": "agg_count",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 4,
+  "naslov": "Broj distinct kupaca koji su naručivali u svakoj kategoriji",
+  "tocan_upit": "SELECT p.category_id, COUNT(DISTINCT o.customer_id) AS broj_distinct_kupaca FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id GROUP BY p.category_id ORDER BY broj_distinct_kupaca DESC, p.category_id ASC",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT p.category_id, COUNT(DISTINCT o.customer_id) FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id GROUP BY p.category_id ORDER BY broj_distinct_kupaca DESC, p.category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"broj_distinct_kupaca\" does not exist\nLINE 1: ...i.order_id = o.id GROUP BY p.category_id ORDER BY broj_disti...\n                                                             ^"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT p.category_id, COUNT(DISTINCT o.customer_id) AS broj_distinct_kupaca FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id ORDER BY broj_distinct_kupaca DESC, p.category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"p.category_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT p.category_id, COUNT(DISTINCT o.customer_id) AS broj_...\n               ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT p.category_id, COUNT(DISTINCT o.customer_id) AS broj_distinct_kupaca FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id GROUP BY p.category_id ORDER BY broj_distinct_kupaca ASC, p.category_id ASC",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT p.categoryid, COUNT(DISTINCT o.customer_id) AS broj_distinct_kupaca FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id GROUP BY p.category_id ORDER BY broj_distinct_kupaca DESC, p.category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column p.categoryid does not exist\nLINE 1: SELECT p.categoryid, COUNT(DISTINCT o.customer_id) AS broj_d...\n               ^\nHINT:  Perhaps you meant to reference the column \"p.category_id\"."
+   }
+  ]
+ },
+ "24": {
+  "task_id": 24,
+  "koncept": "agg_min_max",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 1,
+  "naslov": "Najjeftiniji i najskuplji proizvod",
+  "tocan_upit": "SELECT MIN(price) AS min_cijena, MAX(price) AS max_cijena FROM products",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT MIN(price), MAX(price) AS max_cijena FROM products",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['max_cijena', 'min'], očekivani: ['max_cijena', 'min_cijena']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT MIN(prices) AS min_cijena, MAX(price) AS max_cijena FROM products",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"prices\" does not exist\nLINE 1: SELECT MIN(prices) AS min_cijena, MAX(price) AS max_cijena F...\n                   ^\nHINT:  Perhaps you meant to reference the column \"products.price\"."
+   }
+  ]
+ },
+ "25": {
+  "task_id": 25,
+  "koncept": "agg_min_max",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 2,
+  "naslov": "Najraniji i najkasniji datum narudžbe po statusu",
+  "tocan_upit": "SELECT status, MIN(order_date) AS najranija_narudzba, MAX(order_date) AS najkasnija_narudzba FROM orders GROUP BY status ORDER BY status ASC",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT status, MIN(order_date), MAX(order_date) AS najkasnija_narudzba FROM orders GROUP BY status ORDER BY status ASC",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['min', 'najkasnija_narudzba', 'status'], očekivani: ['najkasnija_narudzba', 'najranija_narudzba', 'status']"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT status, MIN(order_date) AS najranija_narudzba, MAX(order_date) AS najkasnija_narudzba FROM orders ORDER BY status ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"orders.status\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT status, MIN(order_date) AS najranija_narudzba, MAX(or...\n               ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT status, MIN(order_date) AS najranija_narudzba, MAX(order_date) AS najkasnija_narudzba FROM orders GROUP BY status ORDER BY status DESC",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT statuss, MIN(order_date) AS najranija_narudzba, MAX(order_date) AS najkasnija_narudzba FROM orders GROUP BY status ORDER BY status ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"statuss\" does not exist\nLINE 1: SELECT statuss, MIN(order_date) AS najranija_narudzba, MAX(o...\n               ^\nHINT:  Perhaps you meant to reference the column \"orders.status\"."
+   }
+  ]
+ },
+ "26": {
+  "task_id": 26,
+  "koncept": "agg_min_max",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 3,
+  "naslov": "Najveća pojedinačna stavka narudžbe po kategoriji proizvoda",
+  "tocan_upit": "SELECT p.category_id, ROUND(MAX(oi.quantity * oi.unit_price), 2) AS max_vrijednost_stavke FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY p.category_id ORDER BY max_vrijednost_stavke DESC, p.category_id ASC",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT p.category_id, ROUND(MAX(oi.quantity * oi.unit_price), 2) FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY p.category_id ORDER BY max_vrijednost_stavke DESC, p.category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"max_vrijednost_stavke\" does not exist\nLINE 1: ...product_id = p.id GROUP BY p.category_id ORDER BY max_vrijed...\n                                                             ^"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT p.category_id, ROUND(MAX(oi.quantity * oi.unit_price), 2) AS max_vrijednost_stavke FROM order_items oi JOIN products p ON oi.product_id = p.id ORDER BY max_vrijednost_stavke DESC, p.category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"p.category_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT p.category_id, ROUND(MAX(oi.quantity * oi.unit_price)...\n               ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT p.category_id, ROUND(MAX(oi.quantity * oi.unit_price), 2) AS max_vrijednost_stavke FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY p.category_id ORDER BY max_vrijednost_stavke ASC, p.category_id ASC",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT p.categoryid, ROUND(MAX(oi.quantity * oi.unit_price), 2) AS max_vrijednost_stavke FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY p.category_id ORDER BY max_vrijednost_stavke DESC, p.category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column p.categoryid does not exist\nLINE 1: SELECT p.categoryid, ROUND(MAX(oi.quantity * oi.unit_price),...\n               ^\nHINT:  Perhaps you meant to reference the column \"p.category_id\"."
+   }
+  ]
+ },
+ "27": {
+  "task_id": 27,
+  "koncept": "agg_sum_avg",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 2,
+  "naslov": "Prosječna cijena proizvoda",
+  "tocan_upit": "SELECT ROUND(AVG(price), 2) AS prosjecna_cijena, ROUND(SUM(price), 2) AS ukupna_vrijednost FROM products",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT ROUND(AVG(price), 2), ROUND(SUM(price), 2) AS ukupna_vrijednost FROM products",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['round', 'ukupna_vrijednost'], očekivani: ['prosjecna_cijena', 'ukupna_vrijednost']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT ROUND(AVG(prices), 2) AS prosjecna_cijena, ROUND(SUM(price), 2) AS ukupna_vrijednost FROM products",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"prices\" does not exist\nLINE 1: SELECT ROUND(AVG(prices), 2) AS prosjecna_cijena, ROUND(SUM(...\n                         ^\nHINT:  Perhaps you meant to reference the column \"products.price\"."
+   }
+  ]
+ },
+ "28": {
+  "task_id": 28,
+  "koncept": "agg_sum_avg",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 3,
+  "naslov": "Ukupna potrošnja po kupcu — TOP 5 najvećih spenders",
+  "tocan_upit": "SELECT customer_id, ROUND(SUM(total_amount), 2) AS ukupna_potrosnja FROM orders GROUP BY customer_id ORDER BY ukupna_potrosnja DESC, customer_id ASC LIMIT 5",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT customer_id, ROUND(SUM(total_amount), 2) FROM orders GROUP BY customer_id ORDER BY ukupna_potrosnja DESC, customer_id ASC LIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"ukupna_potrosnja\" does not exist\nLINE 1: ...nt), 2) FROM orders GROUP BY customer_id ORDER BY ukupna_pot...\n                                                             ^"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT customer_id, ROUND(SUM(total_amount), 2) AS ukupna_potrosnja FROM orders ORDER BY ukupna_potrosnja DESC, customer_id ASC LIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"orders.customer_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT customer_id, ROUND(SUM(total_amount), 2) AS ukupna_po...\n               ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT customer_id, ROUND(SUM(total_amount), 2) AS ukupna_potrosnja FROM orders GROUP BY customer_id ORDER BY ukupna_potrosnja ASC, customer_id ASC LIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT customer_id, ROUND(SUM(total_amount), 2) AS ukupna_potrosnja FROM orders GROUP BY customer_id ORDER BY ukupna_potrosnja DESC, customer_id ASC LIMIT 7",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=7 vs expected=5"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT customerid, ROUND(SUM(total_amount), 2) AS ukupna_potrosnja FROM orders GROUP BY customer_id ORDER BY ukupna_potrosnja DESC, customer_id ASC LIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"customerid\" does not exist\nLINE 1: SELECT customerid, ROUND(SUM(total_amount), 2) AS ukupna_pot...\n               ^\nHINT:  Perhaps you meant to reference the column \"orders.customer_id\"."
+   }
+  ]
+ },
+ "29": {
+  "task_id": 29,
+  "koncept": "agg_sum_avg",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 4,
+  "naslov": "Mjesečni prihod po kategoriji proizvoda u 2025",
+  "tocan_upit": "SELECT EXTRACT(MONTH FROM o.order_date)::int AS mjesec, p.category_id, ROUND(SUM(oi.quantity * oi.unit_price), 2) AS ukupni_prihod FROM orders o JOIN order_items oi ON o.id = oi.order_id JOIN products p ON oi.product_id = p.id WHERE o.status = 'delivered' AND EXTRACT(YEAR FROM o.order_date) = 2025 GROUP BY mjesec, p.category_id ORDER BY mjesec ASC, ukupni_prihod DESC LIMIT 10",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT EXTRACT(MONTH FROM o.order_date)::int AS mjesec, p.category_id, ROUND(SUM(oi.quantity * oi.unit_price), 2) FROM orders o JOIN order_items oi ON o.id = oi.order_id JOIN products p ON oi.product_id = p.id WHERE o.status = 'delivered' AND EXTRACT(YEAR FROM o.order_date) = 2025 GROUP BY mjesec, p.category_id ORDER BY mjesec ASC, ukupni_prihod DESC LIMIT 10",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"ukupni_prihod\" does not exist\nLINE 1: ...OUP BY mjesec, p.category_id ORDER BY mjesec ASC, ukupni_pri...\n                                                             ^"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT EXTRACT(MONTH FROM o.order_date)::int AS mjesec, p.category_id, ROUND(SUM(oi.quantity * oi.unit_price), 2) AS ukupni_prihod FROM orders o JOIN order_items oi ON o.id = oi.order_id JOIN products p ON oi.product_id = p.id WHERE o.status = 'delivered' AND EXTRACT(YEAR FROM o.order_date) = 2025 ORDER BY mjesec ASC, ukupni_prihod DESC LIMIT 10",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"o.order_date\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT EXTRACT(MONTH FROM o.order_date)::int AS mjesec, p.ca...\n                                  ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT EXTRACT(MONTH FROM o.order_date)::int AS mjesec, p.category_id, ROUND(SUM(oi.quantity * oi.unit_price), 2) AS ukupni_prihod FROM orders o JOIN order_items oi ON o.id = oi.order_id JOIN products p ON oi.product_id = p.id WHERE o.status = 'delivered' AND EXTRACT(YEAR FROM o.order_date) = 2025 GROUP BY mjesec, p.category_id ORDER BY mjesec ASC, ukupni_prihod ASC LIMIT 10",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT EXTRACT(MONTH FROM o.order_date)::int AS mjesec, p.category_id, ROUND(SUM(oi.quantity * oi.unit_price), 2) AS ukupni_prihod FROM orders o JOIN order_items oi ON o.id = oi.order_id JOIN products p ON oi.product_id = p.id WHERE o.status = 'delivered' AND EXTRACT(YEAR FROM o.order_date) = 2025 GROUP BY mjesec, p.category_id ORDER BY mjesec ASC, ukupni_prihod DESC LIMIT 12",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=12 vs expected=10"
+   },
+   {
+    "mutacija": "krivi_literal",
+    "opis": "krivo napisan tekstualni literal",
+    "query": "SELECT EXTRACT(MONTH FROM o.order_date)::int AS mjesec, p.category_id, ROUND(SUM(oi.quantity * oi.unit_price), 2) AS ukupni_prihod FROM orders o JOIN order_items oi ON o.id = oi.order_id JOIN products p ON oi.product_id = p.id WHERE o.status = 'Delivered' AND EXTRACT(YEAR FROM o.order_date) = 2025 GROUP BY mjesec, p.category_id ORDER BY mjesec ASC, ukupni_prihod DESC LIMIT 10",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 10 redova"
+   }
+  ]
+ },
+ "30": {
+  "task_id": 30,
+  "koncept": "group_by",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 1,
+  "naslov": "Broj proizvoda po kategoriji",
+  "tocan_upit": "SELECT category_id, COUNT(*) AS broj_proizvoda FROM products GROUP BY category_id ORDER BY category_id ASC",
+  "kandidati": [
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT category_id, COUNT(*) AS broj_proizvoda FROM products ORDER BY category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"products.category_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT category_id, COUNT(*) AS broj_proizvoda FROM products...\n               ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT category_id, COUNT(*) AS broj_proizvoda FROM products GROUP BY category_id ORDER BY category_id DESC",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT category_id, COUNT(*) FROM products GROUP BY category_id ORDER BY category_id ASC",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['category_id', 'count'], očekivani: ['broj_proizvoda', 'category_id']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT categoryid, COUNT(*) AS broj_proizvoda FROM products GROUP BY category_id ORDER BY category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"categoryid\" does not exist\nLINE 1: SELECT categoryid, COUNT(*) AS broj_proizvoda FROM products ...\n               ^\nHINT:  Perhaps you meant to reference the column \"products.category_id\"."
+   }
+  ]
+ },
+ "31": {
+  "task_id": 31,
+  "koncept": "group_by",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 2,
+  "naslov": "Broj kupaca po zemlji — TOP 5",
+  "tocan_upit": "SELECT country, COUNT(*) AS broj_kupaca FROM customers GROUP BY country ORDER BY broj_kupaca DESC, country ASC LIMIT 5",
+  "kandidati": [
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT country, COUNT(*) AS broj_kupaca FROM customers ORDER BY broj_kupaca DESC, country ASC LIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"customers.country\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT country, COUNT(*) AS broj_kupaca FROM customers ORDER...\n               ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT country, COUNT(*) AS broj_kupaca FROM customers GROUP BY country ORDER BY broj_kupaca ASC, country ASC LIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT country, COUNT(*) FROM customers GROUP BY country ORDER BY broj_kupaca DESC, country ASC LIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"broj_kupaca\" does not exist\nLINE 1: ...COUNT(*) FROM customers GROUP BY country ORDER BY broj_kupac...\n                                                             ^"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT country, COUNT(*) AS broj_kupaca FROM customers GROUP BY country ORDER BY broj_kupaca DESC, country ASC LIMIT 7",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=7 vs expected=5"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT countrys, COUNT(*) AS broj_kupaca FROM customers GROUP BY country ORDER BY broj_kupaca DESC, country ASC LIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"countrys\" does not exist\nLINE 1: SELECT countrys, COUNT(*) AS broj_kupaca FROM customers GROU...\n               ^\nHINT:  Perhaps you meant to reference the column \"customers.country\"."
+   }
+  ]
+ },
+ "32": {
+  "task_id": 32,
+  "koncept": "group_by",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 3,
+  "naslov": "Ukupna količina prodanih proizvoda po proizvodu — TOP 10",
+  "tocan_upit": "SELECT product_id, SUM(quantity) AS ukupna_kolicina, COUNT(*) AS broj_stavki FROM order_items GROUP BY product_id ORDER BY ukupna_kolicina DESC, product_id ASC LIMIT 10",
+  "kandidati": [
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT product_id, SUM(quantity) AS ukupna_kolicina, COUNT(*) AS broj_stavki FROM order_items ORDER BY ukupna_kolicina DESC, product_id ASC LIMIT 10",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"order_items.product_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT product_id, SUM(quantity) AS ukupna_kolicina, COUNT(*...\n               ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT product_id, SUM(quantity) AS ukupna_kolicina, COUNT(*) AS broj_stavki FROM order_items GROUP BY product_id ORDER BY ukupna_kolicina ASC, product_id ASC LIMIT 10",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT product_id, SUM(quantity), COUNT(*) AS broj_stavki FROM order_items GROUP BY product_id ORDER BY ukupna_kolicina DESC, product_id ASC LIMIT 10",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"ukupna_kolicina\" does not exist\nLINE 1: ...vki FROM order_items GROUP BY product_id ORDER BY ukupna_kol...\n                                                             ^"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT product_id, SUM(quantity) AS ukupna_kolicina, COUNT(*) AS broj_stavki FROM order_items GROUP BY product_id ORDER BY ukupna_kolicina DESC, product_id ASC LIMIT 12",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=12 vs expected=10"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT productid, SUM(quantity) AS ukupna_kolicina, COUNT(*) AS broj_stavki FROM order_items GROUP BY product_id ORDER BY ukupna_kolicina DESC, product_id ASC LIMIT 10",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"productid\" does not exist\nLINE 1: SELECT productid, SUM(quantity) AS ukupna_kolicina, COUNT(*)...\n               ^\nHINT:  Perhaps you meant to reference the column \"order_items.product_id\"."
+   }
+  ]
+ },
+ "33": {
+  "task_id": 33,
+  "koncept": "group_by",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 3,
+  "naslov": "Prosječna ocjena recenzija po proizvodu — sortiranje silazno",
+  "tocan_upit": "SELECT product_id, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena, COUNT(*) AS broj_recenzija FROM reviews GROUP BY product_id ORDER BY prosjecna_ocjena DESC, product_id ASC LIMIT 5",
+  "kandidati": [
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT product_id, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena, COUNT(*) AS broj_recenzija FROM reviews ORDER BY prosjecna_ocjena DESC, product_id ASC LIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"reviews.product_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT product_id, ROUND(AVG(rating)::numeric, 2) AS prosjec...\n               ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT product_id, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena, COUNT(*) AS broj_recenzija FROM reviews GROUP BY product_id ORDER BY prosjecna_ocjena ASC, product_id ASC LIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT product_id, ROUND(AVG(rating)::numeric, 2), COUNT(*) AS broj_recenzija FROM reviews GROUP BY product_id ORDER BY prosjecna_ocjena DESC, product_id ASC LIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"prosjecna_ocjena\" does not exist\nLINE 1: ...cenzija FROM reviews GROUP BY product_id ORDER BY prosjecna_...\n                                                             ^"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT product_id, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena, COUNT(*) AS broj_recenzija FROM reviews GROUP BY product_id ORDER BY prosjecna_ocjena DESC, product_id ASC LIMIT 7",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=7 vs expected=5"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT productid, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena, COUNT(*) AS broj_recenzija FROM reviews GROUP BY product_id ORDER BY prosjecna_ocjena DESC, product_id ASC LIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"productid\" does not exist\nLINE 1: SELECT productid, ROUND(AVG(rating)::numeric, 2) AS prosjecn...\n               ^\nHINT:  Perhaps you meant to reference the column \"reviews.product_id\"."
+   }
+  ]
+ },
+ "34": {
+  "task_id": 34,
+  "koncept": "group_by",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 4,
+  "naslov": "Ukupni iznos narudžbi po kupcu i statusu — multi-column GROUP BY",
+  "tocan_upit": "SELECT customer_id, status, SUM(total_amount) AS ukupni_iznos FROM orders GROUP BY customer_id, status ORDER BY customer_id ASC, ukupni_iznos DESC LIMIT 10",
+  "kandidati": [
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT customer_id, status, SUM(total_amount) AS ukupni_iznos FROM orders ORDER BY customer_id ASC, ukupni_iznos DESC LIMIT 10",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"orders.customer_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT customer_id, status, SUM(total_amount) AS ukupni_izno...\n               ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT customer_id, status, SUM(total_amount) AS ukupni_iznos FROM orders GROUP BY customer_id, status ORDER BY customer_id ASC, ukupni_iznos ASC LIMIT 10",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT customer_id, status, SUM(total_amount) FROM orders GROUP BY customer_id, status ORDER BY customer_id ASC, ukupni_iznos DESC LIMIT 10",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"ukupni_iznos\" does not exist\nLINE 1: ... BY customer_id, status ORDER BY customer_id ASC, ukupni_izn...\n                                                             ^"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT customer_id, status, SUM(total_amount) AS ukupni_iznos FROM orders GROUP BY customer_id, status ORDER BY customer_id ASC, ukupni_iznos DESC LIMIT 12",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=12 vs expected=10"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT customerid, status, SUM(total_amount) AS ukupni_iznos FROM orders GROUP BY customer_id, status ORDER BY customer_id ASC, ukupni_iznos DESC LIMIT 10",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"customerid\" does not exist\nLINE 1: SELECT customerid, status, SUM(total_amount) AS ukupni_iznos...\n               ^\nHINT:  Perhaps you meant to reference the column \"orders.customer_id\"."
+   }
+  ]
+ },
+ "35": {
+  "task_id": 35,
+  "koncept": "having_filter",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 2,
+  "naslov": "Kategorije s više od 6 proizvoda — HAVING",
+  "tocan_upit": "SELECT category_id, COUNT(*) AS broj_proizvoda FROM products GROUP BY category_id HAVING COUNT(*) > 6 ORDER BY broj_proizvoda DESC, category_id ASC",
+  "kandidati": [
+   {
+    "mutacija": "agregat_u_where",
+    "opis": "agregatni uvjet stavljen u WHERE umjesto HAVING",
+    "query": "SELECT category_id, COUNT(*) AS broj_proizvoda FROM products WHERE COUNT(*) > 6 GROUP BY category_id ORDER BY broj_proizvoda DESC, category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "aggregate functions are not allowed in WHERE\nLINE 1: ...d, COUNT(*) AS broj_proizvoda FROM products WHERE COUNT(*) >...\n                                                             ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT category_id, COUNT(*) AS broj_proizvoda FROM products GROUP BY category_id HAVING COUNT(*) > 6 ORDER BY broj_proizvoda ASC, category_id ASC",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT category_id, COUNT(*) FROM products GROUP BY category_id HAVING COUNT(*) > 6 ORDER BY broj_proizvoda DESC, category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"broj_proizvoda\" does not exist\nLINE 1: ...GROUP BY category_id HAVING COUNT(*) > 6 ORDER BY broj_proiz...\n                                                             ^"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT categoryid, COUNT(*) AS broj_proizvoda FROM products GROUP BY category_id HAVING COUNT(*) > 6 ORDER BY broj_proizvoda DESC, category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"categoryid\" does not exist\nLINE 1: SELECT categoryid, COUNT(*) AS broj_proizvoda FROM products ...\n               ^\nHINT:  Perhaps you meant to reference the column \"products.category_id\"."
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT category_id, COUNT(*) AS broj_proizvoda FROM products HAVING COUNT(*) > 6 ORDER BY broj_proizvoda DESC, category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"products.category_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT category_id, COUNT(*) AS broj_proizvoda FROM products...\n               ^"
+   }
+  ]
+ },
+ "36": {
+  "task_id": 36,
+  "koncept": "having_filter",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 3,
+  "naslov": "Kupci s ukupno više od 10 narudžbi — WHERE + HAVING",
+  "tocan_upit": "SELECT customer_id, COUNT(*) AS broj_narudzbi FROM orders WHERE status != 'cancelled' GROUP BY customer_id HAVING COUNT(*) > 10 ORDER BY broj_narudzbi DESC, customer_id ASC",
+  "kandidati": [
+   {
+    "mutacija": "agregat_u_where",
+    "opis": "agregatni uvjet stavljen u WHERE umjesto HAVING",
+    "query": "SELECT customer_id, COUNT(*) AS broj_narudzbi FROM orders WHERE status != 'cancelled' WHERE COUNT(*) > 10 GROUP BY customer_id ORDER BY broj_narudzbi DESC, customer_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "syntax error at or near \"WHERE\"\nLINE 1: ..._narudzbi FROM orders WHERE status != 'cancelled' WHERE COUN...\n                                                             ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT customer_id, COUNT(*) AS broj_narudzbi FROM orders WHERE status != 'cancelled' GROUP BY customer_id HAVING COUNT(*) > 10 ORDER BY broj_narudzbi ASC, customer_id ASC",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT customer_id, COUNT(*) FROM orders WHERE status != 'cancelled' GROUP BY customer_id HAVING COUNT(*) > 10 ORDER BY broj_narudzbi DESC, customer_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"broj_narudzbi\" does not exist\nLINE 1: ...ROUP BY customer_id HAVING COUNT(*) > 10 ORDER BY broj_narud...\n                                                             ^"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT customerid, COUNT(*) AS broj_narudzbi FROM orders WHERE status != 'cancelled' GROUP BY customer_id HAVING COUNT(*) > 10 ORDER BY broj_narudzbi DESC, customer_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"customerid\" does not exist\nLINE 1: SELECT customerid, COUNT(*) AS broj_narudzbi FROM orders WHE...\n               ^\nHINT:  Perhaps you meant to reference the column \"orders.customer_id\"."
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT customer_id, COUNT(*) AS broj_narudzbi FROM orders WHERE status != 'cancelled' HAVING COUNT(*) > 10 ORDER BY broj_narudzbi DESC, customer_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"orders.customer_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT customer_id, COUNT(*) AS broj_narudzbi FROM orders WH...\n               ^"
+   },
+   {
+    "mutacija": "krivi_literal",
+    "opis": "krivo napisan tekstualni literal",
+    "query": "SELECT customer_id, COUNT(*) AS broj_narudzbi FROM orders WHERE status != 'Cancelled' GROUP BY customer_id HAVING COUNT(*) > 10 ORDER BY broj_narudzbi DESC, customer_id ASC",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=7 vs expected=4"
+   }
+  ]
+ },
+ "37": {
+  "task_id": 37,
+  "koncept": "having_filter",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 3,
+  "naslov": "Zemlje s prosječnim ratingom dobavljača iznad 3.5",
+  "tocan_upit": "SELECT country, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena FROM suppliers GROUP BY country HAVING AVG(rating) > 3.5 ORDER BY prosjecna_ocjena DESC, country ASC",
+  "kandidati": [
+   {
+    "mutacija": "agregat_u_where",
+    "opis": "agregatni uvjet stavljen u WHERE umjesto HAVING",
+    "query": "SELECT country, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena FROM suppliers WHERE AVG(rating) > 3.5 GROUP BY country ORDER BY prosjecna_ocjena DESC, country ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "aggregate functions are not allowed in WHERE\nLINE 1: ...eric, 2) AS prosjecna_ocjena FROM suppliers WHERE AVG(rating...\n                                                             ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT country, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena FROM suppliers GROUP BY country HAVING AVG(rating) > 3.5 ORDER BY prosjecna_ocjena ASC, country ASC",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT country, ROUND(AVG(rating)::numeric, 2) FROM suppliers GROUP BY country HAVING AVG(rating) > 3.5 ORDER BY prosjecna_ocjena DESC, country ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"prosjecna_ocjena\" does not exist\nLINE 1: ...ROUP BY country HAVING AVG(rating) > 3.5 ORDER BY prosjecna_...\n                                                             ^"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT countrys, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena FROM suppliers GROUP BY country HAVING AVG(rating) > 3.5 ORDER BY prosjecna_ocjena DESC, country ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"countrys\" does not exist\nLINE 1: SELECT countrys, ROUND(AVG(rating)::numeric, 2) AS prosjecna...\n               ^\nHINT:  Perhaps you meant to reference the column \"suppliers.country\"."
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT country, ROUND(AVG(rating)::numeric, 2) AS prosjecna_ocjena FROM suppliers HAVING AVG(rating) > 3.5 ORDER BY prosjecna_ocjena DESC, country ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"suppliers.country\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT country, ROUND(AVG(rating)::numeric, 2) AS prosjecna_...\n               ^"
+   }
+  ]
+ },
+ "38": {
+  "task_id": 38,
+  "koncept": "having_filter",
+  "tier": "medium",
+  "modul": 2,
+  "difficulty": 4,
+  "naslov": "Top kategorije s visokim prosječnim prihodom — WHERE + GROUP BY + HAVING + ORDER",
+  "tocan_upit": "SELECT category_id, COUNT(*) AS broj_proizvoda, ROUND(AVG(price), 2) AS prosjecna_cijena FROM products GROUP BY category_id HAVING AVG(price) > 200 AND COUNT(*) >= 3 ORDER BY prosjecna_cijena DESC, category_id ASC",
+  "kandidati": [
+   {
+    "mutacija": "agregat_u_where",
+    "opis": "agregatni uvjet stavljen u WHERE umjesto HAVING",
+    "query": "SELECT category_id, COUNT(*) AS broj_proizvoda, ROUND(AVG(price), 2) AS prosjecna_cijena FROM products WHERE AVG(price) > 200 AND COUNT(*) >= 3 GROUP BY category_id ORDER BY prosjecna_cijena DESC, category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "aggregate functions are not allowed in WHERE\nLINE 1: ...rice), 2) AS prosjecna_cijena FROM products WHERE AVG(price)...\n                                                             ^"
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT category_id, COUNT(*) AS broj_proizvoda, ROUND(AVG(price), 2) AS prosjecna_cijena FROM products GROUP BY category_id HAVING AVG(price) > 200 AND COUNT(*) >= 3 ORDER BY prosjecna_cijena ASC, category_id ASC",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT category_id, COUNT(*), ROUND(AVG(price), 2) AS prosjecna_cijena FROM products GROUP BY category_id HAVING AVG(price) > 200 AND COUNT(*) >= 3 ORDER BY prosjecna_cijena DESC, category_id ASC",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['category_id', 'count', 'prosjecna_cijena'], očekivani: ['broj_proizvoda', 'category_id', 'prosjecna_cijena']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT categoryid, COUNT(*) AS broj_proizvoda, ROUND(AVG(price), 2) AS prosjecna_cijena FROM products GROUP BY category_id HAVING AVG(price) > 200 AND COUNT(*) >= 3 ORDER BY prosjecna_cijena DESC, category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"categoryid\" does not exist\nLINE 1: SELECT categoryid, COUNT(*) AS broj_proizvoda, ROUND(AVG(pri...\n               ^\nHINT:  Perhaps you meant to reference the column \"products.category_id\"."
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT category_id, COUNT(*) AS broj_proizvoda, ROUND(AVG(price), 2) AS prosjecna_cijena FROM products HAVING AVG(price) > 200 AND COUNT(*) >= 3 ORDER BY prosjecna_cijena DESC, category_id ASC",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"products.category_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT category_id, COUNT(*) AS broj_proizvoda, ROUND(AVG(pr...\n               ^"
+   }
+  ]
+ },
+ "39": {
+  "task_id": 39,
+  "koncept": "cross_join",
+  "tier": "medium",
+  "modul": 3,
+  "difficulty": 2,
+  "naslov": "Generiraj sve kombinacije kategorija i statusa narudžbi (CROSS JOIN)",
+  "tocan_upit": "SELECT c.name AS category_name,\n       s.status AS order_status\nFROM categories c\nCROSS JOIN (SELECT DISTINCT status FROM orders) s\nORDER BY c.name, s.status\nLIMIT 5",
+  "kandidati": [
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT c.name AS category_name,\n       s.status AS order_status\nFROM categories c\nCROSS JOIN (SELECT DISTINCT status FROM orders) s\nORDER BY c.name, s.status\nLIMIT 7",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=7 vs expected=5"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT c.name AS categoryname,\n       s.status AS order_status\nFROM categories c\nCROSS JOIN (SELECT DISTINCT status FROM orders) s\nORDER BY c.name, s.status\nLIMIT 5",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['categoryname', 'order_status'], očekivani: ['category_name', 'order_status']"
+   }
+  ]
+ },
+ "40": {
+  "task_id": 40,
+  "koncept": "cross_join",
+  "tier": "medium",
+  "modul": 3,
+  "difficulty": 3,
+  "naslov": "Provjera kardinalnosti: CROSS JOIN kategorija i statusa narudžbi",
+  "tocan_upit": "SELECT\n    COUNT(*)                AS total_combinations,\n    COUNT(DISTINCT c.id)    AS category_count,\n    COUNT(DISTINCT s.status) AS status_count\nFROM categories c\nCROSS JOIN (SELECT DISTINCT status FROM orders) s",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT\n    COUNT(*),\n    COUNT(DISTINCT c.id)    AS category_count,\n    COUNT(DISTINCT s.status) AS status_count\nFROM categories c\nCROSS JOIN (SELECT DISTINCT status FROM orders) s",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['category_count', 'count', 'status_count'], očekivani: ['category_count', 'status_count', 'total_combinations']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT\n    COUNT(*)                AS totalcombinations,\n    COUNT(DISTINCT c.id)    AS category_count,\n    COUNT(DISTINCT s.status) AS status_count\nFROM categories c\nCROSS JOIN (SELECT DISTINCT status FROM orders) s",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['category_count', 'status_count', 'totalcombinations'], očekivani: ['category_count', 'status_count', 'total_combinations']"
+   }
+  ]
+ },
+ "41": {
+  "task_id": 41,
+  "koncept": "full_outer_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 3,
+  "naslov": "Prebrojavanje nepovezanih redova s FULL OUTER JOIN-om",
+  "tocan_upit": "SELECT\n    CASE\n        WHEN c.id IS NULL THEN 'Narudžba bez kupca'\n        WHEN o.id IS NULL THEN 'Kupac bez narudžbe'\n    END AS kategorija,\n    COUNT(*) AS broj\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nWHERE c.id IS NULL OR o.id IS NULL\nGROUP BY kategorija\nORDER BY kategorija",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT\n    CASE\n        WHEN c.id IS NULL THEN 'Narudžba bez kupca'\n        WHEN o.id IS NULL THEN 'Kupac bez narudžbe'\n    END AS kategorija,\n    COUNT(*)\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nWHERE c.id IS NULL OR o.id IS NULL\nGROUP BY kategorija\nORDER BY kategorija",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count', 'kategorija'], očekivani: ['broj', 'kategorija']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT\n    CASE\n        WHEN c.id IS NULL THEN 'Narudžba bez kupcas'\n        WHEN o.id IS NULL THEN 'Kupac bez narudžbe'\n    END AS kategorija,\n    COUNT(*) AS broj\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nWHERE c.id IS NULL OR o.id IS NULL\nGROUP BY kategorija\nORDER BY kategorija",
+    "error_type": null,
+    "is_correct": true,
+    "detail": "OK"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT\n    CASE\n        WHEN c.id IS NULL THEN 'Narudžba bez kupca'\n        WHEN o.id IS NULL THEN 'Kupac bez narudžbe'\n    END AS kategorija,\n    COUNT(*) AS broj\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nWHERE c.id IS NULL OR o.id IS NULL ORDER BY kategorija",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"c.id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 3:         WHEN c.id IS NULL THEN 'Narudžba bez kupca'\n                     ^"
+   }
+  ]
+ },
+ "42": {
+  "task_id": 42,
+  "koncept": "full_outer_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 4,
+  "naslov": "Dvostruki anti-join: kupci bez narudžbi i narudžbe bez kupca",
+  "tocan_upit": "SELECT\n    CASE\n        WHEN o.id IS NULL THEN 'Kupac bez narudžbe'\n        WHEN c.id IS NULL THEN 'Narudžba bez kupca'\n    END AS kategorija,\n    COUNT(*) AS broj\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL OR c.id IS NULL\nGROUP BY kategorija\nORDER BY kategorija",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT\n    CASE\n        WHEN o.id IS NULL THEN 'Kupac bez narudžbe'\n        WHEN c.id IS NULL THEN 'Narudžba bez kupca'\n    END AS kategorija,\n    COUNT(*)\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL OR c.id IS NULL\nGROUP BY kategorija\nORDER BY kategorija",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count', 'kategorija'], očekivani: ['broj', 'kategorija']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT\n    CASE\n        WHEN o.id IS NULL THEN 'Kupac bez narudžbe'\n        WHEN c.id IS NULL THEN 'Narudžba bez kupcas'\n    END AS kategorija,\n    COUNT(*) AS broj\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL OR c.id IS NULL\nGROUP BY kategorija\nORDER BY kategorija",
+    "error_type": null,
+    "is_correct": true,
+    "detail": "OK"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT\n    CASE\n        WHEN o.id IS NULL THEN 'Kupac bez narudžbe'\n        WHEN c.id IS NULL THEN 'Narudžba bez kupca'\n    END AS kategorija,\n    COUNT(*) AS broj\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL OR c.id IS NULL ORDER BY kategorija",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"o.id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 3:         WHEN o.id IS NULL THEN 'Kupac bez narudžbe'\n                     ^"
+   }
+  ]
+ },
+ "43": {
+  "task_id": 43,
+  "koncept": "full_outer_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 5,
+  "naslov": "FULL OUTER JOIN analiza: kategorizacija kupaca i narudžbi s agregatima",
+  "tocan_upit": "SELECT\n    CASE\n        WHEN c.id IS NULL THEN 'Narudžbe bez kupca'\n        WHEN o.id IS NULL THEN 'Kupci bez narudžbi'\n        ELSE 'Kupci s narudžbama'\n    END AS kategorija,\n    COUNT(*) AS broj_redova,\n    COUNT(DISTINCT c.id) AS broj_kupaca,\n    COUNT(DISTINCT o.id) AS broj_narudžbi\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nGROUP BY 1\nORDER BY kategorija",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT\n    CASE\n        WHEN c.id IS NULL THEN 'Narudžbe bez kupca'\n        WHEN o.id IS NULL THEN 'Kupci bez narudžbi'\n        ELSE 'Kupci s narudžbama'\n    END AS kategorija,\n    COUNT(*),\n    COUNT(DISTINCT c.id) AS broj_kupaca,\n    COUNT(DISTINCT o.id) AS broj_narudžbi\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nGROUP BY 1\nORDER BY kategorija",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['broj_kupaca', 'broj_narudžbi', 'count', 'kategorija'], očekivani: ['broj_kupaca', 'broj_narudžbi', 'broj_redova', 'kategorija']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT\n    CASE\n        WHEN c.id IS NULL THEN 'Narudžbe bez kupcas'\n        WHEN o.id IS NULL THEN 'Kupci bez narudžbi'\n        ELSE 'Kupci s narudžbama'\n    END AS kategorija,\n    COUNT(*) AS broj_redova,\n    COUNT(DISTINCT c.id) AS broj_kupaca,\n    COUNT(DISTINCT o.id) AS broj_narudžbi\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id\nGROUP BY 1\nORDER BY kategorija",
+    "error_type": null,
+    "is_correct": true,
+    "detail": "OK"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT\n    CASE\n        WHEN c.id IS NULL THEN 'Narudžbe bez kupca'\n        WHEN o.id IS NULL THEN 'Kupci bez narudžbi'\n        ELSE 'Kupci s narudžbama'\n    END AS kategorija,\n    COUNT(*) AS broj_redova,\n    COUNT(DISTINCT c.id) AS broj_kupaca,\n    COUNT(DISTINCT o.id) AS broj_narudžbi\nFROM customers c\nFULL OUTER JOIN orders o ON c.id = o.customer_id ORDER BY kategorija",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"c.id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 3:         WHEN c.id IS NULL THEN 'Narudžbe bez kupca'\n                     ^"
+   }
+  ]
+ },
+ "44": {
+  "task_id": 44,
+  "koncept": "inner_join",
+  "tier": "medium",
+  "modul": 3,
+  "difficulty": 1,
+  "naslov": "Ukupan broj proizvoda s dodijeljenom kategorijom",
+  "tocan_upit": "SELECT COUNT(*) AS total_products\nFROM products p\nINNER JOIN categories c ON p.category_id = c.id",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*)\nFROM products p\nINNER JOIN categories c ON p.category_id = c.id",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['total_products']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS totalproducts\nFROM products p\nINNER JOIN categories c ON p.category_id = c.id",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['totalproducts'], očekivani: ['total_products']"
+   }
+  ]
+ },
+ "45": {
+  "task_id": 45,
+  "koncept": "inner_join",
+  "tier": "medium",
+  "modul": 3,
+  "difficulty": 2,
+  "naslov": "Ukupan broj narudžbi spojenih s kupcima",
+  "tocan_upit": "SELECT COUNT(*) AS broj_narudzbi\nFROM orders o\nINNER JOIN customers c ON o.customer_id = c.id",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*)\nFROM orders o\nINNER JOIN customers c ON o.customer_id = c.id",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['broj_narudzbi']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS brojnarudzbi\nFROM orders o\nINNER JOIN customers c ON o.customer_id = c.id",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['brojnarudzbi'], očekivani: ['broj_narudzbi']"
+   }
+  ]
+ },
+ "46": {
+  "task_id": 46,
+  "koncept": "inner_join",
+  "tier": "medium",
+  "modul": 3,
+  "difficulty": 3,
+  "naslov": "Ukupan broj stavki narudžbi s valjanim proizvodom i kategorijom",
+  "tocan_upit": "SELECT COUNT(*) AS total_order_items\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN categories c ON p.category_id = c.id",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*)\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN categories c ON p.category_id = c.id",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['total_order_items']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS totalorder_items\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN categories c ON p.category_id = c.id",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['totalorder_items'], očekivani: ['total_order_items']"
+   }
+  ]
+ },
+ "47": {
+  "task_id": 47,
+  "koncept": "inner_join",
+  "tier": "medium",
+  "modul": 3,
+  "difficulty": 4,
+  "naslov": "Ukupna prodana količina po kategoriji proizvoda",
+  "tocan_upit": "SELECT c.id AS category_id, c.name AS category_name, SUM(oi.quantity) AS total_quantity_sold\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN categories c ON p.category_id = c.id\nGROUP BY c.id, c.name\nORDER BY c.id\nLIMIT 5",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT c.id AS category_id, c.name AS category_name, SUM(oi.quantity)\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN categories c ON p.category_id = c.id\nGROUP BY c.id, c.name\nORDER BY c.id\nLIMIT 5",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['category_id', 'category_name', 'sum'], očekivani: ['category_id', 'category_name', 'total_quantity_sold']"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT c.id AS category_id, c.name AS category_name, SUM(oi.quantity) AS total_quantity_sold\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN categories c ON p.category_id = c.id\nGROUP BY c.id, c.name\nORDER BY c.id\nLIMIT 7",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=7 vs expected=5"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT c.id AS categoryid, c.name AS category_name, SUM(oi.quantity) AS total_quantity_sold\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN categories c ON p.category_id = c.id\nGROUP BY c.id, c.name\nORDER BY c.id\nLIMIT 5",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['category_name', 'categoryid', 'total_quantity_sold'], očekivani: ['category_id', 'category_name', 'total_quantity_sold']"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT c.id AS category_id, c.name AS category_name, SUM(oi.quantity) AS total_quantity_sold\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN categories c ON p.category_id = c.id ORDER BY c.id\nLIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"c.id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT c.id AS category_id, c.name AS category_name, SUM(oi....\n               ^"
+   }
+  ]
+ },
+ "48": {
+  "task_id": 48,
+  "koncept": "left_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 2,
+  "naslov": "Broj kupaca bez ijedne narudžbe",
+  "tocan_upit": "SELECT COUNT(*) AS customers_without_orders\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*)\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['customers_without_orders']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS customerswithout_orders\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['customerswithout_orders'], očekivani: ['customers_without_orders']"
+   }
+  ]
+ },
+ "49": {
+  "task_id": 49,
+  "koncept": "left_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 3,
+  "naslov": "Kupci bez ijedne narudžbe — Anti-join uzorak",
+  "tocan_upit": "SELECT COUNT(*) AS customers_without_orders\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*)\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['customers_without_orders']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS customerswithout_orders\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id\nWHERE o.id IS NULL",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['customerswithout_orders'], očekivani: ['customers_without_orders']"
+   }
+  ]
+ },
+ "50": {
+  "task_id": 50,
+  "koncept": "left_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 4,
+  "naslov": "Broj narudžbi 'delivered' statusa po kupcu — ON vs WHERE filter",
+  "tocan_upit": "SELECT c.id, c.first_name, c.last_name, COUNT(o.id) AS delivered_count\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id AND o.status = 'delivered'\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY c.id\nLIMIT 5",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT c.id, c.first_name, c.last_name, COUNT(o.id)\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id AND o.status = 'delivered'\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY c.id\nLIMIT 5",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count', 'first_name', 'id', 'last_name'], očekivani: ['delivered_count', 'first_name', 'id', 'last_name']"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT c.id, c.first_name, c.last_name, COUNT(o.id) AS delivered_count\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id AND o.status = 'delivered'\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY c.id\nLIMIT 7",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=7 vs expected=5"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT c.id, c.firstname, c.last_name, COUNT(o.id) AS delivered_count\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id AND o.status = 'delivered'\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY c.id\nLIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column c.firstname does not exist\nLINE 1: SELECT c.id, c.firstname, c.last_name, COUNT(o.id) AS delive...\n                     ^\nHINT:  Perhaps you meant to reference the column \"c.first_name\"."
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT c.id, c.first_name, c.last_name, COUNT(o.id) AS delivered_count\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id AND o.status = 'delivered' ORDER BY c.id\nLIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"c.id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT c.id, c.first_name, c.last_name, COUNT(o.id) AS deliv...\n               ^"
+   },
+   {
+    "mutacija": "krivi_literal",
+    "opis": "krivo napisan tekstualni literal",
+    "query": "SELECT c.id, c.first_name, c.last_name, COUNT(o.id) AS delivered_count\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id AND o.status = 'Delivered'\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY c.id\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   }
+  ]
+ },
+ "51": {
+  "task_id": 51,
+  "koncept": "multi_table_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 3,
+  "naslov": "Ukupan broj stavki narudžbi kroz tri JOIN-ana tablica",
+  "tocan_upit": "SELECT COUNT(*) AS total_items\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN suppliers s ON p.supplier_id = s.id",
+  "kandidati": [
+   {
+    "mutacija": "bez_uvjeta_spajanja",
+    "opis": "zaboravljen uvjet spajanja (kartezijev produkt)",
+    "query": "SELECT COUNT(*) AS total_items\nFROM order_items oi\n, products p \n, suppliers s",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Set diff: 1 expected rows missing from actual"
+   },
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*)\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN suppliers s ON p.supplier_id = s.id",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['total_items']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS totalitems\nFROM order_items oi\nINNER JOIN products p ON oi.product_id = p.id\nINNER JOIN suppliers s ON p.supplier_id = s.id",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['totalitems'], očekivani: ['total_items']"
+   }
+  ]
+ },
+ "52": {
+  "task_id": 52,
+  "koncept": "multi_table_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 3,
+  "naslov": "Prebroji kupce, narudžbe i stavke spajanjem triju tablica",
+  "tocan_upit": "SELECT COUNT(*) AS total_order_items,\n       COUNT(DISTINCT o.id) AS distinct_orders,\n       COUNT(DISTINCT c.id) AS distinct_customers\nFROM customers c\nINNER JOIN orders o ON c.id = o.customer_id\nINNER JOIN order_items oi ON o.id = oi.order_id",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*),\n       COUNT(DISTINCT o.id) AS distinct_orders,\n       COUNT(DISTINCT c.id) AS distinct_customers\nFROM customers c\nINNER JOIN orders o ON c.id = o.customer_id\nINNER JOIN order_items oi ON o.id = oi.order_id",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count', 'distinct_customers', 'distinct_orders'], očekivani: ['distinct_customers', 'distinct_orders', 'total_order_items']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS totalorder_items,\n       COUNT(DISTINCT o.id) AS distinct_orders,\n       COUNT(DISTINCT c.id) AS distinct_customers\nFROM customers c\nINNER JOIN orders o ON c.id = o.customer_id\nINNER JOIN order_items oi ON o.id = oi.order_id",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['distinct_customers', 'distinct_orders', 'totalorder_items'], očekivani: ['distinct_customers', 'distinct_orders', 'total_order_items']"
+   }
+  ]
+ },
+ "53": {
+  "task_id": 53,
+  "koncept": "multi_table_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 4,
+  "naslov": "Prihod i broj naručenih proizvoda po kategoriji (JOIN 4 tablice)",
+  "tocan_upit": "SELECT cat.name AS category,\n       COUNT(DISTINCT p.id) AS product_count,\n       SUM(oi.quantity * oi.unit_price) AS total_revenue\nFROM categories cat\nINNER JOIN products p ON p.category_id = cat.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON oi.order_id = o.id\nGROUP BY cat.id, cat.name\nORDER BY total_revenue DESC\nLIMIT 5",
+  "kandidati": [
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT cat.name AS category,\n       COUNT(DISTINCT p.id) AS product_count,\n       SUM(oi.quantity * oi.unit_price) AS total_revenue\nFROM categories cat\nINNER JOIN products p ON p.category_id = cat.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON oi.order_id = o.id\nGROUP BY cat.id, cat.name\nORDER BY total_revenue ASC\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT cat.name AS category,\n       COUNT(DISTINCT p.id),\n       SUM(oi.quantity * oi.unit_price) AS total_revenue\nFROM categories cat\nINNER JOIN products p ON p.category_id = cat.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON oi.order_id = o.id\nGROUP BY cat.id, cat.name\nORDER BY total_revenue DESC\nLIMIT 5",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['category', 'count', 'total_revenue'], očekivani: ['category', 'product_count', 'total_revenue']"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT cat.name AS category,\n       COUNT(DISTINCT p.id) AS product_count,\n       SUM(oi.quantity * oi.unit_price) AS total_revenue\nFROM categories cat\nINNER JOIN products p ON p.category_id = cat.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON oi.order_id = o.id\nGROUP BY cat.id, cat.name\nORDER BY total_revenue DESC\nLIMIT 7",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=7 vs expected=5"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT cat.name AS categorys,\n       COUNT(DISTINCT p.id) AS product_count,\n       SUM(oi.quantity * oi.unit_price) AS total_revenue\nFROM categories cat\nINNER JOIN products p ON p.category_id = cat.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON oi.order_id = o.id\nGROUP BY cat.id, cat.name\nORDER BY total_revenue DESC\nLIMIT 5",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['categorys', 'product_count', 'total_revenue'], očekivani: ['category', 'product_count', 'total_revenue']"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT cat.name AS category,\n       COUNT(DISTINCT p.id) AS product_count,\n       SUM(oi.quantity * oi.unit_price) AS total_revenue\nFROM categories cat\nINNER JOIN products p ON p.category_id = cat.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON oi.order_id = o.id ORDER BY total_revenue DESC\nLIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"cat.name\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT cat.name AS category,\n               ^"
+   }
+  ]
+ },
+ "54": {
+  "task_id": 54,
+  "koncept": "multi_table_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 4,
+  "naslov": "Ukupni prihod i broj narudžbi po dobavljaču (JOIN 4 tablice)",
+  "tocan_upit": "SELECT s.name AS supplier_name,\n       SUM(oi.quantity * oi.unit_price) AS total_revenue,\n       COUNT(DISTINCT o.id) AS order_count\nFROM suppliers s\nINNER JOIN products p ON p.supplier_id = s.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON o.id = oi.order_id\nGROUP BY s.id, s.name\nORDER BY total_revenue DESC\nLIMIT 5",
+  "kandidati": [
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT s.name AS supplier_name,\n       SUM(oi.quantity * oi.unit_price) AS total_revenue,\n       COUNT(DISTINCT o.id) AS order_count\nFROM suppliers s\nINNER JOIN products p ON p.supplier_id = s.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON o.id = oi.order_id\nGROUP BY s.id, s.name\nORDER BY total_revenue ASC\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT s.name AS supplier_name,\n       SUM(oi.quantity * oi.unit_price),\n       COUNT(DISTINCT o.id) AS order_count\nFROM suppliers s\nINNER JOIN products p ON p.supplier_id = s.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON o.id = oi.order_id\nGROUP BY s.id, s.name\nORDER BY total_revenue DESC\nLIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"total_revenue\" does not exist\nLINE 9: ORDER BY total_revenue DESC\n                 ^"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT s.name AS supplier_name,\n       SUM(oi.quantity * oi.unit_price) AS total_revenue,\n       COUNT(DISTINCT o.id) AS order_count\nFROM suppliers s\nINNER JOIN products p ON p.supplier_id = s.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON o.id = oi.order_id\nGROUP BY s.id, s.name\nORDER BY total_revenue DESC\nLIMIT 7",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=7 vs expected=5"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT s.name AS suppliername,\n       SUM(oi.quantity * oi.unit_price) AS total_revenue,\n       COUNT(DISTINCT o.id) AS order_count\nFROM suppliers s\nINNER JOIN products p ON p.supplier_id = s.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON o.id = oi.order_id\nGROUP BY s.id, s.name\nORDER BY total_revenue DESC\nLIMIT 5",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['order_count', 'suppliername', 'total_revenue'], očekivani: ['order_count', 'supplier_name', 'total_revenue']"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT s.name AS supplier_name,\n       SUM(oi.quantity * oi.unit_price) AS total_revenue,\n       COUNT(DISTINCT o.id) AS order_count\nFROM suppliers s\nINNER JOIN products p ON p.supplier_id = s.id\nINNER JOIN order_items oi ON oi.product_id = p.id\nINNER JOIN orders o ON o.id = oi.order_id ORDER BY total_revenue DESC\nLIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"s.name\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT s.name AS supplier_name,\n               ^"
+   }
+  ]
+ },
+ "55": {
+  "task_id": 55,
+  "koncept": "multi_table_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 5,
+  "naslov": "Prihod i prosječna ocjena po dobavljaču — 4-stolični JOIN",
+  "tocan_upit": "SELECT s.name AS supplier_name,\n       COUNT(DISTINCT p.id) AS distinct_products_sold,\n       SUM(oi.quantity) AS total_quantity,\n       ROUND(AVG(r.rating), 2) AS avg_review_rating\nFROM suppliers s\nINNER JOIN products p ON s.id = p.supplier_id\nINNER JOIN order_items oi ON p.id = oi.product_id\nLEFT JOIN reviews r ON p.id = r.product_id\nGROUP BY s.id, s.name\nORDER BY total_quantity DESC\nLIMIT 5",
+  "kandidati": [
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT s.name AS supplier_name,\n       COUNT(DISTINCT p.id) AS distinct_products_sold,\n       SUM(oi.quantity) AS total_quantity,\n       ROUND(AVG(r.rating), 2) AS avg_review_rating\nFROM suppliers s\nINNER JOIN products p ON s.id = p.supplier_id\nINNER JOIN order_items oi ON p.id = oi.product_id\nLEFT JOIN reviews r ON p.id = r.product_id\nGROUP BY s.id, s.name\nORDER BY total_quantity ASC\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT s.name AS supplier_name,\n       COUNT(DISTINCT p.id),\n       SUM(oi.quantity) AS total_quantity,\n       ROUND(AVG(r.rating), 2) AS avg_review_rating\nFROM suppliers s\nINNER JOIN products p ON s.id = p.supplier_id\nINNER JOIN order_items oi ON p.id = oi.product_id\nLEFT JOIN reviews r ON p.id = r.product_id\nGROUP BY s.id, s.name\nORDER BY total_quantity DESC\nLIMIT 5",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['avg_review_rating', 'count', 'supplier_name', 'total_quantity'], očekivani: ['avg_review_rating', 'distinct_products_sold', 'supplier_name', 'total_quantity']"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT s.name AS supplier_name,\n       COUNT(DISTINCT p.id) AS distinct_products_sold,\n       SUM(oi.quantity) AS total_quantity,\n       ROUND(AVG(r.rating), 2) AS avg_review_rating\nFROM suppliers s\nINNER JOIN products p ON s.id = p.supplier_id\nINNER JOIN order_items oi ON p.id = oi.product_id\nLEFT JOIN reviews r ON p.id = r.product_id\nGROUP BY s.id, s.name\nORDER BY total_quantity DESC\nLIMIT 7",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=7 vs expected=5"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT s.name AS suppliername,\n       COUNT(DISTINCT p.id) AS distinct_products_sold,\n       SUM(oi.quantity) AS total_quantity,\n       ROUND(AVG(r.rating), 2) AS avg_review_rating\nFROM suppliers s\nINNER JOIN products p ON s.id = p.supplier_id\nINNER JOIN order_items oi ON p.id = oi.product_id\nLEFT JOIN reviews r ON p.id = r.product_id\nGROUP BY s.id, s.name\nORDER BY total_quantity DESC\nLIMIT 5",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['avg_review_rating', 'distinct_products_sold', 'suppliername', 'total_quantity'], očekivani: ['avg_review_rating', 'distinct_products_sold', 'supplier_name', 'total_qu"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT s.name AS supplier_name,\n       COUNT(DISTINCT p.id) AS distinct_products_sold,\n       SUM(oi.quantity) AS total_quantity,\n       ROUND(AVG(r.rating), 2) AS avg_review_rating\nFROM suppliers s\nINNER JOIN products p ON s.id = p.supplier_id\nINNER JOIN order_items oi ON p.id = oi.product_id\nLEFT JOIN reviews r ON p.id = r.product_id ORDER BY total_quantity DESC\nLIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"s.name\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT s.name AS supplier_name,\n               ^"
+   }
+  ]
+ },
+ "56": {
+  "task_id": 56,
+  "koncept": "right_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 3,
+  "naslov": "Dobavljači i broj proizvoda koje isporučuju (RIGHT JOIN)",
+  "tocan_upit": "SELECT s.id AS supplier_id,\n       s.name AS supplier_name,\n       COUNT(p.id) AS product_count\nFROM products p\nRIGHT JOIN suppliers s ON p.supplier_id = s.id\nGROUP BY s.id, s.name\nORDER BY s.id\nLIMIT 3",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT s.id AS supplier_id,\n       s.name AS supplier_name,\n       COUNT(p.id)\nFROM products p\nRIGHT JOIN suppliers s ON p.supplier_id = s.id\nGROUP BY s.id, s.name\nORDER BY s.id\nLIMIT 3",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count', 'supplier_id', 'supplier_name'], očekivani: ['product_count', 'supplier_id', 'supplier_name']"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT s.id AS supplier_id,\n       s.name AS supplier_name,\n       COUNT(p.id) AS product_count\nFROM products p\nRIGHT JOIN suppliers s ON p.supplier_id = s.id\nGROUP BY s.id, s.name\nORDER BY s.id\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT s.id AS supplierid,\n       s.name AS supplier_name,\n       COUNT(p.id) AS product_count\nFROM products p\nRIGHT JOIN suppliers s ON p.supplier_id = s.id\nGROUP BY s.id, s.name\nORDER BY s.id\nLIMIT 3",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['product_count', 'supplier_name', 'supplierid'], očekivani: ['product_count', 'supplier_id', 'supplier_name']"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT s.id AS supplier_id,\n       s.name AS supplier_name,\n       COUNT(p.id) AS product_count\nFROM products p\nRIGHT JOIN suppliers s ON p.supplier_id = s.id ORDER BY s.id\nLIMIT 3",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"s.id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 1: SELECT s.id AS supplier_id,\n               ^"
+   }
+  ]
+ },
+ "57": {
+  "task_id": 57,
+  "koncept": "self_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 3,
+  "naslov": "Broj zaposlenika s neposrednim managerom (SELF JOIN)",
+  "tocan_upit": "SELECT COUNT(*) AS total_with_manager\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*)\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['total_with_manager']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS totalwith_manager\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['totalwith_manager'], očekivani: ['total_with_manager']"
+   }
+  ]
+ },
+ "58": {
+  "task_id": 58,
+  "koncept": "self_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 4,
+  "naslov": "Zaposlenici u drugom odjelu od svog managera",
+  "tocan_upit": "SELECT e.first_name || ' ' || e.last_name AS employee_name,\n       e.department AS employee_department,\n       m.first_name || ' ' || m.last_name AS manager_name,\n       m.department AS manager_department\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id\nWHERE e.department <> m.department\nORDER BY e.id\nLIMIT 2",
+  "kandidati": [
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT e.first_name || ' ' || e.last_name AS employee_name,\n       e.department AS employee_department,\n       m.first_name || ' ' || m.last_name AS manager_name,\n       m.department AS manager_department\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id\nWHERE e.department <> m.department\nORDER BY e.id\nLIMIT 4",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=4 vs expected=2"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT e.firstname || ' ' || e.last_name AS employee_name,\n       e.department AS employee_department,\n       m.first_name || ' ' || m.last_name AS manager_name,\n       m.department AS manager_department\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id\nWHERE e.department <> m.department\nORDER BY e.id\nLIMIT 2",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column e.firstname does not exist\nLINE 1: SELECT e.firstname || ' ' || e.last_name AS employee_name,\n               ^\nHINT:  Perhaps you meant to reference the column \"e.first_name\"."
+   }
+  ]
+ },
+ "59": {
+  "task_id": 59,
+  "koncept": "self_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 5,
+  "naslov": "Dvostruki SELF JOIN: zaposlenici s dva nivoa nadređenih",
+  "tocan_upit": "SELECT COUNT(*) AS total\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id\nINNER JOIN employees gm ON m.manager_id = gm.id",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*)\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id\nINNER JOIN employees gm ON m.manager_id = gm.id",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['total']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS totals\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.id\nINNER JOIN employees gm ON m.manager_id = gm.id",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['totals'], očekivani: ['total']"
+   }
+  ]
+ },
+ "60": {
+  "task_id": 60,
+  "koncept": "correlated_subquery",
+  "tier": "hard",
+  "modul": 5,
+  "difficulty": 3,
+  "naslov": "Kupci bez ijedne narudžbe pomoću koreliranog podupita",
+  "tocan_upit": "SELECT COUNT(*) AS count_customers_no_orders\nFROM customers c\nWHERE (\n    SELECT COUNT(*)\n    FROM orders o\n    WHERE o.customer_id = c.id\n) = 0",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*)\nFROM customers c\nWHERE (\n    SELECT COUNT(*)\n    FROM orders o\n    WHERE o.customer_id = c.id\n) = 0",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['count_customers_no_orders']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS countcustomers_no_orders\nFROM customers c\nWHERE (\n    SELECT COUNT(*)\n    FROM orders o\n    WHERE o.customer_id = c.id\n) = 0",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['countcustomers_no_orders'], očekivani: ['count_customers_no_orders']"
+   }
+  ]
+ },
+ "61": {
+  "task_id": 61,
+  "koncept": "correlated_subquery",
+  "tier": "hard",
+  "modul": 5,
+  "difficulty": 4,
+  "naslov": "Broj kupaca bez ijedne narudžbe koristeći korelirani NOT EXISTS",
+  "tocan_upit": "SELECT COUNT(*) AS kupci_bez_narudzbi\nFROM customers c\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM orders o\n    WHERE o.customer_id = c.id\n)",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*)\nFROM customers c\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM orders o\n    WHERE o.customer_id = c.id\n)",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['kupci_bez_narudzbi']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS kupcibez_narudzbi\nFROM customers c\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM orders o\n    WHERE o.customer_id = c.id\n)",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['kupcibez_narudzbi'], očekivani: ['kupci_bez_narudzbi']"
+   }
+  ]
+ },
+ "62": {
+  "task_id": 62,
+  "koncept": "correlated_subquery",
+  "tier": "hard",
+  "modul": 5,
+  "difficulty": 5,
+  "naslov": "Kupci kod kojih svaka narudžba premašuje prosjek ostalih njihovih narudžbi",
+  "tocan_upit": "SELECT\n    c.id AS customer_id,\n    c.first_name,\n    c.last_name,\n    COUNT(o.id) AS outlier_order_count\nFROM customers c\nJOIN orders o ON o.customer_id = c.id\nWHERE (\n    SELECT COUNT(*)\n    FROM orders o_all\n    WHERE o_all.customer_id = c.id\n) >= 2\nAND o.total_amount > (\n    SELECT AVG(o2.total_amount)\n    FROM orders o2\n    WHERE o2.customer_id = c.id\n      AND o2.id <> o.id\n)\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY c.id\nLIMIT 5",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT\n    c.id AS customer_id,\n    c.first_name,\n    c.last_name,\n    COUNT(o.id)\nFROM customers c\nJOIN orders o ON o.customer_id = c.id\nWHERE (\n    SELECT COUNT(*)\n    FROM orders o_all\n    WHERE o_all.customer_id = c.id\n) >= 2\nAND o.total_amount > (\n    SELECT AVG(o2.total_amount)\n    FROM orders o2\n    WHERE o2.customer_id = c.id\n      AND o2.id <> o.id\n)\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY c.id\nLIMIT 5",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count', 'customer_id', 'first_name', 'last_name'], očekivani: ['customer_id', 'first_name', 'last_name', 'outlier_order_count']"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT\n    c.id AS customer_id,\n    c.first_name,\n    c.last_name,\n    COUNT(o.id) AS outlier_order_count\nFROM customers c\nJOIN orders o ON o.customer_id = c.id\nWHERE (\n    SELECT COUNT(*)\n    FROM orders o_all\n    WHERE o_all.customer_id = c.id\n) >= 2\nAND o.total_amount > (\n    SELECT AVG(o2.total_amount)\n    FROM orders o2\n    WHERE o2.customer_id = c.id\n      AND o2.id <> o.id\n)\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY c.id\nLIMIT 7",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=7 vs expected=5"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT\n    c.id AS customerid,\n    c.first_name,\n    c.last_name,\n    COUNT(o.id) AS outlier_order_count\nFROM customers c\nJOIN orders o ON o.customer_id = c.id\nWHERE (\n    SELECT COUNT(*)\n    FROM orders o_all\n    WHERE o_all.customer_id = c.id\n) >= 2\nAND o.total_amount > (\n    SELECT AVG(o2.total_amount)\n    FROM orders o2\n    WHERE o2.customer_id = c.id\n      AND o2.id <> o.id\n)\nGROUP BY c.id, c.first_name, c.last_name\nORDER BY c.id\nLIMIT 5",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['customerid', 'first_name', 'last_name', 'outlier_order_count'], očekivani: ['customer_id', 'first_name', 'last_name', 'outlier_order_count']"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT\n    c.id AS customer_id,\n    c.first_name,\n    c.last_name,\n    COUNT(o.id) AS outlier_order_count\nFROM customers c\nJOIN orders o ON o.customer_id = c.id\nWHERE (\n    SELECT COUNT(*)\n    FROM orders o_all\n    WHERE o_all.customer_id = c.id\n) >= 2\nAND o.total_amount > (\n    SELECT AVG(o2.total_amount)\n    FROM orders o2\n    WHERE o2.customer_id = c.id\n      AND o2.id <> o.id\n) ORDER BY c.id\nLIMIT 5",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"c.id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 2:     c.id AS customer_id,\n            ^"
+   }
+  ]
+ },
+ "63": {
+  "task_id": 63,
+  "koncept": "delete",
+  "tier": "medium",
+  "modul": 4,
+  "difficulty": 2,
+  "naslov": "Brisanje jedne otkazane narudžbe po ID-u",
+  "tocan_upit": "DELETE FROM orders\nWHERE id = 2\nRETURNING id, status",
+  "kandidati": [
+   {
+    "mutacija": "update_bez_where",
+    "opis": "UPDATE/DELETE bez WHERE",
+    "query": "DELETE FROM orders\n RETURNING id, status",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=1000 vs expected=1"
+   },
+   {
+    "mutacija": "bez_returning",
+    "opis": "DML bez RETURNING",
+    "query": "DELETE FROM orders\nWHERE id = 2",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 1 redova"
+   }
+  ]
+ },
+ "64": {
+  "task_id": 64,
+  "koncept": "delete",
+  "tier": "medium",
+  "modul": 4,
+  "difficulty": 3,
+  "naslov": "Brisanje recenzije po ID-u s RETURNING provjerom",
+  "tocan_upit": "DELETE FROM reviews\nWHERE id = 1\nRETURNING id, product_id, rating",
+  "kandidati": [
+   {
+    "mutacija": "update_bez_where",
+    "opis": "UPDATE/DELETE bez WHERE",
+    "query": "DELETE FROM reviews\n RETURNING id, product_id, rating",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=500 vs expected=1"
+   },
+   {
+    "mutacija": "bez_returning",
+    "opis": "DML bez RETURNING",
+    "query": "DELETE FROM reviews\nWHERE id = 1",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 1 redova"
+   }
+  ]
+ },
+ "65": {
+  "task_id": 65,
+  "koncept": "delete",
+  "tier": "medium",
+  "modul": 4,
+  "difficulty": 3,
+  "naslov": "Brisanje specifične recenzije kupca za određeni proizvod",
+  "tocan_upit": "DELETE FROM reviews\nWHERE customer_id = 158\n  AND product_id = 38\nRETURNING id, rating",
+  "kandidati": [
+   {
+    "mutacija": "update_bez_where",
+    "opis": "UPDATE/DELETE bez WHERE",
+    "query": "DELETE FROM reviews\n RETURNING id, rating",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=500 vs expected=1"
+   },
+   {
+    "mutacija": "bez_returning",
+    "opis": "DML bez RETURNING",
+    "query": "DELETE FROM reviews\nWHERE customer_id = 158\n  AND product_id = 38",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 1 redova"
+   }
+  ]
+ },
+ "66": {
+  "task_id": 66,
+  "koncept": "delete",
+  "tier": "medium",
+  "modul": 4,
+  "difficulty": 4,
+  "naslov": "Kaskadno brisanje stavki i narudžbi otkazanog kupca (subquery)",
+  "tocan_upit": "DELETE FROM order_items\nWHERE order_id IN (\n    SELECT id\n    FROM orders\n    WHERE customer_id = 5\n      AND status = 'cancelled'\n)\nRETURNING id;\n\nDELETE FROM orders\nWHERE customer_id = 5\n  AND status = 'cancelled'\nRETURNING id",
+  "kandidati": [
+   {
+    "mutacija": "update_bez_where",
+    "opis": "UPDATE/DELETE bez WHERE",
+    "query": "DELETE FROM order_items\n RETURNING id;\n\nDELETE FROM orders\nWHERE customer_id = 5\n  AND status = 'cancelled'\nRETURNING id",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=3000 vs expected=2"
+   },
+   {
+    "mutacija": "bez_returning",
+    "opis": "DML bez RETURNING",
+    "query": "DELETE FROM order_items\nWHERE order_id IN (\n    SELECT id\n    FROM orders\n    WHERE customer_id = 5\n      AND status = 'cancelled'\n)",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 2 redova"
+   },
+   {
+    "mutacija": "krivi_literal",
+    "opis": "krivo napisan tekstualni literal",
+    "query": "DELETE FROM order_items\nWHERE order_id IN (\n    SELECT id\n    FROM orders\n    WHERE customer_id = 5\n      AND status = 'Cancelled'\n)\nRETURNING id;\n\nDELETE FROM orders\nWHERE customer_id = 5\n  AND status = 'cancelled'\nRETURNING id",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 2 redova"
+   }
+  ]
+ },
+ "67": {
+  "task_id": 67,
+  "koncept": "insert",
+  "tier": "medium",
+  "modul": 4,
+  "difficulty": 2,
+  "naslov": "Unos novog kupca s eksplicitnom listom stupaca",
+  "tocan_upit": "INSERT INTO customers (first_name, last_name, email, country, city)\nVALUES ('Petra', 'Novak', 'petra.novak.test@example.com', 'Croatia', 'Zagreb')\nRETURNING first_name, last_name, email",
+  "kandidati": [
+   {
+    "mutacija": "bez_returning",
+    "opis": "DML bez RETURNING",
+    "query": "INSERT INTO customers (first_name, last_name, email, country, city)\nVALUES ('Petra', 'Novak', 'petra.novak.test@example.com', 'Croatia', 'Zagreb')",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 1 redova"
+   },
+   {
+    "mutacija": "krivi_literal",
+    "opis": "krivo napisan tekstualni literal",
+    "query": "INSERT INTO customers (first_name, last_name, email, country, city)\nVALUES ('petra', 'Novak', 'petra.novak.test@example.com', 'Croatia', 'Zagreb')\nRETURNING first_name, last_name, email",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Set diff: 1 expected rows missing from actual"
+   }
+  ]
+ },
+ "68": {
+  "task_id": 68,
+  "koncept": "update",
+  "tier": "medium",
+  "modul": 4,
+  "difficulty": 2,
+  "naslov": "Ažuriranje email adrese kupca s id = 1",
+  "tocan_upit": "UPDATE customers\nSET email = 'leon.car@example.com'\nWHERE id = 1\nRETURNING id, first_name, last_name, email",
+  "kandidati": [
+   {
+    "mutacija": "update_bez_where",
+    "opis": "UPDATE/DELETE bez WHERE",
+    "query": "UPDATE customers\nSET email = 'leon.car@example.com'\n RETURNING id, first_name, last_name, email",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "duplicate key value violates unique constraint \"customers_email_key\"\nDETAIL:  Key (email)=(leon.car@example.com) already exists."
+   },
+   {
+    "mutacija": "bez_returning",
+    "opis": "DML bez RETURNING",
+    "query": "UPDATE customers\nSET email = 'leon.car@example.com'\nWHERE id = 1",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 1 redova"
+   }
+  ]
+ },
+ "69": {
+  "task_id": 69,
+  "koncept": "update",
+  "tier": "medium",
+  "modul": 4,
+  "difficulty": 3,
+  "naslov": "Sniženje cijene i povećanje zalihe za proizvod id=1",
+  "tocan_upit": "UPDATE products\nSET price = ROUND(price * 0.90, 2),\n    stock = stock + 100\nWHERE id = 1\nRETURNING id, name, price, stock",
+  "kandidati": [
+   {
+    "mutacija": "update_bez_where",
+    "opis": "UPDATE/DELETE bez WHERE",
+    "query": "UPDATE products\nSET price = ROUND(price * 0.90, 2),\n    stock = stock + 100\n RETURNING id, name, price, stock",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=100 vs expected=1"
+   },
+   {
+    "mutacija": "bez_returning",
+    "opis": "DML bez RETURNING",
+    "query": "UPDATE products\nSET price = ROUND(price * 0.90, 2),\n    stock = stock + 100\nWHERE id = 1",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 1 redova"
+   }
+  ]
+ },
+ "70": {
+  "task_id": 70,
+  "koncept": "update",
+  "tier": "medium",
+  "modul": 4,
+  "difficulty": 3,
+  "naslov": "Unapređenje zaposlenika: ažuriranje odjela i plaće u jednom iskazu",
+  "tocan_upit": "UPDATE employees\nSET salary = salary * 1.20,\n    department = 'Management'\nWHERE id = 2\nRETURNING id, first_name, last_name, department, salary",
+  "kandidati": [
+   {
+    "mutacija": "update_bez_where",
+    "opis": "UPDATE/DELETE bez WHERE",
+    "query": "UPDATE employees\nSET salary = salary * 1.20,\n    department = 'Management'\n RETURNING id, first_name, last_name, department, salary",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=50 vs expected=1"
+   },
+   {
+    "mutacija": "bez_returning",
+    "opis": "DML bez RETURNING",
+    "query": "UPDATE employees\nSET salary = salary * 1.20,\n    department = 'Management'\nWHERE id = 2",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 1 redova"
+   },
+   {
+    "mutacija": "krivi_literal",
+    "opis": "krivo napisan tekstualni literal",
+    "query": "UPDATE employees\nSET salary = salary * 1.20,\n    department = 'management'\nWHERE id = 2\nRETURNING id, first_name, last_name, department, salary",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Set diff: 1 expected rows missing from actual"
+   }
+  ]
+ },
+ "71": {
+  "task_id": 71,
+  "koncept": "update",
+  "tier": "medium",
+  "modul": 4,
+  "difficulty": 4,
+  "naslov": "Ažuriranje cijene i zalihe proizvoda koristeći subquery u SET klauzuli",
+  "tocan_upit": "UPDATE products\nSET price = price * (SELECT rating FROM suppliers WHERE id = products.supplier_id) / 5,\n    stock = stock - 10\nWHERE id = 1\nRETURNING id, name, price, stock",
+  "kandidati": [
+   {
+    "mutacija": "update_bez_where",
+    "opis": "UPDATE/DELETE bez WHERE",
+    "query": "UPDATE products\nSET price = price * (SELECT rating FROM suppliers  RETURNING id, name, price, stock",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "syntax error at or near \"RETURNING\"\nLINE 2: ...ET price = price * (SELECT rating FROM suppliers  RETURNING ...\n                                                             ^"
+   },
+   {
+    "mutacija": "bez_returning",
+    "opis": "DML bez RETURNING",
+    "query": "UPDATE products\nSET price = price * (SELECT rating FROM suppliers WHERE id = products.supplier_id) / 5,\n    stock = stock - 10\nWHERE id = 1",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 1 redova"
+   }
+  ]
+ },
+ "72": {
+  "task_id": 72,
+  "koncept": "exists_subquery",
+  "tier": "hard",
+  "modul": 5,
+  "difficulty": 2,
+  "naslov": "Dobavljači koji imaju barem jedan proizvod — EXISTS (SELECT 1)",
+  "tocan_upit": "SELECT s.id, s.name, s.country\nFROM suppliers s\nWHERE EXISTS (\n    SELECT 1\n    FROM products p\n    WHERE p.supplier_id = s.id\n)\nORDER BY s.id\nLIMIT 3",
+  "kandidati": [
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT s.id, s.name, s.country\nFROM suppliers s\nWHERE EXISTS (\n    SELECT 1\n    FROM products p\n    WHERE p.supplier_id = s.id\n)\nORDER BY s.id\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT s.id, s.name, s.countrys\nFROM suppliers s\nWHERE EXISTS (\n    SELECT 1\n    FROM products p\n    WHERE p.supplier_id = s.id\n)\nORDER BY s.id\nLIMIT 3",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column s.countrys does not exist\nLINE 1: SELECT s.id, s.name, s.countrys\n                             ^\nHINT:  Perhaps you meant to reference the column \"s.country\"."
+   }
+  ]
+ },
+ "73": {
+  "task_id": 73,
+  "koncept": "exists_subquery",
+  "tier": "hard",
+  "modul": 5,
+  "difficulty": 4,
+  "naslov": "Kupci koji nemaju ni jednu narudžbu — NOT EXISTS vs NOT IN NULL zamka",
+  "tocan_upit": "SELECT COUNT(*) AS broj_kupaca\nFROM customers c\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM orders o\n    WHERE o.customer_id = c.id\n)",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*)\nFROM customers c\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM orders o\n    WHERE o.customer_id = c.id\n)",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['broj_kupaca']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS brojkupaca\nFROM customers c\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM orders o\n    WHERE o.customer_id = c.id\n)",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['brojkupaca'], očekivani: ['broj_kupaca']"
+   }
+  ]
+ },
+ "74": {
+  "task_id": 74,
+  "koncept": "in_subquery",
+  "tier": "hard",
+  "modul": 5,
+  "difficulty": 2,
+  "naslov": "Broj kupaca koji su napravili barem jednu narudžbu (IN s podupitom)",
+  "tocan_upit": "SELECT COUNT(*) AS total_customers\nFROM customers c\nWHERE c.id IN (\n    SELECT o.customer_id\n    FROM orders o\n)",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*)\nFROM customers c\nWHERE c.id IN (\n    SELECT o.customer_id\n    FROM orders o\n)",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['total_customers']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS totalcustomers\nFROM customers c\nWHERE c.id IN (\n    SELECT o.customer_id\n    FROM orders o\n)",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['totalcustomers'], očekivani: ['total_customers']"
+   }
+  ]
+ },
+ "75": {
+  "task_id": 75,
+  "koncept": "in_subquery",
+  "tier": "hard",
+  "modul": 5,
+  "difficulty": 3,
+  "naslov": "Broj kupaca bez narudžbi — NOT IN s IS NOT NULL zaštitom",
+  "tocan_upit": "SELECT COUNT(*) AS customers_without_orders\nFROM customers c\nWHERE c.id NOT IN (\n    SELECT o.customer_id\n    FROM orders o\n    WHERE o.customer_id IS NOT NULL\n)",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*)\nFROM customers c\nWHERE c.id NOT IN (\n    SELECT o.customer_id\n    FROM orders o\n    WHERE o.customer_id IS NOT NULL\n)",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['customers_without_orders']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS customerswithout_orders\nFROM customers c\nWHERE c.id NOT IN (\n    SELECT o.customer_id\n    FROM orders o\n    WHERE o.customer_id IS NOT NULL\n)",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['customerswithout_orders'], očekivani: ['customers_without_orders']"
+   }
+  ]
+ },
+ "76": {
+  "task_id": 76,
+  "koncept": "in_subquery",
+  "tier": "hard",
+  "modul": 5,
+  "difficulty": 4,
+  "naslov": "Kategorije s nadprosječnim brojem proizvoda (IN + GROUP BY + ugniježđeni podupit)",
+  "tocan_upit": "SELECT cat.id, cat.name\nFROM categories cat\nWHERE cat.id IN (\n    SELECT p.category_id\n    FROM products p\n    WHERE p.category_id IS NOT NULL\n    GROUP BY p.category_id\n    HAVING COUNT(*) > (\n        SELECT AVG(sub.cnt)\n        FROM (\n            SELECT COUNT(*) AS cnt\n            FROM products p2\n            WHERE p2.category_id IS NOT NULL\n            GROUP BY p2.category_id\n        ) sub\n    )\n)\nORDER BY cat.id",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT cat.id, cat.name\nFROM categories cat\nWHERE cat.id IN (\n    SELECT p.category_id\n    FROM products p\n    WHERE p.category_id IS NOT NULL\n    GROUP BY p.category_id\n    HAVING COUNT(*) > (\n        SELECT AVG(sub.cnt)\n        FROM (\n            SELECT COUNT(*)\n            FROM products p2\n            WHERE p2.category_id IS NOT NULL\n            GROUP BY p2.category_id\n        ) sub\n    )\n)\nORDER BY cat.id",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column sub.cnt does not exist\nLINE 9:         SELECT AVG(sub.cnt)\n                           ^"
+   },
+   {
+    "mutacija": "bez_group_by",
+    "opis": "zaboravljen GROUP BY uz agregat",
+    "query": "SELECT cat.id, cat.name\nFROM categories cat\nWHERE cat.id IN (\n    SELECT p.category_id\n    FROM products p\n    WHERE p.category_id IS NOT NULL HAVING COUNT(*) > (\n        SELECT AVG(sub.cnt)\n        FROM (\n            SELECT COUNT(*) AS cnt\n            FROM products p2\n            WHERE p2.category_id IS NOT NULL\n            GROUP BY p2.category_id\n        ) sub\n    )\n)\nORDER BY cat.id",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"p.category_id\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 4:     SELECT p.category_id\n                   ^"
+   }
+  ]
+ },
+ "77": {
+  "task_id": 77,
+  "koncept": "scalar_subquery",
+  "tier": "hard",
+  "modul": 5,
+  "difficulty": 2,
+  "naslov": "Broj narudžbi ispod maksimalnog iznosa",
+  "tocan_upit": "SELECT COUNT(*) AS orders_below_max\nFROM orders\nWHERE total_amount < (SELECT MAX(total_amount) FROM orders)",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT COUNT(*)\nFROM orders\nWHERE total_amount < (SELECT MAX(total_amount) FROM orders)",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['count'], očekivani: ['orders_below_max']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT COUNT(*) AS ordersbelow_max\nFROM orders\nWHERE total_amount < (SELECT MAX(total_amount) FROM orders)",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['ordersbelow_max'], očekivani: ['orders_below_max']"
+   }
+  ]
+ },
+ "78": {
+  "task_id": 78,
+  "koncept": "scalar_subquery",
+  "tier": "hard",
+  "modul": 5,
+  "difficulty": 3,
+  "naslov": "Broj narudžbi kao referentni stupac u SELECT klauzi",
+  "tocan_upit": "SELECT\n    o.id,\n    o.status,\n    o.total_amount,\n    (SELECT COUNT(*) FROM orders) AS ukupno_narudzbi\nFROM orders o\nORDER BY o.id\nLIMIT 3",
+  "kandidati": [
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT\n    o.id,\n    o.status,\n    o.total_amount,\n    (SELECT COUNT(*) FROM orders) AS ukupno_narudzbi\nFROM orders o\nORDER BY o.id\nLIMIT 5",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=5 vs expected=3"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT\n    o.id,\n    o.statuss,\n    o.total_amount,\n    (SELECT COUNT(*) FROM orders) AS ukupno_narudzbi\nFROM orders o\nORDER BY o.id\nLIMIT 3",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column o.statuss does not exist\nLINE 3:     o.statuss,\n            ^\nHINT:  Perhaps you meant to reference the column \"o.status\"."
+   }
+  ]
+ },
+ "81": {
+  "task_id": 81,
+  "koncept": "index_usage",
+  "tier": "hard",
+  "modul": 6,
+  "difficulty": 3,
+  "naslov": "Narudžbe kupca — index-friendly lookup vs. function wrapper anti-pattern",
+  "tocan_upit": "SELECT id, customer_id, status, total_amount\nFROM orders\nWHERE customer_id = 108\nORDER BY id ASC\nLIMIT 1",
+  "kandidati": [
+   {
+    "mutacija": "explain_prefiks",
+    "opis": "predan EXPLAIN umjesto samog upita",
+    "query": "EXPLAIN SELECT id, customer_id, status, total_amount\nFROM orders\nWHERE customer_id = 108\nORDER BY id ASC\nLIMIT 1",
+    "error_type": "explain_submitted",
+    "is_correct": false,
+    "detail": "Predaj obični upit, bez EXPLAIN. Plan izvedbe provjerava se automatski; EXPLAIN slobodno koristi kroz Pokreni dok istražuješ."
+   },
+   {
+    "mutacija": "cast_ubija_indeks",
+    "opis": "CAST/aritmetika nad stupcem ponistava indeks",
+    "query": "SELECT id, customer_id, status, total_amount FROM orders WHERE CAST(customer_id AS TEXT) = '108' ORDER BY id ASC LIMIT 1",
+    "error_type": "plan_mismatch",
+    "is_correct": false,
+    "detail": "Rezultat je točan, ali upit ne koristi indeks idx_orders_customer."
+   },
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT id, customer_id, status, total_amount\nFROM orders\nWHERE customer_id = 108\nORDER BY id DESC\nLIMIT 1",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT id, customer_id, status, total_amount\nFROM orders\nWHERE customer_id = 108\nORDER BY id ASC\nLIMIT 3",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=3 vs expected=1"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT id, customerid, status, total_amount\nFROM orders\nWHERE customer_id = 108\nORDER BY id ASC\nLIMIT 1",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"customerid\" does not exist\nLINE 1: SELECT id, customerid, status, total_amount\n                   ^\nHINT:  Perhaps you meant to reference the column \"orders.customer_id\"."
+   }
+  ]
+ },
+ "84": {
+  "task_id": 84,
+  "koncept": "right_join",
+  "tier": "hard",
+  "modul": 3,
+  "difficulty": 2,
+  "naslov": "Kupci bez ijedne narudžbe (RIGHT JOIN)",
+  "tocan_upit": "SELECT c.id AS customer_id,\n       c.first_name,\n       c.last_name\nFROM orders o\nRIGHT JOIN customers c ON o.customer_id = c.id\nWHERE o.id IS NULL\nORDER BY c.id\nLIMIT 5",
+  "kandidati": [
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT c.id AS customer_id,\n       c.first_name,\n       c.last_name\nFROM orders o\nRIGHT JOIN customers c ON o.customer_id = c.id\nWHERE o.id IS NULL\nORDER BY c.id\nLIMIT 7",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=7 vs expected=5"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT c.id AS customerid,\n       c.first_name,\n       c.last_name\nFROM orders o\nRIGHT JOIN customers c ON o.customer_id = c.id\nWHERE o.id IS NULL\nORDER BY c.id\nLIMIT 5",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['customerid', 'first_name', 'last_name'], očekivani: ['customer_id', 'first_name', 'last_name']"
+   }
+  ]
+ },
+ "85": {
+  "task_id": 85,
+  "koncept": "insert",
+  "tier": "medium",
+  "modul": 4,
+  "difficulty": 3,
+  "naslov": "Unos dvaju dobavljača jednom naredbom (multi-row VALUES)",
+  "tocan_upit": "INSERT INTO suppliers (name, country, contact_email, rating)\nVALUES ('Adriatic Supply', 'Croatia', 'kontakt@adriatic-supply.test', 4.50),\n       ('Nordic Parts', 'Sweden', 'info@nordic-parts.test', 3.80)\nRETURNING name, country, rating",
+  "kandidati": [
+   {
+    "mutacija": "bez_returning",
+    "opis": "DML bez RETURNING",
+    "query": "INSERT INTO suppliers (name, country, contact_email, rating)\nVALUES ('Adriatic Supply', 'Croatia', 'kontakt@adriatic-supply.test', 4.50),\n       ('Nordic Parts', 'Sweden', 'info@nordic-parts.test', 3.80)",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 2 redova"
+   },
+   {
+    "mutacija": "krivi_literal",
+    "opis": "krivo napisan tekstualni literal",
+    "query": "INSERT INTO suppliers (name, country, contact_email, rating)\nVALUES ('adriatic supply', 'Croatia', 'kontakt@adriatic-supply.test', 4.50),\n       ('Nordic Parts', 'Sweden', 'info@nordic-parts.test', 3.80)\nRETURNING name, country, rating",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Set diff: 2 expected rows missing from actual"
+   }
+  ]
+ },
+ "3782": {
+  "task_id": 3782,
+  "koncept": "index_usage",
+  "tier": "hard",
+  "modul": 6,
+  "difficulty": 3,
+  "naslov": "Stavke narudžbe — indeks na order_id vs. CAST anti-pattern",
+  "tocan_upit": "SELECT order_id, product_id, quantity, unit_price\nFROM order_items\nWHERE order_id = 500\nORDER BY product_id",
+  "kandidati": [
+   {
+    "mutacija": "cast_ubija_indeks",
+    "opis": "CAST/aritmetika nad stupcem ponistava indeks",
+    "query": "SELECT order_id, product_id, quantity, unit_price FROM order_items WHERE CAST(order_id AS TEXT) = '500' ORDER BY product_id",
+    "error_type": "plan_mismatch",
+    "is_correct": false,
+    "detail": "Rezultat je točan, ali upit ne koristi indeks, a rješenje ga koristi."
+   },
+   {
+    "mutacija": "explain_prefiks",
+    "opis": "predan EXPLAIN umjesto samog upita",
+    "query": "EXPLAIN SELECT order_id, product_id, quantity, unit_price\nFROM order_items\nWHERE order_id = 500\nORDER BY product_id",
+    "error_type": "explain_submitted",
+    "is_correct": false,
+    "detail": "Predaj obični upit, bez EXPLAIN. Plan izvedbe provjerava se automatski; EXPLAIN slobodno koristi kroz Pokreni dok istražuješ."
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT orderid, product_id, quantity, unit_price\nFROM order_items\nWHERE order_id = 500\nORDER BY product_id",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"orderid\" does not exist\nLINE 1: SELECT orderid, product_id, quantity, unit_price\n               ^\nHINT:  Perhaps you meant to reference the column \"order_items.order_id\"."
+   }
+  ]
+ },
+ "3783": {
+  "task_id": 3783,
+  "koncept": "index_usage",
+  "tier": "hard",
+  "modul": 6,
+  "difficulty": 4,
+  "naslov": "Recenzije proizvoda — aritmetika nad kolonom poništava indeks",
+  "tocan_upit": "SELECT id, product_id, customer_id, rating\nFROM reviews\nWHERE product_id = 3\nORDER BY id",
+  "kandidati": [
+   {
+    "mutacija": "explain_prefiks",
+    "opis": "predan EXPLAIN umjesto samog upita",
+    "query": "EXPLAIN SELECT id, product_id, customer_id, rating\nFROM reviews\nWHERE product_id = 3\nORDER BY id",
+    "error_type": "explain_submitted",
+    "is_correct": false,
+    "detail": "Predaj obični upit, bez EXPLAIN. Plan izvedbe provjerava se automatski; EXPLAIN slobodno koristi kroz Pokreni dok istražuješ."
+   },
+   {
+    "mutacija": "cast_ubija_indeks",
+    "opis": "CAST/aritmetika nad stupcem ponistava indeks",
+    "query": "SELECT id, product_id, customer_id, rating FROM reviews WHERE product_id + 0 = 3 ORDER BY id",
+    "error_type": "plan_mismatch",
+    "is_correct": false,
+    "detail": "Rezultat je točan, ali upit ne koristi indeks, a rješenje ga koristi."
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT id, productid, customer_id, rating\nFROM reviews\nWHERE product_id = 3\nORDER BY id",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"productid\" does not exist\nLINE 1: SELECT id, productid, customer_id, rating\n                   ^\nHINT:  Perhaps you meant to reference the column \"reviews.product_id\"."
+   }
+  ]
+ },
+ "3784": {
+  "task_id": 3784,
+  "koncept": "explain_plan",
+  "tier": "hard",
+  "modul": 6,
+  "difficulty": 3,
+  "naslov": "Selektivan filtar mijenja strategiju spoja u Nested Loop",
+  "tocan_upit": "SELECT o.id, o.status, oi.product_id, oi.quantity\nFROM orders o\nJOIN order_items oi ON oi.order_id = o.id\nWHERE o.customer_id = 42\nORDER BY o.id, oi.product_id",
+  "kandidati": [
+   {
+    "mutacija": "cast_ubija_indeks",
+    "opis": "CAST/aritmetika nad stupcem ponistava indeks",
+    "query": "SELECT o.id, o.status, oi.product_id, oi.quantity FROM orders o JOIN order_items oi ON oi.order_id = o.id WHERE CAST(o.customer_id AS TEXT) = '42' ORDER BY o.id, oi.product_id",
+    "error_type": "plan_mismatch",
+    "is_correct": false,
+    "detail": "Rezultat je točan, ali upit ne koristi indeks, a rješenje ga koristi; strategija spoja je Hash Join, a traži se Nested Loop."
+   },
+   {
+    "mutacija": "explain_prefiks",
+    "opis": "predan EXPLAIN umjesto samog upita",
+    "query": "EXPLAIN SELECT o.id, o.status, oi.product_id, oi.quantity\nFROM orders o\nJOIN order_items oi ON oi.order_id = o.id\nWHERE o.customer_id = 42\nORDER BY o.id, oi.product_id",
+    "error_type": "explain_submitted",
+    "is_correct": false,
+    "detail": "Predaj obični upit, bez EXPLAIN. Plan izvedbe provjerava se automatski; EXPLAIN slobodno koristi kroz Pokreni dok istražuješ."
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT o.id, o.statuss, oi.product_id, oi.quantity\nFROM orders o\nJOIN order_items oi ON oi.order_id = o.id\nWHERE o.customer_id = 42\nORDER BY o.id, oi.product_id",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column o.statuss does not exist\nLINE 1: SELECT o.id, o.statuss, oi.product_id, oi.quantity\n                     ^\nHINT:  Perhaps you meant to reference the column \"o.status\"."
+   }
+  ]
+ },
+ "3785": {
+  "task_id": 3785,
+  "koncept": "explain_plan",
+  "tier": "hard",
+  "modul": 6,
+  "difficulty": 4,
+  "naslov": "Aritmetika u uvjetu spoja vraća plan na Hash Join",
+  "tocan_upit": "SELECT o.id, o.order_date, oi.product_id, oi.quantity\nFROM orders o\nJOIN order_items oi ON oi.order_id = o.id\nWHERE o.customer_id = 108\nORDER BY o.id, oi.product_id",
+  "kandidati": [
+   {
+    "mutacija": "cast_ubija_indeks",
+    "opis": "CAST/aritmetika nad stupcem ponistava indeks",
+    "query": "SELECT o.id, o.order_date, oi.product_id, oi.quantity FROM orders o JOIN order_items oi ON oi.order_id = o.id WHERE o.customer_id + 0 = 108 ORDER BY o.id, oi.product_id",
+    "error_type": "plan_mismatch",
+    "is_correct": false,
+    "detail": "Rezultat je točan, ali upit ne koristi indeks, a rješenje ga koristi; strategija spoja je Hash Join, a traži se Nested Loop."
+   },
+   {
+    "mutacija": "explain_prefiks",
+    "opis": "predan EXPLAIN umjesto samog upita",
+    "query": "EXPLAIN SELECT o.id, o.order_date, oi.product_id, oi.quantity\nFROM orders o\nJOIN order_items oi ON oi.order_id = o.id\nWHERE o.customer_id = 108\nORDER BY o.id, oi.product_id",
+    "error_type": "explain_submitted",
+    "is_correct": false,
+    "detail": "Predaj obični upit, bez EXPLAIN. Plan izvedbe provjerava se automatski; EXPLAIN slobodno koristi kroz Pokreni dok istražuješ."
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT o.id, o.orderdate, oi.product_id, oi.quantity\nFROM orders o\nJOIN order_items oi ON oi.order_id = o.id\nWHERE o.customer_id = 108\nORDER BY o.id, oi.product_id",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column o.orderdate does not exist\nLINE 1: SELECT o.id, o.orderdate, oi.product_id, oi.quantity\n                     ^\nHINT:  Perhaps you meant to reference the column \"o.order_date\"."
+   }
+  ]
+ },
+ "3786": {
+  "task_id": 3786,
+  "koncept": "column_alias",
+  "tier": "easy",
+  "modul": 0,
+  "difficulty": 1,
+  "naslov": "Preimenuj stupce u ispisu kupaca",
+  "tocan_upit": "SELECT first_name AS ime, last_name AS prezime\nFROM customers\nWHERE city = 'Zagreb'\nORDER BY id",
+  "kandidati": [
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT firstname AS ime, last_name AS prezime\nFROM customers\nWHERE city = 'Zagreb'\nORDER BY id",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"firstname\" does not exist\nLINE 1: SELECT firstname AS ime, last_name AS prezime\n               ^\nHINT:  Perhaps you meant to reference the column \"customers.first_name\"."
+   },
+   {
+    "mutacija": "krivi_literal",
+    "opis": "krivo napisan tekstualni literal",
+    "query": "SELECT first_name AS ime, last_name AS prezime\nFROM customers\nWHERE city = 'zagreb'\nORDER BY id",
+    "error_type": "empty_result",
+    "is_correct": false,
+    "detail": "Prazan rezultat, očekivano 2 redova"
+   }
+  ]
+ },
+ "3787": {
+  "task_id": 3787,
+  "koncept": "column_alias",
+  "tier": "easy",
+  "modul": 0,
+  "difficulty": 2,
+  "naslov": "Alias nad izračunatim stupcem — cijena s PDV-om",
+  "tocan_upit": "SELECT name AS naziv, ROUND(price * 1.25, 2) AS cijena_s_pdv\nFROM products\nORDER BY id\nLIMIT 10",
+  "kandidati": [
+   {
+    "mutacija": "zaboravljen_alias",
+    "opis": "zaboravljen AS alias na agregatu",
+    "query": "SELECT name AS naziv, ROUND(price * 1.25, 2)\nFROM products\nORDER BY id\nLIMIT 10",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['naziv', 'round'], očekivani: ['cijena_s_pdv', 'naziv']"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT name AS nazivs, ROUND(price * 1.25, 2) AS cijena_s_pdv\nFROM products\nORDER BY id\nLIMIT 10",
+    "error_type": "wrong_columns",
+    "is_correct": false,
+    "detail": "Stupci se razlikuju — dobiveni: ['cijena_s_pdv', 'nazivs'], očekivani: ['cijena_s_pdv', 'naziv']"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT name AS naziv, ROUND(price * 1.25, 2) AS cijena_s_pdv\nFROM products\nORDER BY id\nLIMIT 12",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=12 vs expected=10"
+   }
+  ]
+ },
+ "3788": {
+  "task_id": 3788,
+  "koncept": "column_alias",
+  "tier": "easy",
+  "modul": 0,
+  "difficulty": 2,
+  "naslov": "Sortiranje po aliasu stupca",
+  "tocan_upit": "SELECT name AS naziv, stock AS zaliha\nFROM products\nORDER BY zaliha DESC, naziv ASC\nLIMIT 10",
+  "kandidati": [
+   {
+    "mutacija": "smjer_sortiranja",
+    "opis": "krivi smjer sortiranja (ASC/DESC zamijenjeni)",
+    "query": "SELECT name AS naziv, stock AS zaliha\nFROM products\nORDER BY zaliha ASC, naziv ASC\nLIMIT 10",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row 0 differs"
+   },
+   {
+    "mutacija": "tipfeler_stupca",
+    "opis": "tipfeler u nazivu stupca",
+    "query": "SELECT name AS nazivs, stock AS zaliha\nFROM products\nORDER BY zaliha DESC, naziv ASC\nLIMIT 10",
+    "error_type": "execution_error",
+    "is_correct": false,
+    "detail": "column \"naziv\" does not exist\nLINE 3: ORDER BY zaliha DESC, naziv ASC\n                              ^"
+   },
+   {
+    "mutacija": "krivi_limit",
+    "opis": "krivo procitan broj redaka u LIMIT-u",
+    "query": "SELECT name AS naziv, stock AS zaliha\nFROM products\nORDER BY zaliha DESC, naziv ASC\nLIMIT 12",
+    "error_type": "row_mismatch",
+    "is_correct": false,
+    "detail": "Row count mismatch: actual=12 vs expected=10"
+   }
+  ]
+ }
+}

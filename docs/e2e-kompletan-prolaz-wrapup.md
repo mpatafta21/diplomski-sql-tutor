@@ -348,7 +348,7 @@ Puni tekst je u [`docs/errata.md`](errata.md). Ovdje sažetak.
 | **#81** | 🔴 `syntax_error` je kroz sučelje NEDOSTIŽAN — klijentski gard blokira predaju praznog upita, a to je jedini ulaz u tu granu | rupa u taksonomiji |
 | **#82** | 🟡 Stanje „Svi koncepti savladani" ne nastaje ni sa 88/88 — `repeat_practice` uvijek vrati `task_id` | mrtav ekran |
 | **#83** | 🟢 Zalutali ćirilični znak u tekstu savjeta (`vidišь`) | kozmetika |
-| **#84** | 🟡 Ispuštanje `ORDER BY` iz upita ocjenjuje se TOČNIM jer se `order_matters` izvodi iz **predanog** upita | pedagoška rupa |
+| **#84** | 🟡 Ispuštanje `ORDER BY` ocjenjuje se TOČNIM jer se `order_matters` izvodi iz **predanog** upita — izmjereno **44/88 (50,0 %)** aktivnih zadataka | pedagoška rupa |
 
 ### Potvrde i opovrgnuća zatečenih nalaza
 

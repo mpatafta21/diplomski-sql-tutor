@@ -81,6 +81,10 @@ broj** — referencira ih se opisno, nikad izmišljenim brojem. Zatečeni primje
 | **#71** | 🟡 **Sustav se ponašao ispravno iz razloga koji nitko nije odlučio — pa nijedan test nije mogao pasti** | 📌 **poučak; zatvoren uvođenjem ugovornog testa** | Pri reviziji taksonomije uočeno da `plan_unavailable` nije bio ni u `ERROR_TEXT` ni u `TEXT_DETAIL_TYPES` (`feedback.ts`), pa je padao na `FALLBACK_ERROR_TEXT` — *„Ocjenjivanje nije uspjelo — pokušaj ponovno predati rješenje."* 🔴 **Ta je poruka bila TOČNA**: smetnja jest prolazna i ponovni pokušaj jest ispravan savjet. Ali točnost je bila **posljedica fallbacka, ne odluke** — nitko taj tekst nije napisao za taj tip, i prekine li se veza (promjena fallbacka, novi tip s drukčijim značenjem), ponašanje tiho postaje netočno **a da nijedan test ne padne**, jer nijedan ne tvrdi vezu koja nije uspostavljena. Drugi primjerak istog obrasca u istom krugu: `unsupported_eval` attempti su bili **0** ne zato što je put bio siguran, nego zato što je **maska Kat. C slučajno štitila i od toga** — svi M6 zadaci bili su `is_active=False`, pa do predaje nikad nije došlo. **Zatvoreno** parametriziranim ugovornim testom (`test_error_taxonomy_contract.py`, 48 tvrdnji): svaki tip koji `evaluate()` emitira mora imati poruku, točno jednu politiku prikaza detalja, svjesnu misconception-odluku, točno jednu politiku hint payloada i opis za LLM — a skup tipova se **čita iz izvora**, ne prepisuje. **Za rad:** „radi ispravno" i „ispravnost je zajamčena" nisu ista tvrdnja; razlika se vidi tek kad se pita KOJI test pada ako se ponašanje pokvari |
 | **#72** | 🔴 **Model je halucinirao dijagnozu iz SAME KLASIFIKACIJE, bez ijednog detalja — i ta je dijagnoza proturječila ispravnom radu studenta** | 📌 **prijetnja valjanosti savjeta (za rad); stroža tvrdnja od #64** | Izmjereno 2026-08-14 uz stvarni pad EXPLAIN-a. Student je predao **ispravan** upit; sustav nije uspio dohvatiti plan. `plan_unavailable` **nije** bio u `DETAIL_SAFE_TYPES`, pa je modelu otišla **samo klasifikacija** — bez `detail`a, bez plana, bez referentnog upita. Doslovni odgovor: *„Čini se da referentni upit u zadatku ima problem s izvedbom — moguće je da koristi operacije koje baza ne može optimizirati indeksima (npr. funkcije nad stupcima, ili operatore koji sprječavaju korištenje indeksa). Provjeri jesu li u WHERE ili JOIN uvjetima stupci direktno uspoređeni, bez transformacija…"* — student je napisao **točno takav** upit. 🔴 **Ovo je stroža tvrdnja od #64** („model izmišlja kad su podaci tanki"): ovdje podataka o grešci **nije bilo uopće**, a model je svejedno proizveo konkretnu, provjerivu i **netočnu** dijagnozu. **Minimalan payload NE ograničava halucinaciju.** Posljedica za odluku o selektivnom B+ (5.0): manje podataka znači manje utemeljenja, pa se rizik po studenta **seli iz privatnosti u točnost** — dvije mjere koje su se dosad čitale kao ista os. Nakon #69 ovaj put više ne postoji (`plan_unavailable` nije ishod pokušaja, pa hint sloj do njega ne dolazi), ali nalaz vrijedi **za svaki tip koji šalje samo klasifikaciju** (`CLASSIFICATION_ONLY_TYPES`: `execution_error`, `timeout`, `explain_submitted`). Srodno #64, #59 |
 | **#67** | 🔴 **`make backup` nikad nije radio iz čistog klona** | ✅ **popravljen 2026-08-14** (`1e48bbb`) | `scripts/backup_eval_data.sh` stajao je u gitu kao **`100644`** — bez izvršnog bita. `make backup` je padao na „Permission denied", pa je target bio neupotrebljiv bez ručnog `bash scripts/…`. Pogađa **jedini mehanizam koji štiti nenadoknadive evaluacijske podatke** (#37); verifikacija u 4.6-eval očito je išla kroz `bash`, pa izvršni bit nikad nije ušao u indeks. Ista klasa kao **#26** (`make dev` nije bio from-scratch sposoban) i **#39** (`dev-reset` guard neupotrebljiv): **target koji nije pokrenut onako kako ga dokumentacija propisuje nije provjeren target.** Audit: `backup_eval_data.sh` je JEDINA `.sh` datoteka u repou i jedina koju Makefile poziva izravno, pa druge rupe ovog oblika nema |
+| **#73** | 🟡 **`OrchestrationFSM` se uklanja dvaput — jednom naš kod, jednom SPADE lifecycle; `ValueError` se guta na SVAKU predaju** | 🟡 **otvoren, ne popravlja se u ovoj grani** | Na svaku predaju uvicorn ispiše `Task exception was never retrieved` + `ValueError('This behaviour is not registered')` iz `remove_behaviour` (`spade/agent.py:286`). **IZMJERENO 2026-08-18** instrumentiranjem `Agent.remove_behaviour` u zasebnom procesu (repo nedirnut), 20 predaja kroz pun lanac: **20 iznimaka, 20/20 klasa `OrchestrationFSM`, sve na `coordinator@localhost`**. Pozivatelji, prebrojani nad 5 predaja: `coordinator.py:710 in _release_flow → OrchestrationFSM = OK` (5×), pa `behaviour.py:305 in _step → OrchestrationFSM = ValueError` (5×); usporedbe radi `behaviour.py:305 in _step → _Send = OK` (5×). Dakle **naš eksplicitni `remove_behaviour` pobjeđuje utrku i skine FSM**, a SPADE-ov *implicitni* epilog `CyclicBehaviour._step` (`self.agent.remove_behaviour(self)`) zatekne prazno i baci. Naš `_release_flow` ([`coordinator.py:705-712`](../backend/agents/coordinator.py)) **već ima** gard `has_behaviour` + `except ValueError`, ali gard štiti **naš** poziv — SPADE-ov epilog teče u vlastitom `_start()` tasku, izvan njega. `_release_flow` zove sam FSM ([`coordinator.py:567`](../backend/agents/coordinator.py)); `kill()` u našem kodu **ne postoji nigdje**. 🔴 **NIJE curenje:** `len(agent.behaviours)` je **1 prije prve predaje i 1 nakon 20** za svih 7 agenata (`coordinator` = `_Intake`, `gateway` = `_Resolve`), krivulja ravna, bez rasta. **Ne skriva ništa drugo:** 20/20 progutanih iznimaka je **isti** `ValueError` — grana ne može sakriti stvarnu grešku u toku jer se izvršava tek nakon `is_running = False`, kad je tok već završen. Zatečeno, **nije uvedeno ovom granom**, ali je u putu koji su #62/#63 dirali pa ne prolazi kao kozmetika. Srodno #62, #63 |
+| **#74** | 🟢 **Kvalifikacija tvrdnje o XMPP-u: u jednoprocesnoj izvedbi agentske poruke ne prelaze mrežu** | 📌 **nalaz za poglavlje rada, NIJE kvar** | Agenti razmjenjuju FIPA-ACL poruke kroz SPADE; u jednoprocesnoj izvedbi SPADE ih isporučuje **unutar procesa**, a XMPP služi za **autentikaciju i registraciju**. Izvor je `spade/container.py:121-133`: `to = str(msg.to)`, pa `if to in self.__agents: self.__agents[to].dispatch(msg)`, inače `await behaviour._xmpp_send(msg=msg)`. Svih 7 (6 domenskih + gateway) startaju u istom uvicorn procesu ⟹ isti `Container` ⟹ uvijek prva grana. **IZMJERENO 2026-08-18:** uz Prosody u stanju `exited` predaje i dalje daju **200 u 0,12–0,13 s s punim lancem od 12 poruka** (3 mjerenja + burst 10/10). 🔴 **Ovo bolje objašnjava `--workers 1`** nego dosadašnja formulacija: ograničenje ne dolazi samo od in-process `AgentBridge` dicta nego od toga da **agenti postoje jednom po procesu** — drugi worker značio bi drugi skup agenata s istim JID-ovima. Distribuirana izvedba usmjerila bi **iste** poruke preko XMPP-a **bez izmjene agentskog koda** (druga grana istog `if`-a), pa arhitektura nije poništena — ali tvrdnja da agenti komuniciraju preko XMPP-a u tekstu rada traži ovu kvalifikaciju. Srodno #62 |
+| **#75** | 🟡 **Pod uvicornom iz Makefilea nijedan knjižnični zapis ne dolazi u log — incident ne ostavlja trag** | 🟡 **stavka deploymenta, ne ove grane** | Uvicorn konfigurira samo vlastite loggere (`uvicorn`, `uvicorn.error`, `uvicorn.access`) i **ne postavlja root handler**, pa sve ispod `WARNING` iz knjižnica propada. **IZMJERENO 2026-08-18:** log procesa pokrenutog **točno naredbom iz Makefilea** ([`Makefile:167-168`](../Makefile)) sadrži **0 redaka** sa `slixmpp`/`spade` — nema ni `Agent … connected and authenticated` pri startupu. Za usporedbu, isti kod uz `logging.basicConfig(level=INFO)` u prekidu XMPP veze ispisuje `slixmpp.xmlstream.xmlstream: connection_lost: (None,)` **7×** (po agentu). 🔴 Za **nenadziranu evaluacijsku sesiju** to znači da prekid, reconnect i svaka knjižnična greška prolaze **bez ijednog traga**; jedino što se probije je `asyncio` na razini `ERROR` (v. #73), i to bez timestampa i bez imena loggera. Srodno #57 |
+| **#76** | 🟡 **Tvrdnja o „dva sjemena" u falsifikaciji nije bila reproducibilna — drugo sjeme nigdje nije zapisano** | 🟡 **otvoren, popravak bez koda odgođen** | `fix-koncept-zadatak-wrapup.md` §D.4a tvrdi da je dubinski prolaz `FALSIFY_TRIALS=1500` bio čist **„uz dva različita sjemena"**, a u `test_recommender_no_dead_end.py` postoji **samo** `SEED = 20260814` (hardkodiran, bez env override-a). Drugi prolaz **nigdje nije zabilježen** — ni broj, ni ishod — pa se tvrdnja nije mogla ponoviti niti opovrgnuti. Ista klasa kao #71 („ispravno slučajno"): rezultat je vjerojatno bio točan, ali **nijedan artefakt ga ne čuva**, a upravo je taj test pisan pod devizom „sjeme je fiksno da pad bude reproducibilan". **Zatvoreno djelomično 2026-08-18:** drugi prolaz je ponovljen s izrijekom zapisanim sjemenom **20260818** (3000 stanja ukupno, 0 povreda, v. `m6-plan-presence-wrapup.md` §H). 🔴 **Preporuka koja NIJE izvedena:** `SEED` i `TRIALS` trebaju dolaziti iz env varijable (`FALSIFY_SEED`, `FALSIFY_TRIALS`) s dokumentiranim defaultima, da se prolaz s drugim sjemenom ne mora izvoditi izvan repoa — kako je i ovaj put morao (driver u scratchpadu koji postavlja `SEED` na modulu). Dok toga nema, svaka tvrdnja o „više sjemena" ostaje neprovjeriva iz samog repoa. Srodno #71, #60 |
 
 ---
 
@@ -1615,3 +1619,140 @@ proizveo netočan nalaz: čitanje jedne funkcije umjesto izvršavanja puta.
 Mehanizam je usput potvrđen **namjernim kvarom** na drugom mjestu: ograniči li se
 `_flow_template` performativom, i novi `refuse` put daje isti 504 nakon istog prozora —
 dakle „poruka koja ne matcha predložak" doista završava kao `evaluation_timeout`.
+
+---
+
+## #73 🟡 Isti objekt uklonjen dvaput: naš gard i SPADE-ov epilog ne znaju jedan za drugoga
+
+**Simptom.** Na svaku predaju, u terminalu:
+
+```
+Task exception was never retrieved
+future: <Task finished name='Task-96' coro=<CyclicBehaviour._start() done,
+         defined at .../spade/behaviour.py:126>
+         exception=ValueError('This behaviour is not registered')>
+Traceback (most recent call last):
+  File ".../spade/behaviour.py", line 140, in _start
+    await self._step()
+  File ".../spade/behaviour.py", line 305, in _step
+    self.agent.remove_behaviour(self)
+  File ".../spade/agent.py", line 286, in remove_behaviour
+    raise ValueError("This behaviour is not registered")
+ValueError: This behaviour is not registered
+```
+
+**Mehanizam.** `CyclicBehaviour._step` završava bezuvjetnim `self.agent.remove_behaviour(self)`
+(`behaviour.py:305`), a `Agent.remove_behaviour` diže `ValueError` ako `has_behaviour()`
+vrati `False` (`agent.py:286`). Kad je isto ponašanje već skinuto, epilog zatekne prazno.
+
+Kod nas ga skida `OrchestrationFSM` sam nad sobom: `_release_flow(self._flow["cid"], self)`
+([`coordinator.py:567`](../backend/agents/coordinator.py)) → `remove_behaviour(fsm)`
+([`coordinator.py:710`](../backend/agents/coordinator.py)). Taj poziv **ima** gard:
+
+```python
+try:
+    if self.has_behaviour(fsm):
+        self.remove_behaviour(fsm)
+except ValueError:  # pragma: no cover — utrka s vlastitim kill()om
+    pass
+```
+
+🔴 Gard je ispravan, ali štiti **pogrešnu stranu**. On hvata iznimku iz *našeg* poziva.
+Iznimka koja se stvarno događa dolazi iz SPADE-ovog epiloga, koji teče u **vlastitom
+`_start()` tasku** — izvan našeg `try`. Komentar `# pragma: no cover — utrka s vlastitim
+kill()om` opisuje utrku koja se nikad ne dogodi; prava utrka je s epilogom, i nju gard ne
+vidi.
+
+**Mjerenje (2026-08-18).** `Agent.remove_behaviour` omotan u zasebnom procesu, repo
+nedirnut. 20 predaja kroz pun lanac:
+
+| | vrijednost |
+|---|---|
+| iznimaka ukupno | **20** (1 po predaji) |
+| klasa | **`OrchestrationFSM` 20/20** |
+| agent | `coordinator@localhost` 20/20 |
+| progutano nešto drugo? | **ne** — 20/20 isti `ValueError` |
+
+Pozivatelji, prebrojani nad 5 predaja:
+
+| pozivatelj | ponašanje | ishod |
+|---|---|---|
+| `coordinator.py:710 in _release_flow` | `OrchestrationFSM` | **OK** (5×) |
+| `behaviour.py:305 in _step` | `OrchestrationFSM` | 🔴 **ValueError** (5×) |
+| `behaviour.py:305 in _step` | `_Send` | OK (5×) |
+
+Redoslijed je time izmjeren, ne pretpostavljen: **naš eksplicitni poziv pobjeđuje** i skine
+FSM, pa SPADE-ov epilog padne. `_Send` (OneShotBehaviour gatewaya) nitko ne skida
+eksplicitno, pa njegov epilog uredno prolazi — kontrolna skupina u istom mjerenju.
+
+**Nije curenje.** `len(agent.behaviours)` po agentu, prije prve predaje i nakon 20:
+
+| agent | prije | nakon 20 | klase |
+|---|---|---|---|
+| gateway | 1 | **1** | `_Resolve` |
+| coordinator | 1 | **1** | `_Intake` |
+| evaluator / knowledge / recommender / gamification / hint | 1 | **1** | po jedno vlastito |
+
+Krivulja je ravna kroz svih 20 mjerenja. Razlog je što `remove_behaviour` **prvo** provjeri
+`has_behaviour` i tek onda `pop` — neuspješan poziv ne ostavlja ništa za sobom.
+
+**Zašto ipak nije kozmetika.** Grana je u putu koji su #62/#63 popravili
+(`_start → _step → remove_behaviour`), a `_release_flow` je funkcija koja oslobađa **utor**.
+Dok stoji ovakva, svaki budući kvar u epilogu FSM-a izgleda **identično** ovom benignom
+ispisu, pa se neće razlikovati od šuma. Ne skriva grešku *danas* — epilog se izvršava tek
+nakon `is_running = False`, kad je tok već završio i odgovor otišao — ali uklanja razliku
+između „sve u redu" i „nešto je puklo na kraju toka".
+
+**Ne popravlja se u ovoj grani** (odluka korisnika). Kad se bude popravljalo, popravak nije
+u našem gardu nego u tome da se FSM **ne skida eksplicitno** i prepusti epilogu, ili da se
+epilog neutralizira prije skidanja.
+
+---
+
+## #74 🟢 Što točno znači „agenti komuniciraju preko XMPP-a"
+
+**Za poglavlje o arhitekturi. Nije kvar i ne traži izmjenu koda.**
+
+Agenti razmjenjuju FIPA-ACL poruke kroz SPADE. Kako ih SPADE **isporuči** ovisi o tome jesu
+li pošiljatelj i primatelj u istom procesu — `spade/container.py:121-133`:
+
+```python
+async def send(self, msg: Message, behaviour: BehaviourType) -> None:
+    to = str(msg.to)
+    if to in self.__agents:
+        self.__agents[to].dispatch(msg)
+    else:
+        await behaviour._xmpp_send(msg=msg)
+```
+
+U ovoj izvedbi svih 7 (6 domenskih + gateway) startaju u **istom uvicorn procesu**
+([`main.py:64-65`](../backend/app/main.py)), dakle u istom `Container`u, pa se uvijek uzima
+**prva** grana: `dispatch()`, in-process. XMPP ostaje na putu **autentikacije i
+registracije** pri startupu, ne na putu poruka.
+
+**Izmjereno 2026-08-18.** Prosody u stanju `exited`, tri predaje i burst:
+
+| | status | vrijeme | lanac |
+|---|---|---|---|
+| ugašen t=0 | 200 | 0,13 s | 12 poruka |
+| ugašen +30 s | 200 | 0,13 s | 12 poruka |
+| ugašen +60 s | 200 | 0,12 s | 12 poruka |
+| burst 10 predaja | **10/10 = 200** | — | — |
+
+Ranije, uz `docker restart` (nedostupnost 0,52 s): slixmpp je prekid vidio
+(`<stream:error><system-shutdown/>Received SIGTERM`, 7× `disconnected`) i vratio vezu tek
+nakon **74,8 s**, a predaje na +0/+10/+30/+60 s su svejedno sve dale 200 s punim lancem.
+
+🔴 **Posljedica za `--workers 1`.** Dosadašnje obrazloženje bilo je in-process
+`AgentBridge` dict. Točnije je: **agenti postoje jednom po procesu**. Drugi uvicorn worker
+značio bi drugi cijeli skup agenata s **istim JID-ovima** — ne dijeljenje posla, nego
+dvostruki sustav. To je jači razlog od korelacijskog registryja i trebao bi zamijeniti
+dosadašnju formulaciju.
+
+**Što ovo NE znači.** Arhitektura nije poništena i FIPA sloj nije dekorativan: performativi,
+ontologije i `Template.match()` stvarno upravljaju usmjeravanjem, samo unutar procesa.
+Distribuirana izvedba (agenti u zasebnim procesima ili kontejnerima) usmjerila bi **iste**
+poruke kroz **drugu granu istog `if`-a**, bez ijedne izmjene agentskog koda. Ono što traži
+ispravak je samo **tvrdnja** u tekstu: reći da agenti komuniciraju FIPA-ACL porukama kroz
+SPADE, uz napomenu o načinu isporuke, umjesto da se XMPP prikazuje kao message bus kroz
+koji poruke stvarno putuju.

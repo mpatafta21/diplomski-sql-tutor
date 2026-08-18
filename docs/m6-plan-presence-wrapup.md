@@ -328,6 +328,40 @@ Tvrdnja da `task_not_found` daje degradiran 200 bila je **netočna**, izvedena i
 
 # H — Otvoreno
 
+- 🔴 **Dokaz iz `fix-koncept-zadatak-wrapup.md` §A.5 je PRECIZIRAN, ne oboren — i uz njega
+  sada stoji mjerenje.** Prvo mjerenje ovog kruga (2026-08-18) izbrojalo je **tri korijena**
+  u podgrafu bez maskiranih čvorova (`select_basic`, `cross_join`, `inner_join`) i iz toga
+  zaključilo da uvjet iz §A.5 više ne vrijedi. **To je bilo prebrzo.** Maskiranje mijenja
+  **vrijednosti čvorova**, ne bridove: `prereqs_met/2` (`rules.pl:58-60`) pita nemaskirani
+  `prerequisite/2`, pa „korijen podgrafa" nije ulazna točka preporučivača. `join_condition`
+  je uz to **prozirna** maska, ne trajna blokada — `build_mastery_snapshot` korak 4
+  ([`recommender_logic.py:258-264`](../backend/agents/recommender_logic.py)) postavi ga na
+  0.99 čim su mu **vlastiti** prereqs savladani (jedini mu je `from_clause`), pa
+  `inner_join`/`cross_join` nisu ulazi nego **vrata**. Za novaka je stoga jedini koncept s
+  `prereqs_met` i dalje **`select_basic`** — nema izjednačenja koje bi poredak morao
+  razriješiti.
+- **Izmjereno kroz pun lanac** (`/register` → `/next-task`, bez ijednog pokušaja):
+  **5/5 novih računa → `select_basic`, task 15 (`select_basic_d1_526db098`),
+  reason `partial_continuation`**, deterministički. Novak **nije** „sav weak": tier prior
+  daje M1 konceptima `p_l = 0.300`, a `weak_threshold(0.30)` je strogi `<`, pa su oni
+  **partial** — zato `partial_continuation`, a ne `weak_with_prereqs_met`. Poredak injekcije
+  je kanonski **pedagoški** (`_KANONSKI_POREDAK = (Module.order_index, Concept.order_index,
+  Concept.id)`, [`db_helpers.py:27`](../backend/agents/db_helpers.py)), **nije abecedni** —
+  `select_basic` je prvi.
+- **Falsifikacija (ostaje):** 2 × 1500 nasumičnih stanja, sjemena **20260814** i **20260818**
+  (ukupno 3000), **0 povreda P1–P4**, ~30 s po sjemenu, kroz stvarni Prolog motor, svako
+  stanje u `SAVEPOINT`/rollback (devet brojki prije i poslije identično). `exhausted` **0×**;
+  `repeat_practice` pogođena **63×** odnosno **46×**, pa P3 nije prošao zbog neizvršenog puta.
+  Instrument uzorkuje prostor mastery vektora i **ne pokriva točku u kojoj svi počinju** —
+  zato mjerenje novaka gore stoji uz njega, ne umjesto njega.
+- 🟡 **OTVORENO, nije uzrokovano ovom granom:** simulacija savršenog studenta od stanja
+  novaka daje redoslijed u kojem **spojevi dolaze prije `where_filter`** — koraci 3–6 su
+  `inner_join`, `right_join`, `cross_join`, `self_join` (modul 3), a `where_filter` (modul 1)
+  tek korak 7. Uzrok je kombinacija koju ova grana **nije dirala** (`git diff main...HEAD`
+  za `backend/prolog/` i `backend/bkt/` je **prazan**): `join_condition` traži samo
+  `from_clause`, tier prior čini M1 koncepte `partial` a sve ostalo `weak`, a klauzula za
+  `weak` stoji **prije** klauzule za `partial` (`rules.pl:91-97`). Put ipak **nije ćorsokak** —
+  svih 29 preporučivih koncepata obiđe se u 29 koraka, pa `no_recommendation`.
 - **ERRATA #68** — `column_alias` nije nuđen preporukom (gore, §D). Ne popravlja se.
 - **`explain_plan` i `index_usage` se preklapaju u mehanizmu.** Oba se ocjenjuju istim
   potpisom; razlikuju se po tome što opis traži da student promisli (pristupni put vs

@@ -213,8 +213,12 @@ def _verify_plan_if_needed(
     plana.
 
     Ako EXPLAIN ne uspije (npr. upit prođe izvršavanje ali ne i planiranje),
-    vraća se `unsupported_eval` — zadatak se NE proglašava točnim na temelju
+    vraća se `plan_unavailable` — zadatak se NE proglašava točnim na temelju
     neprovjerene tvrdnje.
+
+    🔴 `plan_unavailable` NIJE ishod pokušaja (ERRATA #69): `EvaluatorAgent` na
+    njega izlazi PRIJE `persist_attempt` i odbija tok (`refuse(model-updated)`),
+    pa student dobije 503 i uputu, a `attempts`/BKT ostaju nedirnuti.
     """
     if not plan_checked:
         return correct_outcome
@@ -301,7 +305,8 @@ def evaluate(
         submitted_query: SQL koji je student predao.
         runner: SandboxRunner spojen na sandbox bazu.
         primary_concept_code: Primarni koncept taska (npr. "explain_plan"). Ako je
-            u _UNSUPPORTED_CONCEPTS, vraća unsupported_eval odmah.
+            u `PLAN_CHECKED_CONCEPTS`, uz usporedbu redaka ide i usporedba
+            izvedbenog plana (v. `_verify_plan_if_needed`).
 
     Returns:
         EvaluationOutcome s klasifikacijom i metrikama.

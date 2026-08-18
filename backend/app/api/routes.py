@@ -28,6 +28,7 @@ from sqlalchemy.orm import aliased
 from agents.coordinator import (
     ERROR_COORDINATOR_BUSY,
     ERROR_EVALUATION_TIMEOUT,
+    ERROR_PLAN_UNAVAILABLE,
     ONTOLOGY_SUBMIT_ATTEMPT,
 )
 from agents.evaluator_agent import _sandbox_conn_string
@@ -248,6 +249,16 @@ async def post_attempt(
     # studentu: ponovni pokušaj ima smisla, i to odmah.
     if isinstance(result, dict) and result.get("error") == ERROR_COORDINATOR_BUSY:
         raise HTTPException(status_code=503, detail=ERROR_COORDINATOR_BUSY)
+
+    # 🔴 ERRATA #69: plan izvedbe se nije mogao dohvatiti → POKUŠAJ NIJE NASTAO.
+    # 503, kao `coordinator_busy`: smetnja je prolazna i ponovni pokušaj ima
+    # smisla odmah. NE 504 — nismo istekli, nego smo odgovorili namjerno.
+    #
+    # 🔴 Ovim statusom sada dijele TRI različita ishoda (`coordinator_busy`,
+    # `hints_disabled` na /hint, i ovaj), pa klijent MORA granati po `detail`u,
+    # ne po statusu — obrazac iz `lib/hint.ts`, uveden u `fix-pred-deployment` §C.
+    if isinstance(result, dict) and result.get("error") == ERROR_PLAN_UNAVAILABLE:
+        raise HTTPException(status_code=503, detail=ERROR_PLAN_UNAVAILABLE)
 
     return _to_attempt_response(result)
 

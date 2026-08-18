@@ -45,7 +45,20 @@ RECONSTRUCT_COLUMNS_TYPE = "wrong_columns"
 #: Tipovi koji šalju samo klasifikaciju. `execution_error` uz nju nosi `sqlstate`
 #: (zatvoren šifrarnik, bez ijednog studentovog znaka); `timeout` nema ni to jer
 #: mu čistoća poruke nije dokazana — nema živih uzoraka.
-CLASSIFICATION_ONLY_TYPES = frozenset({"execution_error", "timeout"})
+CLASSIFICATION_ONLY_TYPES = frozenset(
+    {"execution_error", "timeout", "explain_submitted"}
+)
+
+#: 🔴 `explain_submitted` je ovdje, a NE u `DETAIL_SAFE_TYPES`, i razlog NIJE
+#: privatnost — njegov je `detail` konstantan tekst bez ijednog studentovog znaka
+#: i smio bi van. Razlog je što taj tekst ne nosi nikakav podatak o studentovoj
+#: GREŠCI: on je uputa sučelja („predaj upit bez EXPLAIN"), ne opis onoga što je
+#: student krivo zaključio. `DETAIL_SAFE_TYPES` propušta podatke o POKUŠAJU, a
+#: ovdje pokušaja u tom smislu nema.
+#:
+#: 🔴 `plan_unavailable` se ovdje NE pojavljuje jer od ERRATE #69 uopće nije ishod
+#: pokušaja — hint sloj ga ne može ni vidjeti (`unlocking_attempt` traži redak u
+#: `attempts`, a njega nema).
 
 #: 🔴 Pragovi se MORAJU poklapati s `prolog/rules.pl`: `weak_threshold(0.30)` i
 #: `mastery_threshold(0.85)`. Isti obrazac kao `recommender_logic._MASTERED_THRESHOLD`.

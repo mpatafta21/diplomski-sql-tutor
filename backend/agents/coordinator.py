@@ -80,7 +80,12 @@ from agents.gamification_persistence import (
     load_attempt,
     prior_correct_solve_exists,
 )
-from agents.messages import Ontology, Performative, body_to_payload
+from agents.messages import (
+    ERROR_PLAN_UNAVAILABLE as _ERROR_PLAN_UNAVAILABLE,
+    Ontology,
+    Performative,
+    body_to_payload,
+)
 from app.core import config
 from app.db.models import Attempt, Badge, User, UserBadge, XpLog
 from app.db.session import SessionLocal
@@ -99,6 +104,11 @@ ONTOLOGY_ATTEMPT_RESPONSE = "attempt-response"
 ERROR_EVALUATION_TIMEOUT = "evaluation_timeout"
 #: Granica istovremenih tokova dosegnuta — predaja odbijena EKSPLICITNO (#62).
 ERROR_COORDINATOR_BUSY = "coordinator_busy"
+
+#: Re-eksport iz protokolnog modula — `routes.py` uvozi cijelu ERROR_* obitelj
+#: odavde, pa novi član ne mijenja oblik tog uvoza. Definicija je u
+#: `messages.py` jer je to jedina riječ koju Evaluator i Coordinator dijele.
+ERROR_PLAN_UNAVAILABLE = _ERROR_PLAN_UNAVAILABLE
 REASON_RECOMMEND_TIMEOUT = "recommend_timeout"
 #: #63: pokušaj je nađen u bazi nakon isteka UPDATE prozora, pa se preporuka NIJE ni
 #: tražila. Razlikuje se od `recommend_timeout` (tražena, nije stigla) — student je u
@@ -387,6 +397,28 @@ class UpdateState(_FlowState):
             self.set_next_state(STATE_RESPOND)
             return
 
+        # 🔴 GRANA NA PERFORMATIV, NIKAD NA SADRŽAJ PAYLOADA (ERRATA #69).
+        #
+        # `refuse(model-updated)` = Evaluator odbija isporučiti model-updated jer
+        # pokušaj NIJE NASTAO (plan izvedbe se nije mogao dohvatiti). Ontologija je
+        # tema razgovora, performativ je govorni čin — isti obrazac kao
+        # `_refuse_busy`, samo unutar toka umjesto na njegovoj granici.
+        #
+        # 🔴 Zašto NE `if payload.get("error")`: to bi bilo „novo ponašanje bez
+        # novog imena" — obrazac koji je u ovom projektu već proizveo tri nalaza
+        # (v. wrapup §G2). Legitiman `inform(model-updated)` koji sutra dobije
+        # polje `error` tiho bi prekidao tok. Čuva `test_inform_s_error_kljucem_
+        # NE_prekida_tok`.
+        if msg.get_metadata("performative") == Performative.REFUSE:
+            _log.warning(
+                "Coordinator UPDATE: Evaluator odbio model-updated (cid=%s) → "
+                "plan_unavailable; pokušaj nije nastao",
+                flow["cid"],
+            )
+            flow["error"] = ERROR_PLAN_UNAVAILABLE
+            self.set_next_state(STATE_RESPOND)
+            return
+
         payload = body_to_payload(msg.body)
         flow["attempt_id"] = payload.get("attempt_id")
         self.set_next_state(STATE_RECOMMEND)
@@ -458,9 +490,11 @@ class RespondState(_FlowState):
         flow = self.flow
         cid = flow["cid"]
 
-        if flow.get("error") == ERROR_EVALUATION_TIMEOUT:
+        if flow.get("error") in (ERROR_EVALUATION_TIMEOUT, ERROR_PLAN_UNAVAILABLE):
             # Definiran greška-odgovor — gateway (3E.3) mapira u 5xx. NIKAD ne visi.
-            payload = {"error": ERROR_EVALUATION_TIMEOUT, "correlation_id": cid}
+            # 🔴 `plan_unavailable` NE ide kroz `build_response_payload`: taj gradi
+            # odgovor IZ BAZE po `attempt_id`, a ovdje retka nema i ne smije ga biti.
+            payload = {"error": flow["error"], "correlation_id": cid}
         else:
             payload = await asyncio.to_thread(
                 build_response_payload, flow["user_id"], flow["attempt_id"]

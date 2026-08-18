@@ -1,7 +1,7 @@
 # M6 plan-presence + `column_alias` — wrapup
 
 **Datum:** 2026-08-14 · **Grana:** `m6-plan-presence` (s `main`a, `5a192c8`)
-**Plan:** `docs/m6-transverzalni-korak-0.md` · **Nalazi:** ERRATA #66, #67, #68
+**Plan:** `docs/m6-transverzalni-korak-0.md` · **Nalazi:** ERRATA #66–#72
 
 | commit | sadržaj |
 |---|---|
@@ -9,6 +9,8 @@
 | `b5cdd11` | plan-presence evaluacija + gate stabilnosti plana |
 | `06a6f5f` | potpis plana nosi imena indeksa — `uses_index` sam po sebi laže |
 | `56067bf` | M6 aktiviran s ispravnim zadacima; `column_alias` dobio zadatke |
+| `8807288` | nalazi code reviewa — taksonomija razdvojena, poruke ispravljene (§G2) |
+| *(ovaj krug)* | `plan_unavailable` prestaje biti ishod pokušaja — 503 (§G3) |
 
 **Nula promjena sheme. Nula novih ovisnosti. Nula izmjena na M1–M5 zadacima.**
 
@@ -144,7 +146,7 @@ govori što plan radi, a to opis zadatka od studenta ionako traži.
 
 | gate | ishod |
 |---|---|
-| `pytest` | ✅ **821 passed, 1 skipped, 0 failed** (bilo 783) |
+| `pytest` | ✅ **872 passed, 1 skipped, 0 failed** (bilo 783) |
 | `make preflight` — sweep | ✅ **88/88**, 0 nestabilnih planova |
 | `make preflight` — smoke | ✅ pun agentski lanac |
 | `npm run e2e` | ✅ **4 passed**, teardown čist |
@@ -152,9 +154,11 @@ govori što plan radi, a to opis zadatka od studenta ionako traži.
 | `prettier --check` · `oxlint` | ✅ (samo zatečena `only-export-components` upozorenja) |
 | `make backup` | ✅ (nakon popravka #67), restore verificiran |
 | `code-review` (high) | ✅ 9 nalaza, svi popravljeni — v. §G2 |
+| namjerni kvarovi | ✅ **6 testova viđeno kako pada** — v. §G3.4 i ERRATA #69 |
 
-Novi testovi: `test_plan_signature`, `test_plan_stability`, `test_sandbox_explain`,
-`test_evaluation_plan`, `test_m6_reachability` (38 tvrdnji).
+Novi testovi (oba kruga): `test_plan_signature`, `test_plan_stability`,
+`test_sandbox_explain`, `test_evaluation_plan`, `test_m6_reachability`,
+`test_plan_unavailable_flow`, `test_error_taxonomy_contract` — **91 tvrdnja**.
 
 ⚠️ **`ruff` nije instaliran u okolini** i Makefile nema lint target, pa formatiranje nije
 strojno provjereno — stil je usklađen ručno prema okolnom kodu. Nova ovisnost se ne dodaje
@@ -171,6 +175,13 @@ Po 🔒 politici, uz izričito odobrenje korisnika (2026-08-14):
 - `agents/recommender_logic.py` — uklonjena Kat. C
 - `agents/hint_llm.py` — opis vrste greške `plan_mismatch`
 - `scripts/import_dataset.py` — `is_active` po zadatku
+- **(drugi krug)** `agents/messages.py` — `ERROR_PLAN_UNAVAILABLE` (protokolna riječ koju
+  dijele Evaluator i Coordinator)
+- **(drugi krug)** `agents/evaluator_agent.py` — rani izlaz + `_refuse_plan_unavailable`
+- **(drugi krug)** `agents/coordinator.py` — grana na **performativ** u UPDATE, uvjet u
+  RESPOND. 🔴 Mehanika tokova (utori, dispatcher, `_open_flow`/`_release_flow`,
+  `_flow_template`) **nije dirana** — dokazano izvršenjem, ne argumentom (§G3.4)
+- **(drugi krug)** `app/api/routes.py` — 503 uz `coordinator_busy`
 
 `plan_mismatch` je **konceptualni** signal pa namjerno NIJE u `_MECHANICAL_ERRORS` —
 anti-pattern je stvarna zabluda, ne omaška.
@@ -208,6 +219,110 @@ ugurano u zatečenu kategoriju** (`plan_mismatch` za dvije različite stvari,
 posljedica bila da neki uzvodni potrošač tiho radi krivu stvar. Taksonomija grešaka je
 ugovor s pet potrošača (frontend, misconceptions, hint payload, hint LLM, sweep); dodavanje
 ponašanja bez novog imena znači da barem jedan od njih dobije laž.
+
+---
+
+# G3 — Drugi krug: `plan_unavailable` prestaje biti ishod pokušaja (#69–#72)
+
+## G3.1 Nalaz je nastao iz revizije vlastitog popravka
+
+Nalaz 3 iz §G2 uveo je `plan_unavailable` da bi razdvojio infrastrukturnu smetnju od
+`unsupported_eval`. Revizija tog imena otkrila je da je **cijela kategorija cijelo vrijeme
+pisala kvar sustava u `attempts`** — samo pod drugim imenom. Nalaz nije uveden ovom granom;
+učinjen je vidljivim.
+
+Puni brojevi: **ERRATA #69**. Najjača brojka za rad: student s `p_l = 0.80` pada na
+**0.46** umjesto da naraste na 0.97 — dakle jedna smetnja košta više usred učenja nego na
+početku.
+
+## G3.2 Odluka: opcija 1 (503), i zašto je 2 odbijena
+
+`plan_unavailable` **ne stvara pokušaj**. Odbijena je opcija „perzistiraj, preskoči BKT i
+kredit" jer bi tražila da `attempts` nosi **dvije uloge** — zapis o studentovom radu i zapis
+o kvaru sustava. Isti obrazac je na ovoj grani već bio uzrok kvara (`_BLOCK_VALUE`: jedna
+maska za dva razloga) i razlog uklanjanja `entry_task_id`. **Podatak o smetnji ide u log, ne
+u instrument.** Kategorija je jednočlana: `plan_unavailable` je jedini `error_type` gdje
+nije zakazao student.
+
+## G3.3 🔴 Zašto proširenje `_flow_template` NIJE bilo aditivno
+
+Prva razmatrana izvedba dodavala je `attempt-result` granu u korelacijski router. Odbijena:
+**nije aditivna u učinku**. `task_not_found` je također `attempt-result` koji danas ne
+stiže do toka, pa bi ga ista grana usput promijenila — a njegovo zatečeno ponašanje u tom
+trenutku **nije bilo izmjereno**, i jedino što se o njemu znalo bilo je da je prethodna
+tvrdnja o njemu netočna. Grana bi time isporučila izmjenu na neizmjerenom putu.
+
+Izvedeno je umjesto toga `refuse(model-updated)`: ontologija koju tok **već sluša**, pa se
+router ne dira; razlikuje ih **performativ**. Izmjereno da `_flow_template` performativ ne
+ograničava.
+
+🔴 **Granananje ide na performativ, ne na sadržaj payloada.** `if payload.get("error")` bio
+bi točno obrazac iz §G2 — novo ponašanje bez novog imena — i sutrašnji legitiman
+`inform(model-updated)` s poljem `error` tiho bi prekidao tok. Ontologija je tema,
+performativ je govorni čin.
+
+## G3.4 Invarijanta o konkurentnosti dokazana IZVRŠENJEM
+
+Tvrdnja „ne dira mehaniku tokova" nije smjela ostati argument: #62 je bila invarijanta
+zapisana komentarom, neistinita tri mjeseca, koju 737 testova nije uhvatilo. Zato pet
+tvrdnji, **svaka dokazana namjernim kvarom** — tablica je u ERRATI #69.
+
+Najvrjednija: **10 utora procurilo od 10 smetnji** kad se preskoči `_release_flow`. Uz
+`MAX_CONCURRENT_FLOWS = 64` to bi se očitovalo tek nakon 64 smetnje — usred evala, kao
+„sve predaje odjednom vraćaju 503".
+
+**Zatečeni `test_coordinator_concurrency.py` ostao je zelen bez ijedne izmjene** (6 passed).
+To je bio uvjet da se tvrdnja o nedirnutoj mehanici uopće smije izgovoriti.
+
+## G3.5 Ugovorni test taksonomije (#71)
+
+Ista greška se u ovoj grani ponovila tri puta (§G2, nalazi 2/3/5), a kad je novo ime
+konačno uvedeno, `plan_mismatch` nije bio registriran u frontendu — pa je student na
+**ispravan SQL** vidio *„Ocjenjivanje nije uspjelo"*. Nijedan od 819 testova to nije
+uhvatio jer je svaki gledao **jedan** sloj.
+
+`tests/test_error_taxonomy_contract.py` (**48 tvrdnji**) zaključava ugovor s pet potrošača:
+poruka u `ERROR_TEXT`, točno jedan skup prezentacije detalja, svjesna misconception-odluka,
+točno jedna politika hint payloada, opis za LLM. 🔴 Skup tipova se **čita iz izvora**
+`evaluation.py` regexom — popis prepisan u test zastario bi tiho, a upravo je tiho
+zastarjevanje ono što test treba spriječiti.
+
+Uz to tvrdi **novu granicu**: koji tipovi **smiju** biti ishod pokušaja, a koji ne. Bez nje
+bi se `plan_unavailable` sljedećom izmjenom mogao tiho vratiti u `attempts`.
+
+Dokazan namjernim kvarom: uklanjanje `plan_mismatch` iz `ERROR_TEXT` obara test **s imenom
+tog tipa u poruci**.
+
+## G3.6 „Ispravno slučajno" — dva primjerka u istom krugu (#71)
+
+`plan_unavailable` je prije registracije padao na `FALLBACK_ERROR_TEXT`, a taj je tekst
+*„pokušaj ponovno predati"* — **semantički točan** za prolaznu smetnju. Ali točnost je bila
+posljedica fallbacka, ne odluke: nijedan test nije mogao pasti jer veza nije ni bila
+uspostavljena.
+
+Drugi primjerak: `unsupported_eval` attempti su bili **0** ne zato što je put bio siguran,
+nego zato što je **maska Kat. C slučajno štitila i od toga** — svi M6 zadaci bili su
+`is_active=False`, pa do predaje nikad nije došlo. Provjera C iz ovog kruga (0 zagađenih
+redaka) time je dobra vijest s krivim obrazloženjem ako se ne navede uzrok.
+
+**Za rad:** „radi ispravno" i „ispravnost je zajamčena" nisu ista tvrdnja. Razlika se vidi
+tek kad se pita KOJI test pada ako se ponašanje pokvari.
+
+## G3.7 Halucinacija iz gole klasifikacije (#72)
+
+Model je na `plan_unavailable` — **bez ijednog detalja, samo klasifikacija** — proizveo
+konkretnu i netočnu dijagnozu studentovog ispravnog upita. To je **stroža tvrdnja od #64**:
+minimalan payload ne ograničava halucinaciju. Posljedica za odluku o selektivnom B+ (5.0):
+rizik po studenta seli se **iz privatnosti u točnost**, a te su se dvije mjere dosad čitale
+kao ista os.
+
+## G3.8 Ispravak koji je morao u erratu (#70)
+
+Tvrdnja da `task_not_found` daje degradiran 200 bila je **netočna**, izvedena iz
+`build_response_payload` bez provjere da poruka dotle dolazi. Izmjereno: **504
+`evaluation_timeout` nakon 9.09 s**, utori uredno oslobođeni.
+
+**KOD KOJI PODNOSI STANJE NIJE DOKAZ DA TO STANJE NASTAJE.**
 
 ---
 

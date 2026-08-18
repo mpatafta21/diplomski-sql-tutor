@@ -76,6 +76,10 @@ broj** — referencira ih se opisno, nikad izmišljenim brojem. Zatečeni primje
 | **#43** | **Koncept-retci u Module overviewu nisu bili klikabilni (nije bilo puta koncept→zadatak)** | ✅ **4.6-eval (backend escalation, bez migracije)** | UI je imao koncepte ali nijedan endpoint nije mapirao koncept → `task_id` (task se dohvaća samo po ID-u; `/modules` nije nosio ID-eve). **Popravak:** `/modules` ConceptNode dobio `entry_task_id` — reprezentativan AKTIVAN primary zadatak (najlakši prvi: `difficulty ↑, id ↑`), **statički** (bez user-konteksta → `/modules` ostaje čist katalog, cacheable). `entry_task_id != null` ⟺ `primary_task_count > 0` (ista maska). Frontend: ConceptRow je `<Link>` na `/task/<id>` kad je klikabilan = **`entryTaskId != null && state !== "locked"`** — zaključani (nezadovoljeni preduvjeti) i glue/izvan-opsega (0 zadataka) ostaju neklikabilni, savladani su klikabilni za vježbu (bez XP-a, #41). „Koji zadatak": najlakši primary; **NE** „sljedeći neriješen" (to bi tražilo user-aware `/modules`) — kandidat za dogradnju. 1 novi test (`entry_task_id` == DB ground truth + invarijanta). ⚠️ eskalacija zamrznutog backenda (kao #41) |
 | **#66** | 🔴 **Tri M6 zadatka tvrdila su o bazi neistinu, a četvrti nije razlikovao ništa — preživjelo jer se mjerila samo usporedba redaka** | ✅ **zatvoren 2026-08-14** (`m6-plan-presence`) | Grana je otvorena da M6 dobije zadatke, a mjerenje je srušilo pretpostavku na kojoj je stajala. **(a)** Rezultatska evaluacija M6 ne može ocijeniti: anti-pattern (`LOWER(email) = …`, `customer_id::text = …`) vraća **bajt-identične retke**. **(b)** 🔴 Gore: referentni upiti zadataka **79, 80, 82** daju **Seq Scan** iako im opis tvrdi Index Scan — sva tri gađaju `customers` (200 redaka), gdje je Seq Scan (5.50) stvarno jeftiniji od Index Scana (8.16). Planer je u pravu, zadatak nije. **(c)** Zadatak **83** ima stabilan plan ali **praznu tvrdnju**: `ORDER BY id LIMIT 1` uvuče `orders_pkey` u plan, pa i referentni i CAST anti-pattern daju `Index Scan / orders_pkey` — identičan potpis, dakle prolazi ono što zadatak zabranjuje. Od 5 zatečenih M6 zadataka **zdrav je bio samo 81**. **Popravak:** plan-presence evaluacija koja EXPLAIN-a **oba** upita u istom trenutku i uspoređuje `PlanSignature(uses_index, index_names, join_methods)`; tvrdnja o planu nigdje se ne pohranjuje jer je zadatak već nosi — to je njegov `expected_query` (nema migracije, ne može zastarjeti, preživljava reseed). Uz to **dva gatea**: `plan_is_stable` (potpis nepromijenjen pod `enable_seqscan=off` i `enable_hashjoin=off`) i gate diskriminacije pri autorstvu (anti-pattern mora dati iste retke a drugi potpis). 🔴 **Gate stabilnosti nije izveden iz teorije nego iz FLAKY TESTA:** tvrdnja o zadatku 79 prošla je izolirano a pala u punoj datoteci, jer mrtvi redci iz rollbackanog DML-a drugog testa podignu `relpages` i prevrnu izbor plana. Posljedice: Kat. C maska u recommenderu **uklonjena** (bila obrana, postala bi blokada), subfloor je time **prazan**, `is_active` je sada **eksplicitan po zadatku** (ne izveden iz koncepta) uz `deactivation_reason`. Katalog: `index_usage` 3 aktivna, `explain_plan` 2, oba +2 trajno deaktivirana (ne brišu se — dokaz nalaza i negativan primjer gatea). Srodno #29 (rezultatska evaluacija), #19, #27, #57 |
 | **#68** | 🟡 **`column_alias` je dobio zadatke koje preporučivač nikad ne nudi** | 📌 **nalaz o dizajnu (za rad); ne popravlja se** | Odlukom korisnika (2026-08-14) dobio je 3 ručno autorska zadatka i time ispao iz Kat. A. Simulacija savršenog studenta: p_l dosegne **0.9356 — iznad praga 0.85 — a koncept nije ponuđen NIJEDNOM**. Uzrok: 4 sekundarna pojavljivanja saturiraju BKT prije nego koncept dođe na red, a Prolog bira samo koncepte **ispod** praga. **ERRATA #35 (ZPD escape) po drugi put**, sada potvrđena prospektivno. Strah iz plana (da će zapeti ISPOD praga i zaključati `group_by`) **nije se ostvario** — `group_by` je uredno otključan (0.99999). Zadaci nisu mrtvi: dosežni su klikom na koncept (`resolve_task_for_concept`, put iz #42/#43), ali ne kroz „Sljedeći zadatak"; razlika je zaključana testom. Popravak bi tražio da BKT razlikuje primarna od sekundarnih ažuriranja = izmjena ugovora `/mastery-history`, isto što #35 navodi kao nemoguće bez novog polja. **Za rad:** dodavanje zadataka konceptu s puno sekundarnih pojavljivanja NE čini ga podučavanim. Srodno #35, #31, #66 |
+| **#69** | 🔴 **`plan_unavailable` je smetnju sustava zapisivao kao studentovu grešku — naslijeđeno od `unsupported_eval`, vidljivo tek premještanjem pod novo ime** | ✅ **zatvoren 2026-08-14** (`m6-plan-presence`) | Kad `EXPLAIN` ne uspije, student koji je predao **objektivno ispravan** upit dobivao je `is_correct=false`. Izmjereno kroz pun agentski lanac uz **stvarni** pad EXPLAIN-a (referentni upit gađa nepostojeću tablicu, bez ijednog mocka): nastao je `attempts` redak, BKT je ažuriran **netočnim** ishodom, i **potrošen je hint kredit** (`hint_requests.source='llm'`). Šteta po BKT-u je egzaktna, ne procjena — zabilježeni `p_l` do zadnje znamenke odgovara `update(is_correct=False)`: **0.05→0.1078** (točan bi bio 0.3782), **0.50→0.2286** (0.9053), 🔴 **0.80→0.4600** (0.9743), 0.95→0.7840 (0.9945). Najgore je pogođen student **usred učenja** (−0.68 kod p_l 0.50), ne novak. Ovo je razred **#63**: ishod sustava i ishod zapisan u bazi se razilaze, a `attempts` je istraživački podatak i `skill_mastery_history` rekurzivan lanac (#18) pa se redak ne može obrisati iz sredine. **Naslijeđeno, ne uvedeno:** isti je slučaj prije išao kao `unsupported_eval`; premještanjem pod vlastito ime postao je vidljiv. **Popravak (odluka korisnika):** `plan_unavailable` **NE stvara pokušaj** — Evaluator izlazi PRIJE `persist_attempt` i odbija tok (`refuse(model-updated)`), Coordinator to mapira u `flow["error"]`, ruta u **503**, frontend u poruku koja izrijekom kaže da nije riječ o grešci u upitu. Smetnja se broji u `agent_messages_log` uz `correlation_id`, ne u `attempts` (izmjereno: 92 zapisa `refuse` evaluator→coordinator). 🔴 **Odbijena je opcija „perzistiraj ali preskoči BKT"**: tražila bi da `attempts` nosi dvije uloge — zapis o radu i zapis o kvaru — a taj je obrazac na ovoj grani već bio uzrok kvara (`_BLOCK_VALUE`) i razlog uklanjanja `entry_task_id`. Kategorija je **jednočlana**: `plan_unavailable` je jedini `error_type` gdje nije zakazao student. Srodno #63, #18, #66 |
+| **#70** | 🟡 **`task_not_found` istekne umjesto da odgovori — jedini preostali put koji ne poštuje pravilo uspostavljeno u #69** | 🟡 **otvoren, NE popravlja se u ovoj grani** | `_send_task_not_found` ([`evaluator_agent.py:165-193`](../backend/agents/evaluator_agent.py)) šalje INFORM ontologije **`attempt-result`**, a `_flow_template` ([`coordinator.py:551-558`](../backend/agents/coordinator.py)) matcha **samo** `model-updated` i `recommend-next` za dani `cid` — poruka do toka **nikad ne stigne**. **IZMJERENO 2026-08-14** (nepostojeći `task_id` kroz pun lanac): klijent dobije **HTTP 504 `evaluation_timeout` nakon 9.09 s** (= `update_timeout` 7 s + `settle` 2 s); utori se **uredno oslobađaju** (3 uzastopna zahtjeva, `flow_count` 0 → 0). Dakle: točan status za krivi razlog, i to nakon punog prozora čekanja. 🔴 **Ostaje JEDINA iznimka** od pravila koje #69 uspostavlja (smetnja → brz, imenovan odgovor), pa se **ne smije citirati kao presedan**. 🔴 **POUKA IZ ISPRAVKA:** prva verzija ovog nalaza tvrdila je da put daje *degradiran 200 s `verdict="unknown"`* — izvedeno iz `build_response_payload`, koji podnosi `attempt_id=None` ([`coordinator.py:230`](../backend/agents/coordinator.py)), **bez provjere da poruka dotle uopće dolazi**. **KOD KOJI PODNOSI STANJE NIJE DOKAZ DA TO STANJE NASTAJE.** Ista klasa kao povučeni dio #60 („trag u produkcijskim podacima"). Mehanizam je usput potvrđen namjernim kvarom: ograniči li se `_flow_template` performativom, i novi `refuse` put daje isti 504 |
+| **#71** | 🟡 **Sustav se ponašao ispravno iz razloga koji nitko nije odlučio — pa nijedan test nije mogao pasti** | 📌 **poučak; zatvoren uvođenjem ugovornog testa** | Pri reviziji taksonomije uočeno da `plan_unavailable` nije bio ni u `ERROR_TEXT` ni u `TEXT_DETAIL_TYPES` (`feedback.ts`), pa je padao na `FALLBACK_ERROR_TEXT` — *„Ocjenjivanje nije uspjelo — pokušaj ponovno predati rješenje."* 🔴 **Ta je poruka bila TOČNA**: smetnja jest prolazna i ponovni pokušaj jest ispravan savjet. Ali točnost je bila **posljedica fallbacka, ne odluke** — nitko taj tekst nije napisao za taj tip, i prekine li se veza (promjena fallbacka, novi tip s drukčijim značenjem), ponašanje tiho postaje netočno **a da nijedan test ne padne**, jer nijedan ne tvrdi vezu koja nije uspostavljena. Drugi primjerak istog obrasca u istom krugu: `unsupported_eval` attempti su bili **0** ne zato što je put bio siguran, nego zato što je **maska Kat. C slučajno štitila i od toga** — svi M6 zadaci bili su `is_active=False`, pa do predaje nikad nije došlo. **Zatvoreno** parametriziranim ugovornim testom (`test_error_taxonomy_contract.py`, 48 tvrdnji): svaki tip koji `evaluate()` emitira mora imati poruku, točno jednu politiku prikaza detalja, svjesnu misconception-odluku, točno jednu politiku hint payloada i opis za LLM — a skup tipova se **čita iz izvora**, ne prepisuje. **Za rad:** „radi ispravno" i „ispravnost je zajamčena" nisu ista tvrdnja; razlika se vidi tek kad se pita KOJI test pada ako se ponašanje pokvari |
+| **#72** | 🔴 **Model je halucinirao dijagnozu iz SAME KLASIFIKACIJE, bez ijednog detalja — i ta je dijagnoza proturječila ispravnom radu studenta** | 📌 **prijetnja valjanosti savjeta (za rad); stroža tvrdnja od #64** | Izmjereno 2026-08-14 uz stvarni pad EXPLAIN-a. Student je predao **ispravan** upit; sustav nije uspio dohvatiti plan. `plan_unavailable` **nije** bio u `DETAIL_SAFE_TYPES`, pa je modelu otišla **samo klasifikacija** — bez `detail`a, bez plana, bez referentnog upita. Doslovni odgovor: *„Čini se da referentni upit u zadatku ima problem s izvedbom — moguće je da koristi operacije koje baza ne može optimizirati indeksima (npr. funkcije nad stupcima, ili operatore koji sprječavaju korištenje indeksa). Provjeri jesu li u WHERE ili JOIN uvjetima stupci direktno uspoređeni, bez transformacija…"* — student je napisao **točno takav** upit. 🔴 **Ovo je stroža tvrdnja od #64** („model izmišlja kad su podaci tanki"): ovdje podataka o grešci **nije bilo uopće**, a model je svejedno proizveo konkretnu, provjerivu i **netočnu** dijagnozu. **Minimalan payload NE ograničava halucinaciju.** Posljedica za odluku o selektivnom B+ (5.0): manje podataka znači manje utemeljenja, pa se rizik po studenta **seli iz privatnosti u točnost** — dvije mjere koje su se dosad čitale kao ista os. Nakon #69 ovaj put više ne postoji (`plan_unavailable` nije ishod pokušaja, pa hint sloj do njega ne dolazi), ali nalaz vrijedi **za svaki tip koji šalje samo klasifikaciju** (`CLASSIFICATION_ONLY_TYPES`: `execution_error`, `timeout`, `explain_submitted`). Srodno #64, #59 |
 | **#67** | 🔴 **`make backup` nikad nije radio iz čistog klona** | ✅ **popravljen 2026-08-14** (`1e48bbb`) | `scripts/backup_eval_data.sh` stajao je u gitu kao **`100644`** — bez izvršnog bita. `make backup` je padao na „Permission denied", pa je target bio neupotrebljiv bez ručnog `bash scripts/…`. Pogađa **jedini mehanizam koji štiti nenadoknadive evaluacijske podatke** (#37); verifikacija u 4.6-eval očito je išla kroz `bash`, pa izvršni bit nikad nije ušao u indeks. Ista klasa kao **#26** (`make dev` nije bio from-scratch sposoban) i **#39** (`dev-reset` guard neupotrebljiv): **target koji nije pokrenut onako kako ga dokumentacija propisuje nije provjeren target.** Audit: `backup_eval_data.sh` je JEDINA `.sh` datoteka u repou i jedina koju Makefile poziva izravno, pa druge rupe ovog oblika nema |
 
 ---
@@ -1476,3 +1480,138 @@ navodi kao nemoguće bez novog polja.
 **Za rad:** dodavanje zadataka konceptu s puno sekundarnih pojavljivanja **ne čini ga
 podučavanim**. Nalaz je koristan jer je nastao iz namjernog pokušaja da se koncept pokrije,
 pa je mehanizam potvrđen prospektivno, a ne samo retrospektivno kao u #35.
+
+---
+
+## #69 🔴 STRUKTURNI: smetnja sustava zapisana kao studentova greška
+
+**Kad:** 2026-08-14, grana `m6-plan-presence`, pri reviziji nove `plan_unavailable` grane.
+
+### Kako je izmjereno
+
+Bez ijednog mocka. Umetnut je privremeni M6 zadatak čiji **referentni** upit gađa
+nepostojeću tablicu, pa `EXPLAIN` nad njim pada stvarno. Student je predao upit koji točno
+reproducira `expected_result` — dakle **objektivno ispravno rješenje**. Lanac je pravi
+(`POST /attempt` → evaluator → knowledge → gamification → hint).
+
+| pitanje | zatečeno |
+|---|---|
+| `attempts` redak s `is_correct=false` | 🔴 **DA** (`error_type=plan_unavailable`) |
+| BKT ažuriran netočnim ishodom | 🔴 **DA** (`skill_mastery_history` vezan uz taj attempt) |
+| potrošen hint kredit | 🔴 **DA** (`hint_requests.source='llm'` ∈ `CONSUMING_SOURCES`) |
+| XP | 0 |
+| streak | nije izgubljen — pokušaj se broji kao aktivan dan |
+| misconception | ✅ nije zabilježen (`plan_unavailable` je u `_MECHANICAL_ERRORS`) |
+
+### 🔴 Šteta po BKT-u je EGZAKTNA, ne procjena
+
+Zabilježeni `p_l = 0.10782608695652175` do zadnje znamenke odgovara
+`update(is_correct=False)` iz priora 0.05. Točan ishod dao bi 0.3782.
+
+| polazni p_l | netočan | točan | šteta |
+|---|---|---|---|
+| 0.05 (novak) | 0.1078 | 0.3782 | −0.27 |
+| 0.50 | 0.2286 | 0.9053 | **−0.68** |
+| 0.80 | 0.4600 | 0.9743 | −0.51 |
+| 0.95 | 0.7840 | 0.9945 | −0.21 |
+
+**Najgore je pogođen student usred učenja, ne novak** — i kod prethodnog znanja `p_l`
+stvarno **pada** (0.80 → 0.46), ne samo raste sporije.
+
+### Zašto je to razred #63, a ne kozmetika
+
+Ishod sustava („nisam uspio dohvatiti plan") i ishod zapisan u bazi („student je
+pogriješio") se **razilaze**, i to trajno: `attempts` je istraživački podatak,
+`skill_mastery_history` je **rekurzivan lanac** (#18) pa se takav redak ne može obrisati iz
+sredine bez invalidacije svega kasnijeg. Eval traje danima, a `plan_unavailable` je po
+konstrukciji **prolazan** — nastaje iz timeouta, dakle nasumično i nereproducibilno.
+
+🔴 **Nalaz je NASLIJEĐEN, ne uveden ovom granom.** Isti je slučaj prije išao pod
+`unsupported_eval` i imao istu manu; premještanjem pod vlastito ime postao je **vidljiv**.
+
+### Popravak i odbijena alternativa
+
+**Izvedeno:** `plan_unavailable` **ne stvara pokušaj**. Evaluator izlazi PRIJE
+`persist_attempt` i odbija tok — `refuse(model-updated)`; Coordinator to prevodi u
+`flow["error"]`, RESPOND vraća error-dict, ruta mapira u **503**, frontend u poruku koja
+izrijekom kaže *„Ovo nije greška u tvom upitu"*. Smetnja se broji u `agent_messages_log` uz
+`correlation_id` (izmjereno: 92 zapisa `refuse` evaluator→coordinator, payload
+`{"error": "plan_unavailable", …}`), **ne** u `attempts`.
+
+🔴 **Odbijena opcija „perzistiraj attempt, preskoči BKT i kredit".** Tražila bi da
+`attempts` nosi **dvije uloge** — zapis o studentovom radu i zapis o smetnji sustava. Isti
+je obrazac na ovoj grani već bio uzrok kvara (`_BLOCK_VALUE`: jedna maska za dva različita
+razloga) i razlog uklanjanja `entry_task_id`. **Podatak o smetnji ide u log, ne u
+instrument.**
+
+### Zašto `refuse`, a ne novo polje u payloadu
+
+Prijenos ide **performativom**, ne sadržajem. `if payload.get("error")` bilo bi „novo
+ponašanje bez novog imena" — obrazac koji je u ovoj grani već proizveo tri nalaza (wrapup
+§G2) — i sutrašnji legitiman `inform(model-updated)` s poljem `error` tiho bi prekidao tok.
+Ontologija je **tema** razgovora, performativ je **govorni čin**: `refuse(model-updated)` =
+„odbijam isporučiti model-updated za ovaj tok". Presedan: `_refuse_busy` (#62).
+
+🔴 **Router NIJE diran.** Izmjereno da `_flow_template` ne ograničava performativ, pa
+`refuse` ulazi u svoj tok, a tuđi `cid` i dalje ne ulazi. Proširenje predloška na
+`attempt-result` je **odbijeno** jer ne bi bilo aditivno u učinku: usput bi promijenilo i
+`task_not_found`, čije zatečeno ponašanje tada još nije bilo izmjereno (v. #70).
+
+### Kako je granica zaključana
+
+`tests/test_plan_unavailable_flow.py` (5 tvrdnji) — sve dokazane namjernim kvarom:
+
+| tvrdnja | namjerni kvar | ishod kvara |
+|---|---|---|
+| 503 i nula redaka | (zatečeno stanje prije popravka) | `[200 ×10]` |
+| utor se oslobađa na svakoj smetnji | preskoči `_release_flow` na novom putu | **10 utora procurilo od 10 smetnji** |
+| K=8 istovremeno, mješavina, bez unakrsnih odgovora | — | — |
+| `inform` s poljem `error` NE prekida tok | granaj na sadržaj payloada | 503 na uredno perzistiranu predaju |
+| tuđi `cid` ne ulazi u tok | ograniči predložak performativom | `refuse` ne ulazi ni u svoj tok |
+
+🔴 Curenje utora se **ne vidi u jednokratnom testu**: `MAX_CONCURRENT_FLOWS` je 64, pa bi se
+procurjeli utor očitovao tek nakon 64 smetnje — usred otvorenog evala, kao „sve predaje
+odjednom vraćaju 503".
+
+**Zatečeni `test_coordinator_concurrency.py` ostao je zelen bez ijedne izmjene** (6 passed)
+— to je bio uvjet da se tvrdnja „mehanika tokova nije dirana" uopće smije izgovoriti.
+
+---
+
+## #70 🟡 `task_not_found` istekne umjesto da odgovori — i pouka o dokazivanju
+
+**Status:** 🟡 otvoren, **ne popravlja se u ovoj grani.**
+
+### Izmjereno (2026-08-14, nepostojeći `task_id` kroz pun lanac)
+
+| mjera | vrijednost |
+|---|---|
+| HTTP status | **504** |
+| `detail` | `evaluation_timeout` |
+| trajanje | **9.09 s** (= `update_timeout` 7 s + `SETTLE_WINDOW_S` 2 s) |
+| oslobađanje utora | ✅ uredno (3 uzastopna zahtjeva, `flow_count` 0 → 0) |
+
+### Mehanizam
+
+`_send_task_not_found` šalje INFORM ontologije **`attempt-result`** na pošiljatelja
+(Coordinator), ali `_flow_template` matcha **samo** `model-updated` i `recommend-next` za
+dani `cid`. Poruka do toka **nikad ne stigne**; UPDATE istekne, `_settle` ne nađe redak, i
+put završi kao `evaluation_timeout`. Student dobije **točan status iz krivog razloga**, i to
+nakon punog prozora čekanja.
+
+🔴 Nakon #69 ovo je **JEDINI preostali put** koji ne poštuje pravilo „smetnja → brz,
+imenovan odgovor". Zapisan je zato da se **ne citira kao presedan**.
+
+### 🔴 POUKA — kod koji podnosi stanje nije dokaz da to stanje nastaje
+
+Prva verzija ovog nalaza tvrdila je da put daje **degradiran 200 s `verdict="unknown"`**.
+Tvrdnja je izvedena iz `build_response_payload`, koji uredno podnosi `attempt_id=None` — ali
+**bez provjere da poruka dotle uopće dolazi**. Ne dolazi.
+
+**KOD KOJI PODNOSI STANJE NIJE DOKAZ DA TO STANJE NASTAJE.** Ista klasa kao povučeni dio
+#60 („trag u produkcijskim podacima"), i isti obrazac koji je u ovom projektu već tri puta
+proizveo netočan nalaz: čitanje jedne funkcije umjesto izvršavanja puta.
+
+Mehanizam je usput potvrđen **namjernim kvarom** na drugom mjestu: ograniči li se
+`_flow_template` performativom, i novi `refuse` put daje isti 504 nakon istog prozora —
+dakle „poruka koja ne matcha predložak" doista završava kao `evaluation_timeout`.

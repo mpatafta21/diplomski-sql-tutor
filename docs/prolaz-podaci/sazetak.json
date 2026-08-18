@@ -1,0 +1,20 @@
+{
+ "korisnik": "Maks",
+ "predaja_ukupno": 130,
+ "zadataka_rijeseno": 88,
+ "savjeta_zatrazeno": 6,
+ "xp_zavrsni": 4653,
+ "level_zavrsni": 47,
+ "vremena_ms": {
+  "N": 129,
+  "odbacenih_negativnih": 1,
+  "min": 184,
+  "p50": 227,
+  "p95": 283.5,
+  "max": 5331,
+  "napomena": "N=1 student, sekvencijalno, bez konkurencije; mjereno u pregledniku od klika na Submit do odgovora."
+ },
+ "bkt_tocaka": 339,
+ "xp_zapisa": 101,
+ "bedzeva": 4
+}

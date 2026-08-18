@@ -1,0 +1,79 @@
+redni,vrijeme,zadatak,naslov,koncept,tier,tezina,error_type,izvor,neuspjeh,kredit_prije,kredit_poslije,upit_studenta,tocno_rjesenje,tekst_savjeta,ocjena,obrazlozenje_ocjene
+1,2026-08-18T16:09:35.970Z,30,Broj proizvoda po kategoriji,group_by,medium,1,execution_error,fallback,,5,4,"SELECT category_id, COUNT(*) AS broj_proizvoda FROM products ORDER BY category_id ASC","SELECT category_id, COUNT(*) AS broj_proizvoda FROM products GROUP BY category_id ORDER BY category_id ASC",PostgreSQL traži da svaki stupac iz ispisa koji nije agregat bude naveden i u GROUP BY. Poruka koja spominje tu klauzulu znači da jedan stupac ondje nedostaje.,TOCAN I KORISTAN,"Imenuje tocno klauzulu koja nedostaje (GROUP BY). Ne tvrdi nista o sadrzaju studentova upita, pa nema sto ni promasiti."
+2,2026-08-18T17:46:35.990Z,35,Kategorije s više od 6 proizvoda — HAVING,having_filter,medium,2,row_mismatch,llm,,4,3,"SELECT category_id, COUNT(*) AS broj_proizvoda FROM products GROUP BY category_id HAVING COUNT(*) > 6 ORDER BY broj_proizvoda ASC, category_id ASC","SELECT category_id, COUNT(*) AS broj_proizvoda FROM products GROUP BY category_id HAVING COUNT(*) > 6 ORDER BY broj_proizvoda DESC, category_id ASC","Provjeri jesi li koristio HAVING klauzulu da filtriraš samo grupe gdje je brojač proizvoda veći od 6 — taj uvjet ne ide u WHERE, već nakon GROUP BY. Također provjeri koristi li tvoj upit GROUP BY category_id kako bi SQL znao kako grupiraj podatke prije brojanja.",NETOCAN,Student je pogrijesio SMJER SORTIRANJA (ASC umjesto DESC). Savjet objasnjava HAVING vs WHERE i GROUP BY — oboje je student vec napisao ispravno. Diagnoza opisuje gresku koje nema.
+3,2026-08-18T17:50:16.766Z,3784,Selektivan filtar mijenja strategiju spoja u Nested Loop,explain_plan,hard,3,plan_mismatch,llm,,3,2,"SELECT o.id, o.status, oi.product_id, oi.quantity FROM orders o JOIN order_items oi ON oi.order_id = o.id WHERE CAST(o.customer_id AS TEXT) = '42' ORDER BY o.id, oi.product_id","SELECT o.id, o.status, oi.product_id, oi.quantity
+FROM orders o
+JOIN order_items oi ON oi.order_id = o.id
+WHERE o.customer_id = 42
+ORDER BY o.id, oi.product_id","Provjeri EXPLAIN plan za svoj upit: vidišь li Hash Join ili Nested Loop? Ako vidiš Hash Join, to znači da baza ne koristi indeks na customer_id — provjeri piše li se customer_id direktno kao broj ili ga negdje pretvaraš (npr. CAST, operacija). Indeks se aktivira samo ako ga filtar koristi u originalnom obliku.",TOCAN I KORISTAN,Imenuje tocan anti-obrazac (CAST nad stupcem ponistava indeks) i tocnu posljedicu u planu (Hash Join umjesto Nested Loop).
+4,2026-08-18T18:13:00.170Z,55,Prihod i prosječna ocjena po dobavljaču — 4-stolični JOIN,multi_table_join,hard,5,wrong_columns,llm,,2,1,"SELECT s.name AS supplier_name,
+       COUNT(DISTINCT p.id),
+       SUM(oi.quantity) AS total_quantity,
+       ROUND(AVG(r.rating), 2) AS avg_review_rating
+FROM suppliers s
+INNER JOIN products p ON s.id = p.supplier_id
+INNER JOIN order_items oi ON p.id = oi.product_id
+LEFT JOIN reviews r ON p.id = r.product_id
+GROUP BY s.id, s.name
+ORDER BY total_quantity DESC
+LIMIT 5","SELECT s.name AS supplier_name,
+       COUNT(DISTINCT p.id) AS distinct_products_sold,
+       SUM(oi.quantity) AS total_quantity,
+       ROUND(AVG(r.rating), 2) AS avg_review_rating
+FROM suppliers s
+INNER JOIN products p ON s.id = p.supplier_id
+INNER JOIN order_items oi ON p.id = oi.product_id
+LEFT JOIN reviews r ON p.id = r.product_id
+GROUP BY s.id, s.name
+ORDER BY total_quantity DESC
+LIMIT 5","Provjeri redoslijed stupaca u SELECT klauzuli — trebali bi biti supplier_name, distinct_products_sold, total_quantity i avg_review_rating, ali čini se da su drugačiji u tvojoj listi. Provjeri i redoslijed kako su navedeni u upitu i imena koja si dao aliasima za agregacijske funkcije.",TOCAN I KORISTAN,"Imenuje stupac koji nedostaje (`distinct_products_sold`) i upucuje na aliase agregata. Uzrok pripisuje i 'redoslijedu', sto nije tocno, ali cilj je pogodjen."
+5,2026-08-18T18:15:27.422Z,62,Kupci kod kojih svaka narudžba premašuje prosjek ostalih njihovih narudžbi,correlated_subquery,hard,5,row_mismatch,llm,,1,0,"SELECT
+    c.id AS customer_id,
+    c.first_name,
+    c.last_name,
+    COUNT(o.id) AS outlier_order_count
+FROM customers c
+JOIN orders o ON o.customer_id = c.id
+WHERE (
+    SELECT COUNT(*)
+    FROM orders o_all
+    WHERE o_all.customer_id = c.id
+) >= 2
+AND o.total_amount > (
+    SELECT AVG(o2.total_amount)
+    FROM orders o2
+    WHERE o2.customer_id = c.id
+      AND o2.id <> o.id
+)
+GROUP BY c.id, c.first_name, c.last_name
+ORDER BY c.id
+LIMIT 7","SELECT
+    c.id AS customer_id,
+    c.first_name,
+    c.last_name,
+    COUNT(o.id) AS outlier_order_count
+FROM customers c
+JOIN orders o ON o.customer_id = c.id
+WHERE (
+    SELECT COUNT(*)
+    FROM orders o_all
+    WHERE o_all.customer_id = c.id
+) >= 2
+AND o.total_amount > (
+    SELECT AVG(o2.total_amount)
+    FROM orders o2
+    WHERE o2.customer_id = c.id
+      AND o2.id <> o.id
+)
+GROUP BY c.id, c.first_name, c.last_name
+ORDER BY c.id
+LIMIT 5","Tvoj upit vraća više redaka nego što bi trebalo — provjeri je li u koreliranome podupitu ispravno filtriran skup narudžbi protiv kojega se računa prosjek. Točnije, pri računanju prosječnog total_amount ostalih narudžbi, trebaš li stvarno isključiti samo jednu narudžbu (onu iz vanjske klauzule) ili možda nedostaje dodatni uvjet koji osigurava da uspoređuješ samo kupca sa samim sobom? Provjeri WHERE klauzulu u podupitu — je li referencirano customer_id iz vanjske tablice?",DJELOMICNO TOCAN,"Prva recenica je tocna i utemeljena u detalju ('vraca vise redaka nego sto bi trebalo'). Ostatak nagadja kvar u koreliranome podupitu, koji je student napisao ispravno — greska je bila LIMIT 7 umjesto 5."
+6,2026-08-18T18:20:59.962Z,4,COUNT(*) vs COUNT(employee_id) — NULL zamka u agregaciji narudžbi,null_handling,hard,4,wrong_columns,,hint_rate_limited,0,0,"SELECT
+    COUNT(*) AS totalorders,
+    COUNT(employee_id) AS assigned_orders,
+    COUNT(*) - COUNT(employee_id) AS self_service_orders
+FROM orders","SELECT
+    COUNT(*) AS total_orders,
+    COUNT(employee_id) AS assigned_orders,
+    COUNT(*) - COUNT(employee_id) AS self_service_orders
+FROM orders",Potrošio si sve savjete za sada. Sljedeći savjet za 1 h 49 min.,ISPRAVNO ODBIJEN,"Nije savjet nego odbijanje: kredit je potrosen. Poruka je tocna, nosi vrijeme dopune i NE trosi kredit (izmjereno 0 -> 0)."

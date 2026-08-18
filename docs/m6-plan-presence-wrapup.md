@@ -441,3 +441,77 @@ kolona = migracija sheme, ista klasa koju je §C.1 odbio). **Čeka odluku korisn
 opisi 3784/3785 dopunjuju dogovorenom formulacijom, ili gate pokriva samo imena indeksa a
 `explain_plan` zadaci izlaze iz njegova dosega — uz tvrdo pravilo protiv šutnje to znači da
 bi 3784 (koji ne imenuje nijedan indeks) morao pasti dok mu se opis ne dopuni.
+
+## I.4 🔴 Spojna grana je SLABIJA od indeksne — i to je svojstvo koncepta, ne rupa
+
+**Odluka 2026-08-18: pravilo po konceptu. Nijedan opis se ne uređuje** — opisi su prošli
+`sql-task-validator` i student ih vidi, pa se gate prilagođava zadacima, ne obrnuto.
+
+| koncept | što gate tvrdi | jačina |
+|---|---|---|
+| `index_usage` | indeks imenovan u `description` **mora biti** u `index_names` referentnog plana | jaka — imenuje **koji** |
+| `explain_plan` | `join_methods` referentnog plana **ne smije biti prazan** | 🔴 slaba — tvrdi **da postoji**, ne **koja** |
+
+Spojna grana je §C.4 („potpis referentnog upita nije prazan") primijenjen na polje koje taj
+koncept poučava. **Nema parsiranja proze.**
+
+### Zašto jača tvrdnja nije izvediva iz opisa
+
+Pedagogija `explain_plan`-a je **kontrastivna po konstrukciji**: da bi poučavao razliku,
+opis **mora imenovati oba plana** — onaj koji se traži i onaj pred kojim upozorava. Zato
+opis nikad ne može biti izvor jednoznačne tvrdnje o **referentnom** planu.
+
+Dokaz, doslovno iz `description`, uz referentni plan koji u oba slučaja ima **samo
+`Nested Loop`**:
+
+**3784** (`explain_plan_d3_manual_c6ed9b8c`) — `Hash Join` 2×, `Nested Loop` 1×:
+
+> *„Kad spajaš orders i order_items BEZ filtra, baza mora pročitati obje tablice u cijelosti
+> i spaja ih preko **Hash Joina**. Selektivan filtar na customer_id mijenja račun: baza
+> indeksom nađe nekoliko narudžbi tog kupca, pa za svaku indeksom potraži stavke —
+> **Nested Loop**. Ako filtar napišeš tako da poništi indeks (npr. CAST(o.customer_id AS
+> TEXT) = '42'), rezultat ostaje isti, ali se plan vraća na **Hash Join** uz puno čitanje
+> obje tablice."*
+
+**3785** (`explain_plan_d4_manual_1e09ba01`) — `Hash Join` 1×, `Nested Loop` 1×:
+
+> *„…indeks idx_orders_customer se ne može upotrijebiti, pa baza čita cijelu tablicu
+> narudžbi i **prelazi s Nested Loopa na Hash Join**."*
+
+Značenje nosi **smjer rečenice** (*„vraća se na"*, *„prelazi s … na"*), ne prisutnost niza.
+Pravilo „sve imenovano mora biti u planu" lažno bi oborilo **oba aktivna** `explain_plan`
+zadatka; pravilo „bilo što imenovano" ne bi tvrdilo ništa. Razlikovanje traži razumijevanje
+hrvatske rečenice — a *regex nad hrvatskim tekstom koji može promašiti gori je od gatea koji
+ne postoji*.
+
+**Što slabija grana ipak hvata:** zadatak `explain_plan` koji uopće **ne spaja** (79, 80 su
+jednotablični) ili čiji je spoj nestao iz plana. Ne hvata zamjenu jedne strategije drugom.
+
+🔴 **Diskriminacija za 3784/3785 ostaje pokrivena gateom B pri autorstvu**, u
+`manual_tasks_m6.py`, gdje su oba i nastala — ondje je katalog u kodu ispravan jer skripta
+**jest** katalog. Nepokriven ostaje jedino slučaj „zadatak je prestao razlikovati nakon
+autorstva" za `explain_plan`; za `index_usage` taj slučaj hvata upravo ovaj gate (zadatak
+83, dokazano).
+
+### Tvrdo pravilo protiv šutnje
+
+`PLAN_CHECKED` zadatak koji ne potpada ni pod jedno pravilo **pada s vlastitim `source_id`**
+— uključujući nepoznat koncept u `PLAN_CHECKED_CONCEPTS`. Tiho preskakanje je točno mana
+zbog koje varijanta B nije prenesena u sweep (ERRATA #78), pa je ovaj gate ne smije
+ponoviti.
+
+### Cijena i dokazi
+
+Dodatak na preflight: **0,081 s** (medijan od 3; zatečeni gate stabilnosti 0,183 s).
+Imena indeksa dolaze iz `pg_indexes` preko `current_schema()`, ne iz popisa u kodu.
+Doslovan niz je dovoljan — izmjereno da **nijedno od 21 imena indeksa nije podniz drugog**,
+pa križni pogodak nije moguć, i da se `in` i `\b`-regex slažu nad svih 9 opisa.
+
+Četiri namjerna kvara, svaki viđen kako pada pa vraćen:
+
+| kvar | razina | ishod |
+|---|---|---|
+| **a** 83 aktivan | sweep, `rc=1` | *„opis obećava ['idx_orders_customer'], a plan koristi ['orders_pkey']"* |
+| **b** 79/80 aktivan | funkcija | *„join_methods referentnog plana je PRAZAN"* — na razini sweepa ih ranije presretne **gate stabilnosti**, pa je grana dokazana unit testom |
+| **c** opis 3782 bez imena indeksa | sweep, `rc=1` | *„opis ne imenuje nijedan indeks"* |
+| **d** `column_alias` ubačen u `PLAN_CHECKED_CONCEPTS` | funkcija | *„koncept … nema pravilo — ne zna što tvrditi"* |

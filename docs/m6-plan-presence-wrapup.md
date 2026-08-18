@@ -10,7 +10,7 @@
 | `06a6f5f` | potpis plana nosi imena indeksa — `uses_index` sam po sebi laže |
 | `56067bf` | M6 aktiviran s ispravnim zadacima; `column_alias` dobio zadatke |
 | `8807288` | nalazi code reviewa — taksonomija razdvojena, poruke ispravljene (§G2) |
-| *(ovaj krug)* | `plan_unavailable` prestaje biti ishod pokušaja — 503 (§G3) |
+| `ed0a34d` | `plan_unavailable` prestaje biti ishod pokušaja — 503 (§G3) |
 
 **Nula promjena sheme. Nula novih ovisnosti. Nula izmjena na M1–M5 zadacima.**
 

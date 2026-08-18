@@ -373,3 +373,71 @@ Tvrdnja da `task_not_found` daje degradiran 200 bila je **netočna**, izvedena i
   postoji. Povećanje bi prepisalo `expected_result` svih aktivnih zadataka — ne radi se.
 - **Zadaci 79/80/82/83 ostaju u katalogu deaktivirani**, namjerno.
 - Nedirnuto: `join_condition`, `_BLOCK_VALUE`, svi zadaci M1–M5, frontend.
+
+# I — Gate diskriminacije: zašto NE u sweep, i dokle je stigla zamjena
+
+**Odluka 2026-08-18: gate diskriminacije ostaje pri autorstvu, u `manual_tasks_m6.py`.**
+Ondje je katalog u kodu ispravan jer **skripta jest katalog**.
+
+## I.1 Zašto B (prijenos u sweep) nije izabran
+
+Uvoz `TASKS` iz autorske skripte vezao bi `sweep_task_integrity` — dakle i `preflight` —
+uz **7 hardkodiranih SQL stringova**, dok `is_active`, `expected_query` i sam popis
+zadataka žive **u bazi**. To je konstanta koju je `m6-transverzalni-korak-0.md` §C.1 već
+odbio (*„sadržaj kataloga u evaluacijskoj jezgri; može zastarjeti tiho, ista klasa kao
+docstring iz ERRATE #45"*) — samo **uvezena umjesto prepisana**, što ne mijenja hazard.
+
+Uz to bi rupa ostala: gate se grana na `anti is None` i tada **tiho vraća**, pa bi
+**zadatak 81** (`index_usage_d3_41c8280e`, došao kroz `import_dataset`, bez anti-patterna)
+prošao klasificiran kao „nije M6". Od 5 aktivnih `PLAN_CHECKED` zadataka anti-pattern imaju
+**4**. V. ERRATA #78.
+
+🔴 **Cijena nije bila razlog.** Izmjereno: 2 × `EXPLAIN` + 1 × `execute` nad svih 5 zadataka
+= **0,18 s** (pojedinačni `EXPLAIN` 10–20 ms), uz zatečeni gate stabilnosti od 0,17 s.
+
+## I.2 Zašto O (svojstvo iz `description`)
+
+§C.2 je već ustanovio da **zadatak nosi svoju tvrdnju** — ondje kroz `expected_query`.
+O je isto načelo primijenjeno na `description`: svojstvo plana koje zadatak izgovara mora
+se pojaviti u potpisu referentnog plana. Nula kataloga u kodu, imena indeksa se provjeravaju
+prema `pg_indexes`, i pokriva **i zadatak 81**.
+
+Izmjereno nad imenima indeksa (0,06 s nad svih 9 M6 zadataka):
+
+| zadatak | aktivan | opis imenuje | plan daje | ishod |
+|---|---|---|---|---|
+| 81 | ✅ | `idx_orders_customer` | isto | ✅ |
+| **83** | ne | `idx_orders_customer` | **`orders_pkey`** | 🔴 **PAO — traženi kvar** |
+| 3782 | ✅ | `idx_order_items_order` | isto | ✅ |
+| 3783 | ✅ | `idx_reviews_product` | isto | ✅ |
+| 3785 | ✅ | `idx_orders_customer` | + `idx_order_items_order` | ✅ |
+
+## I.3 🔴 ZAUSTAVLJENO: generalizacija na metode spoja
+
+Za `explain_plan` gate bi trebao čitati metodu spoja iz proze. **Ne može, bez parsiranja
+osjetljivijeg od traženja doslovnog niza** — a to je granica koju je korisnik postavio
+izrijekom (*„regex nad hrvatskim tekstom koji može promašiti gori je od gatea koji ne
+postoji"*).
+
+Razlog: oba aktivna `explain_plan` zadatka imenuju **obje** metode — onu koju uče i onu
+pred kojom upozoravaju — u istom odlomku, a referentni plan ima **samo `Nested Loop`**:
+
+| zadatak | opis imenuje | broj spominjanja | referentni plan |
+|---|---|---|---|
+| 3784 | `Hash Join`, `Nested Loop` | Hash Join **2×**, Nested Loop 1× | `Nested Loop` |
+| 3785 | `Hash Join`, `Nested Loop` | Hash Join 1×, Nested Loop 1× | `Nested Loop` |
+
+Pravilo „sve imenovano mora biti u planu" tada **lažno obara oba**; pravilo „bilo što
+imenovano" ne tvrdi ništa. Razlikovanje traži razumijevanje hrvatske rečenice — 3784:
+*„spaja ih preko **Hash Joina**"* (loš slučaj) … *„— **Nested Loop**"* (dobar) … *„plan se
+vraća na **Hash Join**"* (anti-pattern); 3785: *„prelazi s **Nested Loopa** na **Hash
+Join**"*. Smjer prijelaza nosi značenje, ne prisutnost niza.
+
+**3785 imenuje OBOJE** (indeks i metode spoja), pa bi gate morao tvrditi oboje — i pao bi
+na `Hash Join` koji je u opisu upravo ono što se ne smije dogoditi.
+
+`tasks` nema polje koje bi tvrdnju nosilo strojno čitljivo (nema `pedagogical_notes`;
+kolona = migracija sheme, ista klasa koju je §C.1 odbio). **Čeka odluku korisnika:** ili se
+opisi 3784/3785 dopunjuju dogovorenom formulacijom, ili gate pokriva samo imena indeksa a
+`explain_plan` zadaci izlaze iz njegova dosega — uz tvrdo pravilo protiv šutnje to znači da
+bi 3784 (koji ne imenuje nijedan indeks) morao pasti dok mu se opis ne dopuni.

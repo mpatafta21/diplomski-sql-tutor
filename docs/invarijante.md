@@ -231,6 +231,35 @@ procesa (Redis ili sl.). To je druga arhitektura, ne zastavica.
 
 ---
 
+## <a id="dosežnost-se-mjeri"></a>Dosežnost grane je mjerenje, ne čitanje — u OBA smjera
+
+**Pravilo.** Tvrdnja da neko stanje nastaje (ili ne nastaje) traži **izvršenje puta**, ne
+čitanje koda koji ga opisuje. Vrijedi simetrično:
+
+* **Kod koji PODNOSI stanje nije dokaz da to stanje NASTAJE.**
+* **Kod koji BI PROCURIO nije dokaz da CURI.**
+
+**Hazard.** Obje pogreške su se dogodile na istoj grani, u suprotnim smjerovima, i obje su
+proizvele nalaz koji je trebalo povući:
+
+* **#70** — tvrdnja da `task_not_found` daje degradiran `200`, izvedena iz
+  `build_response_payload` koji podnosi `attempt_id=None`, **bez provjere da poruka dotle
+  uopće dolazi**. Mjerenje: **504 nakon 9,09 s**, jer predložak toka tu poruku nikad ne
+  uhvati.
+* **#79** — tvrdnja da `"Actual execution failed: {actual.error}"` nosi studentov upit
+  modelu, izvedena iz postojanja tog niza u `compare()`. Mjerenje: **0/12** namjerno
+  pokvarenih upita pogodilo je tu granu (`evaluate()` izlazi na `if not result.success`
+  **prije** poziva `compare()`), a payload koji je stvarno otišao nosi samo `sqlstate`.
+
+**Kako se mjeri.** Proizvedi stanje kroz **pun lanac** i pogledaj artefakt koji stanje
+ostavlja — redak u bazi, HTTP status, doslovan payload. Ako se stanje ne da proizvesti,
+to je nalaz („grana je nedosežna"), a ne izostanak dokaza.
+
+**Presedan.** Obje tvrdnje su prošle recenziju kao vjerodostojne prije mjerenja; obje su
+pale na prvom izvršenju.
+
+---
+
 ## Kako dodati invarijantu
 
 1. Opisni naslov + **novo stabilno sidro** (`<a id="...">`).

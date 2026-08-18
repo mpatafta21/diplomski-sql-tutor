@@ -589,3 +589,83 @@ Uz to test rute sada tvrdi `len(llm_down) == 0` za `timeout` — dakle LLM se za
 
 Gateovi: `pytest` **930 passed, 1 skipped** · `make preflight` zelen · `npm run e2e` 4 passed
 · `npm run build` ok · baza na baselineu (9 brojki), `hints` 32 → 40 po dizajnu.
+
+# K — Zatvaranje grane: stanje na tagu `pred-deployment-zeleno`
+
+**Datum:** 2026-08-18 · **15 commita** (`1e48bbb` … `970abf6`) · **ERRATA #66–#79**
+
+## K.1 Gateovi — sva četiri u ISTOM prolazu
+
+| gate | ishod |
+|---|---|
+| `pytest` | **930 passed, 1 skipped, 0 failed** |
+| `make preflight` | ✅ zelen (88 aktivnih zadataka, 0 nestabilnih planova, smoke kroz pun lanac) |
+| `npm run e2e` | ✅ **4 passed**, teardown čist |
+| `npm run build` | ✅ `built in 3.36s` |
+
+`make backup` valjan i **restore dokazan neovisno**: `hints` 40, aktivnih zadataka 88, i
+**md5 svih tekstova hintova identičan** izvoru (`ef97b1ba…`). Brojke prije i poslije
+prolaza gateova **identične** — gateovi ne ostavljaju trag.
+
+🔴 **Baza NIJE na kanonskom baselineu, i to nije kvar.** Zatečeno stanje:
+`attempts 69` (bilo 67), `skill_mastery_history 149`, `xp_log 36`, `streaks 11`,
+`misconceptions 14`, `hint_requests 3` (bilo 5), `hints 40` (bilo 32, po dizajnu).
+Uzrok je **stvarno korištenje aplikacije** 2026-08-18 u 14:27–14:28 UTC s računa `admin`
+(dvije predaje na zadatku 20 i jedan zatražen savjet), a pad `hint_requests` s 5 na 3
+objašnjava `/admin/hint-credit/reset`, koji **po dizajnu briše pozivateljeve retke** koji
+troše kredit. Ništa od toga nije ostatak sonde. Kanonski baseline se uspostavlja
+`prepare_eval_baseline --confirm` **prije evaluacijske sesije**, po `eval-runbook.md`.
+
+## K.2 Ispravak inventara
+
+🔴 **Aplikacija nije kontejnerizirana.** Raniji zapis „4 kontejnera" bio je netočan:
+`docker-compose.yml` definira **tri** servisa (`postgres-main`, `postgres-sandbox`,
+`prosody`), a `uvicorn` se pokreće **na hostu** (`Makefile:167-168`), u WSL distru.
+Posljedica koja je i izmjerena: kad je WSL2 utility VM nestao, s njim je otišla i
+aplikacija i obje baze i Prosody — jer dijele VM, ne Docker.
+
+## K.3 Otvoreno i nepopravljeno — presuda po stavci
+
+| # | što je | blokira slanje linka? |
+|---|---|---|
+| **#53** | prihvaćena limitacija iz ranije faze | **NE** |
+| **#64** | hint za `row_mismatch` je nagađanje; isporučena samo prompt-razina | **NE** — kvaliteta savjeta, ne ispravnost |
+| **#68** | `column_alias` ima zadatke koje preporučivač ne nudi (ZPD escape) | **NE** — zadaci su dosežni klikom na koncept |
+| **#70** | `task_not_found` → 504 nakon 9,09 s umjesto imenovanog odgovora | **NE** — traži nepostojeći `task_id`, sudionik ga ne može pogoditi |
+| **#72** | halucinacija iz nedoodređene klasifikacije | ✅ **RIJEŠEN** (§J) |
+| **#73** | `OrchestrationFSM` se uklanja dvaput; progutan `ValueError` po predaji | **NE** — dokazano da ne curi (`behaviours` ravan 1→1) |
+| **#77** | kurikularni redoslijed nije pravilo nego poredak injekcije; spojevi prije `where_filter` | **NE** — obranjivo kao ZPD (isti razred kao #44, gdje je odluka već bila „ostaviti") |
+| **#78** | gate diskriminacije pokriva samo skriptom autorirane zadatke (81 izvan) | **NE** — zamijenjen gateom O u sweepu |
+| **#79** | interni engleski niz procurio u tekst savjeta | **NE** — dokazano da **ne** nosi studentov upit; kozmetika |
+
+## K.4 🔴 Blokatori za DEPLOYMENT (ne za granu)
+
+Nijedan nije stvar koda ove grane; svi su stvar isporuke:
+
+1. **systemd unit za `uvicorn`** — aplikacija nije kontejnerizirana (K.2) i **nema nikakav
+   restart mehanizam**. Izmjereno: pad WSL VM-a ju je odnio, a `restart: unless-stopped`
+   u composeu je ne pokriva. Proces pri nedostupnom Prosodyju **izađe** nakon ~85 s
+   (`DisconnectedException`), pa je `Restart=always` dovoljan — ali mora postojati.
+2. **Logiranje (#75)** — pod uvicornom iz Makefilea u log ne dolazi **nijedan** knjižnični
+   zapis (izmjereno: 0 redaka sa `slixmpp`/`spade`). Nenadzirana sesija ne bi ostavila
+   trag o incidentu.
+3. **Health endpoint** — ne postoji nijedan (`/health`, `/healthz`); vanjski supervizor
+   nema po čemu razlikovati živ backend od mrtvog osim TCP porta.
+4. **Compose otpornost** — `restart: unless-stopped` + `healthcheck` za sva tri servisa;
+   pripremljeni diff stoji u `scratchpad/compose-otpornost.diff`, **nije primijenjen**.
+5. **HTTPS** — sada čisti HTTP.
+6. **CORS na pravu domenu** — sada `localhost` origini.
+7. **Produkcijski `JWT_SECRET`** — sada dev vrijednost iz `.env`.
+8. **Perzistentni volumeni** — potvrditi da `down -v` nije u putanji deploymenta.
+9. **gzip za Monaco** — build javlja chunk > 500 kB.
+10. **`--workers 1`** — invarijanta, mora biti eksplicitna u unitu
+    (v. `invarijante.md#jedan-uvicorn-radnik`).
+
+Uz to ostaju **#46/#61** (brisanje pojedinog sudionika / obećanje na Profilu), koji su
+blokatori po ranijoj odluci i nisu dirani u ovoj grani.
+
+## K.5 Nova invarijanta
+
+`invarijante.md#dosežnost-se-mjeri` — *dosežnost grane je mjerenje, ne čitanje, u oba
+smjera*. Nastala iz dva vlastita povučena nalaza na ovoj grani: **#70** (kod koji podnosi
+stanje nije dokaz da stanje nastaje) i **#79** (kod koji bi procurio nije dokaz da curi).

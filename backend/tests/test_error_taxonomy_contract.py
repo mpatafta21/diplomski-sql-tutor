@@ -42,6 +42,8 @@ import pytest
 from agents.evaluation import evaluate  # noqa: F401 — osigurava da modul postoji
 from agents.hint_llm import _TIP_OPIS
 from agents.hint_payload import (
+    LLM_TYPES,
+    UNDERDETERMINED_TYPES,
     CLASSIFICATION_ONLY_TYPES,
     DETAIL_SAFE_TYPES,
     RECONSTRUCT_COLUMNS_TYPE,
@@ -201,4 +203,29 @@ def test_potrosac_5_hint_llm_ima_citljiv_opis(tip):
     """Bez opisa model dobiva goli kod i nagađa što znači."""
     assert tip in _TIP_OPIS, (
         f"`{tip}` nema opis u hint_llm._TIP_OPIS → modelu ide sirovi kod"
+    )
+
+
+@pytest.mark.parametrize("tip", ISHODI_POKUSAJA)
+def test_potrosac_6_izvor_hinta_je_odlucen(tip):
+    """PRAVILO (ERRATA #72): svaki tip je u TOČNO JEDNOJ grani — LLM ili fallback.
+
+    LLM se poziva samo kad klasifikacija i payload ZAJEDNO određuju dijagnozu.
+    Nula grana znači da tip tiho pada u default (LLM), dakle odluka o njemu nije
+    donesena nego zatečena — isti hazard koji `test_potrosac_4` hvata za payload.
+    """
+    grane = (tip in LLM_TYPES) + (tip in UNDERDETERMINED_TYPES)
+    assert grane == 1, (
+        f"`{tip}` je u {grane} grana izvora hinta (treba točno 1): "
+        f"LLM_TYPES={tip in LLM_TYPES}, UNDERDETERMINED_TYPES="
+        f"{tip in UNDERDETERMINED_TYPES}"
+    )
+
+
+def test_grane_izvora_particioniraju_taksonomiju():
+    """Unija je cjelina, presjek prazan — bez toga bi partikularni test lagao."""
+    assert not (LLM_TYPES & UNDERDETERMINED_TYPES), "tip u obje grane"
+    assert LLM_TYPES | UNDERDETERMINED_TYPES == set(ISHODI_POKUSAJA), (
+        "grane ne pokrivaju točno taksonomiju ishoda pokušaja; višak/manjak: "
+        f"{(LLM_TYPES | UNDERDETERMINED_TYPES) ^ set(ISHODI_POKUSAJA)}"
     )

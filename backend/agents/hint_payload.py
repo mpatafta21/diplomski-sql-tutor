@@ -60,6 +60,54 @@ CLASSIFICATION_ONLY_TYPES = frozenset(
 #: pokušaja — hint sloj ga ne može ni vidjeti (`unlocking_attempt` traži redak u
 #: `attempts`, a njega nema).
 
+#: 🔴 Tipovi kod kojih se LLM NE POZIVA — ide deterministički fallback.
+#:
+#: **PRAVILO:** LLM se poziva samo kad klasifikacija i payload ZAJEDNO određuju
+#: dijagnozu. Inače ide deterministički fallback; ako fallbacka nema, hint se ne
+#: nudi.
+#:
+#: Izvor pravila je preformulirana ERRATA #72, izmjerena nad 12 stvarnih hintova
+#: kroz pun lanac: *kad klasifikacija NE određuje dijagnozu jednoznačno, a
+#: `detail` se ne šalje, model rupu popuni iz `task_description` i to izgovori
+#: kao činjenicu o studentovom upitu.* `task_description` ide UVIJEK, pa „bez
+#: detalja" nikad nije značilo „bez konteksta" — samo bez konteksta o STUDENTU.
+#:
+#: Izmjereni primjerci (2/2 prolaza svaki):
+#:   * `execution_error` — student je napisao `SELECT nepostojeca_kolona FROM
+#:     orders`, payload je nosio samo `sqlstate=42703`, a model je odgovorio
+#:     „provjeri naziv stupca `status`" — stupac koji student nije ni spomenuo,
+#:     preuzet iz opisa zadatka.
+#:   * `timeout` — student je napisao `SELECT count(*) FROM orders a, orders b,
+#:     orders c, orders d`, a model je odgovorio „`DISTINCT` je primijenjen na
+#:     previše stupaca"; `DISTINCT`a u upitu nema.
+#:
+#: 🔴 `explain_submitted` NIJE član iako je i on `CLASSIFICATION_ONLY`. Izmjereno
+#: je siguran jer mu IME KLASE JEST dijagnoza: odgovor „dao si EXPLAIN plan
+#: umjesto samog upita" je potpun bez ijednog podatka o upitu. Opasnost dakle ne
+#: nosi izostanak detalja sam po sebi, nego NEDOODREĐENOST klasifikacije — i
+#: zato konstanta nosi to ime, a ne popis.
+UNDERDETERMINED_TYPES = frozenset({"execution_error", "timeout"})
+
+#: Druga polovica iste podjele: tipovi kod kojih se LLM POZIVA.
+#:
+#: 🔴 Postoji EKSPLICITNO, a ne kao „sve što nije `UNDERDETERMINED_TYPES`". Da je
+#: izveden komplementom, novi tip bi tiho upao u LLM granu i odluka o njemu ne bi
+#: bila donesena nego zatečena — obrazac koji `test_potrosac_4` već sprječava za
+#: politiku payloada. Ugovorni test tvrdi da ova dva skupa PARTICIONIRAJU
+#: taksonomiju ishoda pokušaja: unija je cjelina, presjek je prazan.
+LLM_TYPES = frozenset(
+    {
+        "syntax_error",
+        "explain_submitted",
+        "empty_result",
+        "wrong_columns",
+        "row_mismatch",
+        "plan_mismatch",
+        # Naslijeđen: više se ne emitira, ali ga nose zatečeni `attempts` retci.
+        "unsupported_eval",
+    }
+)
+
 #: 🔴 Pragovi se MORAJU poklapati s `prolog/rules.pl`: `weak_threshold(0.30)` i
 #: `mastery_threshold(0.85)`. Isti obrazac kao `recommender_logic._MASTERED_THRESHOLD`.
 _WEAK_THRESHOLD = 0.30

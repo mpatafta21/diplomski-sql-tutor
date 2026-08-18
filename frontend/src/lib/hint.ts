@@ -18,6 +18,7 @@ export type HintFailure =
   | "hint_not_unlocked"
   | "hint_rate_limited"
   | "hint_unavailable"
+  | "hint_no_catalog"
   | "hint_timeout"
   | "unknown"
 
@@ -27,6 +28,7 @@ const POZNATI: ReadonlySet<string> = new Set([
   "hint_not_unlocked",
   "hint_rate_limited",
   "hint_unavailable",
+  "hint_no_catalog",
   "hint_timeout",
 ])
 
@@ -53,6 +55,11 @@ const PORUKA: Record<HintFailure, string> = {
   hint_rate_limited: "Potrošio si sve savjete za sada.",
   hint_unavailable:
     "Savjet trenutno nije dostupan — pokušaj ponovno za koji trenutak.",
+  // 🔴 TRAJNO, za razliku od `hint_unavailable`: za ovaj tip greške savjet se ne
+  // generira modelom (ERRATA #72), a katalog za ovaj koncept nema unos — pa
+  // ponavljanje ne može uspjeti. Tekst zato NE poziva na ponovni pokušaj.
+  hint_no_catalog:
+    "Za ovu vrstu greške savjet nije pripremljen — pomoć potraži u opisu zadatka.",
   hint_timeout: "Savjet nije stigao na vrijeme — pokušaj ponovno.",
   unknown: "Savjet nije dohvaćen — pokušaj ponovno.",
 }
@@ -67,6 +74,10 @@ export function hintFailureText(reason: HintFailure): string {
  * `hint_not_unlocked` NEMA retry: ponavljanje bez nove predaje daje isti 409, a
  * gumb koji ne može uspjeti je gori od nikakvog. `hints_disabled` nema retry jer
  * značajke nema.
+ *
+ * 🔴 `hint_no_catalog` NEMA retry iz istog razloga — stanje je determinističko:
+ * tip greške ne ide modelu, a katalog za taj koncept nema unos. Da nasljeđuje
+ * `hint_unavailable`, poruka bi obećavala prolaznost koje nema (razred #71).
  */
 export function hintFailureRetryable(reason: HintFailure): boolean {
   return (

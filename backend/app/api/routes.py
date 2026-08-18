@@ -37,7 +37,7 @@ from agents.gamification_logic import (
     MASTERY_THRESHOLD,
     progress_to_next_level,
 )
-from agents.hint_agent import REASON_NOT_UNLOCKED
+from agents.hint_agent import REASON_NO_CATALOG, REASON_NOT_UNLOCKED
 from agents.hint_logic import (
     CONSUMING_SOURCES,
     existing_request,
@@ -400,6 +400,12 @@ async def post_hint(
         # Student je riješio zadatak između provjere i agentovog čitanja.
         raise HTTPException(status_code=409, detail="hint_not_unlocked")
     if "hint_text" not in result:
+        # 🔴 Dva razloga, dva `detail`a — isti status. `hint_no_catalog` je TRAJAN
+        # (tip ne ide LLM-u, a katalog za taj koncept nema redak), pa sučelje po
+        # njemu gasi ponavljanje. Grananje po statusu spojilo bi ih u jedno,
+        # obrazac koji `lib/hint.ts` već izbjegava za `hints_disabled`.
+        if result.get("error") == REASON_NO_CATALOG:
+            raise HTTPException(status_code=503, detail="hint_no_catalog")
         raise HTTPException(status_code=503, detail="hint_unavailable")
 
     remaining, refill = await asyncio.to_thread(_hint_credit_now, user.id)

@@ -515,3 +515,77 @@ pa križni pogodak nije moguć, i da se `in` i `\b`-regex slažu nad svih 9 opis
 | **b** 79/80 aktivan | funkcija | *„join_methods referentnog plana je PRAZAN"* — na razini sweepa ih ranije presretne **gate stabilnosti**, pa je grana dokazana unit testom |
 | **c** opis 3782 bez imena indeksa | sweep, `rc=1` | *„opis ne imenuje nijedan indeks"* |
 | **d** `column_alias` ubačen u `PLAN_CHECKED_CONCEPTS` | funkcija | *„koncept … nema pravilo — ne zna što tvrditi"* |
+
+# J — Izvor hinta se bira po tome određuje li klasifikacija dijagnozu (#72)
+
+**PRAVILO, kako stoji uz konstantu u kodu:**
+
+> LLM se poziva samo kad klasifikacija i payload **zajedno** određuju dijagnozu.
+> Inače ide deterministički fallback; ako fallbacka nema, hint se ne nudi.
+
+Izvor pravila je preformulirana ERRATA #72, izmjerena nad **12 stvarnih hintova kroz pun
+lanac**: *kad klasifikacija ne određuje dijagnozu jednoznačno, a `detail` se ne šalje,
+model rupu popuni iz `task_description` i to izgovori kao činjenicu o studentovom upitu.*
+
+## J.1 Zašto konstanta nosi to ime, a ne popis
+
+`UNDERDETERMINED_TYPES = {execution_error, timeout}`. Ime imenuje **razlog**, jer
+`explain_submitted` pokazuje da izostanak detalja sam po sebi nije opasnost:
+
+| tip | detalj | izmjereno | grana |
+|---|---|---|---|
+| `execution_error` | samo `sqlstate` | 🔴 2/2 izmislio stupac iz opisa zadatka | fallback |
+| `timeout` | ništa | 🔴 2/2 tvrdio `DISTINCT`/JOIN kojih nema | fallback |
+| `explain_submitted` | ništa | ✅ točan — **ime klase JEST dijagnoza** | LLM |
+
+## J.2 `LLM_TYPES` postoji eksplicitno
+
+Da je druga grana izvedena komplementom (`not in UNDERDETERMINED_TYPES`), novi tip bi
+**tiho** upao u LLM granu i odluka o njemu ne bi bila donesena nego zatečena. Zato oba
+skupa stoje eksplicitno, a ugovorni test tvrdi da **particioniraju** taksonomiju ishoda
+pokušaja. Dokazano namjernim kvarom u oba smjera: tip bez grane → `assert 0 == 1`, tip u
+obje → `assert 2 == 1`.
+
+## J.3 Katalog: 32 → 40
+
+Osam novih `execution_error` tekstova za početničke koncepte — `select_basic`,
+`from_clause`, `where_filter`, `distinct`, `order_by`, `limit_offset`, `insert`,
+`column_alias` — kroz `seed_hints` (`hints` ostaje read-only u runtimeu). Obrazac je
+**PRAVILO + PROVJERA**, nikad tvrdnja o tome što je student napisao.
+
+🔴 Za `timeout` katalog se **namjerno ne piše**: 0 pojavljivanja u 67 pokušaja. Pisati 29
+tekstova za nulu značilo bi zamijeniti mjerenje pretpostavkom.
+
+Pokrivenost `execution_error` time raste s **8/29 na 16/29**. Preostalih 13 koncepata
+završava na `hint_no_catalog` — to je mjerena rupa, ne prešućena.
+
+## J.4 🔴 `hint_no_catalog` — trajno stanje traži vlastitu poruku
+
+Pod novim pravilom `hint_unavailable` bi za `UNDERDETERMINED_TYPES` postao **determinističan
+i trajan**, a njegova poruka glasi *„pokušaj ponovno za koji trenutak"* uz
+`hintFailureRetryable = true`. To je razred **#71**: tekst koji je bio točan iz jednog
+razloga, a pravilo mu mijenja značenje.
+
+Zato zaseban `detail`, isti status 503, `retryable=false`, i tekst koji **ne poziva na
+ponavljanje**: *„Za ovu vrstu greške savjet nije pripremljen — pomoć potraži u opisu
+zadatka."* Grananje ide po `detail`u, ne po statusu — obrazac koji `lib/hint.ts` već
+provodi za `hints_disabled`.
+
+**Kredit se ne troši** — izmjereno 5 → 5, redak ostaje `source='unavailable'`,
+`CONSUMING_SOURCES` nedirnut.
+
+## J.5 Dokaz kroz pun lanac
+
+| slučaj | ishod | izvor |
+|---|---|---|
+| `execution_error` / `select_basic` | 200 | **`fallback`** |
+| `timeout` (nema kataloga nigdje) | **503 `hint_no_catalog`** | — |
+| `execution_error` / `agg_min_max` (bez unosa) | **503 `hint_no_catalog`** | — |
+| `explain_submitted` | 200, točan odgovor | `llm` |
+| `row_mismatch` · `wrong_columns` · `plan_mismatch` | 200, nedirnuti | `llm` |
+
+Uz to test rute sada tvrdi `len(llm_down) == 0` za `timeout` — dakle LLM se za taj tip
+**ne pokuša ni jednom**, a ne da se pokuša pa padne.
+
+Gateovi: `pytest` **930 passed, 1 skipped** · `make preflight` zelen · `npm run e2e` 4 passed
+· `npm run build` ok · baza na baselineu (9 brojki), `hints` 32 → 40 po dizajnu.

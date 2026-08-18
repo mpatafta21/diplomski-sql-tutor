@@ -30,6 +30,23 @@ TOP_CONCEPTS = (
     "update",
 )
 
+#: 🔴 Početnički koncepti koji su dobili SAMO `execution_error` (ERRATA #72,
+#: odluka 2026-08-18). Razlog nije zastupljenost nego to što `execution_error`
+#: od te odluke NE ide LLM-u — klasifikacija i payload ga ne određuju
+#: jednoznačno, pa bez kataloga hinta uopće ne bi bilo. Mjerenje je pokazalo da
+#: su upravo ovi koncepti bili nepokriveni (21/29), a ondje se sintaktičke i
+#: imenske greške događaju najčešće.
+BEGINNER_EXEC_CONCEPTS = (
+    "select_basic",
+    "from_clause",
+    "where_filter",
+    "distinct",
+    "order_by",
+    "limit_offset",
+    "insert",
+    "column_alias",
+)
+
 #: Četiri koncept-ovisna tipa greške. `syntax_error` (prazan editor), `timeout` i
 #: `unsupported_eval` NISU ovdje — njihov uzrok nema veze s konceptom zadatka.
 CONCEPT_ERROR_TYPES = (
@@ -50,6 +67,17 @@ CONCEPT_TERMS: dict[str, tuple[str, ...]] = {
     "inner_join": ("JOIN",),
     "null_handling": ("NULL", "COALESCE"),
     "update": ("UPDATE", "SET"),
+    # ERRATA #72 — samo `execution_error`.
+    "select_basic": ("SELECT",),
+    "from_clause": ("FROM",),
+    "where_filter": ("WHERE",),
+    "distinct": ("DISTINCT",),
+    "order_by": ("ORDER BY",),
+    "limit_offset": ("LIMIT", "OFFSET"),
+    "insert": ("INSERT", "VALUES"),
+    # 🔴 NE ("AS",): "as" je podniz hrvatskih riječi (časovi, kasnije), pa bi
+    # kriterij prolazio trivijalno. "alias" imenuje isti konstrukt, netrivijalno.
+    "column_alias": ("ALIAS",),
 }
 
 #: (error_type, concept_code, hint_text). `row_mismatch` blok je namjerno prvi.
@@ -267,5 +295,66 @@ HINTS: tuple[tuple[str, str, str], ...] = (
         "update",
         "UPDATE traži SET s parovima oblika stupac = vrijednost. Provjeri i "
         "odgovara li vrijednost tipu stupca koji mijenjaš.",
+    ),
+    # ------------------------------------------- execution_error / početnički (#72)
+    (
+        "execution_error",
+        "select_basic",
+        "U SELECT listi smiju stajati samo nazivi stupaca koji postoje u "
+        "tablici, odvojeni zarezom. Provjeri je li svaki naziv napisan "
+        "točno kao u shemi i nedostaje li negdje zarez između dva stupca."
+    ),
+    (
+        "execution_error",
+        "from_clause",
+        "FROM traži naziv tablice iz sheme, a ne naziv stupca. Provjeri je "
+        "li tablica napisana točno i pripadaju li joj svi stupci iz SELECT "
+        "liste — stupac iz druge tablice PostgreSQL ovdje odbija."
+    ),
+    (
+        "execution_error",
+        "where_filter",
+        "Uvjet u WHERE uspoređuje stupac s vrijednošću istoga tipa: tekst "
+        "ide u jednostruke navodnike, broj bez njih. Provjeri i naziv "
+        "stupca u uvjetu — onaj kojega u tablici nema PostgreSQL "
+        "prijavljuje prije ikakvog filtriranja."
+    ),
+    (
+        "execution_error",
+        "distinct",
+        "DISTINCT stoji odmah iza SELECT i odnosi se na cijeli popis "
+        "stupaca, ne na pojedini stupac u zagradi. Provjeri je li napisan "
+        "na tom mjestu i postoje li svi navedeni stupci u tablici."
+    ),
+    (
+        "execution_error",
+        "order_by",
+        "ORDER BY prima naziv stupca ili njegov redni broj u SELECT listi, "
+        "uz ASC ili DESC. Provjeri postoji li stupac po kojem sortiraš i je "
+        "li smjer napisan kao ključna riječ, a ne kao tekst u navodnicima."
+    ),
+    (
+        "execution_error",
+        "limit_offset",
+        "LIMIT i OFFSET primaju cijeli broj bez navodnika i stoje na kraju "
+        "naredbe, iza ORDER BY. Provjeri redoslijed klauzula i je li "
+        "količina napisana kao broj — vrijednost u navodnicima PostgreSQL "
+        "ovdje odbija."
+    ),
+    (
+        "execution_error",
+        "insert",
+        "INSERT INTO traži naziv tablice, popis stupaca u zagradi i jednako "
+        "toliko vrijednosti u VALUES. Provjeri poklapaju li se količina i "
+        "redoslijed, te odgovara li tip svake vrijednosti tipu stupca u "
+        "koji ide."
+    ),
+    (
+        "execution_error",
+        "column_alias",
+        "Alias se stupcu pridružuje ključnom riječi AS, a ako sadrži razmak "
+        "ili posebni znak, mora stajati u dvostrukim navodnicima. Provjeri "
+        "i da se alias ne koristi u WHERE — ondje PostgreSQL za njega još "
+        "ne zna."
     ),
 )

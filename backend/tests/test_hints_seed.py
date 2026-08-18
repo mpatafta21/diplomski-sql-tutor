@@ -19,7 +19,13 @@ from pathlib import Path
 import pytest
 from sqlalchemy import func, select
 
-from app.db.hints_data import CONCEPT_ERROR_TYPES, CONCEPT_TERMS, HINTS, TOP_CONCEPTS
+from app.db.hints_data import (
+    BEGINNER_EXEC_CONCEPTS,
+    CONCEPT_ERROR_TYPES,
+    CONCEPT_TERMS,
+    HINTS,
+    TOP_CONCEPTS,
+)
 from app.db.models import Concept, Hint, Task, TaskConcept
 from app.db.session import SessionLocal
 from scripts.seed_hints import seed_hints
@@ -70,11 +76,17 @@ def _content_words(text: str) -> set[str]:
 # ---------------------------------------------------------------------------
 
 
-def test_catalog_is_8x4() -> None:
-    assert len(HINTS) == 32
-    assert {(e, c) for e, c, _ in HINTS} == {
-        (e, c) for e in CONCEPT_ERROR_TYPES for c in TOP_CONCEPTS
-    }
+def test_catalog_is_8x4_plus_beginner_exec() -> None:
+    """8 koncepata x 4 tipa, PLUS 8 pocetnickih koncepata samo za `execution_error`.
+
+    🔴 Drugi blok je posljedica ERRATE #72: `execution_error` od odluke
+    2026-08-18 ne ide LLM-u, pa bez kataloga ondje hinta uopce ne bi bilo.
+    """
+    assert len(HINTS) == 40
+    assert {(e, c) for e, c, _ in HINTS} == (
+        {(e, c) for e in CONCEPT_ERROR_TYPES for c in TOP_CONCEPTS}
+        | {("execution_error", c) for c in BEGINNER_EXEC_CONCEPTS}
+    )
 
 
 def test_row_mismatch_block_comes_first() -> None:
@@ -83,7 +95,7 @@ def test_row_mismatch_block_comes_first() -> None:
     assert "row_mismatch" not in [e for e, _, _ in HINTS[8:]]
 
 
-def test_seed_produces_32_rows_all_with_concept() -> None:
+def test_seed_produces_all_rows_with_concept() -> None:
     with SessionLocal() as s:
         with_concept = s.scalar(
             select(func.count()).select_from(Hint).where(Hint.concept_id.isnot(None))
@@ -91,7 +103,7 @@ def test_seed_produces_32_rows_all_with_concept() -> None:
         without = s.scalar(
             select(func.count()).select_from(Hint).where(Hint.concept_id.is_(None))
         )
-    assert with_concept == 32
+    assert with_concept == 40
     assert without == 0
 
 
@@ -101,8 +113,8 @@ def test_seed_is_idempotent() -> None:
         before = s.scalar(select(func.count()).select_from(Hint))
         counts = seed_hints(s)
         after = s.scalar(select(func.count()).select_from(Hint))
-    assert counts == {"inserted": 0, "updated": 0, "unchanged": 32}
-    assert before == after == 32
+    assert counts == {"inserted": 0, "updated": 0, "unchanged": 40}
+    assert before == after == 40
 
 
 def test_no_duplicate_error_type_concept_pairs() -> None:
@@ -165,9 +177,14 @@ def _tasks_by_concept() -> dict[str, list[Task]]:
             select(Concept.code, Task)
             .join(TaskConcept, TaskConcept.concept_id == Concept.id)
             .join(Task, Task.id == TaskConcept.task_id)
-            .where(Concept.code.in_(TOP_CONCEPTS), TaskConcept.is_primary.is_(True))
+            .where(
+                Concept.code.in_(TOP_CONCEPTS + BEGINNER_EXEC_CONCEPTS),
+                TaskConcept.is_primary.is_(True),
+            )
         ).all()
-        out: dict[str, list[Task]] = {c: [] for c in TOP_CONCEPTS}
+        out: dict[str, list[Task]] = {
+            c: [] for c in TOP_CONCEPTS + BEGINNER_EXEC_CONCEPTS
+        }
         for code, task in rows:
             out[code].append(task)
         return out

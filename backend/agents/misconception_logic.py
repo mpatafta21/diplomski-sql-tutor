@@ -26,6 +26,11 @@ _MECHANICAL_ERRORS: frozenset[str] = frozenset({
     "timeout",
     "execution_error",
     "unsupported_eval",
+    # ERRATA #66 — oba su omaška/smetnja, ne zabluda:
+    "explain_submitted",  # student zalijepio EXPLAIN
+    "plan_unavailable",   # EXPLAIN nije uspio (infrastruktura)
+    # 🔴 `plan_mismatch` NAMJERNO NIJE ovdje — anti-pattern je stvarna zabluda
+    # o tome kako baza koristi indeks, i mora se bilježiti kao misconception.
 })
 
 

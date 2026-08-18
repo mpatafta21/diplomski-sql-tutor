@@ -1,6 +1,6 @@
 {
-  "version": "2b-3+4.4-0h",
-  "total": 85,
+  "version": "2b-3+4.4-0h+m6-plan-presence",
+  "total": 92,
   "missing_json": [
     "select_basic_d1_2fd7fa43",
     "select_basic_d1_89fe430e"
@@ -28,7 +28,8 @@
         "aggregate_functions",
         "select_basic"
       ],
-      "estimated_time_sec": 60
+      "estimated_time_sec": 60,
+      "is_active": true
     },
     {
       "task_id": "null_handling_d3_659d88d4",
@@ -63,7 +64,8 @@
         "left_join",
         "select_basic"
       ],
-      "estimated_time_sec": 240
+      "estimated_time_sec": 240,
+      "is_active": true
     },
     {
       "task_id": "null_handling_d3_afe497a0",
@@ -98,7 +100,8 @@
         "order_by",
         "select_basic"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "null_handling_d4_f8859917",
@@ -123,7 +126,8 @@
         "aggregate_functions",
         "select_basic"
       ],
-      "estimated_time_sec": 300
+      "estimated_time_sec": 300,
+      "is_active": true
     },
     {
       "task_id": "distinct_d1_966e0447",
@@ -158,7 +162,8 @@
         "select_basic",
         "order_by"
       ],
-      "estimated_time_sec": 60
+      "estimated_time_sec": 60,
+      "is_active": true
     },
     {
       "task_id": "distinct_d3_ac54ea37",
@@ -198,7 +203,8 @@
         "where_filter",
         "order_by"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "from_clause_d1_3848b942",
@@ -235,7 +241,8 @@
       "secondary_concepts": [
         "select_basic"
       ],
-      "estimated_time_sec": 60
+      "estimated_time_sec": 60,
+      "is_active": true
     },
     {
       "task_id": "from_clause_d1_a50dc143",
@@ -269,7 +276,8 @@
       "secondary_concepts": [
         "select_basic"
       ],
-      "estimated_time_sec": 60
+      "estimated_time_sec": 60,
+      "is_active": true
     },
     {
       "task_id": "from_clause_d2_850b8d94",
@@ -304,7 +312,8 @@
         "select_basic",
         "order_by"
       ],
-      "estimated_time_sec": 90
+      "estimated_time_sec": 90,
+      "is_active": true
     },
     {
       "task_id": "limit_offset_d1_b56136e6",
@@ -336,7 +345,8 @@
         "select_basic",
         "order_by"
       ],
-      "estimated_time_sec": 60
+      "estimated_time_sec": 60,
+      "is_active": true
     },
     {
       "task_id": "limit_offset_d2_228724a0",
@@ -364,7 +374,8 @@
         "select_basic",
         "order_by"
       ],
-      "estimated_time_sec": 90
+      "estimated_time_sec": 90,
+      "is_active": true
     },
     {
       "task_id": "limit_offset_d3_9ca56e61",
@@ -402,7 +413,8 @@
         "order_by",
         "select_basic"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "order_by_d2_0a0c13de",
@@ -437,7 +449,8 @@
         "where_filter",
         "select_basic"
       ],
-      "estimated_time_sec": 90
+      "estimated_time_sec": 90,
+      "is_active": true
     },
     {
       "task_id": "order_by_d3_db446412",
@@ -469,7 +482,8 @@
         "where_filter",
         "select_basic"
       ],
-      "estimated_time_sec": 120
+      "estimated_time_sec": 120,
+      "is_active": true
     },
     {
       "task_id": "select_basic_d1_526db098",
@@ -503,7 +517,8 @@
       "secondary_concepts": [
         "from_clause"
       ],
-      "estimated_time_sec": 60
+      "estimated_time_sec": 60,
+      "is_active": true
     },
     {
       "task_id": "select_basic_d3_7cb74957",
@@ -537,7 +552,8 @@
       "secondary_concepts": [
         "from_clause"
       ],
-      "estimated_time_sec": 90
+      "estimated_time_sec": 90,
+      "is_active": true
     },
     {
       "task_id": "where_filter_d1_a0a9f432",
@@ -575,7 +591,8 @@
         "select_basic",
         "from_clause"
       ],
-      "estimated_time_sec": 60
+      "estimated_time_sec": 60,
+      "is_active": true
     },
     {
       "task_id": "where_filter_d2_c51c7330",
@@ -620,7 +637,8 @@
         "select_basic",
         "order_by"
       ],
-      "estimated_time_sec": 90
+      "estimated_time_sec": 90,
+      "is_active": true
     },
     {
       "task_id": "where_filter_d3_226b7a80",
@@ -650,7 +668,8 @@
         "select_basic",
         "order_by"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "agg_count_d1_manual_681b0f5c",
@@ -670,7 +689,8 @@
         }
       ],
       "secondary_concepts": [],
-      "estimated_time_sec": 90
+      "estimated_time_sec": 90,
+      "is_active": true
     },
     {
       "task_id": "agg_count_d2_manual_5f4b7e31",
@@ -693,7 +713,8 @@
         "left_join",
         "null_handling"
       ],
-      "estimated_time_sec": 120
+      "estimated_time_sec": 120,
+      "is_active": true
     },
     {
       "task_id": "agg_count_d3_manual_9cbaf74e",
@@ -733,7 +754,8 @@
         "group_by",
         "order_by"
       ],
-      "estimated_time_sec": 150
+      "estimated_time_sec": 150,
+      "is_active": true
     },
     {
       "task_id": "agg_count_d4_manual_f80482ad",
@@ -814,7 +836,8 @@
         "group_by",
         "distinct"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "agg_min_max_d1_manual_1040aa11",
@@ -835,7 +858,8 @@
         }
       ],
       "secondary_concepts": [],
-      "estimated_time_sec": 90
+      "estimated_time_sec": 90,
+      "is_active": true
     },
     {
       "task_id": "agg_min_max_d2_manual_8d1131b7",
@@ -880,7 +904,8 @@
         "group_by",
         "order_by"
       ],
-      "estimated_time_sec": 120
+      "estimated_time_sec": 120,
+      "is_active": true
     },
     {
       "task_id": "agg_min_max_d3_manual_be815fe0",
@@ -960,7 +985,8 @@
         "inner_join",
         "group_by"
       ],
-      "estimated_time_sec": 150
+      "estimated_time_sec": 150,
+      "is_active": true
     },
     {
       "task_id": "agg_sum_avg_d2_manual_da19dbcd",
@@ -981,7 +1007,8 @@
         }
       ],
       "secondary_concepts": [],
-      "estimated_time_sec": 120
+      "estimated_time_sec": 120,
+      "is_active": true
     },
     {
       "task_id": "agg_sum_avg_d3_manual_f239bc99",
@@ -1021,7 +1048,8 @@
         "group_by",
         "limit_offset"
       ],
-      "estimated_time_sec": 150
+      "estimated_time_sec": 150,
+      "is_active": true
     },
     {
       "task_id": "agg_sum_avg_d4_manual_b571f4e3",
@@ -1093,7 +1121,8 @@
         "where_filter",
         "limit_offset"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "group_by_d1_manual_5b9821c0",
@@ -1173,7 +1202,8 @@
         "agg_count",
         "order_by"
       ],
-      "estimated_time_sec": 90
+      "estimated_time_sec": 90,
+      "is_active": true
     },
     {
       "task_id": "group_by_d2_manual_f782ced8",
@@ -1213,7 +1243,8 @@
         "agg_count",
         "limit_offset"
       ],
-      "estimated_time_sec": 120
+      "estimated_time_sec": 120,
+      "is_active": true
     },
     {
       "task_id": "group_by_d3_manual_79123f58",
@@ -1284,7 +1315,8 @@
         "agg_count",
         "limit_offset"
       ],
-      "estimated_time_sec": 150
+      "estimated_time_sec": 150,
+      "is_active": true
     },
     {
       "task_id": "group_by_d3_manual_af12e048",
@@ -1330,7 +1362,8 @@
         "agg_count",
         "limit_offset"
       ],
-      "estimated_time_sec": 150
+      "estimated_time_sec": 150,
+      "is_active": true
     },
     {
       "task_id": "group_by_d4_manual_9ba27463",
@@ -1401,7 +1434,8 @@
         "order_by",
         "limit_offset"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "having_filter_d2_manual_9b2e56e0",
@@ -1457,7 +1491,8 @@
         "group_by",
         "agg_count"
       ],
-      "estimated_time_sec": 120
+      "estimated_time_sec": 120,
+      "is_active": true
     },
     {
       "task_id": "having_filter_d3_manual_208ae0eb",
@@ -1494,7 +1529,8 @@
         "group_by",
         "agg_count"
       ],
-      "estimated_time_sec": 150
+      "estimated_time_sec": 150,
+      "is_active": true
     },
     {
       "task_id": "having_filter_d3_manual_f0671433",
@@ -1522,7 +1558,8 @@
         "group_by",
         "agg_sum_avg"
       ],
-      "estimated_time_sec": 150
+      "estimated_time_sec": 150,
+      "is_active": true
     },
     {
       "task_id": "having_filter_d4_manual_6da34957",
@@ -1618,7 +1655,8 @@
         "agg_count",
         "agg_sum_avg"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "cross_join_d2_68ce2014",
@@ -1658,7 +1696,8 @@
         "order_by",
         "limit_offset"
       ],
-      "estimated_time_sec": 120
+      "estimated_time_sec": 120,
+      "is_active": true
     },
     {
       "task_id": "cross_join_d3_94f313ec",
@@ -1683,7 +1722,8 @@
         "aggregate_functions",
         "select_basic"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "full_outer_join_d3_863b1f08",
@@ -1707,7 +1747,8 @@
         "null_handling",
         "case_expression"
       ],
-      "estimated_time_sec": 240
+      "estimated_time_sec": 240,
+      "is_active": true
     },
     {
       "task_id": "full_outer_join_d4_b87b4a08",
@@ -1731,7 +1772,8 @@
         "null_handling",
         "group_by"
       ],
-      "estimated_time_sec": 360
+      "estimated_time_sec": 360,
+      "is_active": true
     },
     {
       "task_id": "full_outer_join_d5_bd1f8ac5",
@@ -1763,7 +1805,8 @@
         "group_by",
         "case_expression"
       ],
-      "estimated_time_sec": 480
+      "estimated_time_sec": 480,
+      "is_active": true
     },
     {
       "task_id": "inner_join_d1_263a8030",
@@ -1785,7 +1828,8 @@
       "secondary_concepts": [
         "aggregate_functions"
       ],
-      "estimated_time_sec": 60
+      "estimated_time_sec": 60,
+      "is_active": true
     },
     {
       "task_id": "inner_join_d2_b39dec5d",
@@ -1808,7 +1852,8 @@
         "count_aggregate",
         "column_alias"
       ],
-      "estimated_time_sec": 90
+      "estimated_time_sec": 90,
+      "is_active": true
     },
     {
       "task_id": "inner_join_d3_d75e51ac",
@@ -1831,7 +1876,8 @@
         "aggregate_functions",
         "from_clause"
       ],
-      "estimated_time_sec": 240
+      "estimated_time_sec": 240,
+      "is_active": true
     },
     {
       "task_id": "inner_join_d4_17bb7fc0",
@@ -1876,7 +1922,8 @@
         "group_by_having",
         "column_alias"
       ],
-      "estimated_time_sec": 360
+      "estimated_time_sec": 360,
+      "is_active": true
     },
     {
       "task_id": "left_join_d2_518ad629",
@@ -1899,7 +1946,8 @@
         "null_handling",
         "aggregate_functions"
       ],
-      "estimated_time_sec": 90
+      "estimated_time_sec": 90,
+      "is_active": true
     },
     {
       "task_id": "left_join_d3_8e49c863",
@@ -1922,7 +1970,8 @@
         "null_handling",
         "aggregation_basics"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "left_join_d4_7c42ee66",
@@ -1972,7 +2021,8 @@
         "aggregation",
         "null_handling"
       ],
-      "estimated_time_sec": 420
+      "estimated_time_sec": 420,
+      "is_active": true
     },
     {
       "task_id": "multi_table_join_d3_1b312b3e",
@@ -1995,7 +2045,8 @@
         "inner_join",
         "aggregate_functions"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "multi_table_join_d3_d351708f",
@@ -2020,7 +2071,8 @@
         "aggregate_functions",
         "inner_join"
       ],
-      "estimated_time_sec": 210
+      "estimated_time_sec": 210,
+      "is_active": true
     },
     {
       "task_id": "multi_table_join_d4_075d127a",
@@ -2065,7 +2117,8 @@
         "aggregate_functions",
         "group_by"
       ],
-      "estimated_time_sec": 360
+      "estimated_time_sec": 360,
+      "is_active": true
     },
     {
       "task_id": "multi_table_join_d4_92f5abcc",
@@ -2110,7 +2163,8 @@
         "aggregate_functions",
         "group_by"
       ],
-      "estimated_time_sec": 420
+      "estimated_time_sec": 420,
+      "is_active": true
     },
     {
       "task_id": "multi_table_join_d5_480aec3f",
@@ -2160,7 +2214,8 @@
         "aggregate_functions",
         "group_by"
       ],
-      "estimated_time_sec": 480
+      "estimated_time_sec": 480,
+      "is_active": true
     },
     {
       "task_id": "right_join_d3_633a1cc6",
@@ -2195,7 +2250,8 @@
         "aggregate_functions",
         "group_by"
       ],
-      "estimated_time_sec": 240
+      "estimated_time_sec": 240,
+      "is_active": true
     },
     {
       "task_id": "self_join_d3_40dd4149",
@@ -2218,7 +2274,8 @@
         "inner_join",
         "aggregate_functions"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "self_join_d4_d5d8b981",
@@ -2250,7 +2307,8 @@
         "inner_join",
         "where_filter"
       ],
-      "estimated_time_sec": 300
+      "estimated_time_sec": 300,
+      "is_active": true
     },
     {
       "task_id": "self_join_d5_423a2f2a",
@@ -2273,7 +2331,8 @@
         "inner_join",
         "column_alias"
       ],
-      "estimated_time_sec": 480
+      "estimated_time_sec": 480,
+      "is_active": true
     },
     {
       "task_id": "correlated_subquery_d3_d9c8f988",
@@ -2296,7 +2355,8 @@
         "aggregate_functions",
         "where_filter"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "correlated_subquery_d4_7101bea2",
@@ -2319,7 +2379,8 @@
         "where_filter",
         "aggregate_functions"
       ],
-      "estimated_time_sec": 300
+      "estimated_time_sec": 300,
+      "is_active": true
     },
     {
       "task_id": "correlated_subquery_d5_7948781f",
@@ -2369,7 +2430,8 @@
         "aggregate_functions",
         "where_filter"
       ],
-      "estimated_time_sec": 480
+      "estimated_time_sec": 480,
+      "is_active": true
     },
     {
       "task_id": "delete_d2_9b0f6b74",
@@ -2393,7 +2455,8 @@
         "where_filter",
         "returning_clause"
       ],
-      "estimated_time_sec": 90
+      "estimated_time_sec": 90,
+      "is_active": true
     },
     {
       "task_id": "delete_d3_28f1d2bd",
@@ -2417,7 +2480,8 @@
       "secondary_concepts": [
         "where_filter"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "delete_d3_a575a4a9",
@@ -2441,7 +2505,8 @@
         "where_filter",
         "returning_clause"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "delete_d4_3843aae7",
@@ -2467,7 +2532,8 @@
         "subquery",
         "fk_constraints"
       ],
-      "estimated_time_sec": 420
+      "estimated_time_sec": 420,
+      "is_active": true
     },
     {
       "task_id": "insert_d2_bc637919",
@@ -2492,7 +2558,8 @@
         "not_null_constraint",
         "returning_clause"
       ],
-      "estimated_time_sec": 120
+      "estimated_time_sec": 120,
+      "is_active": true
     },
     {
       "task_id": "update_d2_b0b659e4",
@@ -2517,7 +2584,8 @@
       "secondary_concepts": [
         "where_filter"
       ],
-      "estimated_time_sec": 90
+      "estimated_time_sec": 90,
+      "is_active": true
     },
     {
       "task_id": "update_d3_1bb5156e",
@@ -2543,7 +2611,8 @@
         "where_filter",
         "arithmetic_expressions"
       ],
-      "estimated_time_sec": 210
+      "estimated_time_sec": 210,
+      "is_active": true
     },
     {
       "task_id": "update_d3_f46b8590",
@@ -2570,7 +2639,8 @@
         "where_filter",
         "arithmetic_expressions"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "update_d4_07152845",
@@ -2596,7 +2666,8 @@
         "subquery",
         "where_filter"
       ],
-      "estimated_time_sec": 420
+      "estimated_time_sec": 420,
+      "is_active": true
     },
     {
       "task_id": "exists_subquery_d2_c4cbbac5",
@@ -2631,7 +2702,8 @@
         "correlated_subquery",
         "where_filter"
       ],
-      "estimated_time_sec": 120
+      "estimated_time_sec": 120,
+      "is_active": true
     },
     {
       "task_id": "exists_subquery_d4_bd8f189c",
@@ -2654,7 +2726,8 @@
         "correlated_subquery",
         "null_handling"
       ],
-      "estimated_time_sec": 360
+      "estimated_time_sec": 360,
+      "is_active": true
     },
     {
       "task_id": "in_subquery_d2_4476e5d3",
@@ -2677,7 +2750,8 @@
         "aggregate_functions",
         "where_filter"
       ],
-      "estimated_time_sec": 120
+      "estimated_time_sec": 120,
+      "is_active": true
     },
     {
       "task_id": "in_subquery_d3_f058dd63",
@@ -2700,7 +2774,8 @@
         "null_handling",
         "aggregate_functions"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "in_subquery_d4_01fd2955",
@@ -2756,7 +2831,8 @@
         "aggregate_functions",
         "scalar_subquery"
       ],
-      "estimated_time_sec": 420
+      "estimated_time_sec": 420,
+      "is_active": true
     },
     {
       "task_id": "scalar_subquery_d2_c4c8572c",
@@ -2779,7 +2855,8 @@
         "aggregate_functions",
         "where_filter"
       ],
-      "estimated_time_sec": 120
+      "estimated_time_sec": 120,
+      "is_active": true
     },
     {
       "task_id": "scalar_subquery_d3_63bcf0bf",
@@ -2817,7 +2894,8 @@
         "select_basic",
         "order_by"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "explain_plan_d3_60b9eaee",
@@ -2845,7 +2923,9 @@
         "index_usage",
         "where_filter"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": false,
+      "deactivation_reason": "referentni upit daje Seq Scan nad customers (200 redaka) — opis tvrdi Index Scan; planer je u pravu, zadatak nije. Gate stabilnosti ga odbija."
     },
     {
       "task_id": "explain_plan_d4_54c05243",
@@ -2873,7 +2953,9 @@
         "index_usage",
         "where_filter"
       ],
-      "estimated_time_sec": 300
+      "estimated_time_sec": 300,
+      "is_active": false,
+      "deactivation_reason": "isti kvar kao explain_plan_d3_60b9eaee — Seq Scan nad customers."
     },
     {
       "task_id": "index_usage_d3_41c8280e",
@@ -2899,7 +2981,8 @@
         "where_filter",
         "order_by"
       ],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
     },
     {
       "task_id": "index_usage_d4_68049f11",
@@ -2925,7 +3008,9 @@
         "where_filter",
         "order_by"
       ],
-      "estimated_time_sec": 300
+      "estimated_time_sec": 300,
+      "is_active": false,
+      "deactivation_reason": "isti kvar — Seq Scan nad customers umjesto obećanog Index Scana."
     },
     {
       "task_id": "index_usage_d5_258d461b",
@@ -2951,7 +3036,9 @@
         "where_filter",
         "order_by"
       ],
-      "estimated_time_sec": 480
+      "estimated_time_sec": 480,
+      "is_active": false,
+      "deactivation_reason": "referentni upit i CAST anti-pattern daju IDENTIČAN plan (Index Scan preko orders_pkey): ORDER BY id LIMIT 1 uvuče pkey, a ciljani idx_orders_customer se uopće ne dira. Zadatak ne razlikuje ništa."
     },
     {
       "task_id": "right_join_d2_manual_b87adfc6",
@@ -2996,7 +3083,8 @@
         "column_alias",
         "order_by"
       ],
-      "estimated_time_sec": 120
+      "estimated_time_sec": 120,
+      "is_active": true
     },
     {
       "task_id": "insert_d3_manual_d034def1",
@@ -3023,12 +3111,450 @@
         }
       ],
       "secondary_concepts": [],
-      "estimated_time_sec": 180
+      "estimated_time_sec": 180,
+      "is_active": true
+    },
+    {
+      "task_id": "index_usage_d3_manual_9cece7a2",
+      "title": "Stavke narudžbe — indeks na order_id vs. CAST anti-pattern",
+      "description": "Dohvati sve stavke narudžbe s order_id = 500. Ispiši stupce order_id, product_id, quantity i unit_price, sortirano po product_id uzlazno.\n\nTablica order_items ima indeks idx_order_items_order na koloni order_id. Napiši uvjet tako da ga baza može upotrijebiti — usporedi kolonu izravno s brojem. Ako kolonu omotaš u funkciju ili je pretvoriš u drugi tip (npr. CAST(order_id AS TEXT) = '500'), indeks postaje neupotrebljiv i baza mora pročitati svih 3000 redaka. Rezultat će biti isti, ali način izvođenja neće — a upravo se on ovdje ocjenjuje.",
+      "module": 6,
+      "primary_concept": "index_usage",
+      "secondary_concepts": [
+        "where_filter",
+        "order_by"
+      ],
+      "difficulty": 3,
+      "estimated_time_sec": 90,
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT order_id, product_id, quantity, unit_price\nFROM order_items\nWHERE order_id = 500\nORDER BY product_id;",
+      "expected_result": [
+        {
+          "order_id": 500,
+          "product_id": 75,
+          "quantity": 5,
+          "unit_price": "139.49"
+        },
+        {
+          "order_id": 500,
+          "product_id": 99,
+          "quantity": 5,
+          "unit_price": "458.58"
+        }
+      ],
+      "generation_method": "manual",
+      "approved_by_human": true,
+      "recovery_applied": false,
+      "is_active": true
+    },
+    {
+      "task_id": "index_usage_d4_manual_a45b4ee8",
+      "title": "Recenzije proizvoda — aritmetika nad kolonom poništava indeks",
+      "description": "Dohvati sve recenzije proizvoda s product_id = 3. Ispiši stupce id, product_id, customer_id i rating, sortirano po id uzlazno.\n\nNad kolonom product_id postoji indeks idx_reviews_product. Uvjet mora usporediti kolonu izravno s vrijednošću. Čest previd je napisati WHERE product_id + 0 = 3 ili neku sličnu aritmetiku — izraz je matematički jednak, ali baza tada mora izračunati product_id + 0 za svaki redak i indeks ne može pomoći. Isto vrijedi za CAST i pozive funkcija nad indeksiranom kolonom.",
+      "module": 6,
+      "primary_concept": "index_usage",
+      "secondary_concepts": [
+        "where_filter",
+        "order_by"
+      ],
+      "difficulty": 4,
+      "estimated_time_sec": 90,
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT id, product_id, customer_id, rating\nFROM reviews\nWHERE product_id = 3\nORDER BY id;",
+      "expected_result": [
+        {
+          "id": 29,
+          "product_id": 3,
+          "customer_id": 144,
+          "rating": 4
+        },
+        {
+          "id": 170,
+          "product_id": 3,
+          "customer_id": 159,
+          "rating": 2
+        },
+        {
+          "id": 237,
+          "product_id": 3,
+          "customer_id": 151,
+          "rating": 3
+        },
+        {
+          "id": 259,
+          "product_id": 3,
+          "customer_id": 78,
+          "rating": 4
+        },
+        {
+          "id": 326,
+          "product_id": 3,
+          "customer_id": 128,
+          "rating": 4
+        },
+        {
+          "id": 353,
+          "product_id": 3,
+          "customer_id": 81,
+          "rating": 5
+        },
+        {
+          "id": 382,
+          "product_id": 3,
+          "customer_id": 32,
+          "rating": 1
+        },
+        {
+          "id": 411,
+          "product_id": 3,
+          "customer_id": 131,
+          "rating": 3
+        }
+      ],
+      "generation_method": "manual",
+      "approved_by_human": true,
+      "recovery_applied": false,
+      "is_active": true
+    },
+    {
+      "task_id": "explain_plan_d3_manual_c6ed9b8c",
+      "title": "Selektivan filtar mijenja strategiju spoja u Nested Loop",
+      "description": "Dohvati stavke svih narudžbi kupca s customer_id = 42. Ispiši o.id, o.status, oi.product_id i oi.quantity, sortirano po o.id pa po oi.product_id.\n\nKad spajaš orders i order_items BEZ filtra, baza mora pročitati obje tablice u cijelosti i spaja ih preko Hash Joina. Selektivan filtar na customer_id mijenja račun: baza indeksom nađe nekoliko narudžbi tog kupca, pa za svaku indeksom potraži stavke — Nested Loop. Ako filtar napišeš tako da poništi indeks (npr. CAST(o.customer_id AS TEXT) = '42'), rezultat ostaje isti, ali se plan vraća na Hash Join uz puno čitanje obje tablice. Pogledaj razliku sam: pokreni EXPLAIN nad obje verzije kroz Pokreni.",
+      "module": 6,
+      "primary_concept": "explain_plan",
+      "secondary_concepts": [
+        "inner_join",
+        "where_filter",
+        "order_by"
+      ],
+      "difficulty": 3,
+      "estimated_time_sec": 90,
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT o.id, o.status, oi.product_id, oi.quantity\nFROM orders o\nJOIN order_items oi ON oi.order_id = o.id\nWHERE o.customer_id = 42\nORDER BY o.id, oi.product_id;",
+      "expected_result": [
+        {
+          "id": 74,
+          "status": "delivered",
+          "product_id": 18,
+          "quantity": 5
+        },
+        {
+          "id": 74,
+          "status": "delivered",
+          "product_id": 47,
+          "quantity": 1
+        },
+        {
+          "id": 259,
+          "status": "shipped",
+          "product_id": 27,
+          "quantity": 5
+        },
+        {
+          "id": 259,
+          "status": "shipped",
+          "product_id": 61,
+          "quantity": 5
+        },
+        {
+          "id": 259,
+          "status": "shipped",
+          "product_id": 63,
+          "quantity": 4
+        },
+        {
+          "id": 259,
+          "status": "shipped",
+          "product_id": 89,
+          "quantity": 3
+        },
+        {
+          "id": 847,
+          "status": "cancelled",
+          "product_id": 17,
+          "quantity": 5
+        },
+        {
+          "id": 847,
+          "status": "cancelled",
+          "product_id": 65,
+          "quantity": 1
+        },
+        {
+          "id": 847,
+          "status": "cancelled",
+          "product_id": 89,
+          "quantity": 5
+        }
+      ],
+      "generation_method": "manual",
+      "approved_by_human": true,
+      "recovery_applied": false,
+      "is_active": true
+    },
+    {
+      "task_id": "explain_plan_d4_manual_1e09ba01",
+      "title": "Aritmetika u uvjetu spoja vraća plan na Hash Join",
+      "description": "Dohvati stavke svih narudžbi kupca s customer_id = 108. Ispiši o.id, o.order_date, oi.product_id i oi.quantity, sortirano po o.id pa po oi.product_id.\n\nZadatak je isti oblik kao prethodni, ali s drugom zamkom: umjesto CAST-a, uvjet se pokvari aritmetikom (WHERE o.customer_id + 0 = 108). Posljedica je jednaka — indeks idx_orders_customer se ne može upotrijebiti, pa baza čita cijelu tablicu narudžbi i prelazi s Nested Loopa na Hash Join. Pravilo koje treba zapamtiti: indeksirana kolona u WHERE uvjetu mora stajati SAMA s jedne strane usporedbe.",
+      "module": 6,
+      "primary_concept": "explain_plan",
+      "secondary_concepts": [
+        "inner_join",
+        "where_filter",
+        "order_by"
+      ],
+      "difficulty": 4,
+      "estimated_time_sec": 90,
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT o.id, o.order_date, oi.product_id, oi.quantity\nFROM orders o\nJOIN order_items oi ON oi.order_id = o.id\nWHERE o.customer_id = 108\nORDER BY o.id, oi.product_id;",
+      "expected_result": [
+        {
+          "id": 1,
+          "order_date": "2025-04-27T06:19:23.081562+00:00",
+          "product_id": 7,
+          "quantity": 3
+        },
+        {
+          "id": 1,
+          "order_date": "2025-04-27T06:19:23.081562+00:00",
+          "product_id": 33,
+          "quantity": 4
+        },
+        {
+          "id": 1,
+          "order_date": "2025-04-27T06:19:23.081562+00:00",
+          "product_id": 77,
+          "quantity": 1
+        },
+        {
+          "id": 455,
+          "order_date": "2025-05-01T21:55:50.177467+00:00",
+          "product_id": 49,
+          "quantity": 5
+        },
+        {
+          "id": 455,
+          "order_date": "2025-05-01T21:55:50.177467+00:00",
+          "product_id": 60,
+          "quantity": 1
+        },
+        {
+          "id": 455,
+          "order_date": "2025-05-01T21:55:50.177467+00:00",
+          "product_id": 65,
+          "quantity": 5
+        },
+        {
+          "id": 455,
+          "order_date": "2025-05-01T21:55:50.177467+00:00",
+          "product_id": 95,
+          "quantity": 3
+        },
+        {
+          "id": 568,
+          "order_date": "2025-08-09T04:07:50.559941+00:00",
+          "product_id": 27,
+          "quantity": 5
+        },
+        {
+          "id": 568,
+          "order_date": "2025-08-09T04:07:50.559941+00:00",
+          "product_id": 38,
+          "quantity": 1
+        },
+        {
+          "id": 698,
+          "order_date": "2025-09-03T20:38:18.361958+00:00",
+          "product_id": 72,
+          "quantity": 4
+        },
+        {
+          "id": 698,
+          "order_date": "2025-09-03T20:38:18.361958+00:00",
+          "product_id": 78,
+          "quantity": 2
+        },
+        {
+          "id": 698,
+          "order_date": "2025-09-03T20:38:18.361958+00:00",
+          "product_id": 83,
+          "quantity": 2
+        },
+        {
+          "id": 906,
+          "order_date": "2025-04-14T23:54:22.664360+00:00",
+          "product_id": 48,
+          "quantity": 2
+        }
+      ],
+      "generation_method": "manual",
+      "approved_by_human": true,
+      "recovery_applied": false,
+      "is_active": true
+    },
+    {
+      "task_id": "column_alias_d1_manual_ffae28c1",
+      "title": "Preimenuj stupce u ispisu kupaca",
+      "description": "Iz tablice customers ispiši ime i prezime kupaca iz grada Zagreba, ali tako da se stupci u rezultatu zovu ime i prezime (umjesto first_name i last_name). Za preimenovanje stupca koristi ključnu riječ AS. Sortiraj po id uzlazno.",
+      "module": 0,
+      "primary_concept": "column_alias",
+      "secondary_concepts": [
+        "select_basic",
+        "where_filter",
+        "order_by"
+      ],
+      "difficulty": 1,
+      "estimated_time_sec": 90,
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT first_name AS ime, last_name AS prezime\nFROM customers\nWHERE city = 'Zagreb'\nORDER BY id;",
+      "expected_result": [
+        {
+          "ime": "Fuma",
+          "prezime": "Knežević"
+        },
+        {
+          "ime": "Toni",
+          "prezime": "Bačak"
+        }
+      ],
+      "generation_method": "manual",
+      "approved_by_human": true,
+      "recovery_applied": false,
+      "is_active": true
+    },
+    {
+      "task_id": "column_alias_d2_manual_e952fc59",
+      "title": "Alias nad izračunatim stupcem — cijena s PDV-om",
+      "description": "Iz tablice products ispiši naziv proizvoda i njegovu cijenu uvećanu za 25 % PDV-a, zaokruženu na 2 decimale. Stupci u rezultatu moraju se zvati naziv i cijena_s_pdv. Izračunati stupac BEZ aliasa dobiva ime koje generira baza (npr. ?column?), pa je alias ovdje obavezan, ne kozmetika. Koristi ROUND(price * 1.25, 2). Sortiraj po id uzlazno i ograniči na 10 redaka.",
+      "module": 0,
+      "primary_concept": "column_alias",
+      "secondary_concepts": [
+        "select_basic",
+        "order_by",
+        "limit_offset"
+      ],
+      "difficulty": 2,
+      "estimated_time_sec": 90,
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT name AS naziv, ROUND(price * 1.25, 2) AS cijena_s_pdv\nFROM products\nORDER BY id\nLIMIT 10;",
+      "expected_result": [
+        {
+          "naziv": "Digitized solution-oriented solution",
+          "cijena_s_pdv": "912.94"
+        },
+        {
+          "naziv": "Versatile zero administration benchmark",
+          "cijena_s_pdv": "104.16"
+        },
+        {
+          "naziv": "Face-to-face context-sensitive website",
+          "cijena_s_pdv": "1076.93"
+        },
+        {
+          "naziv": "Programmable maximized application",
+          "cijena_s_pdv": "827.88"
+        },
+        {
+          "naziv": "Decentralized logistical challenge",
+          "cijena_s_pdv": "295.49"
+        },
+        {
+          "naziv": "Synchronized multi-tasking open architecture",
+          "cijena_s_pdv": "1042.64"
+        },
+        {
+          "naziv": "Versatile leadingedge pricing structure",
+          "cijena_s_pdv": "337.98"
+        },
+        {
+          "naziv": "Profit-focused interactive neural-net",
+          "cijena_s_pdv": "795.21"
+        },
+        {
+          "naziv": "Diverse value-added leverage",
+          "cijena_s_pdv": "477.73"
+        },
+        {
+          "naziv": "Versatile dynamic productivity",
+          "cijena_s_pdv": "856.89"
+        }
+      ],
+      "generation_method": "manual",
+      "approved_by_human": true,
+      "recovery_applied": false,
+      "is_active": true
+    },
+    {
+      "task_id": "column_alias_d2_manual_b946255e",
+      "title": "Sortiranje po aliasu stupca",
+      "description": "Iz tablice products ispiši naziv proizvoda kao naziv i količinu na zalihi kao zaliha. Rezultat sortiraj silazno po zalihi, pa uzlazno po nazivu, koristeći ALIASE u ORDER BY klauzuli (ne izvorna imena stupaca). PostgreSQL to dopušta jer se ORDER BY izvodi nakon SELECT-a — za razliku od WHERE, koji alias NE vidi. Ograniči na 10 redaka.",
+      "module": 0,
+      "primary_concept": "column_alias",
+      "secondary_concepts": [
+        "select_basic",
+        "order_by",
+        "limit_offset"
+      ],
+      "difficulty": 2,
+      "estimated_time_sec": 90,
+      "sandbox_schema": "ecommerce_v1",
+      "expected_query": "SELECT name AS naziv, stock AS zaliha\nFROM products\nORDER BY zaliha DESC, naziv ASC\nLIMIT 10;",
+      "expected_result": [
+        {
+          "naziv": "Sharable web-enabled matrix",
+          "zaliha": 497
+        },
+        {
+          "naziv": "Switchable attitude-oriented complexity",
+          "zaliha": 492
+        },
+        {
+          "naziv": "Grass-roots leadingedge archive",
+          "zaliha": 482
+        },
+        {
+          "naziv": "Total logistical flexibility",
+          "zaliha": 480
+        },
+        {
+          "naziv": "Virtual demand-driven product",
+          "zaliha": 480
+        },
+        {
+          "naziv": "Versatile leadingedge pricing structure",
+          "zaliha": 479
+        },
+        {
+          "naziv": "Function-based mission-critical budgetary management",
+          "zaliha": 476
+        },
+        {
+          "naziv": "Pre-emptive next generation task-force",
+          "zaliha": 475
+        },
+        {
+          "naziv": "Diverse value-added leverage",
+          "zaliha": 473
+        },
+        {
+          "naziv": "Right-sized bottom-line utilization",
+          "zaliha": 472
+        }
+      ],
+      "generation_method": "manual",
+      "approved_by_human": true,
+      "recovery_applied": false,
+      "is_active": true
     }
   ],
   "changelog": [
     "4.4-0h: +2 ručno autorska zadatka (right_join d2, insert d3) — oživljavanje 'slučajno mrtvih' koncepata koje subfloor pravilo (<2 primarna taska) tiho je isključivalo iz preporuka (NALAZ #27). approved_by_human=false do ljudskog pregleda.",
     "4.4-0h-final: zadatak right_join_d2_manual_b87adfc6 — sekundarni koncepti null_handling -> column_alias (IS NULL je anti-join idiom, ne NULL semantika; AS customer_id je stvarni alias). Zadatak insert_d3_manual_d034def1 — opis prepisan tako da sve 4 vrijednosti oba retka stoje u kod-bloku (evaluacija je egzaktna). Oba zadatka: approved_by_human -> true nakon ljudskog pregleda.",
-    "4.4-0h-final: approved_by_human=true za oba ručno autorska zadatka nakon ljudskog pregleda (sekundarni koncepti zadatka A ispravljeni, opis zadatka B prepisan s egzaktnim podacima u kod-bloku)."
+    "4.4-0h-final: approved_by_human=true za oba ručno autorska zadatka nakon ljudskog pregleda (sekundarni koncepti zadatka A ispravljeni, opis zadatka B prepisan s egzaktnim podacima u kod-bloku).",
+    {
+      "version": "m6-plan-presence",
+      "date": "2026-08-14",
+      "note": "ERRATA #66: 7 ručno autorskih zadataka (index_usage ×2, explain_plan ×2, column_alias ×3); 4 zatečena M6 zadatka trajno deaktivirana uz razlog. is_active je od sada EKSPLICITAN po zadatku, ne izveden iz koncepta."
+    }
   ]
 }

@@ -6,8 +6,14 @@
  *
  *   • `503 coordinator_busy`      — tok NIJE ni primljen; ništa nije upisano,
  *                                   a ponovni pokušaj odmah ima smisla
+ *   • `503 plan_unavailable`      — plan izvedbe se nije mogao dohvatiti (M6);
+ *                                   pokušaj NIJE ni nastao (ERRATA #69)
  *   • `504 evaluation_timeout`    — evaluacija nije stigla, ništa nije upisano
  *   • `504 orchestration_timeout` — gateway odustao, ništa nije upisano
+ *
+ * 🔴 Od `plan_unavailable` (2026-08-14) su ČETIRI ishoda na DVA statusa, i status
+ * 503 nose DVA različita razloga — što je i konačni razlog zašto se mapira po
+ * `detail`u: granananje po statusu ovdje više nije ni izvedivo.
  *
  * `fix-62-63-wrapup.md` §F.1 propisuje upravo ovu podjelu i ostavlja je Fazi 5.2,
  * koja ju nije izvela — do 2026-08-14 je `TaskPage` granao samo na `status === 504`,
@@ -25,12 +31,14 @@
 
 export type SubmitFailure =
   | "coordinator_busy"
+  | "plan_unavailable"
   | "evaluation_timeout"
   | "orchestration_timeout"
   | "unknown"
 
 const POZNATI: ReadonlySet<string> = new Set([
   "coordinator_busy",
+  "plan_unavailable",
   "evaluation_timeout",
   "orchestration_timeout",
 ])
@@ -55,6 +63,14 @@ const PORUKE: Record<SubmitFailure, SubmitPoruka> = {
     title: "Sustav je trenutno zauzet",
     message:
       "Netko drugi upravo predaje rješenje. Rješenje nije ocijenjeno — pokušaj odmah ponovno.",
+  },
+  // 🔴 Smetnja sustava, NE studentova greška — poruka to mora reći izrijekom,
+  // jer student na M6 zadatku inače pomisli da mu je upit pogrešan. Pokušaj nije
+  // upisan i BKT nije diran (ERRATA #69).
+  plan_unavailable: {
+    title: "Plan izvedbe nije bilo moguće dohvatiti",
+    message:
+      "Ovo nije greška u tvom upitu — sustav nije uspio pročitati plan izvedbe. Rješenje nije ocijenjeno; pokušaj ponovno predati.",
   },
   evaluation_timeout: {
     title: "Evaluacija nije stigla na vrijeme",

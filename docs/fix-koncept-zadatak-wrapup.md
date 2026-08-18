@@ -120,6 +120,19 @@ zadatke"). Per-user invarijanta iz A.6 ga poništava — ondje korijen može isp
 kandidata a ostati nesavladan. Zato A.7 uvodi rezervu. Zapisano ovdje da se dokaz ne
 citira izvan uvjeta pod kojima je izveden.
 
+🔴 **DOPUNA 2026-08-18 (grana `m6-plan-presence`):** provjereno nakon uklanjanja Kat. C i
+izlaska `column_alias`-a iz Kat. A — **uvjet „točno jedan korijen" i dalje vrijedi za graf
+koji preporučivač zapravo pretražuje.** Podgraf bez maskiranih čvorova ima tri korijena
+(`select_basic`, `cross_join`, `inner_join`), ali to nije struktura koju sustav koristi:
+maskiranje mijenja **vrijednosti**, ne **bridove**, a `prereqs_met/2` pita nemaskirani
+`prerequisite/2`. `join_condition` je uz to **prozirna** maska — postane 0.99 čim mu je
+`from_clause` savladan — pa `inner_join`/`cross_join` nisu ulazi nego vrata. Izmjereno kroz
+pun lanac: **5/5 tek registriranih računa dobije `select_basic`** (task 15,
+`partial_continuation`). Uz strukturni argument sada stoji i falsifikacija nad **3000 stanja
+(2 × 1500, sjemena 20260814 i 20260818), 0 povreda** — v. `m6-plan-presence-wrapup.md` §H.
+Tekst gore i dalje se ne citira izvan uvjeta pod kojima je izveden (konfiguracija do
+**2026-08-14**: jedan korijen, tri maske).
+
 ## A.6 🔴 DRUGI OBLIK ISTOG ĆORSOKAKA — nađen nakon prvog zatvaranja
 
 Nakon prvih pet commitova korisnik je javio da na računu `admin` i dalje piše „Nema novih

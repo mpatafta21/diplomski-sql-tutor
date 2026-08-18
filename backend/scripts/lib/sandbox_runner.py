@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
@@ -37,6 +38,26 @@ class ComparisonResult:
     actual_count: int
     expected_count: int
     first_mismatch: dict | None = None
+
+
+@dataclass
+class PlanResult:
+    """Izvedbeni plan upita (M6) — SAMO popis tipova čvorova, bez cijena.
+
+    🔴 Cijene i procjene redaka se NAMJERNO ne izlažu: ovise o `ANALYZE`
+    statistici i mijenjaju se s reseedom, pa bi tvrdnja izvedena iz njih bila
+    krhka. Tip čvora je stabilan ulaz za `plan_signature`.
+    """
+
+    success: bool
+    node_types: list[str] = field(default_factory=list)
+    #: Imena indeksa koje plan STVARNO dira.
+    #: 🔴 Bez ovoga je „koristi indeks" prazna tvrdnja: `ORDER BY id LIMIT 1`
+    #: dovede pkey indeks u plan pa i anti-pattern ispadne index-friendly.
+    #: Točno to je učinilo zadatak 83 neupotrebljivim (ERRATA #66).
+    index_names: list[str] = field(default_factory=list)
+    error: str | None = None
+    sqlstate: str | None = None
 
 
 def _normalize_value(v):
@@ -78,6 +99,30 @@ def _values_equal(a, b) -> bool:
         if da is not None and db is not None:
             return da == db
     return _normalize_value(a) == _normalize_value(b)
+
+
+def _collect_plan_keys(payload, key: str) -> list[str]:
+    """Rekurzivno pokupi svaku vrijednost `key` iz `EXPLAIN (FORMAT JSON)` stabla.
+
+    Struktura je `[{"Plan": {"Node Type": …, "Plans": [ {…}, … ]}}]`, a djeca se
+    gnijezde proizvoljno duboko. Hoda se generički (svaki dict/list), da promjena
+    oblika u novoj PG verziji ne izgubi čvorove tiho.
+    """
+    found: list[str] = []
+
+    def walk(node) -> None:
+        if isinstance(node, dict):
+            value = node.get(key)
+            if isinstance(value, str):
+                found.append(value)
+            for nested in node.values():
+                walk(nested)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(payload)
+    return found
 
 
 def _rows_equal(row_a: dict, row_b: dict) -> bool:
@@ -184,6 +229,64 @@ class SandboxRunner:
                 execution_time_ms=int((time.perf_counter() - start) * 1000),
                 sqlstate=e.sqlstate,
             )
+
+    def explain(
+        self,
+        query: str,
+        schema: str = "ecommerce_v1",
+        planner_flags: tuple[str, ...] = (),
+    ) -> PlanResult:
+        """Dohvati izvedbeni plan upita (`EXPLAIN (FORMAT JSON)`), BEZ izvršavanja.
+
+        🔴 NIKAD `ANALYZE`. `EXPLAIN ANALYZE` stvarno izvršava upit — nad DML-om bi
+        pisao u sandbox. Ovdje se traži samo plan, i to pod `sandbox_readonly`
+        rolom, pa su dvije neovisne brane između studentovog upita i zapisa.
+
+        Vraća tipove čvorova cijelog STABLA (korijen + sva djeca kroz `Plans`).
+        Plitko čitanje samo korijena vidjelo bi „Hash Join" ali ne i „Seq Scan"
+        ispod njega, pa bi potpis bio nepotpun.
+
+        Args:
+            query: SQL upit čiji se plan traži (SELECT; DML pada na readonly roli).
+            schema: PostgreSQL schema (default: ecommerce_v1).
+            planner_flags: `SET`-ovi koji se primjenjuju prije EXPLAIN-a, npr.
+                `("enable_seqscan=off",)`. Koriste se ISKLJUČIVO za provjeru
+                stabilnosti plana pri uvozu zadatka (`plan_is_stable`) — NIKAD u
+                ocjenjivanju studentovog upita, gdje mora vrijediti isti planer
+                kao u stvarnom radu.
+        """
+        start = time.perf_counter()
+        try:
+            with psycopg.connect(self.connection_string, autocommit=True) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(f"SET search_path TO {schema}")
+                    cur.execute(f"SET statement_timeout = {self.timeout_ms}")
+                    cur.execute("SET ROLE sandbox_readonly")
+                    for flag in planner_flags:
+                        cur.execute(f"SET {flag}")
+                    cur.execute(f"EXPLAIN (FORMAT JSON) {query}")
+                    row = cur.fetchone()
+        except psycopg.Error as e:
+            return PlanResult(success=False, error=str(e), sqlstate=e.sqlstate)
+
+        if not row or row[0] is None:
+            return PlanResult(success=False, error="EXPLAIN nije vratio plan")
+
+        payload = row[0]
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except json.JSONDecodeError as e:
+                return PlanResult(success=False, error=f"Neparsabilan plan: {e}")
+
+        _log.debug(
+            "EXPLAIN dohvaćen u %d ms", int((time.perf_counter() - start) * 1000)
+        )
+        return PlanResult(
+            success=True,
+            node_types=_collect_plan_keys(payload, "Node Type"),
+            index_names=_collect_plan_keys(payload, "Index Name"),
+        )
 
     def compare(
         self,

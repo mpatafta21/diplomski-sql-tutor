@@ -32,7 +32,7 @@ import pytest
 from sqlalchemy import delete, select
 
 from agents.db_helpers import load_concept_code_map
-from agents.evaluation import UNSUPPORTED_CONCEPTS
+from agents.evaluation import PLAN_CHECKED_CONCEPTS
 from agents.recommender_logic import (
     build_mastery_snapshot,
     concepts_with_available_tasks,
@@ -156,27 +156,32 @@ def _all_mastered_profile() -> dict[str, float]:
 
 
 def test_category_sets_are_db_derived():
-    """transversal = {column_alias, join_condition};
-    subfloor = {insert, right_join} + neevaluabilni (vidi dolje);
-    null_handling (modul 0 ALI ima taskove) NE smije biti transverzalan."""
+    """transversal = {join_condition}; subfloor = {} (prazan);
+    null_handling i column_alias (modul 0 ALI imaju taskove) NISU transverzalni."""
     with SessionLocal() as sess:
         transversal = transversal_concepts(sess)
         subfloor = subfloor_concepts(sess)
 
-    assert transversal == {"column_alias", "join_condition"}, (
+    # 🔴 `column_alias` je izašao 2026-08-14 (ERRATA #66): dobio je 3 aktivna
+    # primarna zadatka, pa `transversal_concepts` (modul 0 I count == 0) ga više
+    # ne hvata. Ostaje SAMO `join_condition` — odluka korisnika je bila da on
+    # zadatke NE dobiva (ON a.id = b.id ne postoji odvojeno od JOIN-a).
+    assert transversal == {"join_condition"}, (
         f"Transverzalni (modul 0, 0 taskova) krivi: {transversal}"
     )
-    assert "null_handling" not in transversal, (
-        "null_handling ima taskove → NIJE transverzalan"
-    )
+    for code in ("null_handling", "column_alias"):
+        assert code not in transversal, f"{code} ima taskove → NIJE transverzalan"
+
     # 4.4-0h / NALAZ #27: `insert` i `right_join` imali su TOČNO 1 primarni task,
     # pa ih je subfloor pravilo (<2) tiho maskiralo kao savladane → recommender ih
-    # NIKAD nije nudio (empirijski: p_l je ostajao na tier prioru). Svakom je
-    # dodan po jedan ručno autorski zadatak → 2 taska → izlaze iz subfloora.
-    # Preostaju SAMO M6 koncepti (0 aktivnih taskova, NALAZ #19) — očekivanje je
-    # izraženo kroz UNSUPPORTED_CONCEPTS da ostane točno ako se M6 vrati u igru.
-    assert subfloor == set(UNSUPPORTED_CONCEPTS), (
-        f"Subfloor (modul != 0, < 2 taska) krivi: {subfloor}"
+    # NIKAD nije nudio. Svakom je dodan po jedan ručno autorski zadatak.
+    #
+    # 🔴 Subfloor je od ERRATE #66 PRAZAN. Dotad su u njemu ostajali M6 koncepti
+    # (0 aktivnih zadataka); sada `explain_plan` ima 2 a `index_usage` 3 aktivna,
+    # pa oba izlaze. Prazan skup NIJE „test ništa ne tvrdi" — tvrdi da nijedan
+    # koncept modula != 0 nije pod-resursiran, što je jača tvrdnja od popisa.
+    assert subfloor == set(), (
+        f"Subfloor (modul != 0, < 2 taska) mora biti prazan, a je: {subfloor}"
     )
     assert transversal.isdisjoint(subfloor), "Kategorije se ne smiju preklapati"
 
@@ -208,10 +213,14 @@ def test_snapshot_uses_tier_priors_not_flat(recommender_env, prolog_engine):
     assert snapshot["agg_count"] == pytest.approx(_PRIOR_MEDIUM), "medium p_l0 = 0.15"
     # Subfloor maska — od 4.4-0h (NALAZ #27) `insert` i `right_join` VIŠE NISU
     # subfloor (svaki je dobio 2. primarni task), pa nose svoj pravi tier prior.
-    # Maska ostaje samo na konceptima s 0 aktivnih taskova (M6, NALAZ #19).
-    for code in UNSUPPORTED_CONCEPTS:
-        assert snapshot[code] == pytest.approx(0.99), (
-            f"{code} ima 0 aktivnih taskova → mora biti maskiran"
+    #
+    # 🔴 Od ERRATE #66 maska nije NI NA JEDNOM konceptu modula != 0: M6 je dobio
+    # ispravne zadatke i plan-presence evaluaciju, pa `explain_plan` i
+    # `index_usage` nose svoj pravi tier prior (hard = 0.05) umjesto 0.99.
+    # Da su i dalje maskirani, njihovi zadaci nikad ne bi bili ponuđeni.
+    for code in PLAN_CHECKED_CONCEPTS:
+        assert snapshot[code] == pytest.approx(_PRIOR_HARD), (
+            f"{code} ima aktivne zadatke → NE smije biti maskiran"
         )
     assert snapshot["right_join"] == pytest.approx(_PRIOR_HARD), (
         "right_join je od 4.4-0h normalan koncept — ne smije biti maskiran"
@@ -223,7 +232,11 @@ def test_snapshot_uses_tier_priors_not_flat(recommender_env, prolog_engine):
     )
     # Transverzalni za novaka → 0.0 (prereqs nisu mastered)
     assert snapshot["join_condition"] == pytest.approx(0.0)
-    assert snapshot["column_alias"] == pytest.approx(0.0)
+    # 🔴 `column_alias` VIŠE NIJE transverzalan (ERRATA #66) — dobio je 3 zadatka,
+    # pa nosi svoj tier prior (easy = 0.30) umjesto blokade 0.0. Time nizvodni
+    # `group_by` više ne ovisi o proziranju nego o stvarno izmjerenom znanju;
+    # da to ne stvara ćorsokak dokazuje simulacija u test_m6_reachability.py.
+    assert snapshot["column_alias"] == pytest.approx(_PRIOR_EASY)
 
 
 # ---------------------------------------------------------------------------
@@ -536,24 +549,52 @@ def test_recommend_clears_mastery_after(recommender_env, prolog_engine):
 # ---------------------------------------------------------------------------
 
 
-def test_unsupported_concepts_yield_no_task(recommender_env):
-    """select_task_for_concept vraća None za neevaluabilne koncepte.
+def test_plan_checked_concepts_now_yield_tasks(recommender_env):
+    """🔴 OBRAT (ERRATA #66): M6 koncepti sada MORAJU davati zadatke.
 
-    DVA neovisna sloja obrane (oba se ovdje tvrde):
-      1. kod: guard u select_task_for_concept (4.4-0d),
-      2. podaci: M6 taskovi su is_active=False (4.4-0e, NALAZ #19) pa ih ni
-         upit ne bi našao.
-    Sloj 1 je bitan jer bi se sloj 2 mogao vratiti (plan-presence evaluacija).
+    Dotad je ovaj test tvrdio suprotno — `select_task_for_concept` vraćao je
+    None jer su M6 zadaci bili `is_active=False`, a u kodu je stajao guard koji
+    ih je odbijao i da nisu. Oba sloja postojala su zato što zadatak
+    neevaluabilnog koncepta nikad ne može postati `is_correct` → trajni ćorsokak.
+
+    Plan-presence evaluacija taj razlog je uklonila. Zadržava se tvrdnja da
+    zadaci POSTOJE i da su dosežni; obrana od ćorsokaka sada je u tome što se
+    zadatak može stvarno riješiti, a ne u tome što se nikad ne nudi.
     """
     user_id = recommender_env["user_id"]
     with SessionLocal() as sess:
-        for code in UNSUPPORTED_CONCEPTS:
-            assert not _primary_task_ids(code), (
-                f"{code}: očekujem NULA aktivnih taskova (NALAZ #19)"
+        for code in PLAN_CHECKED_CONCEPTS:
+            assert _primary_task_ids(code), (
+                f"{code}: očekujem BAREM JEDAN aktivan zadatak (ERRATA #66)"
             )
-            assert select_task_for_concept(sess, user_id, code) is None, (
-                f"{code} je neevaluabilan — NE smije dati task (trajni ćorsokak)"
+            assert select_task_for_concept(sess, user_id, code) is not None, (
+                f"{code} je sada evaluabilan i mora davati zadatak"
             )
+
+
+def test_pokvareni_M6_zadaci_ostaju_neaktivni(recommender_env):
+    """Četiri zatečena M6 zadatka NE smiju se vratiti u igru (ERRATA #66).
+
+    Nisu obrisani — dokaz su nalaza i negativan primjer za uvozni gate. Ali
+    aktivni bi značili da sustav ocjenjuje po tvrdnji koju je mjerenje oborilo.
+    """
+    with SessionLocal() as sess:
+        aktivni = set(
+            sess.execute(
+                select(Task.source_id).where(
+                    Task.is_active.is_(True),
+                    Task.source_id.in_(
+                        [
+                            "explain_plan_d3_60b9eaee",
+                            "explain_plan_d4_54c05243",
+                            "index_usage_d4_68049f11",
+                            "index_usage_d5_258d461b",
+                        ]
+                    ),
+                )
+            ).scalars()
+        )
+    assert aktivni == set(), f"pokvareni M6 zadaci su aktivni: {sorted(aktivni)}"
 
 
 def test_evaluable_concepts_still_yield_tasks(recommender_env):
@@ -566,67 +607,42 @@ def test_evaluable_concepts_still_yield_tasks(recommender_env):
             )
 
 
-def test_unsupported_concepts_masked_in_snapshot(recommender_env, prolog_engine):
-    """Maska je na razini KONCEPTA (0.99) — Prolog ih preskače kroz vlastite klauzule."""
+def test_plan_checked_concepts_NISU_maskirani_u_snapshotu(
+    recommender_env, prolog_engine
+):
+    """🔴 OBRAT (ERRATA #66): maska Kat. C je uklonjena.
+
+    Dotad su M6 koncepti dijelili masku 0.99 sa subfloorom. Sada su evaluabilni,
+    pa bi ista maska bila blokada: Prolog preskače koncepte iznad praga, dakle
+    njihovi zadaci nikad ne bi bili ponuđeni. Simulacija u
+    `test_m6_reachability.py` mjeri drugu stranu iste tvrdnje — da M6 stvarno
+    biva ponuđen savršenom studentu.
+    """
     user_id = recommender_env["user_id"]
     with SessionLocal() as sess:
-        masked = subfloor_concepts(sess) | UNSUPPORTED_CONCEPTS
+        masked = subfloor_concepts(sess)
         snap = build_mastery_snapshot(
             sess, prolog_engine, user_id, transversal_concepts(sess), masked
         )
-    for code in UNSUPPORTED_CONCEPTS:
-        assert snap[code] >= 0.99, f"{code} mora biti maskiran kao mastered"
+    for code in PLAN_CHECKED_CONCEPTS:
+        assert snap[code] < 0.99, (
+            f"{code} je maskiran kao savladan — njegovi zadaci bi bili mrtvi"
+        )
 
 
-def test_unmasked_prolog_would_recommend_unevaluable(prolog_engine):
-    """Preduvjet ćorsokaka: kad su SAMO neevaluabilni koncepti slabi, Prolog ih nudi.
-
-    Deterministički jer su oni JEDINI slabi kandidati (ne ovisi o redoslijedu
-    Prologovih rješenja).
-    """
-    snap = {c: 0.99 for c in ALL_30}
-    for code in UNSUPPORTED_CONCEPTS:
-        snap[code] = 0.10
-
-    # Izolira pravilo pod testom (maska) od guarda po broju zadataka: ovdje se
-    # tvrdi svijet u kojem SVI koncepti imaju zadatke, pa preporuku može
-    # zaustaviti samo maska. Bez toga bi test prolazio iz drugog razloga —
-    # explain_plan/index_usage danas imaju 0 aktivnih zadataka (izmjereno).
-    prolog_engine.inject_recommendable(ALL_30)
-    prolog_engine.inject_mastery("t_unmasked", snap)
-    try:
-        rec = prolog_engine.recommend_next("t_unmasked")
-    finally:
-        prolog_engine.clear_mastery("t_unmasked")
-        prolog_engine.clear_recommendable()
-
-    assert rec is not None and rec[0] in UNSUPPORTED_CONCEPTS, (
-        f"bez maske Prolog nudi neevaluabilan koncept (= ćorsokak), dobiveno {rec}"
-    )
-
-
-def test_masked_skips_to_evaluable_concept(prolog_engine):
-    """🔴 S maskom: preskoči neevaluabilno i ponudi STVARAN zadatak — ne šutnju.
-
-    Ovo je dokaz da fix ne stvara TIŠI ćorsokak (task_id=None / no_recommendation):
-    self_join je jedini evaluabilan slab koncept pa je očekivanje jednoznačno.
-    """
-    snap = {c: 0.99 for c in ALL_30}
-    snap["self_join"] = 0.10
-    for code in UNSUPPORTED_CONCEPTS:
-        snap[code] = 0.99  # maska koju recommend() primjenjuje
-
-    prolog_engine.inject_recommendable(ALL_30)  # v. napomenu u testu iznad
-    prolog_engine.inject_mastery("t_masked", snap)
-    try:
-        rec = prolog_engine.recommend_next("t_masked")
-    finally:
-        prolog_engine.clear_mastery("t_masked")
-        prolog_engine.clear_recommendable()
-
-    assert rec is not None, "maska je ušutkala preporuku — tiši ćorsokak"
-    assert rec[0] not in UNSUPPORTED_CONCEPTS
-    assert rec[0] == "self_join", f"mora ponuditi evaluabilan koncept, dobiveno {rec}"
+# 🔴 UKLONJENA DVA TESTA (ERRATA #66, 2026-08-14):
+#   test_unmasked_prolog_would_recommend_unevaluable
+#   test_masked_skips_to_evaluable_concept
+#
+# Oba su tvrdila ponašanje maske Kat. C — da Prolog bez nje nudi neevaluabilan
+# koncept (ćorsokak), a s njom preskače na evaluabilan. Maska je uklonjena jer
+# M6 više NIJE neevaluabilan, pa su testovi tvrdili mehanizam kojeg nema.
+#
+# Svojstvo koje su čuvali („maska ne smije ušutkati preporuku") nije izgubljeno:
+# nosi ga `test_recommender_no_dead_end.py` (tvrdnja P1 — nikad `exhausted`) nad
+# nasumičnim stanjima, dakle šire nego ova dva ručno složena snapshota. Da M6
+# stvarno biva ponuđen mjeri `test_m6_reachability.py` simulacijom kroz stvarni
+# preporučivač, umjesto tvrdnjom nad izmišljenim snapshotom.
 
 
 # ---------------------------------------------------------------------------

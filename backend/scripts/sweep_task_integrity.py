@@ -15,9 +15,11 @@ koristi ČISTU evaluacijsku jezgru ``agents.evaluation.evaluate`` — ISTI put
 kojim ide studentov upit (ista taksonomija grešaka, ista ``runner.compare``
 normalizacija) — samo bez perzistencije.
 
-NAPOMENA: koncepti ``explain_plan``/``index_usage`` (modul 6) po dizajnu vraćaju
-``unsupported_eval`` (plan-presence evaluacija nije implementirana) — to NISU
-pokvareni taskovi i izvještaj ih broji odvojeno.
+🔴 ERRATA #66: koncepti ``explain_plan``/``index_usage`` (modul 6) VIŠE NE vraćaju
+``unsupported_eval`` — ocjenjuju se plan-presence evaluacijom i njihovi padovi su
+STVARNI padovi. Uz redovni sweep za njih se pokreće i ``check_plan_stability``:
+referentni upit mora birati indeks (ili strategiju spoja) bezuvjetno, inače bi
+ocjena ovisila o statistici umjesto o upitu.
 """
 
 from __future__ import annotations
@@ -30,15 +32,22 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from agents.evaluation import UNSUPPORTED_CONCEPTS, evaluate
+from agents.evaluation import (
+    PLAN_CHECKED_CONCEPTS,
+    evaluate,
+    plan_is_stable,
+    signature_of,
+)
 from agents.evaluator_agent import _sandbox_conn_string
 from app.db.models import Attempt, Concept, Module, Task, TaskConcept
 from app.db.session import SessionLocal
 from scripts.lib.sandbox_runner import SandboxRunner
 
-# Vraćaju unsupported_eval PO DIZAJNU — dijeljena konstanta iz evaluacijske
-# jezgre (NE kopija popisa; jedan izvor istine).
-_BY_DESIGN_UNSUPPORTED = UNSUPPORTED_CONCEPTS
+# 🔴 PRAZAN od ERRATE #66. Dotad su M6 koncepti vraćali `unsupported_eval` po
+# dizajnu, pa su se njihovi padovi izuzimali iz `failing_genuine`. Sada su M6
+# zadaci AKTIVNI i evaluabilni — da je popis ostao, svaki bi njihov pad bio tiho
+# izuzet iz gatea i sweep bi prolazio zelen nad pokvarenim zadatkom.
+_BY_DESIGN_UNSUPPORTED: frozenset[str] = frozenset()
 
 
 @dataclass
@@ -122,6 +131,135 @@ def deep_compare(task_id: int) -> dict:
         }
 
 
+def check_plan_stability() -> list[tuple[str, str]]:
+    """Uvozni gate za M6: referentni upit mora imati STABILAN plan.
+
+    Vraća `[(source_id, razlog), …]` za aktivne zadatke koji padaju.
+
+    🔴 **Zašto gate postoji.** Tri zatečena M6 zadatka (79, 80, 82) tražila su od
+    studenta index-friendly upit, a njihov referentni upit nad `customers` (200
+    redaka) daje **Seq Scan** — planer je u pravu, zadatak nije. Nijedna
+    provjera to nije hvatala jer se integritet mjerio samo usporedbom redaka, a
+    redci su se poklapali. ERRATA #66.
+
+    Zadatak čiji plan ovisi o prolaznoj statistici daje **nasumične ocjene**:
+    isti upit istog studenta prolazi ili pada ovisno o tome je li autovacuum
+    upravo prošao. Provjerava se samo za `PLAN_CHECKED_CONCEPTS` — ostali se po
+    planu i ne ocjenjuju.
+    """
+    runner = SandboxRunner(_sandbox_conn_string())
+    out: list[tuple[str, str]] = []
+    with SessionLocal() as session:
+        for task, primary, _module in _load_tasks(session):
+            if primary not in PLAN_CHECKED_CONCEPTS:
+                continue
+            stabilan, razlog = plan_is_stable(
+                task.expected_query, runner, schema=task.sandbox_schema
+            )
+            if not stabilan:
+                out.append((task.source_id or f"task:{task.id}", razlog))
+    return out
+
+
+def _sandbox_index_names(runner: SandboxRunner, schema: str) -> set[str]:
+    """Imena indeksa sheme, iz `pg_indexes`.
+
+    🔴 Izvor istine je BAZA, ne popis u kodu. Popis bi bio sadržaj kataloga u
+    evaluacijskoj jezgri — konstanta koju je `m6-transverzalni-korak-0.md` §C.1
+    odbio, i koja bi tiho zastarjela pri prvoj promjeni sheme sandboxa.
+    `current_schema()` je ispravan jer `execute` postavi `search_path`.
+    """
+    res = runner.execute(
+        "SELECT indexname FROM pg_indexes WHERE schemaname = current_schema()",
+        schema=schema,
+    )
+    if not res.success:
+        return set()
+    return {str(r["indexname"]) for r in res.rows}
+
+
+def check_plan_claim() -> list[tuple[str, str]]:
+    """Gate: svojstvo koje zadatak IZGOVARA mora stajati u referentnom planu.
+
+    Vraća `[(source_id, razlog), …]` za aktivne zadatke koji padaju.
+
+    🔴 **Zašto postoji.** Gate diskriminacije živi pri autorstvu
+    (`manual_tasks_m6.py`) i pokriva samo zadatke koje je ta skripta napisala.
+    Zadatak 81 je došao kroz `import_dataset`, nema `anti_pattern`, i ondje ga
+    grana `anti is None` propušta bez ijedne provjere — tiho (ERRATA #78).
+    Ovaj gate ne treba katalog u kodu: zadatak sam nosi svoju tvrdnju, isto
+    načelo koje §C.2 već primjenjuje na `expected_query`.
+
+    **Pravilo je PO KONCEPTU**, jer se koncepti ne poučavaju istim svojstvom:
+
+    * ``index_usage``  — indeks imenovan u `description` mora biti u
+      `index_names` potpisa referentnog plana. Traži se DOSLOVAN niz; provjereno
+      da nijedno ime indeksa nije podniz drugog, pa križni pogodak nije moguć.
+    * ``explain_plan`` — `join_methods` referentnog plana ne smije biti prazan.
+      To je §C.4 („potpis referentnog upita nije prazan") primijenjen na polje
+      koje taj koncept poučava.
+
+    🔴 Spojna grana je NAMJERNO slabija: tvrdi da referenca izvodi NEKU
+    strategiju spoja, ne onu koju opis poučava. Jača tvrdnja iz opisa nije
+    izvediva jer je pedagogija `explain_plan`-a kontrastivna po konstrukciji —
+    opis mora imenovati OBA plana da bi poučavao razliku. Svojstvo koncepta, ne
+    rupa u gateu; v. `docs/m6-plan-presence-wrapup.md` §I.4.
+
+    🔴 **TVRDO PRAVILO PROTIV ŠUTNJE.** Zadatak koji ne potpada ni pod jedno
+    pravilo PADA s vlastitim `source_id`. Tiho preskakanje je točno mana zbog
+    koje varijanta B nije izabrana — gate ne smije ponoviti istu.
+    """
+    runner = SandboxRunner(_sandbox_conn_string())
+    indeksi_po_shemi: dict[str, set[str]] = {}
+    out: list[tuple[str, str]] = []
+
+    with SessionLocal() as session:
+        for task, primary, _module in _load_tasks(session):
+            if primary not in PLAN_CHECKED_CONCEPTS:
+                continue
+
+            sid = task.source_id or f"task:{task.id}"
+            schema = task.sandbox_schema
+            plan = runner.explain(task.expected_query, schema=schema)
+            if not plan.success:
+                out.append((sid, f"EXPLAIN referentnog upita ne uspijeva: {plan.error}"))
+                continue
+            potpis = signature_of(plan)
+
+            if primary == "index_usage":
+                if schema not in indeksi_po_shemi:
+                    indeksi_po_shemi[schema] = _sandbox_index_names(runner, schema)
+                imenovani = sorted(
+                    i for i in indeksi_po_shemi[schema] if i in (task.description or "")
+                )
+                if not imenovani:
+                    out.append(
+                        (sid, "opis ne imenuje nijedan indeks — zadatak ne izgovara "
+                              "što poučava, pa se tvrdnja o planu ne može provjeriti")
+                    )
+                    continue
+                fali = [i for i in imenovani if i not in potpis.index_names]
+                if fali:
+                    out.append(
+                        (sid, f"opis obećava {fali}, a plan koristi "
+                              f"{sorted(potpis.index_names) or '[]'}")
+                    )
+
+            elif primary == "explain_plan":
+                if not potpis.join_methods:
+                    out.append(
+                        (sid, "join_methods referentnog plana je PRAZAN — zadatak "
+                              "koncepta explain_plan ne poučava nijednu strategiju spoja")
+                    )
+
+            else:
+                out.append(
+                    (sid, f"koncept {primary!r} je u PLAN_CHECKED_CONCEPTS, a gate za "
+                          "njega nema pravilo — ne zna što tvrditi")
+                )
+
+    return out
+
 def count_unsupported_attempts() -> int:
     """Broj perzistiranih attempta s error_type='unsupported_eval'.
 
@@ -198,6 +336,10 @@ def main() -> None:
     rows = run_sweep()
     summary = _summarize(rows)
     summary["unsupported_eval_attempts"] = count_unsupported_attempts()
+    unstable = check_plan_stability()
+    summary["unstable_plan_tasks"] = [sid for sid, _ in unstable]
+    bad_claim = check_plan_claim()
+    summary["bad_plan_claim_tasks"] = [sid for sid, _ in bad_claim]
 
     if not args.json:
         _print_table(rows)
@@ -227,6 +369,36 @@ def main() -> None:
             f"\n🔴 GATE PAO: {summary['failing_genuine']} referentni upit(a) ne "
             f"reproducira expected_result: {summary['genuine_source_ids']}. "
             "Vidi tablicu iznad; regeneracija: scripts.regenerate_expected_result."
+        )
+        raise SystemExit(1)
+
+    # Gate (ERRATA #66): aktivan M6 zadatak mora imati stabilan plan, inače mu je
+    # ocjena nasumična. Prije ovog gatea tri su zadatka tvrdila Index Scan a
+    # dobivala Seq Scan, i to je preživjelo tri faze jer se mjerila samo
+    # usporedba redaka — a redci su se poklapali.
+    if unstable:
+        print("\n🔴 GATE PAO: M6 zadatak s NESTABILNIM planom izvedbe:")
+        for source_id, razlog in unstable:
+            print(f"   [{source_id}] {razlog}")
+        print(
+            "   Referentni upit mora birati indeks (ili strategiju spoja) BEZUVJETNO.\n"
+            "   Tipičan uzrok: upit gađa premalu tablicu (npr. customers, 200 redaka),\n"
+            "   gdje je Seq Scan stvarno jeftiniji pa planer indeks odbija."
+        )
+        raise SystemExit(1)
+
+    # Gate (ERRATA #78): svojstvo koje zadatak IZGOVARA mora stajati u planu.
+    # Pravilo je po konceptu — `index_usage` imenuje indeks, `explain_plan` mora
+    # imati nepraznu strategiju spoja. Zadatak koji ne potpada ni pod jedno
+    # pravilo PADA: tiho preskakanje je mana zbog koje gate diskriminacije nije
+    # prenesen ovamo, pa je ovaj ne smije ponoviti.
+    if bad_claim:
+        print("\n🔴 GATE PAO: M6 zadatak ne izgovara ono što mu plan radi:")
+        for source_id, razlog in bad_claim:
+            print(f"   [{source_id}] {razlog}")
+        print(
+            "   Opis je izvor tvrdnje (isto načelo kao expected_query, §C.2).\n"
+            "   Imena indeksa se provjeravaju prema pg_indexes, ne prema popisu u kodu."
         )
         raise SystemExit(1)
 

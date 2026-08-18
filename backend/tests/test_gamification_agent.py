@@ -439,15 +439,22 @@ def test_zagreb_day_boundary(gam_env):
 def test_explorer_module_zero_excluded(gam_env):
     """Modul 0 (transverzalni) NE ulazi u explorer kriterij.
 
-    4.4-0f / NALAZ #22: kriterij više nije fiksnih {1..6} nego moduli koji
-    STVARNO imaju aktivne zadatke (trenutno {1..5}, jer je M6 izvan opsega —
-    NALAZ #19). Invarijanta koju ovaj test i dalje čuva: pokušaj u modulu 0
-    NE nadomješta modul koji nedostaje.
+    4.4-0f / NALAZ #22: kriterij nije fiksnih {1..6} nego moduli koji STVARNO
+    imaju aktivne zadatke. Invarijanta koju test čuva: pokušaj u modulu 0 NE
+    nadomješta modul koji nedostaje.
+
+    🔴 Skup je 2026-08-14 narastao s {1..5} na **{1..6}** (ERRATA #66): M6 je
+    dobio ispravne zadatke i plan-presence evaluaciju. Kriterij se proširio SAM,
+    kako je 4.4-0f i predviđao — zato je ovdje trebalo dopuniti test, ne kod.
+
+    🔴 Da M6 nije dosežan, ovo bi bedž učinilo NEDOSTIŽNIM (regresija #22 i
+    mehanizam #25). Provjereno simulacijom, ne rezoniranjem:
+    `test_m6_reachability.py` — savršen student posjeti module 0–6.
     """
     uid = gam_env["user_id"]
 
-    # pokušaji u modulima 1,2,3,4 i 0 — modul 5 NEDOSTAJE
-    for mod in [1, 2, 3, 4, 0]:
+    # pokušaji u modulima 1,2,3,4,5 i 0 — modul 6 NEDOSTAJE
+    for mod in [1, 2, 3, 4, 5, 0]:
         tid = gam_env["make_task"](module_number=mod)
         aid = gam_env["make_attempt"](tid, is_correct=False, created_at=_DAY)
         with SessionLocal() as s:
@@ -455,11 +462,11 @@ def test_explorer_module_zero_excluded(gam_env):
 
     earned_codes = _earned_codes(uid)
     assert "explorer" not in earned_codes, (
-        "modul 0 NE smije nadomjestiti modul 5 koji nedostaje"
+        "modul 0 NE smije nadomjestiti modul 6 koji nedostaje"
     )
 
-    # dodaj modul 5 → kriterij (evaluabilni moduli) je kompletiran
-    tid = gam_env["make_task"](module_number=5)
+    # dodaj modul 6 → kriterij (evaluabilni moduli) je kompletiran
+    tid = gam_env["make_task"](module_number=6)
     aid = gam_env["make_attempt"](tid, is_correct=False, created_at=_DAY)
     with SessionLocal() as s:
         persist_gamification(s, _payload(aid, "incorrect"))

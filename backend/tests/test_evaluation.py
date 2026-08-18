@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from agents.evaluation import EvaluationOutcome, evaluate
+from agents.evaluation import EvaluationOutcome, evaluate, plan_is_stable
 from app.db.models import Task
 from scripts.lib.sandbox_runner import SandboxRunner
 
@@ -188,31 +188,59 @@ def test_timeout(db_session, sandbox_runner):
 
 
 # ---------------------------------------------------------------------------
-# explain_plan / index_usage → unsupported_eval
+# explain_plan / index_usage → plan-presence evaluacija (ERRATA #66)
+#
+# 🔴 Do 2026-08-14 oba su koncepta vraćala `unsupported_eval` bez izvršavanja.
+# Sada se ocjenjuju usporedbom izvedbenog plana; logika je u
+# `tests/test_evaluation_plan.py`, ovdje ostaje samo veza na STVARNE zadatke
+# kataloga — jer su upravo oni bili kriv dio nalaza.
 # ---------------------------------------------------------------------------
 
 
-def test_explain_plan_returns_unsupported_eval(db_session, sandbox_runner):
-    """explain_plan concept → unsupported_eval (plan-presence path nije još implementiran)."""
-    task = _task(db_session, "explain_plan_d3_60b9eaee")
-    outcome = evaluate(
-        task, task.expected_query, sandbox_runner, primary_concept_code="explain_plan"
-    )
-
-    assert outcome.is_correct is False
-    assert outcome.verdict == "incorrect"
-    assert outcome.error_type == "unsupported_eval"
-
-
-def test_index_usage_returns_unsupported_eval(db_session, sandbox_runner):
-    """index_usage concept → unsupported_eval."""
+def test_ispravan_M6_zadatak_prolazi_kroz_plan_provjeru(db_session, sandbox_runner):
+    """`index_usage_d3_41c8280e` (task 81) referentno rješenje daje Bitmap Index Scan."""
     task = _task(db_session, "index_usage_d3_41c8280e")
     outcome = evaluate(
         task, task.expected_query, sandbox_runner, primary_concept_code="index_usage"
     )
 
-    assert outcome.is_correct is False
-    assert outcome.error_type == "unsupported_eval"
+    assert outcome.is_correct is True
+    assert outcome.error_type is None
+
+
+@pytest.mark.parametrize(
+    "source_id",
+    [
+        "explain_plan_d3_60b9eaee",  # task 79
+        "explain_plan_d4_54c05243",  # task 80
+        "index_usage_d4_68049f11",  # task 82
+    ],
+)
+def test_zateceni_pokvareni_M6_zadaci_padaju_na_gateu_stabilnosti(
+    source_id, db_session, sandbox_runner
+):
+    """🔴 Tri zadatka koja su srušila izvornu pretpostavku (ERRATA #66).
+
+    Svi gađaju `customers` (200 redaka), gdje planer bira Seq Scan iako indeks
+    postoji — pa referentno rješenje ne radi ono što opis zadatka tvrdi.
+
+    🔴 **Tvrdi se STABILNOST, ne konkretan ishod `evaluate()`.** Prva verzija
+    ovog testa tvrdila je da anti-pattern prolazi kao točan; prošla je izolirano
+    a pala u punoj datoteci, jer se plan za `customers` prebacuje na mrtve retke
+    iz rollbackanog DML-a drugog testa. Tvrdnja o ishodu bila bi time i sama
+    flaky — a upravo je ta nestabilnost razlog zašto zadatak ne valja.
+    """
+    task = _task(db_session, source_id)
+    assert task.is_active is False, f"{source_id} ne smije biti aktivan (ERRATA #66)"
+
+    stabilan, razlog = plan_is_stable(
+        task.expected_query, sandbox_runner, schema=task.sandbox_schema
+    )
+
+    assert stabilan is False, (
+        f"{source_id} bi prošao gate — ako je zadatak popravljen, ispravi i ovaj test"
+    )
+    assert razlog
 
 
 # ---------------------------------------------------------------------------

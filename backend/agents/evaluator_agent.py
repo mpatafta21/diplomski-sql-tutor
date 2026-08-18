@@ -22,7 +22,12 @@ from spade.template import Template
 
 from agents.base import TutorAgent
 from agents.evaluation import evaluate
-from agents.messages import Ontology, Performative, body_to_payload
+from agents.messages import (
+    ERROR_PLAN_UNAVAILABLE,
+    Ontology,
+    Performative,
+    body_to_payload,
+)
 from agents.persistence import persist_attempt
 from app.core import config
 from app.db.models import Attempt, Concept, Task, TaskConcept
@@ -114,6 +119,25 @@ class EvaluatorAgent(TutorAgent):
                         primary_concept_code=primary_concept,
                     )
 
+                    # 🔴 SMETNJA SUSTAVA NE POSTAJE POKUŠAJ (ERRATA #69).
+                    # `plan_unavailable` je jedini `error_type` gdje nije zakazao
+                    # student — EXPLAIN se nije mogao dohvatiti. Izmjereno prije
+                    # ove odluke: jedna takva smetnja studentu koji je predao
+                    # ISPRAVAN upit upiše `is_correct=false`, ažurira BKT netočnim
+                    # ishodom (0.80 → 0.46) i potroši hint kredit.
+                    #
+                    # Izlazi se PRIJE `persist_attempt` — `attempts` nosi zapis o
+                    # studentovom radu, ne o kvaru sustava. Zapis o smetnji ide u
+                    # `agent_messages_log` kroz `log_message` niže.
+                    if outcome.error_type == ERROR_PLAN_UNAVAILABLE:
+                        await self._refuse_plan_unavailable(
+                            to=str(msg.sender),
+                            user_id=user_id,
+                            task_id=task_id,
+                            correlation_id=correlation_id,
+                        )
+                        return
+
                     attempt_id = persist_attempt(
                         session, user_id, task_id, submitted_query, outcome
                     )
@@ -161,6 +185,50 @@ class EvaluatorAgent(TutorAgent):
                 _log.exception(
                     "EvaluateBehaviour: neuhvaćena greška — CyclicBehaviour se nastavlja"
                 )
+
+        async def _refuse_plan_unavailable(
+            self,
+            to: str,
+            user_id: int,
+            task_id: int,
+            correlation_id: str | None,
+        ) -> None:
+            """Odbij isporučiti `model-updated` za ovaj tok — pokušaj nije nastao.
+
+            🔴 `REFUSE` + ontologija `model-updated`, NE `attempt-result`. Razlog je
+            usmjeravanje: `_flow_template` (koordinator) matcha samo `model-updated`
+            i `recommend-next` za dani `cid`, pa `attempt-result` do toka **ne bi ni
+            stigao** — to je i razlog zašto `task_not_found` danas istekne umjesto
+            da odgovori (v. ERRATA #70). Slanjem pod ontologijom koju tok već sluša
+            router se NE dira; razlikuje ih performativ.
+
+            Izmjereno da predložak ne ograničava performativ, pa `refuse` prolazi,
+            a tuđi `cid` i dalje ne ulazi (`tests/test_plan_unavailable_flow.py`).
+
+            🔴 `log_message` je JEDINO mjesto gdje smetnja ostaje zabilježena —
+            nosi `correlation_id`, pa se broj smetnji mjeri iz `agent_messages_log`,
+            ne iz `attempts`.
+            """
+            payload = {
+                "error": ERROR_PLAN_UNAVAILABLE,
+                "user_id": user_id,
+                "task_id": task_id,
+            }
+            msg = self.agent.build_message(
+                to=to,
+                performative=Performative.REFUSE,
+                ontology=Ontology.MODEL_UPDATED,
+                payload=payload,
+                correlation_id=correlation_id,
+            )
+            await self.send(msg)
+            self.agent.log_message(
+                sender=str(self.agent.jid),
+                receiver=to,
+                performative=Performative.REFUSE,
+                content=payload,
+                correlation_id=correlation_id,
+            )
 
         async def _send_task_not_found(
             self,

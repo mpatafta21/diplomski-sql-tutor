@@ -31,7 +31,7 @@ from agents.hint_logic import (
     primary_concept,
     unlocking_attempt,
 )
-from agents.hint_payload import build_hint_payload
+from agents.hint_payload import UNDERDETERMINED_TYPES, build_hint_payload
 from agents.messages import Ontology, Performative, body_to_payload
 from app.core import config
 from app.db.models import HintRequest, Task
@@ -41,6 +41,12 @@ _log = logging.getLogger(__name__)
 
 #: Razlozi neuspjeha koje ruta prevodi u HTTP kod.
 REASON_UNAVAILABLE = "hint_unavailable"
+#: 🔴 Razlikuje se od `REASON_UNAVAILABLE` jer je TRAJAN, ne prolazan. Nastaje kad
+#: je tip u `UNDERDETERMINED_TYPES` (LLM se namjerno NE zove) a katalog za taj
+#: par (tip, koncept) nema redak — ponavljanje tada ne može uspjeti nikad, pa
+#: sučelje ne smije nuditi „pokušaj ponovno" (razred #71: poruka koja obećava
+#: prolaznost koje nema).
+REASON_NO_CATALOG = "hint_no_catalog"
 REASON_NOT_UNLOCKED = "hint_not_unlocked"
 
 
@@ -79,7 +85,15 @@ def produce_hint(user_id: int, task_id: int) -> dict:
         source = "unavailable"
         hint_id: int | None = None
 
-        if config.USE_LLM_HINTS and config.ANTHROPIC_API_KEY:
+        # 🔴 PRAVILO (ERRATA #72): LLM se poziva samo kad klasifikacija i payload
+        # ZAJEDNO određuju dijagnozu. Za `UNDERDETERMINED_TYPES` model rupu
+        # popunjava iz `task_description` i izgovara je kao činjenicu o
+        # studentovom upitu — izmjereno 2/2 prolaza po tipu. Izbor izvora ide
+        # PRIJE poziva; put dalje je isti onaj koji se već koristi kad LLM
+        # zakaže, pa ni UI ni taksonomija ne dobivaju novo stanje.
+        underdetermined = error_type in UNDERDETERMINED_TYPES
+
+        if config.USE_LLM_HINTS and config.ANTHROPIC_API_KEY and not underdetermined:
             payload = build_hint_payload(
                 task=task,
                 error_type=error_type,
@@ -114,7 +128,10 @@ def produce_hint(user_id: int, task_id: int) -> dict:
         session.commit()
 
         if hint_text is None:
-            return {"task_id": task_id, "error": REASON_UNAVAILABLE}
+            # Trajno vs prolazno: za `UNDERDETERMINED_TYPES` LLM nije ni pokušan,
+            # pa prazan katalog znači da hinta neće biti ni na ponovni klik.
+            razlog = REASON_NO_CATALOG if underdetermined else REASON_UNAVAILABLE
+            return {"task_id": task_id, "error": razlog}
         return {
             "task_id": task_id,
             "source": source,

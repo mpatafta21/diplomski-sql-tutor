@@ -347,7 +347,13 @@ async def test_llm_failure_falls_back_to_catalog(hint_user, llm_down) -> None:
 
 @pytest.mark.asyncio
 async def test_catalog_gap_returns_503_and_is_recorded(hint_user, llm_down) -> None:
-    """🔴 Rupa se MJERI: 503 + redak `unavailable` koji NE troši kredit."""
+    """🔴 Rupa se MJERI: 503 + redak `unavailable` koji NE troši kredit.
+
+    Od ERRATE #72 `timeout` je u `UNDERDETERMINED_TYPES`, pa LLM za njega NIJE ni
+    pokušan — stanje je determinističko i `detail` je `hint_no_catalog`, ne
+    `hint_unavailable`. Razlika nije kozmetička: po njoj sučelje gasi „pokušaj
+    ponovno", jer ponavljanje ovdje ne može uspjeti (razred #71).
+    """
     uid, tid = hint_user["user_id"], hint_user["task_id"]
     # `timeout` namjerno NIJE u katalogu (koncept-neovisan tip greške).
     _attempt(uid, tid, n=1, correct=False, et="timeout")
@@ -358,7 +364,8 @@ async def test_catalog_gap_returns_503_and_is_recorded(hint_user, llm_down) -> N
         me_poslije = await c.post("/hint", json={"task_id": tid}, headers=auth_header(uid))
 
     assert r.status_code == 503
-    assert r.json()["detail"] == "hint_unavailable"
+    assert r.json()["detail"] == "hint_no_catalog"
+    assert len(llm_down) == 0, "UNDERDETERMINED tip ne smije ni pokušati LLM"
 
     rows = _rows(uid)
     assert [x.source for x in rows] == ["unavailable", "unavailable"], (
